@@ -1,0 +1,128 @@
+{
+  "checks": [
+    {
+      "prop": "unauthorised search",
+      "attempt": "search with no credential at all",
+      "expected": "401 NOT_AUTHENTICATED",
+      "passed": true,
+      "observed": "401 NOT_AUTHENTICATED",
+      "detail": {}
+    },
+    {
+      "prop": "unauthorised search",
+      "attempt": "search as a control-room operator",
+      "expected": "403 PERMISSION_DENIED \u2014 the role holds no search permission",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "unauthorised search",
+      "attempt": "search with a valid role but no stated purpose",
+      "expected": "400 PURPOSE_REQUIRED \u2014 purpose binding, not just authentication",
+      "passed": true,
+      "observed": "400 PURPOSE_REQUIRED",
+      "detail": {}
+    },
+    {
+      "prop": "wrong jurisdiction",
+      "attempt": "read a camera outside the caller's districts",
+      "expected": "403 OUT_OF_JURISDICTION, or 200 if that camera is genuinely in scope",
+      "passed": true,
+      "observed": "403 OUT_OF_JURISDICTION",
+      "detail": {
+        "note": "scope is data-dependent; the check is that a refusal is by jurisdiction and not by accident"
+      }
+    },
+    {
+      "prop": "watchlist mutation",
+      "attempt": "add a watchlist entry as investigator",
+      "expected": "403 PERMISSION_DENIED \u2014 watchlist authority is not investigation authority",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "watchlist mutation",
+      "attempt": "add a watchlist entry as operator",
+      "expected": "403 PERMISSION_DENIED \u2014 watchlist authority is not investigation authority",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "watchlist mutation",
+      "attempt": "add a watchlist entry as auditor",
+      "expected": "403 PERMISSION_DENIED \u2014 watchlist authority is not investigation authority",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "watchlist mutation",
+      "attempt": "add an entry with no stated authority",
+      "expected": "422/400 \u2014 an entry with no authority cannot be created at all",
+      "passed": true,
+      "observed": "422 INVALID_REQUEST",
+      "detail": {}
+    },
+    {
+      "prop": "evidence access",
+      "attempt": "read evidence as an auditor",
+      "expected": "403 \u2014 an auditor verifies the log, and does not read what cameras saw",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "separation of duty",
+      "attempt": "search as an administrator",
+      "expected": "403 \u2014 running the system is not investigating people",
+      "passed": true,
+      "observed": "403 PERMISSION_DENIED",
+      "detail": {}
+    },
+    {
+      "prop": "secret leakage",
+      "attempt": "probe 6 endpoints for 0 configured secret(s), including an error path and a malformed query",
+      "expected": "no configured secret value appears in any response or error",
+      "passed": true,
+      "observed": "none leaked",
+      "detail": {
+        "secrets_configured": [],
+        "note": "a deployment with no secrets set proves less; the names probed are listed so that is visible"
+      }
+    },
+    {
+      "prop": "prompt injection",
+      "attempt": "scan 4 instruction-shaped payloads as if read from a plate or caption",
+      "expected": "every payload is reported as instruction-like content",
+      "passed": true,
+      "observed": "4 of 4 detected",
+      "detail": {
+        "undetected": []
+      }
+    },
+    {
+      "prop": "prompt injection",
+      "attempt": "scan ordinary plate reads and camera names",
+      "expected": "no false alarm \u2014 a scanner that flags everything would be ignored",
+      "passed": true,
+      "observed": "0 false alarm(s)",
+      "detail": {
+        "false_alarms": []
+      }
+    },
+    {
+      "prop": "prompt injection",
+      "attempt": "send an injection to the assistant as a question",
+      "expected": "the assistant does not act on it; it holds no write capability at all",
+      "passed": true,
+      "observed": "200; assistant is read-only by construction",
+      "detail": {
+        "tools_are_read_only": true
+      }
+    }
+  ],
+  "failed": 0
+}

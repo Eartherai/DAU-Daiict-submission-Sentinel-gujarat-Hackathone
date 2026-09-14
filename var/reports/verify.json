@@ -1,0 +1,44 @@
+{
+  "full": false,
+  "gates": [
+    {
+      "name": "lint (ruff)",
+      "status": "PASS",
+      "required": true,
+      "seconds": 0.021039708983153105,
+      "detail": "All checks passed!"
+    },
+    {
+      "name": "unit tests",
+      "status": "PASS",
+      "required": true,
+      "seconds": 1.7210299999569543,
+      "detail": "124 passed in 1.49s"
+    },
+    {
+      "name": "secret scan",
+      "status": "PASS",
+      "required": true,
+      "seconds": 0.11792049999348819,
+      "detail": "SECRET SCAN: PASS (91 tracked files + full history)"
+    },
+    {
+      "name": "dependency audit",
+      "status": "PASS",
+      "required": false,
+      "seconds": 0.2989839580259286,
+      "detail": "saakshya distribution marked as editable"
+    },
+    {
+      "name": "licence policy",
+      "status": "PASS",
+      "required": true,
+      "seconds": 0.05541862500831485,
+      "detail": "LICENCE CHECK: PASS"
+    }
+  ],
+  "required_failures": [],
+  "advisory_failures": [],
+  "skipped": [],
+  "verdict": "PASS"
+}

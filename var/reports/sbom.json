@@ -1,0 +1,1215 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "saakshya"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "anyio",
+      "version": "4.14.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ast_serialize",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "av",
+      "version": "18.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "boolean.py",
+      "version": "5.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-2-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "CacheControl",
+      "version": "0.14.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "certifi",
+      "version": "2026.7.22",
+      "licenses": [
+        {
+          "license": {
+            "name": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "charset-normalizer",
+      "version": "3.5.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "click",
+      "version": "8.5.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cyclonedx-python-lib",
+      "version": "11.12.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "PSFL"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fast-alpr",
+      "version": "0.4.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fast-plate-ocr",
+      "version": "1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fastapi",
+      "version": "0.141.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "filelock",
+      "version": "3.32.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "flatbuffers",
+      "version": "25.12.19",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache 2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fsspec",
+      "version": "2026.7.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "greenlet",
+      "version": "3.5.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT AND PSF-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "h11",
+      "version": "0.16.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "hf-xet",
+      "version": "1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "httpcore",
+      "version": "1.0.9",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "httptools",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "httpx",
+      "version": "0.28.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "huggingface_hub",
+      "version": "1.29.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "idna",
+      "version": "3.19",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "imageio-ffmpeg",
+      "version": "0.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-2-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "librt",
+      "version": "0.15.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "license-expression",
+      "version": "30.4.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "MarkupSafe",
+      "version": "3.0.3",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mdurl",
+      "version": "0.1.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mpmath",
+      "version": "1.3.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "msgpack",
+      "version": "1.2.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mypy",
+      "version": "2.3.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mypy_extensions",
+      "version": "1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "networkx",
+      "version": "3.6.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "2.5.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "onnxruntime",
+      "version": "1.29.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "open-image-models",
+      "version": "0.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "opencv-python-headless",
+      "version": "5.0.0.93",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache 2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "packageurl-python",
+      "version": "0.17.6",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "packaging",
+      "version": "26.3",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 OR BSD-2-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pathspec",
+      "version": "1.1.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "Mozilla Public License 2.0 (MPL 2.0)"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pillow",
+      "version": "12.3.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT-CMU"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pip",
+      "version": "26.2.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pip-api",
+      "version": "0.0.34",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pip-requirements-parser",
+      "version": "32.0.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pip_audit",
+      "version": "2.10.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "platformdirs",
+      "version": "4.11.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "playwright",
+      "version": "1.62.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pluggy",
+      "version": "1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "protobuf",
+      "version": "7.36.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "3-Clause BSD License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "py-serializable",
+      "version": "2.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.13.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pydantic_core",
+      "version": "2.46.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pyee",
+      "version": "13.0.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "Pygments",
+      "version": "2.21.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-2-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pyparsing",
+      "version": "3.3.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pytest",
+      "version": "9.1.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pytest-asyncio",
+      "version": "1.4.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "python-dotenv",
+      "version": "1.2.3",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "regex",
+      "version": "2026.8.31",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 AND CNRI-Python"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "requests",
+      "version": "2.34.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rich",
+      "version": "15.0.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ruff",
+      "version": "0.16.5",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "safetensors",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "setuptools",
+      "version": "84.0.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "shellingham",
+      "version": "1.5.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "ISC License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sortedcontainers",
+      "version": "2.4.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache 2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "SQLAlchemy",
+      "version": "2.0.52",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "starlette",
+      "version": "1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sympy",
+      "version": "1.14.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tokenizers",
+      "version": "0.23.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache Software License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tomli",
+      "version": "2.4.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tomli_w",
+      "version": "1.2.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "torch",
+      "version": "2.13.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND BSD-2-Clause AND BSD-3-Clause AND BSL-1.0 AND MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "torchvision",
+      "version": "0.28.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tqdm",
+      "version": "4.70.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MPL-2.0 AND MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "transformers",
+      "version": "5.16.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache 2.0 License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "typer",
+      "version": "0.27.2",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "PSF-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "urllib3",
+      "version": "2.7.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "uvicorn",
+      "version": "0.52.4",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "uvloop",
+      "version": "0.22.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT License"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "watchfiles",
+      "version": "1.2.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "websockets",
+      "version": "17.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "BSD-3-Clause"
+          }
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "FFmpeg 7.1 binary (bundled by imageio-ffmpeg)",
+      "version": "n/a",
+      "licenses": [
+        {
+          "license": {
+            "name": "GPL-2.0-or-later (built --enable-gpl with libx264/libx265)"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "shipped",
+          "value": "False"
+        },
+        {
+          "name": "use",
+          "value": "External process. Corpus rendering and test-stream publishing."
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "MediaMTX 1.20.1 binary",
+      "version": "n/a",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "shipped",
+          "value": "False"
+        },
+        {
+          "name": "use",
+          "value": "Local sandbox replica and own-feed demo server."
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "yolo-v9-t-640 plate detector weights (open-image-models)",
+      "version": "n/a",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "shipped",
+          "value": "True"
+        },
+        {
+          "name": "use",
+          "value": "Plate detection. ACTIVE."
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "cct-s-v2-global OCR weights (fast-plate-ocr)",
+      "version": "n/a",
+      "licenses": [
+        {
+          "license": {
+            "name": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "shipped",
+          "value": "True"
+        },
+        {
+          "name": "use",
+          "value": "Plate OCR. ACTIVE."
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "name": "Model weights fetched from Hugging Face at runtime",
+      "version": "n/a",
+      "licenses": [
+        {
+          "license": {
+            "name": "Per-model; audited in docs/MODEL_BENCHMARK.md"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "shipped",
+          "value": "False"
+        },
+        {
+          "name": "use",
+          "value": "Registry-gated. ModelRouter refuses non-permissive licences."
+        }
+      ]
+    }
+  ]
+}

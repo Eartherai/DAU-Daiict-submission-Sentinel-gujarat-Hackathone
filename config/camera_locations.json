@@ -1,0 +1,305 @@
+{
+  "_comment": [
+    "Approximate camera locations, derived from the place names the cameras",
+    "themselves carry \u2014 the organiser's grid labels and the text burned into",
+    "each frame. This file exists because the authoritative catalogue",
+    "(cameras.json) requires a signed-in session we do not hold, and without",
+    "coordinates the map cannot be populated at all.",
+    "",
+    "EVERY ENTRY IS APPROXIMATE AND SAYS SO. `precision` is the honest bound:",
+    "  LANDMARK  ~150 m   a specific named junction, bridge or building",
+    "  LOCALITY  ~1.5 km  a named neighbourhood or village",
+    "  CITY      ~6 km    only the town is known",
+    "These are NOT surveyed camera positions. They place a camera near the",
+    "right junction so an investigator can reason about corridors; they must",
+    "never be used as evidence of where a vehicle was, and the interface",
+    "labels every one of them as derived rather than authoritative.",
+    "",
+    "When the catalogue becomes reachable, its coordinates supersede all of",
+    "this \u2014 `make government-import` overwrites them and the provenance",
+    "changes from DERIVED_FROM_NAME to CATALOGUE."
+  ],
+  "basis": "DERIVED_FROM_NAME",
+  "source": "camera display names and burned-in frame overlays on the live grid",
+  "cameras": [
+    {
+      "id": "cam01",
+      "name": "Chiman bhai Bridge",
+      "site": "Chimanbhai Patel Bridge, 132ft Ring Road",
+      "district": "Ahmedabad",
+      "lat": 23.0296,
+      "lon": 72.5219,
+      "precision": "LANDMARK",
+      "overlay": "Chiman bhai Bridge CSITMS-32_PTZ2"
+    },
+    {
+      "id": "cam02",
+      "name": "Janpath",
+      "site": "Janpath Cross Road",
+      "district": "Ahmedabad",
+      "lat": 23.0261,
+      "lon": 72.5106,
+      "precision": "LANDMARK",
+      "overlay": "Janpath T CSITMS-10_PTZ2"
+    },
+    {
+      "id": "cam03",
+      "name": "O.N.G.C. Office",
+      "site": "ONGC Office, Chandkheda",
+      "district": "Ahmedabad",
+      "lat": 23.1063,
+      "lon": 72.5854,
+      "precision": "LOCALITY",
+      "overlay": "O.N.G.C. Office BS-103_B1"
+    },
+    {
+      "id": "cam04",
+      "name": "Paldi Circle",
+      "site": "Paldi Junction, near V.S. Hospital",
+      "district": "Ahmedabad",
+      "lat": 23.0169,
+      "lon": 72.5668,
+      "precision": "LANDMARK",
+      "overlay": "PALDI JUNCTION / V.S. Hospital visible in frame"
+    },
+    {
+      "id": "cam05",
+      "name": "Visat teen Rasta",
+      "site": "Visat Three Roads, Sabarmati",
+      "district": "Ahmedabad",
+      "lat": 23.1046,
+      "lon": 72.5823,
+      "precision": "LANDMARK",
+      "overlay": "Visat teen Rasta CSITMS-31"
+    },
+    {
+      "id": "cam06",
+      "name": "Timbavadi Gate",
+      "site": "Timbawadi Gate, Junagadh",
+      "district": "Junagadh",
+      "lat": 21.5108,
+      "lon": 70.4598,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam07",
+      "name": "Hero Showroom, Gir Somnath",
+      "site": "Hero showroom",
+      "district": "Gir Somnath",
+      "lat": 20.9137,
+      "lon": 70.3673,
+      "precision": "CITY"
+    },
+    {
+      "id": "cam08",
+      "name": "Majewadi Gate",
+      "site": "Majewadi Gate, Junagadh",
+      "district": "Junagadh",
+      "lat": 21.5183,
+      "lon": 70.4527,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam09",
+      "name": "New Bypass Circle 2",
+      "site": "New bypass, near circle, Junagadh",
+      "district": "Junagadh",
+      "lat": 21.5301,
+      "lon": 70.4402,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam10",
+      "name": "Char Chowk Road 2",
+      "site": "Char Chowk Road, Junagadh",
+      "district": "Junagadh",
+      "lat": 21.5224,
+      "lon": 70.4581,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam11",
+      "name": "Dolatpara",
+      "site": "Dolatpara, Junagadh",
+      "district": "Junagadh",
+      "lat": 21.4893,
+      "lon": 70.4746,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam12",
+      "name": "Tri Mandir Adalaj Tollnaka",
+      "site": "Adalaj toll plaza, near Trimandir",
+      "district": "Gandhinagar",
+      "lat": 23.1655,
+      "lon": 72.5798,
+      "precision": "LANDMARK"
+    },
+    {
+      "id": "cam13",
+      "name": "CN Vidhyalaya",
+      "site": "C.N. Vidyalaya, Ambawadi",
+      "district": "Ahmedabad",
+      "lat": 23.0234,
+      "lon": 72.5541,
+      "precision": "LANDMARK",
+      "overlay": "CN VIDHYALAYA P2 RLVD"
+    },
+    {
+      "id": "cam14",
+      "name": "Delight RLVD",
+      "site": "Delight Circle",
+      "district": "Ahmedabad",
+      "lat": 23.0311,
+      "lon": 72.562,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam15",
+      "name": "Suvidha Park",
+      "site": "Suvidha Park, Paldi",
+      "district": "Ahmedabad",
+      "lat": 23.0106,
+      "lon": 72.5563,
+      "precision": "LOCALITY"
+    },
+    {
+      "id": "cam16",
+      "name": "Visat P2",
+      "site": "Visat Circle",
+      "district": "Ahmedabad",
+      "lat": 23.1052,
+      "lon": 72.5837,
+      "precision": "LANDMARK"
+    },
+    {
+      "id": "cam17",
+      "name": "Rajkot Bus Port",
+      "site": "Rajkot bus port",
+      "district": "Rajkot",
+      "lat": 22.2952,
+      "lon": 70.7983,
+      "precision": "LOCALITY",
+      "department": "GSRTC",
+      "department_evidence": "name is 'Rajkot Bus Port' \u2014 a state road transport bus station"
+    },
+    {
+      "id": "cam18",
+      "name": "Rajkot CCTV",
+      "site": "Rajkot city",
+      "district": "Rajkot",
+      "lat": 22.3039,
+      "lon": 70.8022,
+      "precision": "CITY"
+    },
+    {
+      "id": "cam19",
+      "name": "Khaparia Gram Panchayat",
+      "site": "Khaparia, Taluka Gandevi",
+      "district": "Navsari",
+      "lat": 20.8203,
+      "lon": 72.9718,
+      "precision": "LOCALITY",
+      "department": "Panchayat",
+      "department_evidence": "name is 'Khaparia Gram Panchayat'"
+    },
+    {
+      "id": "cam20",
+      "name": "Mohanpura",
+      "site": "Mohanpura",
+      "district": "Gujarat (town not confirmed)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "several places in Gujarat carry this name; no coordinate is assigned rather than guessing at the wrong one"
+    },
+    {
+      "id": "cam21",
+      "name": "Dethali Char Rasta",
+      "site": "Dethali four-way junction",
+      "district": "Gujarat (town not confirmed)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "overlay": "Dethali Char Rasta_FIX1",
+      "note": "the junction name is legible but the town is not; left unlocated"
+    },
+    {
+      "id": "cam22",
+      "name": "Merwada Tran Rasta",
+      "site": "Merwada three-way junction",
+      "district": "Gujarat (town not confirmed)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "overlay": "MERWADA_TRAN_RASTA-FIX-1"
+    },
+    {
+      "id": "cam23",
+      "name": "cam23",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "no name or overlay observed"
+    },
+    {
+      "id": "cam24",
+      "name": "cam24",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "no name or overlay observed"
+    },
+    {
+      "id": "cam25",
+      "name": "cam25",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "no name or overlay observed",
+      "department": "Panchayat",
+      "department_evidence": "signage in the camera's own view reads 'GRAM PANCHAYAT'"
+    },
+    {
+      "id": "cam26",
+      "name": "CP IP Cam",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "overlay reads only 'CP IP Cam' \u2014 a device label, not a place"
+    },
+    {
+      "id": "cam27",
+      "name": "cam27 (IPC)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "overlay reads only 'IPC'"
+    },
+    {
+      "id": "cam28",
+      "name": "cam28 (IPC)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "overlay reads only 'IPC'"
+    },
+    {
+      "id": "cam29",
+      "name": "cam29 (IPC)",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "overlay reads only 'IPC'"
+    },
+    {
+      "id": "cam30",
+      "name": "cam30",
+      "lat": null,
+      "lon": null,
+      "precision": "UNKNOWN",
+      "note": "no name or overlay observed"
+    }
+  ],
+  "_department_note": "Department is recorded only where the camera's own name or signage states it. The dataset spans five departments (Health, Police, GSRTC, Panchayat, Municipal Corporation) but the mapping is not published, and a traffic junction could belong to either Police or Municipal Corporation. Three of thirty are evident; the rest are left unknown rather than guessed. The catalogue endpoint would settle all of them and is not reachable."
+}

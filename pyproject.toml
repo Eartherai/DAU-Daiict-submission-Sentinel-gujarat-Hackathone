@@ -1,0 +1,72 @@
+[project]
+name = "saakshya"
+version = "0.1.0"
+description = "Federated CCTV Intelligence & Evidence Fabric — Gujarat Police Innovation Challenge 2026"
+requires-python = ">=3.12"
+dependencies = [
+  "av>=13.0.0",              # BSD-3 wrapper; real PTS access. Chosen over OpenCV VideoCapture.
+  "numpy>=2.0",              # BSD-3
+  "fastapi>=0.115",          # MIT
+  "uvicorn[standard]>=0.32", # BSD-3
+  "pydantic>=2.9",           # MIT
+  "httpx>=0.27",             # BSD-3
+  "sqlalchemy>=2.0",         # MIT
+  "imageio-ffmpeg>=0.5",     # BSD-2 packaging of a static FFmpeg binary
+  "pillow>=11.0",            # HPND (permissive) — scene synthesis + evidence thumbnails
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13"]
+# Recording the walkthrough film drives a real browser. Deliberately not a
+# runtime dependency: the product must install and run on a machine that has no
+# browser at all, and nothing in the platform imports this.
+# Recording and narrating the walkthrough film. Deliberately NOT runtime
+# dependencies: the platform installs and runs on a machine with no browser and
+# no bundled ffmpeg, and nothing in the product imports either. imageio-ffmpeg
+# supplies a self-contained ffmpeg for muxing the offline-TTS voiceover.
+demo = ["playwright>=1.40", "imageio-ffmpeg>=0.5"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/saakshya"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# src/ is held to the default strict set. Tooling under tools/ and tests/ is
+# deliberately defensive — a probe or a chaos injector that raises is a worse
+# outcome than one that swallows and continues, so blind catches are intended
+# there and are individually commented.
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# E402: these scripts must extend sys.path before importing saakshya.
+"tools/**" = ["BLE001", "S110", "S112", "SIM102", "E402", "RUF059"]
+"tests/**" = ["BLE001", "S110", "S112", "SIM102", "E402"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+# Without this, mypy reads `Field(0, ...)` as a required argument and reports a
+# dozen "missing named argument" errors against models where every field has a
+# default. A type check that is mostly false positives is a type check nobody
+# reads, so the plugin is enabled rather than the errors tolerated.
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# numpy's stubs return `signedinteger[...]` where the code declares `int`, and
+# `list` is invariant where a `list[tuple[int, ...]]` is returned as
+# `list[tuple[float, ...]]`. Both are stub artefacts, not defects: the values
+# are numerically correct and the tests cover them.
+module = ["saakshya.analytics.motion", "saakshya.analytics.tracker"]
+disable_error_code = ["assignment", "return-value"]

@@ -1,0 +1,145 @@
+{
+  "plate": "GJ38BH5815",
+  "case_id": "EVAL-GJ38BH5815/2026",
+  "store": "sqlite:////Users/earther/Desktop/Gujarat CCTV/saakshya/var/live.db",
+  "generated_at": "2026-09-03T01:55:06.271746+00:00",
+  "elapsed_s": 0.017,
+  "stages": [
+    {
+      "name": "estate",
+      "ok": true,
+      "summary": "30 cameras onboarded, 19 with a position, 13 streaming at last ingest",
+      "ms": 0.0,
+      "detail": {
+        "cameras": 30,
+        "located": 19,
+        "streaming": 13,
+        "unlocated": [
+          "cam20",
+          "cam21",
+          "cam22",
+          "cam23",
+          "cam24",
+          "cam25",
+          "cam26",
+          "cam27",
+          "cam28",
+          "cam29",
+          "cam30"
+        ]
+      }
+    },
+    {
+      "name": "capability",
+      "ok": true,
+      "summary": "ANPR grades: 25 UNKNOWN, 5 UNSUITABLE",
+      "ms": 0.0,
+      "detail": {
+        "anpr": {
+          "UNSUITABLE": 5,
+          "UNKNOWN": 25
+        },
+        "graded_cameras": 30
+      }
+    },
+    {
+      "name": "case",
+      "ok": true,
+      "summary": "EVAL-GJ38BH5815/2026 already open; every search below is recorded against it",
+      "ms": 0.0,
+      "detail": {}
+    },
+    {
+      "name": "watchlist",
+      "ok": true,
+      "summary": "1 active entry for GJ38BH5815, authority 'Gujarat Police Innovation Challenge evaluation panel' \u2014 an entry with no stated authority cannot be created",
+      "ms": 0.0,
+      "detail": {
+        "entries": 1
+      }
+    },
+    {
+      "name": "search",
+      "ok": true,
+      "summary": "1 observation(s) of GJ38BH5815",
+      "ms": 3.449040999839781,
+      "detail": {
+        "candidates": 1,
+        "cameras_considered": [
+          "cam21"
+        ],
+        "prune_reason": "indexed plate lookup; no graph prune required"
+      }
+    },
+    {
+      "name": "timebase",
+      "ok": true,
+      "summary": "seen on cam21 only; a single sighting has no interval to reason about, so no shared timebase is needed or claimed",
+      "ms": 0.0,
+      "detail": {
+        "clusters": {},
+        "unclustered": [],
+        "unusable_timing": [
+          {
+            "camera_id": "cam21",
+            "reason": "UNRELIABLE"
+          }
+        ],
+        "note": "Cross-camera reasoning is sound within a cluster. Across clusters, or for a camera with no established timebase, any route carries a timebase warning \u2014 the system does not invent a shared clock."
+      }
+    },
+    {
+      "name": "trajectory",
+      "ok": true,
+      "summary": "1 hypothesis; best is CONFIRMED at score 0.767 across 1 camera(s). Timebase RESTRICTED",
+      "ms": 1.4609160025429446,
+      "detail": {
+        "hypotheses": 1,
+        "timebase": "RESTRICTED",
+        "timebase_message": "A single camera. There is no interval between sightings to reason about, so no shared timebase is needed or claimed. This camera's own timing has not been established, so even its position on a timeline is provisional."
+      }
+    },
+    {
+      "name": "alert",
+      "ok": true,
+      "summary": "1 alert(s) raised; 0 suppressed as too weak to act on, 1 deduplicated",
+      "ms": 0.0,
+      "detail": {
+        "raised": 1,
+        "suppressed_low_confidence": 0,
+        "deduplicated_sightings": 1,
+        "open": 1
+      }
+    },
+    {
+      "name": "evidence",
+      "ok": true,
+      "summary": "1 record(s) sealed, 1 of 1 verify individually; hash chain VERIFIES; metadata-only",
+      "ms": 0.0,
+      "detail": {
+        "records": [
+          {
+            "evidence_id": "EZ01M1FVWFJ3Y7GPXKRJEHMHD71Q",
+            "verified": true,
+            "media": "metadata-only"
+          }
+        ],
+        "chain_verified": true
+      }
+    },
+    {
+      "name": "audit",
+      "ok": true,
+      "summary": "13 action(s) recorded against EVAL-GJ38BH5815/2026: case_open, search_plate, trajectory_build \u2014 each with actor, role, purpose and result count",
+      "ms": 0.0,
+      "detail": {
+        "entries_for_case": 13,
+        "actions": [
+          "case_open",
+          "search_plate",
+          "trajectory_build"
+        ]
+      }
+    }
+  ]
+}

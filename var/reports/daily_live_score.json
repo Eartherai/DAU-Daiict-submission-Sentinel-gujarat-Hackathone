@@ -1,0 +1,99 @@
+{
+  "generated_at": "2026-09-06T20:54:45+00:00",
+  "label": "MEASURED",
+  "observations": 684321,
+  "persons": 176973,
+  "person_long_stay": 41683,
+  "person_long_stay_cameras": 28,
+  "person_dwell_s": 12.0,
+  "by_object_type": {
+    "bicycle": 7261,
+    "bus": 32061,
+    "car": 326501,
+    "motorcycle": 8538,
+    "person": 176980,
+    "truck": 126264,
+    "truck_bus": 2910,
+    "unknown": 1192,
+    "van": 2606
+  },
+  "distinct_plates": 66,
+  "cameras_with_plate": 8,
+  "plate_confirmed": 72,
+  "plate_leads": 41,
+  "raw_ocr_attempts": 3278,
+  "watchlist": 13,
+  "alerts": 1,
+  "open_alerts": [
+    {
+      "plate": "GJ38BH5815",
+      "camera_id": "cam21",
+      "category": "stolen_vehicle",
+      "priority": "HIGH",
+      "status": "OPEN"
+    }
+  ],
+  "cross_camera_plates": 0,
+  "cross_camera": [],
+  "lookalike_pairs": 1,
+  "lookalikes": [
+    "GJ32K5587/GJ3ZK5587"
+  ],
+  "top_marks": [
+    {
+      "plate": "GJ32AG0028",
+      "hits": 38,
+      "cameras": 1
+    },
+    {
+      "plate": "AR01R5151",
+      "hits": 3,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ1VV0119",
+      "hits": 2,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ1Z9966",
+      "hits": 2,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ32B3783",
+      "hits": 2,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ32K8758",
+      "hits": 2,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ3ZK5587",
+      "hits": 2,
+      "cameras": 1
+    },
+    {
+      "plate": "GJ5K0315",
+      "hits": 2,
+      "cameras": 1
+    }
+  ],
+  "anpr_grades": {
+    "UNSUITABLE": 28,
+    "UNKNOWN": 2
+  },
+  "health": {
+    "STREAMING": 30
+  },
+  "ingest_log": {
+    "streaming": 30,
+    "workers": 30,
+    "frames": 1936719,
+    "observations_written": 170524,
+    "line": "streaming=30/30 frames=1,936,719 observations=170524 rss=4486MB"
+  },
+  "action": null
+}

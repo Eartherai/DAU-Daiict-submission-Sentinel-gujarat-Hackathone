@@ -1,0 +1,98 @@
+{
+  "database": "sqlite:///var/demo.db",
+  "generated_at": "2026-09-03T14:49:43+00:00",
+  "row_counts": {
+    "cameras": 6,
+    "observations": 140,
+    "observations_with_plate": 109,
+    "observations_with_embedding": 0,
+    "raw_ocr_read_records": 0,
+    "transitions": 30,
+    "watchlist": 2,
+    "alerts": 2,
+    "evidence": 4,
+    "audit_entries": 2451
+  },
+  "checks": [
+    {
+      "query": "plate search (exact, time-bounded)",
+      "plan": [
+        "SEARCH observations USING INDEX ix_obs_plate_time (plate=? AND t_norm_us>? AND t_norm_us<?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT observations.observation_id, observations.dedup_key, observations.camera_id, observations.department, observations.district, observations.track_id, observations.segment_id, observations.pts_s, observations.t_norm_us, observations.t_ingest_us, observations.lat, observations.lon, observations.object_type, observations.bbox_x1, observations.bbox_y1, observations.bbox_x2, observations.bbox_y2, "
+    },
+    {
+      "query": "camera timeline",
+      "plan": [
+        "SEARCH observations USING INDEX ix_obs_camera_time (camera_id=? AND t_norm_us>?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT observations.observation_id, observations.dedup_key, observations.camera_id, observations.department, observations.district, observations.track_id, observations.segment_id, observations.pts_s, observations.t_norm_us, observations.t_ingest_us, observations.lat, observations.lon, observations.object_type, observations.bbox_x1, observations.bbox_y1, observations.bbox_x2, observations.bbox_y2, "
+    },
+    {
+      "query": "district-scoped time window",
+      "plan": [
+        "SEARCH observations USING INDEX ix_obs_district_time (district=? AND t_norm_us>?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT observations.observation_id, observations.dedup_key, observations.camera_id, observations.department, observations.district, observations.track_id, observations.segment_id, observations.pts_s, observations.t_norm_us, observations.t_ingest_us, observations.lat, observations.lon, observations.object_type, observations.bbox_x1, observations.bbox_y1, observations.bbox_x2, observations.bbox_y2, "
+    },
+    {
+      "query": "trajectory candidate fetch (multi-camera)",
+      "plan": [
+        "SEARCH observations USING INDEX ix_obs_plate_time (plate=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT observations.observation_id, observations.dedup_key, observations.camera_id, observations.department, observations.district, observations.track_id, observations.segment_id, observations.pts_s, observations.t_norm_us, observations.t_ingest_us, observations.lat, observations.lon, observations.object_type, observations.bbox_x1, observations.bbox_y1, observations.bbox_x2, observations.bbox_y2, "
+    },
+    {
+      "query": "camera graph edges",
+      "plan": [
+        "SEARCH camera_transitions USING INDEX ix_trans_from (from_camera=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT camera_transitions.from_camera, camera_transitions.to_camera, camera_transitions.support_count, camera_transitions.travel_p05_s, camera_transitions.travel_p50_s, camera_transitions.travel_p95_s, camera_transitions.travel_mean_s, camera_transitions.travel_std_s, camera_transitions.gis_distance_m, camera_transitions.confidence, camera_transitions.source, camera_transitions.updated_at_us FROM "
+    },
+    {
+      "query": "watchlist lookup by plate",
+      "plan": [
+        "SEARCH watchlist USING INDEX ix_watchlist_plate (plate=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT watchlist.watchlist_id, watchlist.entity_type, watchlist.plate, watchlist.attributes, watchlist.category, watchlist.authority, watchlist.reason, watchlist.priority, watchlist.jurisdiction, watchlist.valid_from_us, watchlist.valid_until_us, watchlist.version, watchlist.status, watchlist.source_system, watchlist.created_by, watchlist.approved_by, watchlist.revoked_by, watchlist.revoked_reason"
+    },
+    {
+      "query": "open alerts, newest first",
+      "plan": [
+        "SEARCH alerts USING INDEX ix_alerts_status_time (status=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT alerts.alert_id, alerts.watchlist_id, alerts.observation_id, alerts.camera_id, alerts.plate, alerts.category, alerts.priority, alerts.confidence, alerts.source_quality, alerts.match_reason, alerts.recommended_action, alerts.status, alerts.acknowledged_by, alerts.acknowledged_at_us, alerts.cleared_reason, alerts.t_norm_us, alerts.created_at_us FROM alerts WHERE alerts.status = 'OPEN' ORDER B"
+    },
+    {
+      "query": "camera viewport (bbox)",
+      "plan": [
+        "SEARCH cameras USING INDEX ix_cameras_geo (lat>? AND lat<?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT cameras.camera_id, cameras.name, cameras.department, cameras.district, cameras.site, cameras.lat, cameras.lon, cameras.location_basis, cameras.location_precision, cameras.location_note, cameras.vendor, cameras.model_name, cameras.camera_type, cameras.vms, cameras.rtsp_url, cameras.hls_url, cameras.whep_url, cameras.codec, cameras.width, cameras.height, cameras.declared_fps, cameras.storage_"
+    },
+    {
+      "query": "audit trail for a case",
+      "plan": [
+        "SEARCH audit_log USING INDEX ix_audit_case (case_id=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT audit_log.id, audit_log.actor, audit_log.role, audit_log.action, audit_log.case_id, audit_log.purpose, audit_log.target, audit_log.result_count, audit_log.jurisdiction, audit_log.prev_hash, audit_log.entry_hash, audit_log.t_us FROM audit_log WHERE audit_log.case_id = 'FIR-214/2026' ORDER BY audit_log.id"
+    },
+    {
+      "query": "edge queue drain (pending by sequence)",
+      "plan": [
+        "SEARCH edge_queue USING INDEX sqlite_autoindex_edge_queue_2 (node_id=?)"
+      ],
+      "concerning": [],
+      "sql": "SELECT edge_queue.event_id, edge_queue.node_id, edge_queue.sequence, edge_queue.event_type, edge_queue.camera_id, edge_queue.pts_s, edge_queue.dedup_key, edge_queue.payload, edge_queue.created_at_us, edge_queue.state, edge_queue.attempts, edge_queue.last_error, edge_queue.acked_at_us FROM edge_queue WHERE edge_queue.node_id = 'node-01' AND edge_queue.state != 'ACKED' ORDER BY edge_queue.sequence L"
+    }
+  ]
+}

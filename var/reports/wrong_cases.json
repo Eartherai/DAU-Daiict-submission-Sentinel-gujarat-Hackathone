@@ -1,0 +1,109 @@
+{
+  "cases": [
+    {
+      "name": "a valid mark that was never seen",
+      "expectation": "returns nothing, and says nothing about where the vehicle was",
+      "passed": true,
+      "observed": "0 observation(s)",
+      "detail": {}
+    },
+    {
+      "name": "a malformed mark",
+      "expectation": "returns nothing rather than erroring",
+      "passed": true,
+      "observed": "0 observation(s)",
+      "detail": {}
+    },
+    {
+      "name": "an expired watchlist entry",
+      "expectation": "does not match; an entry past its validity is not authority to act",
+      "passed": true,
+      "observed": "0 match(es)",
+      "detail": {
+        "watchlist_id": "WL01M1H84XFVRHNK427W85NS05BN"
+      }
+    },
+    {
+      "name": "a revoked watchlist entry",
+      "expectation": "does not match after revocation",
+      "passed": true,
+      "observed": "0 match(es)",
+      "detail": {
+        "watchlist_id": "WL01M1H84XFYV7DMHYKG131TFY64"
+      }
+    },
+    {
+      "name": "a plate read too poor to act on",
+      "expectation": "raises no alert, and counts the suppression rather than hiding it",
+      "passed": true,
+      "observed": "0 alert(s), 3 suppressed",
+      "detail": {
+        "watchlist_id": "WL01M1H84XFZ49VQWZ3R0VEWE7N6"
+      }
+    },
+    {
+      "name": "a camera graded able to read plates",
+      "expectation": "is only ever GOOD on measured samples; UNSUITABLE and UNKNOWN are used rather than a default of good",
+      "passed": true,
+      "observed": "0 GOOD, 5 UNSUITABLE, 25 UNKNOWN",
+      "detail": {
+        "unsuitable": [
+          "cam01",
+          "cam02",
+          "cam04",
+          "cam05",
+          "cam13"
+        ],
+        "unevidenced_good": []
+      }
+    },
+    {
+      "name": "a camera never exercised",
+      "expectation": "is absent from the grading, not graded good by default",
+      "passed": true,
+      "observed": "0 camera(s) never graded",
+      "detail": {}
+    },
+    {
+      "name": "two cameras with no shared timebase",
+      "expectation": "refuses or restricts correlation rather than inventing a clock",
+      "passed": true,
+      "observed": "RESTRICTED: no shared timebase has been established for this pair. Observations are shown, and any rou",
+      "detail": {
+        "pair": [
+          "cam01",
+          "cam15"
+        ]
+      }
+    },
+    {
+      "name": "two cameras in one measured cluster",
+      "expectation": "is allowed \u2014 the refusal above must not be a blanket refusal",
+      "passed": true,
+      "observed": "ALLOWED: both cameras are in time cluster GRID-13JUN-2137 (measured)",
+      "detail": {
+        "pair": [
+          "cam01",
+          "cam02"
+        ]
+      }
+    },
+    {
+      "name": "a camera whose own timing is unreliable",
+      "expectation": "cannot be placed on any timeline, cluster or no",
+      "passed": true,
+      "observed": "REFUSED for cam21",
+      "detail": {
+        "camera": "cam21"
+      }
+    },
+    {
+      "name": "a camera never observed",
+      "expectation": "is reported as unknown, never as healthy",
+      "passed": true,
+      "observed": "17 never ingested, 13 with recorded health",
+      "detail": {}
+    }
+  ],
+  "failed": 0
+}

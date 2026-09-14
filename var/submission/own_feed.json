@@ -1,0 +1,125 @@
+{
+  "generated_at": "2026-09-03T07:05:54.491068+00:00",
+  "source": "LOCAL SYNTHETIC CORPUS (var/media) \u2014 not government data",
+  "seconds_per_camera": 24.0,
+  "video_fps": 12,
+  "cameras": [
+    {
+      "camera_id": "C-014",
+      "name": "Naroda Circle Junction",
+      "district": "Ahmedabad",
+      "department": "Home (Traffic)",
+      "opened": true,
+      "frames_drawn": 181,
+      "vehicles_tracked": 7,
+      "marks_read": [
+        "GJ01CD5678",
+        "GJ05AB1234",
+        "GJ35BV6925"
+      ],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 7.54,
+      "stream_span_s": 24.0
+    },
+    {
+      "camera_id": "C-021",
+      "name": "GSRTC Depot Gate 2",
+      "district": "Ahmedabad",
+      "department": "GSRTC",
+      "opened": true,
+      "frames_drawn": 190,
+      "vehicles_tracked": 6,
+      "marks_read": [
+        "GJ01CD5678",
+        "GJ15FD7408",
+        "GJ18JX7786",
+        "GJ35BV6925"
+      ],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 7.94,
+      "stream_span_s": 23.9
+    },
+    {
+      "camera_id": "C-033",
+      "name": "Dehgam Panchayat Office",
+      "district": "Gandhinagar",
+      "department": "Panchayat",
+      "opened": true,
+      "frames_drawn": 241,
+      "vehicles_tracked": 5,
+      "marks_read": [],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 10.04,
+      "stream_span_s": 24.0
+    },
+    {
+      "camera_id": "C-047",
+      "name": "Gandhinagar Sector 21 Chowk",
+      "district": "Gandhinagar",
+      "department": "Municipal",
+      "opened": true,
+      "frames_drawn": 181,
+      "vehicles_tracked": 4,
+      "marks_read": [
+        "GJ18KZ8178",
+        "GJ18XY9012"
+      ],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 7.54,
+      "stream_span_s": 24.0
+    },
+    {
+      "camera_id": "C-052",
+      "name": "Civil Hospital Gate",
+      "district": "Ahmedabad",
+      "department": "Health",
+      "opened": true,
+      "frames_drawn": 193,
+      "vehicles_tracked": 3,
+      "marks_read": [
+        "GJ23FE4418",
+        "GJ27PQ7788",
+        "GJ36LT4781"
+      ],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 8.04,
+      "stream_span_s": 24.0
+    },
+    {
+      "camera_id": "C-061",
+      "name": "Vastral Police Chowky",
+      "district": "Ahmedabad",
+      "department": "Home (Police)",
+      "opened": true,
+      "frames_drawn": 181,
+      "vehicles_tracked": 7,
+      "marks_read": [
+        "GJ05AB9999",
+        "GJ21BP3566"
+      ],
+      "note": "",
+      "time_cluster": "local corpus",
+      "cluster_basis": "LOCAL",
+      "analysis_fps": 7.54,
+      "stream_span_s": 24.0
+    }
+  ],
+  "totals": {
+    "cameras_opened": 6,
+    "vehicles": 32,
+    "mean_analysis_fps": 8.11,
+    "distinct_marks": 12,
+    "rows": 1234,
+    "video_seconds": 177.4
+  }
+}

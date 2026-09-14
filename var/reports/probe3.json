@@ -1,0 +1,144 @@
+{
+  "provenance": "GOVERNMENT_LIVE",
+  "generated_at_utc": "2026-09-02T02:10:19+00:00",
+  "database": "sqlite:////Users/earther/Desktop/Gujarat CCTV/saakshya/var/scratch_probe.db",
+  "camera_source": {
+    "source": "probe",
+    "reason": "catalogue at https://cctv.corp8.cloud/cameras.json redirected to '/auth/login' \u2014 the CDN host requires a signed-in session. Provide it through SENTINEL_GRID_COOKIE (a session cookie captured after signing in), SENTINEL_GRID_TOKEN, or SENTINEL_GRID_BASIC. It must not be written into any file in this repository.",
+    "caveat": "camera set discovered by probing the documented id pattern; not the authoritative catalogue"
+  },
+  "tiers": {
+    "T2": 30
+  },
+  "stages": [
+    {
+      "cameras": 3,
+      "minutes": 2.0,
+      "observations": 901,
+      "peak_rss_mb": 1095.6,
+      "events_per_s": 7.508,
+      "per_camera": [
+        {
+          "camera_id": "cam01",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 1770,
+          "frames_analysed": 296,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 369,
+          "last_error": null,
+          "first_frame_at": 1788314902.791851,
+          "measured_fps": 14.99,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam04",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 2925,
+          "frames_analysed": 326,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 443,
+          "last_error": null,
+          "first_frame_at": 1788314902.1241899,
+          "measured_fps": 24.75,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam16",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 348,
+          "frames_analysed": 121,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 89,
+          "last_error": null,
+          "first_frame_at": 1788314921.6781728,
+          "measured_fps": 5.97,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        }
+      ],
+      "wall_seconds": 120.8,
+      "frames_delivered": 5043,
+      "frames_analysed": 743,
+      "reconnects": 0,
+      "decoder_warnings": 0,
+      "scene_cuts": 0,
+      "observations_dropped": 0
+    }
+  ],
+  "store": {
+    "cameras": 30,
+    "observations": 901,
+    "observations_with_plate": 0,
+    "observations_with_embedding": 0,
+    "plate_reads": 0,
+    "transitions": 0,
+    "watchlist": 0,
+    "alerts": 0,
+    "evidence": 0,
+    "audit_entries": 0
+  },
+  "graph": {
+    "cameras": 30,
+    "edges_total": 0,
+    "edges_observed": 0,
+    "edges_trusted": 0,
+    "edges_gis_seed": 0,
+    "total_support": 0
+  },
+  "transitions_learned": 0,
+  "capability": {
+    "policy": {
+      "version": "grade-policy-1",
+      "min_samples_anpr": 20,
+      "min_samples_vehicle": 20,
+      "min_frames_presence": 200,
+      "anpr_good_yield": 0.35,
+      "anpr_good_plate_px": 90.0,
+      "anpr_degraded_yield": 0.08,
+      "vehicle_good_colour_yield": 0.5,
+      "vehicle_good_sharpness_norm": 0.35,
+      "vehicle_degraded_colour_yield": 0.15,
+      "presence_good_fps": 1.0,
+      "presence_max_decoder_error_rate": 0.02,
+      "presence_max_segment_breaks_per_hour": 6.0,
+      "low_light_mean_luma": 0.22,
+      "day_start_hour": 6,
+      "day_end_hour": 18
+    },
+    "grades": {
+      "anpr": {
+        "UNSUITABLE": 3,
+        "UNKNOWN": 27
+      },
+      "vehicle": {
+        "DEGRADED": 2,
+        "UNKNOWN": 27,
+        "GOOD": 1
+      },
+      "presence": {
+        "GOOD": 3,
+        "UNKNOWN": 27
+      }
+    },
+    "cameras_graded": 30
+  },
+  "capability_assessments": 120,
+  "note": "Live government feed. These figures are not comparable with the local synthetic corpus and are never merged with it."
+}

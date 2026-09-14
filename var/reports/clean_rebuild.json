@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-09-03T14:50:14+00:00",
+  "python": "3.12.13",
+  "environment": "/var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0",
+  "seconds": 28.8,
+  "steps": [
+    {
+      "step": "create an empty environment",
+      "ok": true,
+      "seconds": 0.1,
+      "tail": "Using CPython 3.12.13\nCreating virtual environment at: /var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0/.venv\nActivate with: source /var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0/.venv/bin/activate"
+    },
+    {
+      "step": "install the package (non-editable)",
+      "ok": true,
+      "seconds": 0.8,
+      "tail": " + numpy==2.5.2\n + pillow==12.3.0\n + pydantic==2.13.5\n + pydantic-core==2.46.5\n + python-dotenv==1.2.3\n + pyyaml==6.0.3\n + saakshya==0.1.0 (from file:///Users/earther/Desktop/Gujarat%20CCTV/saakshya)\n + sqlalchemy==2.0.52\n + starlette==1.6.0\n + typing-extensions==4.16.0\n + typing-inspection==0.4.4\n + uvicorn==0.52.4\n + uvloop==0.22.1\n + watchfiles==1.2.0\n + websockets==17.1"
+    },
+    {
+      "step": "import 15 modules from outside the tree",
+      "ok": true,
+      "seconds": 16.0,
+      "tail": ""
+    },
+    {
+      "step": "build the application from a clean store",
+      "ok": true,
+      "seconds": 0.5,
+      "tail": "routes 12"
+    },
+    {
+      "step": "install the test extras",
+      "ok": true,
+      "seconds": 0.2,
+      "tail": "Using Python 3.12.13 environment at: /var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0/.venv\nResolved 5 packages in 127ms\nInstalled 5 packages in 12ms\n + iniconfig==2.3.0\n + packaging==26.3\n + pluggy==1.6.0\n + pygments==2.21.0\n + pytest==9.1.1"
+    },
+    {
+      "step": "unit tests against the installed package",
+      "ok": true,
+      "seconds": 11.2,
+      "tail": "........................................................................ [ 16%]\n........................................................................ [ 33%]\n........................................................................ [ 50%]\n........................................................................ [ 66%]\n...................................................sss.ssss.s........s.. [ 83%]\nssssss.s..s.ssss........................................................ [100%]\n=============================== warnings summary ===============================\n../../../../../var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1464\n  /var/folders/cb/88h_3zwx0bq8xbdkl2cqp7qm0000gn/T/saakshya-rebuild-aj_jzpx0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n411 passed, 21 skipped, 1 warning in 10.47s"
+    }
+  ],
+  "clean_install_works": true
+}

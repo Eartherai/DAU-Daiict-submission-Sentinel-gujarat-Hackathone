@@ -1,0 +1,55 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local runtime / generated data
+var/*.db
+var/*.db-*
+var/logs/
+var/media/
+var/media_hq/
+var/live_evidence/
+var/live_samples/
+var/live.db*
+var/loadtest.db
+var/route_demo.db*
+var/saakshya.db
+var/scratch_probe.db
+var/day1.db
+var/day2.db
+var/demo.db*
+
+# Generated demo artifacts
+var/demo/
+
+# Local binaries / credentials
+var/bin/
+*.key
+*.crt
+
+# Archives
+*.zip
+
+# Generated detection reports
+var/submission/detections/
+var/reports/detections/

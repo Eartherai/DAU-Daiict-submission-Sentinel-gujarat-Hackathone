@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-09-03T03:36:20+00:00",
+  "plate": "GJ01AB1234",
+  "cameras": [
+    "cam01",
+    "cam04"
+  ],
+  "preflight": {
+    "pairs": [
+      {
+        "pair": [
+          "cam01",
+          "cam04"
+        ],
+        "verdict": "ALLOWED",
+        "why": "both cameras are in time cluster GRID-13JUN-2137 (measured)"
+      }
+    ],
+    "correlatable": true,
+    "located": [
+      "cam01",
+      "cam04"
+    ],
+    "unlocated": []
+  },
+  "observations": [
+    {
+      "t_norm": "2026-09-03T03:30:19.238916+00:00",
+      "camera_id": "cam04",
+      "camera_name": "Paldi Circle",
+      "district": "Ahmedabad",
+      "lat": 23.0169,
+      "lon": 72.5668,
+      "status": "CONFIRMED_BY_PLATE",
+      "observation_quality": 0.992,
+      "observation_id": "OB01M1JN2PKCYJ2RQQTJZ0NQNQY3"
+    },
+    {
+      "t_norm": "2026-09-03T03:30:23.421312+00:00",
+      "camera_id": "cam01",
+      "camera_name": "Chiman bhai Bridge",
+      "district": "Ahmedabad",
+      "lat": 23.0296,
+      "lon": 72.5219,
+      "status": "CONFIRMED_BY_PLATE",
+      "observation_quality": 0.782,
+      "observation_id": "OB01M1JN2P9365FMJ2KGY2ZWGVMC"
+    }
+  ],
+  "timebase": {
+    "verdict": "ALLOWED",
+    "message": "All cameras on this route share an established timebase. Travel times between them are meaningful.",
+    "detail": [],
+    "partition": {
+      "clusters": {
+        "GRID-13JUN-2137": [
+          "cam01",
+          "cam04"
+        ]
+      },
+      "unclustered": [],
+      "unusable_timing": [],
+      "note": "Cross-camera reasoning is sound within a cluster. Across clusters, or for a camera with no established timebase, any route carries a timebase warning \u2014 the system does not invent a shared clock."
+    }
+  },
+  "hypotheses": [
+    {
+      "status": "REQUIRES_VERIFICATION",
+      "score": 0.35,
+      "cameras": [
+        "cam04",
+        "cam01"
+      ],
+      "timestamps": [
+        "2026-09-03T03:30:19.238916+00:00",
+        "2026-09-03T03:30:23.421312+00:00"
+      ],
+      "duration_s": 4.2
+    }
+  ],
+  "what_is_real": [
+    "the cameras and their live RTSP streams",
+    "every frame, detection, track and timestamp",
+    "the camera positions and their stated precision",
+    "the timebase cluster, measured from burned-in clocks",
+    "the watchlist match, alert, trajectory solver and evidence chain"
+  ],
+  "what_is_injected": [
+    "the registration mark GJ01AB1234, stamped onto one observation per camera because plate yield on this estate is a measured 2 marks in 13,745 observations"
+  ]
+}

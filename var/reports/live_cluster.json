@@ -1,0 +1,198 @@
+{
+  "provenance": "GOVERNMENT_LIVE",
+  "generated_at_utc": "2026-09-02T12:46:23+00:00",
+  "database": "sqlite:////Users/earther/Desktop/Gujarat CCTV/saakshya/var/live.db",
+  "camera_source": {
+    "source": "probe",
+    "reason": "catalogue at https://cctv.corp8.cloud/cameras.json redirected to '/auth/login' \u2014 the CDN host requires a signed-in session. Provide it through SENTINEL_GRID_COOKIE (a session cookie captured after signing in), SENTINEL_GRID_TOKEN, or SENTINEL_GRID_BASIC. It must not be written into any file in this repository.",
+    "caveat": "camera set discovered by probing the documented id pattern; not the authoritative catalogue"
+  },
+  "tiers": {
+    "T2": 30
+  },
+  "stages": [
+    {
+      "cameras": 6,
+      "minutes": 81.4,
+      "observations": 7752,
+      "peak_rss_mb": 1522.4,
+      "events_per_s": 1.587,
+      "per_camera": [
+        {
+          "camera_id": "cam01",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 6673,
+          "frames_analysed": 1222,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 1540,
+          "last_error": null,
+          "first_frame_at": 1788346730.8477492,
+          "measured_fps": 6.66,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam02",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 9924,
+          "frames_analysed": 1138,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 1053,
+          "last_error": null,
+          "first_frame_at": 1788346728.49282,
+          "measured_fps": 9.82,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam04",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 2771,
+          "frames_analysed": 582,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 236,
+          "last_error": null,
+          "first_frame_at": 1788346732.285229,
+          "measured_fps": 2.73,
+          "state": "STREAMING",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam05",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 10110,
+          "frames_analysed": 1159,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 2325,
+          "last_error": null,
+          "first_frame_at": 1788346728.733792,
+          "measured_fps": 10.03,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam13",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 3160,
+          "frames_analysed": 1075,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 1158,
+          "last_error": null,
+          "first_frame_at": 1788346732.588434,
+          "measured_fps": 3.11,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam14",
+          "tier": "T2",
+          "connects": 1,
+          "reconnects": 0,
+          "frames": 3342,
+          "frames_analysed": 1066,
+          "decoder_warnings": 0,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 1440,
+          "last_error": null,
+          "first_frame_at": 1788346735.821711,
+          "measured_fps": 3.29,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        }
+      ],
+      "wall_seconds": 1072.6,
+      "frames_delivered": 35980,
+      "frames_analysed": 6242,
+      "reconnects": 0,
+      "decoder_warnings": 0,
+      "scene_cuts": 0,
+      "observations_dropped": 0
+    }
+  ],
+  "store": {
+    "cameras": 30,
+    "observations": 12388,
+    "observations_with_plate": 2,
+    "observations_with_embedding": 0,
+    "plate_reads": 0,
+    "transitions": 112,
+    "watchlist": 2,
+    "alerts": 1,
+    "evidence": 2,
+    "audit_entries": 98
+  },
+  "graph": {
+    "cameras": 30,
+    "edges_total": 112,
+    "edges_observed": 0,
+    "edges_trusted": 0,
+    "edges_gis_seed": 112,
+    "total_support": 0
+  },
+  "transitions_learned": 0,
+  "capability": {
+    "policy": {
+      "version": "grade-policy-1",
+      "min_samples_anpr": 20,
+      "min_samples_vehicle": 20,
+      "min_frames_presence": 200,
+      "anpr_good_yield": 0.35,
+      "anpr_good_plate_px": 90.0,
+      "anpr_degraded_yield": 0.08,
+      "vehicle_good_colour_yield": 0.5,
+      "vehicle_good_sharpness_norm": 0.35,
+      "vehicle_degraded_colour_yield": 0.15,
+      "presence_good_fps": 1.0,
+      "presence_max_decoder_error_rate": 0.02,
+      "presence_max_segment_breaks_per_hour": 6.0,
+      "low_light_mean_luma": 0.22,
+      "day_start_hour": 6,
+      "day_end_hour": 18
+    },
+    "grades": {
+      "anpr": {
+        "UNSUITABLE": 10,
+        "UNKNOWN": 20
+      },
+      "vehicle": {
+        "GOOD": 9,
+        "UNKNOWN": 20,
+        "DEGRADED": 1
+      },
+      "presence": {
+        "GOOD": 12,
+        "UNKNOWN": 18
+      }
+    },
+    "cameras_graded": 30
+  },
+  "capability_assessments": 120,
+  "note": "Live government feed. These figures are not comparable with the local synthetic corpus and are never merged with it."
+}

@@ -1,0 +1,392 @@
+{
+  "generated_at": "2026-09-02T02:05:39+00:00",
+  "required": [
+    "anpr-onnx-cpu@1.0.0",
+    "vehicle-rtdetrv2-r18@0.1.0"
+  ],
+  "active": 4,
+  "failed": 2,
+  "skipped": 1,
+  "required_broken": [],
+  "models": {
+    "anpr-onnx-cpu@1.0.0": {
+      "key": "anpr-onnx-cpu@1.0.0",
+      "status": "ACTIVE",
+      "hub_id": null,
+      "revision": null,
+      "licence": "permissive",
+      "device": null,
+      "checked_at": "2026-09-02T02:05:25+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "None",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "active",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "MIT (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": true,
+          "detail": "loaded on cpu",
+          "seconds": 0.423
+        },
+        {
+          "check": "TASK",
+          "ok": true,
+          "detail": "plate_detect_ocr",
+          "seconds": 0.0
+        },
+        {
+          "check": "WEIGHTS",
+          "ok": true,
+          "detail": "not a state-dict model; head binding not checked",
+          "seconds": 0.0
+        },
+        {
+          "check": "INFERENCE",
+          "ok": true,
+          "detail": "forward pass in 37 ms",
+          "seconds": 0.037
+        },
+        {
+          "check": "OUTPUT",
+          "ok": true,
+          "detail": "0 raw read(s), well-formed",
+          "seconds": 0.0
+        }
+      ],
+      "failed_at": null,
+      "reason": null
+    },
+    "plate-rtdetrv2@0.1.0": {
+      "key": "plate-rtdetrv2@0.1.0",
+      "status": "ACTIVE",
+      "hub_id": "justjuu/rtdetr-v2-license-plate-detection",
+      "revision": "0ca7598f5864",
+      "licence": "permissive",
+      "device": "mps",
+      "checked_at": "2026-09-02T02:05:25+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "justjuu/rtdetr-v2-license-plate-detection",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": true,
+          "detail": "loaded on mps",
+          "seconds": 2.571
+        },
+        {
+          "check": "TASK",
+          "ok": true,
+          "detail": "plate_detect loaded as RTDetrV2ForObjectDetection",
+          "seconds": 0.0
+        },
+        {
+          "check": "WEIGHTS",
+          "ok": true,
+          "detail": "99/99 head tensors bit-identical to justjuu/rtdetr-v2-license-plate-detection@0ca7598f5864",
+          "seconds": 0.0
+        },
+        {
+          "check": "INFERENCE",
+          "ok": true,
+          "detail": "forward pass in 250 ms",
+          "seconds": 0.25
+        },
+        {
+          "check": "OUTPUT",
+          "ok": true,
+          "detail": "2 detection(s), well-formed",
+          "seconds": 0.0
+        }
+      ],
+      "failed_at": null,
+      "reason": null
+    },
+    "ocr-awiros-india@0.1.0": {
+      "key": "ocr-awiros-india@0.1.0",
+      "status": "FAILED",
+      "hub_id": "Awiros/anpr-ocr",
+      "revision": "eadbc5ae4faa",
+      "licence": "permissive",
+      "device": null,
+      "checked_at": "2026-09-02T02:05:28+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "Awiros/anpr-ocr",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": false,
+          "detail": "OSError: Can't load image processor for 'Awiros/anpr-ocr'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sur",
+          "seconds": 0.924
+        }
+      ],
+      "failed_at": "LOADED",
+      "reason": "OSError: Can't load image processor for 'Awiros/anpr-ocr'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sur"
+    },
+    "vehicle-rtdetrv2-r18@0.1.0": {
+      "key": "vehicle-rtdetrv2-r18@0.1.0",
+      "status": "ACTIVE",
+      "hub_id": "PekingU/rtdetr_v2_r18vd",
+      "revision": "5650961749fa",
+      "licence": "permissive",
+      "device": "mps",
+      "checked_at": "2026-09-02T02:05:29+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "PekingU/rtdetr_v2_r18vd",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": true,
+          "detail": "loaded on mps",
+          "seconds": 1.571
+        },
+        {
+          "check": "TASK",
+          "ok": true,
+          "detail": "vehicle_detect loaded as RTDetrV2ForObjectDetection",
+          "seconds": 0.0
+        },
+        {
+          "check": "WEIGHTS",
+          "ok": true,
+          "detail": "51/51 head tensors bit-identical to PekingU/rtdetr_v2_r18vd@5650961749fa",
+          "seconds": 0.0
+        },
+        {
+          "check": "INFERENCE",
+          "ok": true,
+          "detail": "forward pass in 67 ms",
+          "seconds": 0.067
+        },
+        {
+          "check": "OUTPUT",
+          "ok": true,
+          "detail": "2 detection(s), well-formed",
+          "seconds": 0.0
+        }
+      ],
+      "failed_at": null,
+      "reason": null
+    },
+    "vehicle-rfdetr-base@0.1.0": {
+      "key": "vehicle-rfdetr-base@0.1.0",
+      "status": "ACTIVE",
+      "hub_id": "Roboflow/rf-detr-base",
+      "revision": "7b95b089788e",
+      "licence": "permissive",
+      "device": "mps",
+      "checked_at": "2026-09-02T02:05:31+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "Roboflow/rf-detr-base",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": true,
+          "detail": "loaded on mps",
+          "seconds": 1.578
+        },
+        {
+          "check": "TASK",
+          "ok": true,
+          "detail": "vehicle_detect loaded as RfDetrForObjectDetection",
+          "seconds": 0.0
+        },
+        {
+          "check": "WEIGHTS",
+          "ok": true,
+          "detail": "8/112 head tensors bit-identical to Roboflow/rf-detr-base@7b95b089788e; 104 not found under a name this check resolves, so they are unverified rather than known-good",
+          "seconds": 0.0
+        },
+        {
+          "check": "INFERENCE",
+          "ok": true,
+          "detail": "forward pass in 90 ms",
+          "seconds": 0.09
+        },
+        {
+          "check": "OUTPUT",
+          "ok": true,
+          "detail": "0 detection(s), well-formed",
+          "seconds": 0.0
+        }
+      ],
+      "failed_at": null,
+      "reason": null
+    },
+    "embed-vehicle-siglip2@0.1.0": {
+      "key": "embed-vehicle-siglip2@0.1.0",
+      "status": "FAILED",
+      "hub_id": "occurra/vehicle_reid_siglip2_naflex_512d",
+      "revision": "857c23afff76",
+      "licence": "permissive",
+      "device": null,
+      "checked_at": "2026-09-02T02:05:33+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "occurra/vehicle_reid_siglip2_naflex_512d",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": false,
+          "detail": "OSError: Can't load image processor for 'occurra/vehicle_reid_siglip2_naflex_512d'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same ",
+          "seconds": 0.994
+        }
+      ],
+      "failed_at": "LOADED",
+      "reason": "OSError: Can't load image processor for 'occurra/vehicle_reid_siglip2_naflex_512d'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same "
+    },
+    "vlm-qwen3-vl-4b@0.1.0": {
+      "key": "vlm-qwen3-vl-4b@0.1.0",
+      "status": "SKIPPED",
+      "hub_id": "Qwen/Qwen3-VL-4B-Instruct",
+      "revision": "ebb281ec70b0",
+      "licence": "permissive",
+      "device": "mps",
+      "checked_at": "2026-09-02T02:05:34+00:00",
+      "checks": [
+        {
+          "check": "RESOLVED",
+          "ok": true,
+          "detail": "Qwen/Qwen3-VL-4B-Instruct",
+          "seconds": 0.0
+        },
+        {
+          "check": "STATUS",
+          "ok": true,
+          "detail": "candidate",
+          "seconds": 0.0
+        },
+        {
+          "check": "LICENCE",
+          "ok": true,
+          "detail": "Apache-2.0 (permissive)",
+          "seconds": 0.0
+        },
+        {
+          "check": "LOADED",
+          "ok": true,
+          "detail": "loaded on mps",
+          "seconds": 5.741
+        },
+        {
+          "check": "TASK",
+          "ok": true,
+          "detail": "vlm",
+          "seconds": 0.0
+        },
+        {
+          "check": "WEIGHTS",
+          "ok": true,
+          "detail": "no task head to compare for this architecture",
+          "seconds": 0.0
+        },
+        {
+          "check": "INFERENCE",
+          "ok": true,
+          "detail": "no smoke path defined for vlm",
+          "seconds": 0.0
+        },
+        {
+          "check": "OUTPUT",
+          "ok": true,
+          "detail": "not applicable",
+          "seconds": 0.0
+        }
+      ],
+      "failed_at": null,
+      "reason": null
+    }
+  }
+}

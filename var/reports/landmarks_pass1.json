@@ -1,0 +1,347 @@
+{
+  "model": "Qwen/Qwen3-VL-4B-Instruct",
+  "device": "mps",
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "error": null,
+      "label": "Chiman bhai Bridge",
+      "site": "Chimanbhai Patel Bridge, 132ft Ring Road",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "Chiman bhai Bridge",
+        "Chimani bhai Bridge",
+        "Chittra",
+        "CSITMS-32 PTZ2",
+        "GINTRA"
+      ],
+      "corroborates": [
+        "Chiman bhai Bridge",
+        "Chimani bhai Bridge"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "Chiman bhai Bridge, CSITMS-32_PTZ2, GINTRA",
+        "Chittra, Chimani bhai Bridge"
+      ]
+    },
+    {
+      "camera_id": "cam02",
+      "error": null,
+      "label": "Janpath",
+      "site": "Janpath Cross Road",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [],
+      "corroborates": [],
+      "verdict": "NO SIGNAGE READ",
+      "raw": [
+        "NONE",
+        "NONE"
+      ]
+    },
+    {
+      "camera_id": "cam03",
+      "error": null,
+      "label": "O.N.G.C. Office",
+      "site": "ONGC Office, Chandkheda",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "O.N.G.C. Office BS-103 B1"
+      ],
+      "corroborates": [
+        "O.N.G.C. Office BS-103 B1"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "O.N.G.C. Office BS-103_B1",
+        "NONE"
+      ]
+    },
+    {
+      "camera_id": "cam04",
+      "error": null,
+      "label": "Paldi Circle",
+      "site": "Paldi Junction, near V.S. Hospital",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "PALDI JUNCTION",
+        "V.S. Hospital"
+      ],
+      "corroborates": [
+        "PALDI JUNCTION"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "PALDI JUNCTION, V.S. Hospital, \u0a93\u0a95\u0ac0\u0aac\u0ac0 \u0a95\u0abe\u0aa2\u0ac7"
+      ]
+    },
+    {
+      "camera_id": "cam05",
+      "error": null,
+      "label": "Visat teen Rasta",
+      "site": "Visat Three Roads, Sabarmati",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "JABALPUR",
+        "PTO CIRCLE",
+        "RTO CIRCLE",
+        "Visat teen Rasta"
+      ],
+      "corroborates": [
+        "Visat teen Rasta"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "PTO CIRCLE, RTO CIRCLE, Visat teen Rasta",
+        "RTO CIRCLE, JABALPUR"
+      ]
+    },
+    {
+      "camera_id": "cam06",
+      "error": null,
+      "label": "Timbavadi Gate",
+      "site": "Timbawadi Gate, Junagadh",
+      "district": "Junagadh",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "Madhuram Bypass Road",
+        "Madhuram Bypass Road Fix-2 From Aksharvadi"
+      ],
+      "corroborates": [],
+      "verdict": "NO OVERLAP",
+      "raw": [
+        "Madhuram Bypass Road",
+        "Madhuram Bypass Road Fix-2(From Aksharvadi)"
+      ]
+    },
+    {
+      "camera_id": "cam07",
+      "error": null,
+      "label": "Hero Showroom, Gir Somnath",
+      "site": "Hero showroom",
+      "district": "Gir Somnath",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [],
+      "corroborates": [],
+      "verdict": "NO SIGNAGE READ",
+      "raw": []
+    },
+    {
+      "camera_id": "cam08",
+      "error": "ExitError: [Errno 1414092869] Immediate exit requested: 'rtsp://103.250.160.189:8554/stream/cam08'",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam09",
+      "error": null,
+      "label": "New Bypass Circle 2",
+      "site": "New bypass, near circle, Junagadh",
+      "district": "Junagadh",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "Vadla Fatak"
+      ],
+      "corroborates": [],
+      "verdict": "NO OVERLAP",
+      "raw": [
+        "Vadla Fatak",
+        "Vadla Fatak"
+      ]
+    },
+    {
+      "camera_id": "cam10",
+      "error": "ExitError: [Errno 1414092869] Immediate exit requested: 'rtsp://103.250.160.189:8554/stream/cam10'",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam11",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam12",
+      "error": null,
+      "label": "Tri Mandir Adalaj Tollnaka",
+      "site": "Adalaj toll plaza, near Trimandir",
+      "district": "Gandhinagar",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [],
+      "corroborates": [],
+      "verdict": "NO SIGNAGE READ",
+      "raw": [
+        "NONE",
+        "NONE"
+      ]
+    },
+    {
+      "camera_id": "cam13",
+      "error": "InvalidDataError: [Errno 1094995529] Invalid data found when processing input: 'rtsp://103.250.160.189:8554/",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam14",
+      "error": null,
+      "label": "Delight RLVD",
+      "site": "Delight Circle",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [],
+      "corroborates": [],
+      "verdict": "NO SIGNAGE READ",
+      "raw": [
+        "NONE",
+        "NONE"
+      ]
+    },
+    {
+      "camera_id": "cam15",
+      "error": null,
+      "label": "Suvidha Park",
+      "site": "Suvidha Park, Paldi",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "Suvidhapark"
+      ],
+      "corroborates": [
+        "Suvidhapark"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "Suvidhapark"
+      ]
+    },
+    {
+      "camera_id": "cam16",
+      "error": null,
+      "label": "Visat P2",
+      "site": "Visat Circle",
+      "district": "Ahmedabad",
+      "location_basis": "DERIVED_FROM_NAME",
+      "names": [
+        "onec",
+        "Visat T Junction"
+      ],
+      "corroborates": [
+        "Visat T Junction"
+      ],
+      "verdict": "CORROBORATED",
+      "raw": [
+        "Visat T Junction, onec"
+      ]
+    },
+    {
+      "camera_id": "cam17",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam18",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam19",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam20",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam21",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam22",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam23",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam24",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam25",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam26",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam27",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam28",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam29",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    },
+    {
+      "camera_id": "cam30",
+      "error": "no frames within 150s \u2014 the stream connected but did not deliver; skipped so the pass could finish",
+      "names": [],
+      "corroborates": [],
+      "raw": []
+    }
+  ],
+  "note": "Signage read from the cameras' own imagery. This corroborates or questions a recorded position; it never moves a camera. Turning a hoarding into coordinates without a gazetteer would be inventing precision.",
+  "reparsed_note": "verdicts re-derived after the matcher was made acronym-aware; no stream was reopened"
+}

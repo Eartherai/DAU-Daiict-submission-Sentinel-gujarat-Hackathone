@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-09-03T14:57:15+00:00",
+  "python": "3.12.13",
+  "gates": [
+    {
+      "name": "lint",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 0.0,
+      "tail": "All checks passed!"
+    },
+    {
+      "name": "typecheck",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 0.6,
+      "tail": "Success: no issues found in 82 source files"
+    },
+    {
+      "name": "model activation",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 14.1,
+      "tail": "\u2500\u2500 ocr-awiros-india@0.1.0 \u2500\u2500\n   failed at LOADED\n   RuntimeError: Awiros/anpr-ocr@eadbc5ae4faa is not in the local cache and SAAKSHYA_MODELS_OFFLINE is set, so no download was attempted\n\n4 active \u00b7 2 failed \u00b7 1 skipped\n\nThe failures above are registry candidates, not pipeline dependencies. Each blocker is recorded in the registry entry's notes rather than the model being quietly removed.\nwritten: var/reports/model_validation.json\nINFO:open_image_models.detection.core.yolo_v9.inference:Using ONNX Runtime with ['CPUExecutionProvider'] provider(s)\nERROR:saakshya.models.validation:model ocr-awiros-india@0.1.0: FAILED \u2014 RuntimeError: Awiros/anpr-ocr@eadbc5ae4faa is not in the local cache and SAAKSHYA_MODELS_OFFLINE is set, so no download was attempted\nERROR:saakshya.models.validation:model embed-vehicle-siglip2@0.1.0: FAILED \u2014 RuntimeError: occurra/vehicle_reid_siglip2_naflex_512d@857c23afff76 is not in the local cache and SAAKSHYA_MODELS_OFFLINE is set, so no download was attempted\nERROR:saakshya.models.validation:model vlm-qwen3-vl-4b@0.1.0: SKIPPED \u2014 None"
+    },
+    {
+      "name": "secret scan",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 1.6,
+      "tail": "SECRET SCAN: PASS (169 tracked files + full history)"
+    },
+    {
+      "name": "licence policy",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 0.1,
+      "tail": "LICENCE CHECK: 91 installed distributions\n  + 5 non-PyPI artefacts (invisible to a package scan):\n    FFmpeg 7.1 binary (bundled by imageio-ffmpeg)          GPL-2.0-or-later (built --enable-g   not shipped\n    MediaMTX 1.20.1 binary                                 MIT                                  not shipped\n    yolo-v9-t-640 plate detector weights (open-image-mod   MIT                                  SHIPPED\n    cct-s-v2-global OCR weights (fast-plate-ocr)           MIT                                  SHIPPED\n    Model weights fetched from Hugging Face at runtime     Per-model; audited in docs/MODEL_B   not shipped\n  SBOM -> var/reports/sbom.json\nLICENCE CHECK: PASS"
+    },
+    {
+      "name": "unit tests",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 10.2,
+      "tail": "........................................................................ [ 16%]\n........................................................................ [ 33%]\n........................................................................ [ 50%]\n........................................................................ [ 66%]\n...................................................sss.sss.s........s..s [ 83%]\nsssss.s..s.ssss........................................................  [100%]\n411 passed, 20 skipped in 9.32s"
+    },
+    {
+      "name": "security tests",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 1.2,
+      "tail": "...............................................................          [100%]\n=============================== warnings summary ===============================\n.venv/lib/python3.12/site-packages/fastapi/testclient.py:1\n  /Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n63 passed, 1 warning in 0.70s"
+    },
+    {
+      "name": "integration tests",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 337.6,
+      "tail": "....................................                                     [100%]\n36 passed in 336.62s (0:05:36)"
+    },
+    {
+      "name": "ML regression",
+      "severity": "ADVISORY",
+      "ok": true,
+      "seconds": 729.8,
+      "tail": ".....                                                                    [100%]\n5 passed in 728.86s (0:12:08)"
+    },
+    {
+      "name": "end-to-end",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 456.7,
+      "tail": ".......................................                                  [100%]\n39 passed in 455.76s (0:07:35)"
+    },
+    {
+      "name": "query plans",
+      "severity": "ADVISORY",
+      "ok": true,
+      "seconds": 0.2,
+      "tail": "camera timeline                            SEARCH observations USING INDEX ix_obs_camera_time (camera_id=? AND t_norm_us>?)\ndistrict-scoped time window                SEARCH observations USING INDEX ix_obs_district_time (district=? AND t_norm_us>?)\ntrajectory candidate fetch (multi-camera)  SEARCH observations USING INDEX ix_obs_plate_time (plate=?)\ncamera graph edges                         SEARCH camera_transitions USING INDEX ix_trans_from (from_camera=?)\nwatchlist lookup by plate                  SEARCH watchlist USING INDEX ix_watchlist_plate (plate=?)\nopen alerts, newest first                  SEARCH alerts USING INDEX ix_alerts_status_time (status=?)\ncamera viewport (bbox)                     SEARCH cameras USING INDEX ix_cameras_geo (lat>? AND lat<?)\naudit trail for a case                     SEARCH audit_log USING INDEX ix_audit_case (case_id=?)\nedge queue drain (pending by sequence)     SEARCH edge_queue USING INDEX sqlite_autoindex_edge_queue_2 (node_id=?)\n\n10 queries examined, 0 needing review\nwritten: var/reports/query_plans.json"
+    },
+    {
+      "name": "api latency",
+      "severity": "ADVISORY",
+      "ok": true,
+      "seconds": 2.8,
+      "tail": "GET  /targets/{plate}/observations      2.12     2.28     2.49     2.49  200\n\nslowest five by p95:\n     23.61 ms  GET  /audit\n      3.77 ms  GET  /trajectory/{plate}\n      3.36 ms  GET  /search (plate)\n      3.28 ms  GET  /gis/trajectory/{plate}\n      3.23 ms  GET  /search (attributes)\n\nwritten: var/reports/api_latency.json\n/Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n  from starlette.testclient import TestClient as TestClient  # noqa"
+    },
+    {
+      "name": "clean install",
+      "severity": "BLOCKING",
+      "ok": true,
+      "seconds": 29.1,
+      "tail": "source : /Users/earther/Desktop/Gujarat CCTV/saakshya\n\n  create an empty environment        \u2026 PASS     0.1s\n  install the package (non-editable) \u2026 PASS     0.8s\n  import 15 modules from outside the tree \u2026 PASS    16.0s\n  build the application from a clean store \u2026 PASS     0.5s\n  install the test extras            \u2026 PASS     0.2s\n  unit tests against the installed package \u2026 PASS    11.2s\n\n6/6 steps passed in 29s\nCLEAN INSTALL: WORKS\nwritten: var/reports/clean_rebuild.json"
+    },
+    {
+      "name": "ANPR evaluation",
+      "severity": "ADVISORY",
+      "ok": true,
+      "seconds": 420.0,
+      "tail": "\n  Declining is a correct outcome on a camera that cannot support ANPR.\n  A false read on such a camera would be worse than no read.\n\n  machine-readable: var/logs/anpr_eval.json\n\n  [PASS] no camera published an incorrect plate\n  [PASS] ANPR-viable cameras produced a read (5/5)\n  [PASS] the degraded camera (C-033) declined rather than guessing\nobjc[16398]: Class AVFFrameReceiver is implemented in both /Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/av/.dylibs/libavdevice.62.3.102.dylib (0x101c383a8) and /Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/cv2/.dylibs/libavdevice.61.3.100.dylib (0x110f543a8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\nobjc[16398]: Class AVFAudioReceiver is implemented in both /Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/av/.dylibs/libavdevice.62.3.102.dylib (0x101c383f8) and /Users/earther/Desktop/Gujarat CCTV/saakshya/.venv/lib/python3.12/site-packages/cv2/.dylibs/libavdevice.61.3.100.dylib (0x110f543f8). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\nINFO:open_image_models.detection.core.yolo_v9.inference:Using ONNX Runtime with ['CPUExecutionProvider'] provider(s)"
+    }
+  ],
+  "blocking_failures": [],
+  "advisory_failures": [],
+  "release_candidate": true
+}

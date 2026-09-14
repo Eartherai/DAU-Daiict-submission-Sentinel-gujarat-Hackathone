@@ -1,0 +1,183 @@
+{
+  "provenance": "GOVERNMENT_LIVE",
+  "generated_at_utc": "2026-09-02T21:32:15+00:00",
+  "database": "sqlite:////Users/earther/Desktop/Gujarat CCTV/saakshya/var/scratch_roll.db",
+  "camera_source": {
+    "source": "probe",
+    "reason": "catalogue at https://cctv.corp8.cloud/cameras.json redirected to '/auth/login' \u2014 the CDN host requires a signed-in session. Provide it through SENTINEL_GRID_COOKIE (a session cookie captured after signing in), SENTINEL_GRID_TOKEN, or SENTINEL_GRID_BASIC. It must not be written into any file in this repository.",
+    "attempts": 1,
+    "caveat": "camera set discovered by probing the documented id pattern; not the authoritative catalogue"
+  },
+  "tiers": {
+    "T2": 30
+  },
+  "stages": [
+    {
+      "cameras": 4,
+      "minutes": 6.02,
+      "observations": 1228,
+      "watchlist_matches": 0,
+      "write_failures": 0,
+      "observations_unwritten": 0,
+      "rolling_evidence": {
+        "cameras": 4,
+        "frames_held": 322,
+        "bytes_held": 100054584,
+        "budget_per_camera": 25165824,
+        "evicted": 1256,
+        "captures_open": 0,
+        "captures_retained": 0
+      },
+      "alerts_raised": 0,
+      "peak_rss_mb": 1293.2,
+      "events_per_s": 3.402,
+      "per_camera": [
+        {
+          "camera_id": "cam01",
+          "tier": "T2",
+          "connects": 2,
+          "reconnects": 4,
+          "frames": 4797,
+          "frames_analysed": 802,
+          "decoder_warnings": 501,
+          "frames_checked_corrupt": 100,
+          "frames_suspect_corrupt": 12,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 969,
+          "last_error": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://103.250.160.189:8554/stream/cam01'; last error log: [tcp] Connection to tcp://103.250.160.189:8554?ti",
+          "first_frame_at": 1788384727.001389,
+          "measured_fps": 15.09,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam16",
+          "tier": "T2",
+          "connects": 2,
+          "reconnects": 4,
+          "frames": 1760,
+          "frames_analysed": 487,
+          "decoder_warnings": 501,
+          "frames_checked_corrupt": 60,
+          "frames_suspect_corrupt": 53,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 257,
+          "last_error": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://103.250.160.189:8554/stream/cam16'; last error log: [tcp] Connection to tcp://103.250.160.189:8554?ti",
+          "first_frame_at": 1788384722.984133,
+          "measured_fps": 10.08,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam20",
+          "tier": "T2",
+          "connects": 2,
+          "reconnects": 4,
+          "frames": 695,
+          "frames_analysed": 178,
+          "decoder_warnings": 501,
+          "frames_checked_corrupt": 22,
+          "frames_suspect_corrupt": 17,
+          "pts_regressions": 0,
+          "scene_cuts": 0,
+          "observations": 2,
+          "last_error": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://103.250.160.189:8554/stream/cam20'; last error log: [tcp] Connection to tcp://103.250.160.189:8554?ti",
+          "first_frame_at": 1788384721.697439,
+          "measured_fps": 8.76,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        },
+        {
+          "camera_id": "cam21",
+          "tier": "T2",
+          "connects": 2,
+          "reconnects": 4,
+          "frames": 355,
+          "frames_analysed": 111,
+          "decoder_warnings": 501,
+          "frames_checked_corrupt": 13,
+          "frames_suspect_corrupt": 9,
+          "pts_regressions": 20,
+          "scene_cuts": 20,
+          "observations": 0,
+          "last_error": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://103.250.160.189:8554/stream/cam21'; last error log: [tcp] Connection to tcp://103.250.160.189:8554?ti",
+          "first_frame_at": 1788384718.451374,
+          "measured_fps": 12.55,
+          "state": "STOPPED",
+          "decode_mode": "full",
+          "observations_dropped": 0
+        }
+      ],
+      "wall_seconds": 361.0,
+      "frames_delivered": 7607,
+      "frames_analysed": 1578,
+      "reconnects": 16,
+      "decoder_warnings": 2004,
+      "scene_cuts": 20,
+      "observations_dropped": 0
+    }
+  ],
+  "store": {
+    "cameras": 30,
+    "observations": 1228,
+    "observations_with_plate": 0,
+    "observations_with_embedding": 0,
+    "plate_reads": 0,
+    "transitions": 0,
+    "watchlist": 2,
+    "alerts": 0,
+    "evidence": 0,
+    "audit_entries": 2
+  },
+  "graph": {
+    "cameras": 30,
+    "edges_total": 0,
+    "edges_observed": 0,
+    "edges_trusted": 0,
+    "edges_gis_seed": 0,
+    "total_support": 0
+  },
+  "transitions_learned": 0,
+  "capability": {
+    "policy": {
+      "version": "grade-policy-1",
+      "min_samples_anpr": 20,
+      "min_samples_vehicle": 20,
+      "min_frames_presence": 200,
+      "anpr_good_yield": 0.35,
+      "anpr_good_plate_px": 90.0,
+      "anpr_degraded_yield": 0.08,
+      "vehicle_good_colour_yield": 0.5,
+      "vehicle_good_sharpness_norm": 0.35,
+      "vehicle_degraded_colour_yield": 0.15,
+      "presence_good_fps": 1.0,
+      "presence_max_decoder_error_rate": 0.02,
+      "presence_max_segment_breaks_per_hour": 6.0,
+      "low_light_mean_luma": 0.22,
+      "day_start_hour": 6,
+      "day_end_hour": 18
+    },
+    "grades": {
+      "anpr": {
+        "UNSUITABLE": 2,
+        "UNKNOWN": 28
+      },
+      "vehicle": {
+        "GOOD": 2,
+        "UNKNOWN": 28
+      },
+      "presence": {
+        "DEGRADED": 4,
+        "UNKNOWN": 26
+      }
+    },
+    "cameras_graded": 30
+  },
+  "capability_assessments": 120,
+  "note": "Live government feed. These figures are not comparable with the local synthetic corpus and are never merged with it."
+}

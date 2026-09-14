@@ -1,0 +1,543 @@
+"""Investigation endpoints: find → trace → verify → act.
+
+Ordered as the work is actually done, not as the data model is shaped. The
+investigator's first action is a search; everything else hangs off its results.
+
+Every route here is thin. The logic lives in `InvestigationService`, which the
+copilot also calls, so an answer produced through the chat surface and an answer
+produced by clicking cannot disagree.
+"""
+from __future__ import annotations
+
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Body, HTTPException, Query, Request
+from pydantic import BaseModel, Field
+
+from saakshya.api.deps import (
+    AuthDep,
+    ConcurrencyGuard,
+    StateDep,
+    access_error,
+    check_span,
+    csv_list,
+    parse_time,
+)
+from saakshya.security import AccessError, Permission
+
+router = APIRouter(tags=["investigation"])
+
+
+# --------------------------------------------------------------------------- #
+# Search
+# --------------------------------------------------------------------------- #
+@router.get("/search", summary="Find a target by plate, attributes, time or place")
+async def search(
+    state: StateDep, ctx: AuthDep,
+    plate: str | None = None,
+    fuzzy: bool = False,
+    colour: str | None = None,
+    object_type: str | None = None,
+    district: str | None = None,
+    camera: str | None = None,
+    t_from: str | None = None,
+    t_to: str | None = None,
+    min_quality: Annotated[float | None, Query(ge=0, le=1)] = None,
+    watchlist_only: bool = False,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 200,
+) -> dict[str, Any]:
+    """The primary query.
+
+    `fuzzy` is opt-in and every fuzzy result is labelled REQUIRES_VERIFICATION.
+    An OCR-similar plate is a lead, and presenting it as a match is how the
+    wrong vehicle gets stopped.
+    """
+    tf, tt = parse_time(t_from, "t_from"), parse_time(t_to, "t_to")
+    check_span(state, tf, tt)
+    if not any((plate, colour, object_type, camera, district, tf)):
+        raise HTTPException(status_code=400, detail={
+            "code": "QUERY_TOO_BROAD",
+            "message": ("supply at least one of: plate, colour, object_type, "
+                        "camera, district or t_from. An unfiltered scan of the "
+                        "whole estate is refused."),
+        })
+    try:
+        async with ConcurrencyGuard(state.search_sem, what="searches"):
+            return state.investigation.search_target(
+                ctx, plate=plate, fuzzy=fuzzy, colours=csv_list(colour),
+                object_types=csv_list(object_type), districts=csv_list(district),
+                cameras=csv_list(camera), t_from=tf, t_to=tt,
+                min_quality=min_quality, watchlist_only=watchlist_only, limit=limit)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
+@router.get("/observations/{observation_id}",
+            summary="One observation with its full evidence panel")
+async def observation(state: StateDep, ctx: AuthDep,
+                      observation_id: str) -> dict[str, Any]:
+    try:
+        panel = state.investigation.evidence_panel(ctx, observation_id)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    if panel.get("error"):
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_FOUND", "message": panel["error"]})
+    return panel
+
+
+@router.get("/targets/{plate}/observations",
+            summary="Quality-filtered observation set for one vehicle")
+async def observation_set(state: StateDep, ctx: AuthDep, plate: str,
+                          min_quality: Annotated[float, Query(ge=0, le=1)] = 0.25,
+                          max_observations: Annotated[int, Query(ge=1, le=100)] = 12
+                          ) -> dict[str, Any]:
+    try:
+        return state.investigation.observation_set(
+            ctx, plate=plate, min_quality=min_quality,
+            max_observations=max_observations)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
+# --------------------------------------------------------------------------- #
+# Trajectory
+# --------------------------------------------------------------------------- #
+@router.get("/trajectory/{plate}", summary="Ranked route hypotheses")
+async def trajectory(state: StateDep, ctx: AuthDep, plate: str,
+                     t_from: str | None = None, t_to: str | None = None,
+                     gap_candidates: bool = True) -> dict[str, Any]:
+    tf, tt = parse_time(t_from, "t_from"), parse_time(t_to, "t_to")
+    check_span(state, tf, tt)
+    try:
+        async with ConcurrencyGuard(state.search_sem, what="searches"):
+            return state.investigation.build_trajectory(
+                ctx, plate=plate, t_from=tf, t_to=tt,
+                include_gap_candidates=gap_candidates)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
+@router.get("/cameras/{camera_id}/next", summary="Where to look next, and why")
+async def next_cameras(state: StateDep, ctx: AuthDep, camera_id: str,
+                       seen_at: str,
+                       horizon_s: Annotated[float, Query(ge=30, le=21600)] = 900.0,
+                       limit: Annotated[int, Query(ge=1, le=50)] = 8
+                       ) -> dict[str, Any]:
+    when = parse_time(seen_at, "seen_at")
+    if when is None:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_TIME", "message": "seen_at is required"})
+    if camera_id not in {c["camera_id"] for c in state.store.list_cameras()}:
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+    try:
+        return state.investigation.next_best_cameras(
+            ctx, camera_id=camera_id, seen_at=when, horizon_s=horizon_s, limit=limit)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
+@router.get("/cameras/{camera_id}/snapshot", include_in_schema=False)
+async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
+                          force: bool = False):
+    """A still preview for the interface.
+
+    A still, deliberately, not a video proxy. Transcoding thirty live streams
+    for a browser would be a second analytics workload serving no investigative
+    purpose, and the organiser's guide asks us to open only what we process.
+
+    Served from one shared, cached capture per camera. The response carries the
+    frame's age, because a preview is not evidence and must never be presented
+    as live video.
+    """
+    from fastapi.responses import Response
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    url = cam.get("rtsp_url") or ""
+    if not url:
+        from saakshya.live.snapshot import local_media_url
+        url = local_media_url(camera_id)
+
+    if state.snapshots is None:
+        from saakshya.live import SnapshotService
+        state.snapshots = SnapshotService()
+
+    import anyio
+    snap = await anyio.to_thread.run_sync(
+        lambda: state.snapshots.get(camera_id, url, force=force))
+    if snap is None:
+        # Say which of the three it was. An upstream refusal is a 502 — the
+        # failure is between us and the grid, and retrying will not fix it —
+        # while a busy or unreachable camera is a 503 worth trying again.
+        # No RTSP in the registry is 404 unless ingest already published a
+        # still — the own-feed corpus has cameras without streams.
+        why = state.snapshots.last_error.get(camera_id)
+        if not url:
+            raise HTTPException(status_code=404, detail={
+                "code": "NO_SOURCE",
+                "message": why or (
+                    "this camera has no RTSP source in the registry, and "
+                    "ingest has not published a still")})
+        refused = bool(why and "refused this connection" in why)
+        raise HTTPException(status_code=502 if refused else 503, detail={
+            "code": "UPSTREAM_REFUSED" if refused else "NO_FRAME",
+            "message": why or ("could not capture a frame from this camera. It "
+                               "may be down, or the grid may be refusing "
+                               "another consumer.")})
+    src = {
+        "ingest": "ingest preview, already decoded, not a second stream",
+        "ingest-stale": "ingest preview, older than the refresh window",
+        "live-view": "selected camera, one extra stream copy, PTS-paced",
+        "file-view": "selected own-feed recording, PTS-paced",
+    }.get(snap.source, "shared cached capture, not live video")
+    jpeg = snap.jpeg
+    try:
+        from saakshya.live.annotate import annotate_jpeg
+        # RTSP live-view is PTS from the grid, not store time — overlaying
+        # store boxes would ghost detections. Own-feed file-view PTS matches
+        # the observations written at ingest, so boxes belong on that frame.
+        if snap.source == "live-view":
+            jpeg = snap.jpeg
+        else:
+            jpeg = annotate_jpeg(
+                snap.jpeg, state.store, camera_id,
+                preview_wh=(snap.width, snap.height),
+                camera_wh=(cam.get("width"), cam.get("height")),
+                pts_s=snap.pts_s if snap.source == "file-view" else None)
+    except Exception:
+        jpeg = snap.jpeg
+    return Response(
+        content=jpeg, media_type="image/jpeg",
+        headers={"X-Frame-Age-Seconds": f"{snap.age_s:.1f}",
+                 "X-Frame-Source": src,
+                 "X-Frame-Kind": snap.source,
+                 "Cache-Control": "no-store"})
+
+
+@router.get("/cameras/{camera_id}/plate.jpg", include_in_schema=False)
+async def plate_crop(state: StateDep, ctx: AuthDep, camera_id: str,
+                     plate: Annotated[str, Query(min_length=4, max_length=16)]):
+    """Crop of one stored plate box on this camera's current still.
+
+    The number comes from the observation store. The picture is the still,
+    not a drawn-on registration plate.
+    """
+    from fastapi.responses import Response
+
+    import re
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    mark = (plate or "").replace(" ", "").upper()
+    if not re.fullmatch(r"[A-Z0-9]{4,16}", mark):
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_PLATE", "message": "not a registration mark"})
+    rows = state.store.marks_for_camera(camera_id, 48)
+    hit = next((m for m in rows if (m.get("plate") or "").upper() == mark), None)
+    if not hit or not hit.get("bbox"):
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_CROP",
+            "message": "this camera has no stored box for that mark"})
+
+    jpeg = None
+    if state.snapshots is not None:
+        live = state.snapshots.selected.latest(camera_id)
+        if live is not None:
+            jpeg = live.jpeg
+    if jpeg is None:
+        from saakshya.live.preview import read_preview
+        got = read_preview(camera_id, max_age_s=float("inf"))
+        if got is not None:
+            jpeg = got[0]
+    if not jpeg:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_FRAME",
+            "message": "no still to crop from"})
+
+    from saakshya.live.annotate import crop_plate_jpeg
+    crop = crop_plate_jpeg(
+        jpeg, hit["bbox"],
+        camera_wh=(cam.get("width"), cam.get("height")))
+    if not crop:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_CROP",
+            "message": "the stored box does not fall on this still"})
+    return Response(
+        content=crop, media_type="image/jpeg",
+        headers={"Cache-Control": "no-store",
+                 "X-Plate": mark})
+
+
+@router.post("/cameras/{camera_id}/view", include_in_schema=False)
+async def camera_view(state: StateDep, ctx: AuthDep, camera_id: str):
+    """Open exactly one extra decode session for the camera the officer clicked.
+
+    The wall stays on ingest stills. This is Model 2: live video when asked,
+    not thirty extra clients on the grid. Own-feed cameras fall back to the
+    local MP4 when the registry has no RTSP URL.
+    """
+    from saakshya.live.snapshot import local_media_url
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    url = (cam.get("rtsp_url") or "") or local_media_url(camera_id)
+    local = local_media_url(camera_id)
+    # Own-feed cameras in the demo store often still point at a local MediaMTX
+    # replica. If that replica is down, the MP4 the pipeline actually decoded
+    # is the honest live view for this camera.
+    if local and (not url or "127.0.0.1" in url or "localhost" in url
+                  or url.startswith("file:")):
+        url = local
+    if not url:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_SOURCE",
+            "message": "this camera has no live source and no local recording"})
+
+    if state.snapshots is None:
+        from saakshya.live import SnapshotService
+        state.snapshots = SnapshotService()
+    state.snapshots.selected.start(camera_id, url)
+    source = "file" if local and url == local else "rtsp"
+    return {"camera_id": camera_id, "mode": "selected-stream", "source": source}
+
+
+@router.post("/cameras/{camera_id}/whep", include_in_schema=False)
+async def camera_whep(state: StateDep, ctx: AuthDep, camera_id: str,
+                      request: Request):
+    """WebRTC signaling proxy. Credentials never leave this process.
+
+    The browser POSTs an SDP offer here. This process forwards it to the
+    grid's WHEP endpoint with the stream authority attached, and returns the
+    answer. Media still flows peer-to-peer to the media server; this is not
+    a video transcode.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    from saakshya.live.credentials import configured, redact
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    whep = cam.get("whep_url")
+    if not whep:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_SOURCE",
+            "message": "this camera has no WHEP endpoint in the registry"})
+    # Registry rows sometimes hold the MediaMTX stream URL without the WHEP
+    # suffix. The integrator contract is /stream/<id>/whep.
+    if not whep.rstrip("/").endswith("/whep"):
+        whep = whep.rstrip("/") + "/whep"
+    if not configured():
+        raise HTTPException(status_code=503, detail={
+            "code": "NO_CREDENTIAL",
+            "message": "live video needs the grid credential in this process "
+                       "environment. Stills still refresh."})
+
+    offer = (await request.body()).decode("utf-8", errors="replace")
+    if not offer.strip():
+        raise HTTPException(status_code=400, detail={
+            "code": "INVALID_REQUEST", "message": "empty SDP offer"})
+
+    import base64
+    import os
+    import urllib.error
+    import urllib.request
+
+    # Basic auth on the clean URL — never put the password into the request
+    # URL, where urllib would echo it from an exception.
+    email = os.environ.get("SENTINEL_GRID_EMAIL", "")
+    password = os.environ.get("SENTINEL_GRID_PASSWORD", "")
+    token = base64.b64encode(f"{email}:{password}".encode("utf-8")).decode("ascii")
+    req = urllib.request.Request(
+        whep, data=offer.encode("utf-8"), method="POST",
+        headers={
+            "Content-Type": "application/sdp",
+            "Accept": "application/sdp",
+            "Authorization": f"Basic {token}",
+        })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            answer = resp.read().decode("utf-8", errors="replace")
+            status = getattr(resp, "status", 200)
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=502, detail={
+            "code": "WHEP_UPSTREAM",
+            "message": f"grid WHEP refused ({exc.code}). The still is still "
+                       "refreshing."}) from exc
+    except Exception:
+        raise HTTPException(status_code=503, detail={
+            "code": "WHEP_UNREACHABLE",
+            "message": f"grid WHEP unreachable at {redact(whep)}. "
+                       "The still is still refreshing."})
+    return PlainTextResponse(answer, status_code=201 if status == 201 else 200,
+                             media_type="application/sdp")
+
+
+@router.get("/cameras/{camera_id}", summary="Camera context: registry, health, capability")
+async def camera_context(state: StateDep, ctx: AuthDep, camera_id: str
+                         ) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+        health = state.store.list_health([camera_id]).get(camera_id, {})
+        caps = state.store.list_capability([camera_id])
+        counts = state.store.observation_counts_by_camera().get(camera_id, {})
+        neighbours = [
+            {"to_camera": b, "support": t.support_count,
+             "travel_p50_s": t.travel_p50_s, "confidence": round(t.confidence, 3),
+             "trusted": t.trusted, "source": t.source}
+            for (a, b), t in state.graph.edges.items() if a == camera_id]
+        # A transition with no confidence sorts last rather than raising.
+        neighbours.sort(key=lambda n: -float(n["confidence"] or 0.0))
+        return {
+            "camera": {k: v for k, v in cam.items()
+                       if k not in ("rtsp_url", "hls_url", "whep_url")},
+            # Stream URLs can carry credentials and are not investigation data.
+            # They are available to ADMIN through the admin route, not here.
+            "health": health, "capability": caps, "counts": counts,
+            "neighbours": neighbours,
+        }
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
+# --------------------------------------------------------------------------- #
+# Cases
+# --------------------------------------------------------------------------- #
+class CaseCreate(BaseModel):
+    #: Slashes are allowed because an Indian FIR number is NNN/YYYY — a case
+    #: identifier containing one is the normal case, not an exotic input. The
+    #: pattern still excludes everything that could confuse a path or a shell,
+    #: and the routes below use a `path` converter so such an id is addressable.
+    case_id: str = Field(min_length=3, max_length=60,
+                         pattern=r"^[A-Za-z0-9][A-Za-z0-9/_.\-]{2,59}$")
+    title: str = Field(min_length=3, max_length=200)
+    purpose: str = Field(min_length=12, max_length=2000)
+    fir_number: str | None = Field(default=None, max_length=80)
+    district: str | None = Field(default=None, max_length=120)
+    classification: str | None = Field(default=None, max_length=60)
+
+
+class CaseAttach(BaseModel):
+    item_type: str = Field(pattern=r"^(target|observation|trajectory|alert|evidence|camera)$")
+    item_ref: str = Field(min_length=1, max_length=80)
+    payload: dict[str, Any] | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
+@router.post("/cases", status_code=201, summary="Open a case")
+async def case_create(state: StateDep, ctx: AuthDep, body: CaseCreate) -> dict[str, Any]:
+    try:
+        return state.cases.create(
+            ctx, case_id=body.case_id, title=body.title, purpose=body.purpose,
+            fir_number=body.fir_number, district=body.district,
+            classification=body.classification).to_dict()
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={
+            "code": "CONFLICT", "message": str(exc)}) from exc
+
+
+@router.get("/cases", summary="List cases in scope")
+async def case_list(state: StateDep, ctx: AuthDep, status: str | None = None,
+                    limit: Annotated[int, Query(ge=1, le=500)] = 100
+                    ) -> dict[str, Any]:
+    try:
+        cases = state.cases.list_cases(ctx, status=status, limit=limit)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    return {"cases": [c.to_dict() for c in cases], "count": len(cases)}
+
+
+@router.post("/cases/{case_id:path}/items",
+             summary="Attach a finding to a case")
+async def case_attach(state: StateDep, ctx: AuthDep, case_id: str,
+                      body: CaseAttach) -> dict[str, Any]:
+    try:
+        return state.cases.attach(ctx, case_id, item_type=body.item_type,
+                                  item_ref=body.item_ref, payload=body.payload,
+                                  note=body.note)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_REQUEST", "message": str(exc)}) from exc
+
+
+@router.post("/cases/{case_id:path}/notes",
+             summary="Add an investigator note")
+async def case_note(state: StateDep, ctx: AuthDep, case_id: str,
+                    body: Annotated[dict[str, str], Body()]) -> dict[str, Any]:
+    try:
+        return state.cases.note(ctx, case_id, body.get("body", ""))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_REQUEST", "message": str(exc)}) from exc
+
+
+@router.get("/cases/{case_id:path}/export",
+            summary="Case file with its audit trail")
+async def case_export(state: StateDep, ctx: AuthDep, case_id: str) -> dict[str, Any]:
+    try:
+        async with ConcurrencyGuard(state.export_sem, what="exports"):
+            return state.cases.export(ctx, case_id)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_FOUND", "message": str(exc)}) from exc
+
+
+@router.get("/cases/{case_id:path}",
+            summary="One case with its attachments and notes")
+async def case_get(state: StateDep, ctx: AuthDep, case_id: str) -> dict[str, Any]:
+    try:
+        case = state.cases.get(ctx, case_id)
+        if case is None:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such case: {case_id}"})
+        return {"case": case.to_dict(),
+                "items": state.cases.items(ctx, case_id),
+                "notes": state.cases.notes(ctx, case_id)}
+    except AccessError as exc:
+        raise access_error(exc) from exc

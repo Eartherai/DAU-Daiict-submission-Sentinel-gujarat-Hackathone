@@ -1,0 +1,182 @@
+{
+  "database": "sqlite:///var/demo.db",
+  "generated_at": "2026-09-03T14:49:46+00:00",
+  "iterations": 30,
+  "scale": {
+    "cameras": 6,
+    "observations": 140,
+    "observations_with_plate": 109,
+    "observations_with_embedding": 0,
+    "raw_ocr_read_records": 0,
+    "transitions": 30,
+    "watchlist": 2,
+    "alerts": 2,
+    "evidence": 4,
+    "audit_entries": 2452
+  },
+  "measurement": "in-process TestClient; excludes network latency",
+  "results": {
+    "GET  /overview": {
+      "n": 30,
+      "p50_ms": 2.77,
+      "p95_ms": 3.2,
+      "p99_ms": 3.79,
+      "max_ms": 3.79,
+      "mean_ms": 2.83,
+      "status": 200
+    },
+    "GET  /search (plate)": {
+      "n": 30,
+      "p50_ms": 2.68,
+      "p95_ms": 3.36,
+      "p99_ms": 27.63,
+      "max_ms": 27.63,
+      "mean_ms": 3.57,
+      "status": 200
+    },
+    "GET  /search (attributes)": {
+      "n": 30,
+      "p50_ms": 2.76,
+      "p95_ms": 3.23,
+      "p99_ms": 5.46,
+      "max_ms": 5.46,
+      "mean_ms": 2.89,
+      "status": 200
+    },
+    "GET  /trajectory/{plate}": {
+      "n": 30,
+      "p50_ms": 2.96,
+      "p95_ms": 3.77,
+      "p99_ms": 4.09,
+      "max_ms": 4.09,
+      "mean_ms": 3.07,
+      "status": 200
+    },
+    "GET  /gis/cameras": {
+      "n": 30,
+      "p50_ms": 2.68,
+      "p95_ms": 2.96,
+      "p99_ms": 3.08,
+      "max_ms": 3.08,
+      "mean_ms": 2.7,
+      "status": 200
+    },
+    "GET  /gis/health": {
+      "n": 30,
+      "p50_ms": 2.15,
+      "p95_ms": 2.41,
+      "p99_ms": 2.51,
+      "max_ms": 2.51,
+      "mean_ms": 2.19,
+      "status": 200
+    },
+    "GET  /gis/capability": {
+      "n": 30,
+      "p50_ms": 2.52,
+      "p95_ms": 2.73,
+      "p99_ms": 2.92,
+      "max_ms": 2.92,
+      "mean_ms": 2.53,
+      "status": 200
+    },
+    "GET  /gis/coverage": {
+      "n": 30,
+      "p50_ms": 2.46,
+      "p95_ms": 2.65,
+      "p99_ms": 2.88,
+      "max_ms": 2.88,
+      "mean_ms": 2.48,
+      "status": 200
+    },
+    "GET  /gis/trajectory/{plate}": {
+      "n": 30,
+      "p50_ms": 3.07,
+      "p95_ms": 3.28,
+      "p99_ms": 3.48,
+      "max_ms": 3.48,
+      "mean_ms": 3.06,
+      "status": 200
+    },
+    "GET  /gis/alerts": {
+      "n": 30,
+      "p50_ms": 2.04,
+      "p95_ms": 2.35,
+      "p99_ms": 2.4,
+      "max_ms": 2.4,
+      "mean_ms": 2.05,
+      "status": 200
+    },
+    "GET  /cameras/{id}": {
+      "n": 30,
+      "p50_ms": 2.54,
+      "p95_ms": 2.73,
+      "p99_ms": 3.34,
+      "max_ms": 3.34,
+      "mean_ms": 2.59,
+      "status": 200
+    },
+    "GET  /cameras/{id}/next": {
+      "n": 30,
+      "p50_ms": 2.35,
+      "p95_ms": 2.65,
+      "p99_ms": 6.59,
+      "max_ms": 6.59,
+      "mean_ms": 2.5,
+      "status": 200
+    },
+    "GET  /observations/{id}": {
+      "n": 30,
+      "p50_ms": 2.05,
+      "p95_ms": 2.21,
+      "p99_ms": 2.29,
+      "max_ms": 2.29,
+      "mean_ms": 2.06,
+      "status": 200
+    },
+    "GET  /watchlist": {
+      "n": 30,
+      "p50_ms": 2.23,
+      "p95_ms": 2.57,
+      "p99_ms": 2.68,
+      "max_ms": 2.68,
+      "mean_ms": 2.26,
+      "status": 200
+    },
+    "GET  /alerts": {
+      "n": 30,
+      "p50_ms": 2.15,
+      "p95_ms": 2.37,
+      "p99_ms": 2.42,
+      "max_ms": 2.42,
+      "mean_ms": 2.17,
+      "status": 200
+    },
+    "GET  /audit": {
+      "n": 30,
+      "p50_ms": 23.09,
+      "p95_ms": 23.61,
+      "p99_ms": 44.69,
+      "max_ms": 44.69,
+      "mean_ms": 23.81,
+      "status": 200
+    },
+    "GET  /evidence/chain/verify": {
+      "n": 30,
+      "p50_ms": 2.58,
+      "p95_ms": 2.92,
+      "p99_ms": 2.94,
+      "max_ms": 2.94,
+      "mean_ms": 2.62,
+      "status": 200
+    },
+    "GET  /targets/{plate}/observations": {
+      "n": 30,
+      "p50_ms": 2.12,
+      "p95_ms": 2.28,
+      "p99_ms": 2.49,
+      "max_ms": 2.49,
+      "mean_ms": 2.13,
+      "status": 200
+    }
+  }
+}

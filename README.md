@@ -4,129 +4,170 @@
 
 Federated CCTV intelligence and evidence fabric for a camera estate that was never built to be one.
 
-**Gujarat Police Innovation Challenge 2026** · Sentinel Camera Grid · DAU / DAIICT  
-**Hybrid of Models 1 + 2 + 3.** Model 4 (central VMS of ~80,000 cameras) is **rejected on arithmetic**, not left unfinished.
+[![GPIC 2026](https://img.shields.io/badge/Gujarat_Police-Innovation_Challenge_2026-1B4F72?style=flat-square)](https://sentinel.gujarat.gov.in/)
+[![Hybrid 1+2+3](https://img.shields.io/badge/Architecture-Hybrid_Models_1%2B2%2B3-0E7C7B?style=flat-square)](docs/HLD.md)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI_%2B_OpenAPI-009688?style=flat-square)](docs/API.md)
+[![Tests](https://img.shields.io/badge/Tests-666_collected-2E7D32?style=flat-square)](#verify-the-stack)
+[![Licence policy](https://img.shields.io/badge/Models-permissive_only_(AGPL_rejected)-6A1B9A?style=flat-square)](docs/THIRD_PARTY_LICENSES.md)
 
-[Repository](https://github.com/Eartherai/DAU-Daiict-submission-Sentinel-gujarat-Hackathone) · [Challenge](https://sentinel.gujarat.gov.in/) · [API OpenAPI](http://127.0.0.1:8080/docs) (after `make serve`) · [HLD](docs/HLD.md)
+**Gujarat Police Innovation Challenge 2026** · Sentinel Camera Grid · **DAU / DAIICT**  
+**Hybrid of Models 1 + 2 + 3.** Model 4 (central VMS of ~80,000 cameras) is **rejected on arithmetic** — 80k × 2 Mbps ≈ **160 Gbps**, 30-day ≈ **52 PB** — not left unfinished.
+
+[Live README images](#watch-first-26-seconds) · [HLD](docs/HLD.md) · [Measured results](docs/MEASURED_RESULTS.md) · [API](docs/API.md) · [Portal pack](docs/PORTAL_UPLOAD.md) · [Judge Q&A](docs/JUDGE_QA.md)
+
+---
+
+## Contents
+
+- [Watch first (26 seconds)](#watch-first-26-seconds)
+- [Official submission deliverables](#official-submission-deliverables)
+- [How this maps to the evaluation framework](#how-this-maps-to-the-evaluation-framework)
+- [Detection that is actually drawn](#detection-that-is-actually-drawn)
+- [Investigation workspace](#investigation-workspace)
+- [Measured on the live government grid](#measured-on-the-live-government-grid)
+- [High-level design](#high-level-design)
+- [Scalability and PoC readiness](#scalability-and-poc-readiness)
+- [Technology stack](#technology-stack)
+- [Full reproduce — clone to working login](#full-reproduce--clone-to-working-login)
+- [Against the real Sentinel government feed](#against-the-real-sentinel-government-feed)
+- [API integration](#api-integration)
+- [What it does / what it is not](#what-it-does--what-it-is-not)
+- [Troubleshooting](#troubleshooting)
+- [Repository map](#repository-map)
+- [Documentation](#documentation)
+- [Team · licence · credentials](#team--licence--credentials)
 
 ---
 
 ## Watch first (26 seconds)
 
-Real Chrome tab against a live API — overview → government Focus → plates on the camera you opened.
+Real Chrome tab against a live API — overview → government Focus → plates on the camera you opened. Nothing here is a mock-up.
 
 ![Live government Focus — moving night CCTV in the real workspace](docs/readme/live-preview.gif)
 
 **[▶ Download the 26-second dashboard cut (720p)](docs/readme/dashboard.mp4)**
 
-Full narrated government workspace tour: `2.mp4` / portal pack `06_SAAKSHYA_launch.mp4`. Own-feed detection film: `1.mp4` / `03_own_feed.mp4`.
+| Film | What it is |
+|---|---|
+| **Own feed** `1.mp4` | Street CCTV with live SAAKSHYA boxes (portal `03_own_feed.mp4` + CSV/JSON) |
+| **Government workspace** `2.mp4` | Narrated live grid tour (portal `06_SAAKSHYA_launch.mp4`) |
+| **Detection overlays** | Same `CameraPipeline` drawn onto government + own frames |
+
+<p align="center">
+  <img src="docs/readme/live-wall.gif" alt="SAAKSHYA live government wall — 30 cameras" width="100%">
+</p>
+<p align="center"><em>30-camera live government wall. Unusable mounts stay dark — that is the estate, not demo polish.</em></p>
 
 ---
 
-## What you get in one glance
+## Official submission deliverables
 
-| Surface | What the officer sees |
+Portal deadline **15 Sep 2026**. Pack layout and paste text: [`docs/PORTAL_UPLOAD.md`](docs/PORTAL_UPLOAD.md). Large binaries live under `var/demo/PORTAL_PACK/` on the submission machine (gitignored — too large for GitHub).
+
+| Portal field | Artefact | In-repo pointer |
+|---|---|---|
+| **1 · Presentation** | `01_SAAKSHYA_deck.pptx` + `.pdf` | Rendered by `tools/demo/render_submission_deck.py` |
+| **2 · High-level design** | `docs/HLD.md` + architecture diagrams | [docs/HLD.md](docs/HLD.md) · [docs/readme/hld-fabric.jpg](docs/readme/hld-fabric.jpg) |
+| **3 · Own-feed demo** | `03_own_feed.mp4` + `.csv` / `.json` | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
+| **4 · Government-feed demo** | `04_government_feed.mp4` + reports | Stills: [docs/readme/detect/](docs/readme/detect/) |
+| **5 · Detection report** | `05_detections.md` + summary | Quote sheet: [docs/MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md) |
+| **Working platform** | This repository · `make demo && make serve` | Steps below |
+
+Forbidden phrases on every slide and in this README: *production ready* · *legally admissible* · *tested at 80,000*.
+
+---
+
+## How this maps to the evaluation framework
+
+| Criterion | Where the evidence is |
 |---|---|
-| **30-camera live wall** | Real government RTSP stills + selected live decode |
-| **Detection overlays** | Vehicles, persons, bikes — same pipeline as the grid |
-| **Find / trajectory** | Plate search with case + purpose, typed route legs |
-| **Alerts** | Watchlist hits with confidence and acknowledge |
-| **Capability grades** | Per-camera ANPR / appearance / presence — measured, not assumed |
-| **Copilot** | 16 read-only tools; refuses to enhance government stills |
-| **API** | Bearer auth, purpose binding, OpenAPI at `/docs` |
+| **1. Successful test case** | 30/30 government cameras onboarded; find `GJ1VV0119`; alert `GJ38BH5815`; own-feed cross-camera `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021. Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
+| **2. Solution presentation** | Portal deck PPTX/PDF · content from measured sheet · [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
+| **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Model 4 rejected with bandwidth arithmetic |
+| **4. Working platform & demonstration** | `make install && make media && make demo && make serve` → http://127.0.0.1:8080 · bearer gate · OpenAPI `/docs` |
+| **5. Video analytics output** | Vehicle + person detection, tracking, per-track ANPR with voting, capability grades, CSV/JSON paired to overlay films |
+| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · measured 30-cam / 50-cam load · **MODELLED** 80k sizing kept separate |
+| **7. Submission completeness** | This README, `.env.example`, 666 tests, portal pack checklist, secret scan in `make verify` |
 
-<p align="center">
-  <img src="docs/readme/live-wall.gif" alt="SAAKSHYA live government wall — 30 cameras decoded from the grid" width="100%">
-</p>
-<p align="center"><em>Live government wall. Unusable mounts stay dark — that is the estate, not a demo polish.</em></p>
+| Bonus ask | What is built |
+|---|---|
+| Hybrid architecture | Models **1 + 2 + 3**; Model **4 refused** |
+| Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); live store: **0** exact cross-camera plate repeats (honest) |
+| Analytics beyond ANPR | Motion / track / person presence / attributes / measured capability |
+| Edge + low bandwidth | Metadata ~400 B/observation; video stays at the camera; edge queue + SERVICE token sync |
+| Security / privacy / audit | Four authorisation gates · purpose binding · hash-chained audit · no FR identity on government data |
+| Dashboards / alerts / APIs | Overview · Live · Find · Map · Alerts · Copilot (refuses enhancement) · OpenAPI |
 
 ---
 
 ## Detection that is actually drawn
 
-Boxes come from the same `CameraPipeline` the live grid runs. White plate chips appear only when ANPR cleared two agreeing reads — not a single OCR guess.
+Boxes come from the same `CameraPipeline` the live grid runs. A white plate chip appears only when ANPR cleared **two agreeing reads** — not a single OCR guess.
 
 ### Government feed (night, organised grid)
 
 <p align="center">
-  <img src="docs/readme/detect/gov-bridge.jpg" alt="cam01 Chiman bhai Bridge — multi-vehicle detection overlay" width="100%">
+  <img src="docs/readme/detect/gov-bridge.jpg" alt="cam01 Chiman bhai Bridge — multi-vehicle overlay" width="100%">
 </p>
 <p align="center"><em>cam01 · Chiman bhai Bridge — confirmed tracks, PTS-normalised time, live government feed.</em></p>
 
 <p align="center">
   <img src="docs/readme/detect/gov-paldi.jpg" alt="cam04 Paldi Circle — dense night detections" width="100%">
 </p>
-<p align="center"><em>cam04 · Paldi Circle — 29 confirmed boxes on one frame. Marks stay zero when plate width is below the readable bar.</em></p>
+<p align="center"><em>cam04 · Paldi Circle — 29 confirmed boxes. Marks stay zero when plate width is below the readable bar.</em></p>
 
 <p align="center">
-  <img src="docs/readme/detect/gov-toll.jpg" alt="cam12 Adalaj Tollnaka — lane detections" width="100%">
+  <img src="docs/readme/detect/gov-toll.jpg" alt="cam12 Adalaj Tollnaka" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/readme/detect/gov-wall.jpg" alt="30-camera live wall still" width="100%">
 </p>
 
 ### Own feed (street CCTV — not government data)
 
 <p align="center">
-  <img src="docs/readme/detect/own-street.jpg" alt="OWN-STREET own-estate recording with SAAKSHYA boxes and plate chips" width="100%">
+  <img src="docs/readme/detect/own-street.jpg" alt="OWN-STREET with SAAKSHYA boxes" width="100%">
 </p>
-<p align="center"><em>OWN-STREET · own recording. Dense vehicle / person / bike boxes. Plate chips only after vote ≥ 2.</em></p>
+<p align="center"><em>OWN-STREET · own recording. Dense vehicle / person / bike boxes. No fabricated plate chips.</em></p>
 
 ---
 
 ## Investigation workspace
 
 <p align="center">
-  <img src="docs/readme/ui/live-twoup.jpg" alt="Live two-up government cameras with detection boxes" width="100%">
+  <img src="docs/readme/ui/overview.jpg" alt="Overview command picture" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/readme/ui/find-gj1vv0119.jpg" alt="Find GJ1VV0119 on the live store" width="100%">
+  <img src="docs/readme/ui/live-twoup.jpg" alt="Live two-up with detection boxes" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/readme/ui/find-gj1vv0119.jpg" alt="Find GJ1VV0119" width="100%">
 </p>
 <p align="center"><em>Designated rehearsal plate <code>GJ1VV0119</code> — one camera, looping footage. Not a cross-camera fleet claim.</em></p>
 
 <p align="center">
-  <img src="docs/readme/ui/alerts.jpg" alt="Watchlist alert GJ38BH5815 on cam21" width="100%">
+  <img src="docs/readme/ui/alerts.jpg" alt="Alert GJ38BH5815" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/readme/ui/map.jpg" alt="Estate map — 19 placed, 11 listed without invented coordinates" width="100%">
+  <img src="docs/readme/ui/map.jpg" alt="Estate map 19 placed / 11 listed" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/readme/ui/copilot-refuse.jpg" alt="Copilot refuses to enhance a government still" width="100%">
+  <img src="docs/readme/ui/copilot-refuse.jpg" alt="Copilot refuses enhancement" width="100%">
 </p>
-<p align="center"><em>Copilot refuses image enhancement. A “restored” plate would be fabricated evidence.</em></p>
-
----
-
-## High-level design
-
-Metadata moves. Video stays where it is. Model 4 is refused with a number.
-
-<p align="center">
-  <img src="docs/readme/hld-fabric.jpg" alt="SAAKSHYA high-level design" width="100%">
-</p>
-
-<p align="center">
-  <img src="docs/readme/system-architecture.jpg" alt="SAAKSHYA system architecture" width="100%">
-</p>
-
-| Model | Role | Status |
-|---|---|---|
-| **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
-| **2** Unified viewing | One JPEG per camera from ingest; click → one extra stream | **Kept** |
-| **3** Federation | Government RTSP + local media; observation store as bus | **Kept** |
-| **4** Central VMS | Record ~80,000 cameras | **Not built** — 80k × 2 Mbps ≈ **160 Gbps**, 30-day ≈ **52 PB** |
-
-```
-RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track → T2 ANPR)
-        →  EDGE (local store, queue, watchlist)  →  STORE (SQLite ⇄ PostgreSQL)
-        →  search / graph / trajectory / alerts / evidence / investigation workspace
-```
+<p align="center"><em>Copilot refuses image enhancement. A “restored” plate would be fabricated evidence (BSA s.63).</em></p>
 
 ---
 
 ## Measured on the live government grid
 
-Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **2026-09-06T21:02:56Z**. Kept apart from modelled figures.
+Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **2026-09-06T21:02:56Z**.  
+**MEASURED** figures are never mixed with **MODELLED** 80k sizing.
 
 | | |
 |---|---|
@@ -139,18 +180,79 @@ Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **20
 | Exact cross-camera repeats | **0** |
 | ANPR grades | **0 GOOD · 28 UNSUITABLE · 2 UNKNOWN** |
 | Appearance | **20 GOOD · 8 DEGRADED · 2 UNKNOWN** |
-| Concurrent cameras (mixed codecs) | 50 cameras — 52,637 frames, **0 decoder errors** |
+| Concurrent cameras (mixed codecs) | 50 cameras — 52,637 frames · **0** decoder errors |
 | Analytics throughput (one process) | **11.4** frames/s |
 | Hot queries using an index | **10 of 10** |
+| Automated tests collected | **666** |
 
-We do **not** say “tested at 80,000”. Measured at thirty of the issued grid (and fifty in load), designed for eighty thousand. Night ANPR **UNSUITABLE** is a geometry finding, not a failed reader.
+We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometry finding (plate width / mount), not a failed reader.
 
 ### Designated vehicles (what we will show)
 
 | Store | What we show |
 |---|---|
 | **Live government** | Rehearse `GJ1VV0119` (cam07, looping). Open alert `GJ38BH5815` on cam21 |
-| **Own-feed corpus** | Cross-camera `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021 |
+| **Own-feed corpus** | Cross-camera `GJ05AB1234` / `GJ35BV6925` on **C-014** + **C-021** |
+
+---
+
+## High-level design
+
+Metadata moves. Video stays where it is.
+
+<p align="center">
+  <img src="docs/readme/hld-fabric.jpg" alt="SAAKSHYA high-level design" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/readme/system-architecture.jpg" alt="SAAKSHYA system architecture" width="100%">
+</p>
+
+| Model | Role | Status |
+|---|---|---|
+| **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
+| **2** Unified viewing | Ingest stills on the wall; click → one extra stream copy | **Kept** |
+| **3** Federation | Government RTSP + local media; observation store as bus | **Kept** |
+| **4** Central VMS | Record ~80,000 cameras in one hall | **Not built** |
+
+```
+RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track → T2 ANPR)
+        →  EDGE (local store, queue, watchlist)  →  STORE (SQLite ⇄ PostgreSQL)
+        →  search / graph / trajectory / alerts / evidence / investigation workspace
+```
+
+The chain runs **with no language model in the loop** — a test fails if one is imported while it runs.
+
+---
+
+## Scalability and PoC readiness
+
+| Framework ask | This design |
+|---|---|
+| Central / regional / edge | **Edge / district:** ingest + analytics + local store + durable queue (~2–3k cameras / node, **MODELLED**). **Central:** aggregation, cross-district search, evidence chain, audit |
+| GPU | Default path is CPU (ONNX plate + RT-DETRv2 / MPS where available). GPU is optional acceleration, not a hard requirement for PoC |
+| Bandwidth | Video stays at the camera. Metadata ~400 B/observation. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why Model 4 is refused |
+| Storage | Hot metadata + sealed evidence centrally; video remains on departmental NVR/VMS |
+| HA / ops | Edge continues with uplink down; SERVICE token sync; reconnect with exponential backoff; credentials from environment only |
+| Cost | Quantities from [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md); procurement rates not invented |
+
+**MEASURED:** 30 simultaneous government cameras; 50 concurrent mixed-codec load with 0 decoder errors; analytics ~11 cameras saturating one CPU process.  
+**MODELLED:** ~33 district nodes for 80k. Never quoted as tested.
+
+---
+
+## Technology stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Ingest | **PyAV** (real PTS) | Wall-clock / declared FPS rejected for evidence time |
+| Detect / track | Motion + vehicle detector + separate person pool | Persons never enter plate voting |
+| ANPR | **fast-alpr** + **open-image-models** yolo-v9-t + cct-s-v2 OCR | MIT; 10-slot OCR for Indian marks; AGPL Ultralytics **rejected in code** |
+| API | **FastAPI** + generated OpenAPI | Contract cannot drift from routes |
+| Store | SQLAlchemy · SQLite ⇄ PostgreSQL | Same schema, two dialects |
+| UI | Static investigation workspace (`ui/`) | No third-party CDN required for core use |
+| Auth | Bearer `skv_…` + purpose headers | Case + purpose ≥ 12 chars on intrusive queries |
+| Optional copilot | 16 read-only tools · Gemini off by default | Refuses to enhance / invent government stills |
 
 ---
 
@@ -165,55 +267,51 @@ git clone https://github.com/Eartherai/DAU-Daiict-submission-Sentinel-gujarat-Ha
 cd DAU-Daiict-submission-Sentinel-gujarat-Hackathone
 
 make install
-# equivalent:
-#   uv venv --python 3.12
-#   uv pip install -e ".[dev,analytics]"
+# uv venv --python 3.12 && uv pip install -e ".[dev,analytics]"
+
+cp .env.example .env   # never commit .env
 ```
 
-Optional film tooling only: `uv pip install -e ".[demo]"` then `playwright install chromium`.
-
-Copy environment template (no secrets in the repo):
+### 2. Seed the demonstration store
 
 ```bash
-cp .env.example .env
-# edit .env only on your machine — never commit it
+make media    # synthetic corpus from a fixed seed
+make demo     # isolated var/demo.db — never writes the evaluation store
 ```
 
-### 2. Seed the demonstration store (prints sign-in tokens once)
+`make demo` prints bearer tokens (`skv_…`) once for `supervisor.demo`, `investigator.ahd`, `operator.demo`, …  
+**Copy one token from the terminal.** The seeder never writes tokens to disk.
+
+### 3. Start API + workspace
 
 ```bash
-make media       # synthetic corpus from a fixed seed
-make demo        # isolated var/demo.db — never writes the evaluation store
+make serve    # http://127.0.0.1:8080
 ```
-
-`make demo` prints a table of bearer tokens (`skv_…`) for roles such as `supervisor.demo`, `investigator.ahd`, `operator.demo`. **Copy one token from the terminal.** Tokens are shown once and are never written to disk by the seeder.
-
-### 3. Start the API + investigation workspace
-
-```bash
-make serve       # http://127.0.0.1:8080
-```
-
-Open **http://127.0.0.1:8080/**.
 
 ### 4. Sign in (full login)
 
-1. The gate asks for a **Bearer token**, a **Case** id, and a **Purpose** (≥ 12 characters).
-2. Paste the token from `make demo` (e.g. `supervisor.demo`).
-3. Example case / purpose for local use:
+1. Open **http://127.0.0.1:8080/**
+2. Gate asks for **Bearer token**, **Case**, **Purpose** (≥ 12 characters)
+3. Example:
+   - Token: paste from `make demo` (e.g. `supervisor.demo`)
    - Case: `FIR-214/2026`
    - Purpose: `tracing a vehicle reported stolen for demonstration`
-4. Click **Enter the workspace**.
+4. Click **Enter the workspace**
 
-The token stays in `sessionStorage` for that browser tab only. Case and purpose are written into a hash-chained audit log with every search. A search without purpose is refused with `400 PURPOSE_REQUIRED`.
+Token stays in tab `sessionStorage` only. Case + purpose are written into a hash-chained audit log on every search. Missing purpose → `400 PURPOSE_REQUIRED`.
 
-Interactive API docs (same token): **http://127.0.0.1:8080/docs** · schema **http://127.0.0.1:8080/openapi.json**
+| Surface | URL |
+|---|---|
+| Workspace | http://127.0.0.1:8080/ |
+| Swagger / OpenAPI UI | http://127.0.0.1:8080/docs |
+| OpenAPI JSON | http://127.0.0.1:8080/openapi.json |
+| Liveness | http://127.0.0.1:8080/healthz |
 
 ### 5. Verify the stack
 
 ```bash
-make precommit      # lint + typecheck + unit + secret scan
-make verify         # full blocking gate
+make precommit   # lint + typecheck + unit + secret scan
+make verify      # full blocking gate
 curl -s http://127.0.0.1:8080/healthz
 ```
 
@@ -221,22 +319,20 @@ curl -s http://127.0.0.1:8080/healthz
 
 ## Against the real Sentinel government feed
 
-Stream credentials belong in the **process environment only**. Never commit them.
+Credentials belong in the **process environment only**. Never commit them.
 
 ```bash
 export SENTINEL_GRID_EMAIL='your@email'
 export SENTINEL_GRID_PASSWORD='XXXX-XXXX-XXXX'
+# export SENTINEL_GRID_COOKIE='…'   # if catalogue needs a browser session
 
-# optional: catalogue cookie if cameras.json needs a browser session
-# export SENTINEL_GRID_COOKIE='…'
-
-make live-profile          # characterise reachable cameras
-make live-ingest           # staged ingest into var/live.db
-make live-watch            # continuous 30-camera ingest
-make live-serve            # workspace on the live store (port 8080)
+make live-profile
+make live-ingest          # → var/live.db
+make live-watch           # continuous 30-camera ingest
+make live-serve
 ```
 
-Mint a short-lived token against the live store (on the host that holds `var/live.db`):
+Mint a short-lived token against the live store:
 
 ```bash
 .venv/bin/python - <<'PY'
@@ -250,7 +346,7 @@ print(ts.mint("supervisor.live", label="live", ttl=timedelta(hours=8)))
 PY
 ```
 
-Sign in at the gate with that token. Details: [`docs/SENTINEL_SANDBOX.md`](docs/SENTINEL_SANDBOX.md), [`docs/GOVERNMENT_DATA_ACCESS_CHECKLIST.md`](docs/GOVERNMENT_DATA_ACCESS_CHECKLIST.md).
+Details: [`docs/SENTINEL_SANDBOX.md`](docs/SENTINEL_SANDBOX.md) · [`docs/GOVERNMENT_DATA_ACCESS_CHECKLIST.md`](docs/GOVERNMENT_DATA_ACCESS_CHECKLIST.md).
 
 Every client forces **RTSP over TCP**. Timing uses **presentation timestamps**, never declared FPS.
 
@@ -258,57 +354,37 @@ Every client forces **RTSP over TCP**. Timing uses **presentation timestamps**, 
 
 ## API integration
 
-All investigation routes need:
-
 ```http
 Authorization: Bearer <token>
 X-Case-Id: FIR-214/2026
 X-Purpose: tracing a stolen vehicle for demonstration
 ```
 
-Purpose-bound surfaces: `/search`, `/trajectory/*`, `/gis/trajectory/*`, `/watchlist`, `/targets/*/observations`, `/evidence/*/export`, …
+Purpose-bound: `/search`, `/trajectory/*`, `/gis/trajectory/*`, `/watchlist`, `/targets/*/observations`, `/evidence/*/export`, …
 
-### Quick curl examples
+### curl
 
 ```bash
 TOKEN='skv_…'   # from make demo — do not commit
 
-# Who am I
-curl -s http://127.0.0.1:8080/me \
-  -H "Authorization: Bearer $TOKEN" | jq .
+curl -s http://127.0.0.1:8080/me -H "Authorization: Bearer $TOKEN" | jq .
+curl -s http://127.0.0.1:8080/overview -H "Authorization: Bearer $TOKEN" | jq .
 
-# Overview KPIs
-curl -s http://127.0.0.1:8080/overview \
-  -H "Authorization: Bearer $TOKEN" | jq .
-
-# Plate search (purpose required)
 curl -s 'http://127.0.0.1:8080/search?plate=GJ05AB1234' \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Case-Id: FIR-214/2026" \
   -H "X-Purpose: tracing a stolen vehicle for demonstration" | jq .
 
-# Trajectory hypotheses
 curl -s 'http://127.0.0.1:8080/trajectory/GJ05AB1234' \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Case-Id: FIR-214/2026" \
   -H "X-Purpose: tracing a stolen vehicle for demonstration" | jq .
 
-# Alerts
-curl -s http://127.0.0.1:8080/alerts \
-  -H "Authorization: Bearer $TOKEN" | jq .
-
-# GIS cameras (bbox optional)
-curl -s 'http://127.0.0.1:8080/gis/cameras' \
-  -H "Authorization: Bearer $TOKEN" | jq .
-
-# Edge sync (SERVICE token only — edge:sync permission)
-curl -s -X POST http://127.0.0.1:8080/edge/node01/events \
-  -H "Authorization: Bearer $EDGE_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"events":[]}'
+curl -s http://127.0.0.1:8080/alerts -H "Authorization: Bearer $TOKEN" | jq .
+curl -s 'http://127.0.0.1:8080/gis/cameras' -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
-### Python client sketch
+### Python
 
 ```python
 import httpx
@@ -326,7 +402,7 @@ with httpx.Client(base_url=BASE, headers=headers, timeout=30.0) as client:
     traj = client.get("/trajectory/GJ05AB1234").json()
 ```
 
-### Error shape (every layer)
+### Errors (every layer)
 
 ```json
 {"detail": {"code": "PURPOSE_REQUIRED",
@@ -335,40 +411,52 @@ with httpx.Client(base_url=BASE, headers=headers, timeout=30.0) as client:
 
 | Code | Status | Meaning |
 |---|---|---|
-| `NOT_AUTHENTICATED` | 401 | Missing / unknown / revoked token |
-| `PERMISSION_DENIED` | 403 | Role lacks the permission |
-| `OUT_OF_JURISDICTION` | 403 | District outside caller scope |
-| `PURPOSE_REQUIRED` | 400 | Case / purpose missing on a bound route |
+| `NOT_AUTHENTICATED` | 401 | Missing / unknown / expired token |
+| `PERMISSION_DENIED` | 403 | Role lacks permission |
+| `OUT_OF_JURISDICTION` | 403 | District outside scope |
+| `PURPOSE_REQUIRED` | 400 | Case / purpose missing |
 | `QUERY_TOO_BROAD` | 400 | Unfiltered estate scan refused |
 | `BUSY` | 503 | Admission limit — refused, not queued |
 
-Full surface: [`docs/API.md`](docs/API.md) · live OpenAPI at `/docs`.
+### Integrate another system
 
-### Integrating another system
-
-| Need | Endpoint / pattern |
+| Need | Pattern |
 |---|---|
-| Onboard cameras | Import catalogue → registry; see `make government-import` |
-| Push edge observations | `POST /edge/{node}/events` with a SERVICE token |
-| Pull watchlist to edge | `GET /edge/watchlist/bundle` |
-| Raise watchlist entries | `POST /watchlist` (purpose-bound read) |
-| Seal evidence | `POST /evidence/from-observation/{id}` then `/export` |
-| Health / readiness | `GET /healthz`, `/readyz`, `/system/health`, `/metrics` |
+| Onboard cameras | `make government-import` / catalogue → registry |
+| Push edge observations | `POST /edge/{node}/events` (SERVICE token) |
+| Pull watchlist | `GET /edge/watchlist/bundle` |
+| Seal evidence | `POST /evidence/from-observation/{id}` → `/export` |
+| Health | `/healthz` · `/readyz` · `/system/health` · `/metrics` |
+
+Full surface: [`docs/API.md`](docs/API.md).
 
 ---
 
 ## What it does / what it is not
 
-**Does:** ingest → observations → plate search → camera graph → trajectory → watchlist → alert → evidence → verification — with **no language model in the chain** (a test fails if one is imported while it runs).
+**Does:** ingest → observations → plate search → camera graph → trajectory → watchlist → alert → evidence → verification.
 
 **Is not:**
 
-- **Not production-ready.** No PKI, no encryption at rest, no per-principal rate limit, no formal pen-test.
-- **Not legally admissible.** Evidence supports a BSA s.63 *draft*; signing is for a person in charge and a court.
-- **Not face identification.** Person boxes = presence. No FR identity on government data.
-- **Not a claim that ANPR works on every night camera.** Grades say otherwise.
+- **Not production-ready** — no PKI, no encryption at rest, no per-principal rate limit, no formal pen-test
+- **Not legally admissible** — BSA s.63 *draft* only; signing is for a person in charge and a court
+- **Not face identification** — person boxes = presence; no FR identity on government data
+- **Not “ANPR works on every night camera”** — grades say **UNSUITABLE** where geometry fails
 
-Forbidden submission phrases (enforced in docs and review): *production ready* · *legally admissible* · *tested at 80,000*.
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `make demo` fails on media | Run `make media` first; needs disk for synthetic clips |
+| Gate refuses token | Re-run `make demo` — tokens expire; copy the new `skv_…` |
+| `PURPOSE_REQUIRED` on `/search` | Send both `X-Case-Id` and `X-Purpose` (≥ 12 chars) |
+| Empty Live tiles on demo store | Expected until corpus cameras are decoded; use Focus on C-014 / C-021 |
+| Government RTSP 401 | Export `SENTINEL_GRID_EMAIL` + `SENTINEL_GRID_PASSWORD`; `@` in email must be URL-encoded in authorities |
+| Models hang on first load | Set `SAAKSHYA_MODELS_OFFLINE=1` only after cache is warm; otherwise allow one hub fetch |
+| Port in use | `PORT=8081 make serve` |
+| Duplicate FFmpeg class warning (av + cv2) | Harmless log on macOS; decode stays on PyAV |
 
 ---
 
@@ -376,24 +464,15 @@ Forbidden submission phrases (enforced in docs and review): *production ready* �
 
 ```
 src/saakshya/
-  ingest/        PyAV, real PTS, one capture, fan-out
-  analytics/     motion, tracker, ANPR, attributes, quality
-  live/          grid, stills, selected live-view, timebase
-  store/         tables, SQLite ⇄ PostgreSQL
-  intelligence/  graph search, trajectory
-  capability/    measured grades per time band
-  watchlist/     VOI, automated alerts
-  evidence/      hash chain, BSA s.63 draft
-  investigation/ facade every caller uses
-  gis/           estate map; unlocated cameras listed
-  api/           FastAPI routes, four authorisation gates
-  copilot/       read-only tools; Gemini optional
-  security/      purpose binding, scoped access
-ui/              investigation workspace
-docs/            architecture, HLD, ADRs, measured results
-docs/readme/     images used above (UI + detection stills)
-tools/           demo films, ingest, verification
-tests/           unit, integration, e2e, security
+  ingest/  analytics/  live/  store/  intelligence/
+  capability/  watchlist/  evidence/  investigation/
+  gis/  api/  copilot/  security/
+ui/                 investigation workspace
+docs/               HLD, ADRs, measured results, portal guide
+docs/readme/        GIFs, UI shots, detection stills (this README)
+tools/              demo films, ingest, verification
+tests/              unit · integration · e2e · security
+.env.example        every setting name — no secrets
 ```
 
 ---
@@ -402,31 +481,28 @@ tests/           unit, integration, e2e, security
 
 | Doc | Purpose |
 |---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it is built, and why |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How it is built |
 | [HLD.md](docs/HLD.md) | Technical proposal |
-| [API.md](docs/API.md) | Endpoints; OpenAPI at `/openapi.json` |
-| [DATA_MODEL.md](docs/DATA_MODEL.md) | Schema, two dialects |
-| [SECURITY.md](docs/SECURITY.md) | Threat model, four gates |
-| [PRIVACY.md](docs/PRIVACY.md) | Purpose limitation; why no FR identity |
-| [PERFORMANCE.md](docs/PERFORMANCE.md) | Latency, query plans, load |
+| [API.md](docs/API.md) | Endpoints |
+| [DATA_MODEL.md](docs/DATA_MODEL.md) | Schema |
+| [SECURITY.md](docs/SECURITY.md) | Four gates |
+| [PRIVACY.md](docs/PRIVACY.md) | Purpose limitation |
+| [PERFORMANCE.md](docs/PERFORMANCE.md) | Latency / load |
 | [SCALE_MODEL.md](docs/SCALE_MODEL.md) | Where it breaks first |
-| [MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md) | Numbers quoted on slides |
-| [SENTINEL_SANDBOX.md](docs/SENTINEL_SANDBOX.md) | Consuming the live grid |
-| [JUDGE_QA.md](docs/JUDGE_QA.md) | Hard questions, answered |
-| [PORTAL_UPLOAD.md](docs/PORTAL_UPLOAD.md) | Portal pack and forbidden phrases |
+| [MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md) | Quote sheet |
+| [SENTINEL_SANDBOX.md](docs/SENTINEL_SANDBOX.md) | Live grid |
+| [JUDGE_QA.md](docs/JUDGE_QA.md) | Hard questions |
+| [FINAL_RED_TEAM.md](docs/FINAL_RED_TEAM.md) | Attacks we ran on ourselves |
+| [PORTAL_UPLOAD.md](docs/PORTAL_UPLOAD.md) | Submit checklist |
 
 ---
 
-## Team
+## Team · licence · credentials
 
 **Institution:** DAU / DAIICT — Gujarat Police Innovation Challenge 2026 (Sentinel).
 
-Human team owns architecture decisions, evidence claims, and portal submission. GitHub collaborators are human accounts under **Settings → Collaborators** only. No AI product is listed as a repository collaborator. Grid passwords and bearer tokens are never committed.
+Human team owns architecture decisions, evidence claims, and portal submission. GitHub **Settings → Collaborators** lists human accounts only — no AI product as collaborator.
 
----
+Dependencies are permissively licensed; the model router refuses non-permissive licences. **Ultralytics / BoxMOT (AGPL) are rejected.**
 
-## Licence and credentials
-
-Dependencies are permissively licensed; the model router refuses a non-permissive licence and `make verify` fails on one. Ultralytics / BoxMOT (AGPL) are **rejected**.
-
-**No credential is in this repository.** A secret scan over tracked files and git history runs in `make verify`. Do not commit `.env`, Sentinel passwords, or `/tmp/saakshya-*-token.raw`.
+**No credential is in this repository.** Secret scan runs in `make verify`. Do not commit `.env`, Sentinel passwords, or `/tmp/saakshya-*-token.raw`.

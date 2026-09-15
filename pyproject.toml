@@ -16,15 +16,25 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Detectors, ANPR and vehicle models. Permissive licences only — Ultralytics
+# (AGPL) is rejected in code. Install with: uv pip install -e ".[analytics]"
+analytics = [
+  "onnxruntime>=1.19",
+  "fast-alpr>=0.4",
+  "open-image-models>=0.6",
+  "opencv-python-headless>=4.10",
+  "torch>=2.4",
+  "torchvision>=0.19",
+  "transformers>=4.44",
+  "huggingface_hub>=0.24",
+]
 dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13"]
 # Recording the walkthrough film drives a real browser. Deliberately not a
 # runtime dependency: the product must install and run on a machine that has no
 # browser at all, and nothing in the platform imports this.
-# Recording and narrating the walkthrough film. Deliberately NOT runtime
-# dependencies: the platform installs and runs on a machine with no browser and
-# no bundled ffmpeg, and nothing in the product imports either. imageio-ffmpeg
-# supplies a self-contained ffmpeg for muxing the offline-TTS voiceover.
 demo = ["playwright>=1.40", "imageio-ffmpeg>=0.5"]
+# Full local stack: analytics + tests + film tooling.
+all = ["saakshya[analytics,dev,demo]"]
 
 [build-system]
 requires = ["hatchling"]

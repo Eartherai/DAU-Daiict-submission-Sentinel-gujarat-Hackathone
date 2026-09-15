@@ -66,7 +66,7 @@ help:
 
 install:
 	uv venv --python 3.12
-	uv pip install -e ".[dev]"
+	uv pip install -e ".[dev,analytics]"
 
 media:
 	$(PY) tools/sandbox/make_media.py

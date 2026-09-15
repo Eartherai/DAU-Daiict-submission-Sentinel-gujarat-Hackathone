@@ -255,9 +255,12 @@ class Tour:
         self.marks: dict[str, float] = {}
 
     def mark(self, chapter: str) -> None:
-        now = time.monotonic()
-        self.marks[chapter] = now
-        self.log.append({"t": round(now - self.t0, 2), "chapter": chapter})
+        if self.rec is not None and getattr(self.rec, "fps", 0):
+            now_t = self.rec._n / float(self.rec.fps)
+        else:
+            now_t = time.monotonic() - self.t0
+        self.marks[chapter] = time.monotonic()
+        self.log.append({"t": round(now_t, 2), "chapter": chapter})
         print(f"  {self.log[-1]['t']:7.1f}s  {chapter}", flush=True)
 
     def hold(self, ms: int) -> None:
@@ -311,17 +314,81 @@ class Tour:
         self.hold(wait_ms)
 
     def wait_text(self, js: str, timeout: int = 45000, what: str = "") -> bool:
-        deadline = time.monotonic() + timeout / 1000.0
-        while time.monotonic() < deadline:
-            try:
-                if self.page.evaluate(js):
-                    return True
-            except Exception:
-                pass
-            self.hold(280)
-        print(f"    wait skipped {what or js[:40]}: TimeoutError",
-              flush=True)
-        return False
+        """Poll off-camera so loading and black waits never enter the film."""
+        rec = self.rec
+        self.rec = None
+        try:
+            deadline = time.monotonic() + timeout / 1000.0
+            while time.monotonic() < deadline:
+                try:
+                    if self.page.evaluate(js):
+                        return True
+                except Exception:
+                    pass
+                self.hold(280)
+            print(f"    wait skipped {what or js[:40]}: TimeoutError",
+                  flush=True)
+            return False
+        finally:
+            self.rec = rec
+
+    def stage_mean(self) -> float:
+        import io
+        from PIL import Image
+        try:
+            raw = self.page.locator("#live-stage").screenshot(
+                type="jpeg", quality=40)
+            im = Image.open(io.BytesIO(raw)).resize((160, 90))
+            return float(sum(im.convert("L").getdata()) / (160 * 90))
+        except Exception:
+            return 0.0
+
+    def open_live_cam(self, cam: str, hold_ms: int = 14000) -> bool:
+        """Click a tile only if the selected view is actually a picture."""
+        p = self.page
+        rec = self.rec
+        self.rec = None
+        try:
+            loc = p.locator(f'#live-strip .live-tile[data-camera="{cam}"]')
+            if loc.count() == 0:
+                loc = p.locator(f'[data-camera="{cam}"]').first
+            loc.scroll_into_view_if_needed()
+            loc.click(force=True)
+            self.wait_text(
+                "() => { const s = document.querySelector('#live-stage img, #live-stage video'); "
+                "return !!(s && (s.naturalWidth || s.videoWidth) > 40); }",
+                25000, f"live {cam}")
+            self.wait_text(
+                "() => /Live/.test(document.querySelector('#live-stage .hud-chip.live')?.textContent || '')",
+                18000, f"live {cam} chip")
+            self.hold(600)
+        except Exception as exc:
+            self.rec = rec
+            print(f"    live {cam}: {type(exc).__name__}", flush=True)
+            return False
+        self.rec = rec
+        mean = self.stage_mean()
+        live = False
+        try:
+            live = bool(p.evaluate(
+                """() => {
+                  const c = document.querySelector('#live-stage .hud-chip.live');
+                  const img = document.querySelector('#live-stage img, #live-stage video');
+                  return /Live/.test(c?.textContent || '')
+                    && !!(img && (img.naturalWidth || img.videoWidth) > 60);
+                }"""))
+        except Exception:
+            pass
+        print(f"    {cam} live={live} mean={mean:.1f}", flush=True)
+        if not live or mean < 22.0:
+            return False
+        self.hold(hold_ms)
+        try:
+            p.locator("#here-plates").scroll_into_view_if_needed()
+            self.hold(3200)
+        except Exception:
+            pass
+        return True
 
     def bots(self) -> int:
         return int(self.page.evaluate(
@@ -386,7 +453,7 @@ class Tour:
             "&& /Cameras onboarded/i.test(document.body.innerText) "
             "&& /What the estate can prove/i.test(document.body.innerText)",
             120000, "overview stats")
-        self.hold(4000)
+        self.hold(5000)
         try:
             p.locator("#overview .plate-gallery, #overview .ov-card").last.scroll_into_view_if_needed()
         except Exception:
@@ -394,8 +461,13 @@ class Tour:
         self.wait_text(
             "() => document.querySelectorAll('#overview .plate-card').length >= 4",
             20000, "overview plate cards")
-        self.hold(5000)
-        self.finish("overview", 5000)
+        self.hold(12000)
+        try:
+            p.mouse.wheel(0, 420)
+            self.hold(6000)
+        except Exception:
+            pass
+        self.finish("overview", 6000)
 
         self.chapter("live")
         self.nav("live", 2500)
@@ -413,47 +485,25 @@ class Tour:
             "() => [...document.querySelectorAll('#live .live-tile .frame img, #live-stage img')]"
             ".filter(i => i.naturalWidth > 40).length >= 6",
             90000, "live frames")
-        self.hold(10000)
-        try:
-            p.locator("#live-filters button").filter(has_text="Ahmedabad").click(force=True)
-            self.hold(4000)
-            p.locator("#live-filters button").filter(has_text="All").click(force=True)
-            self.hold(2500)
-        except Exception as exc:
-            print(f"    district filter: {type(exc).__name__}", flush=True)
-        for cam in ("cam01", "cam21", "cam06"):
-            try:
-                loc = p.locator(f'#live-strip .live-tile[data-camera="{cam}"]')
-                loc.scroll_into_view_if_needed()
-                self.hold(400)
-                loc.click(force=True)
-                self.wait_text(
-                    "() => { const s = document.querySelector('#live-stage img'); "
-                    "return !!(s && s.naturalWidth > 40); }",
-                    25000, f"live {cam}")
-                self.wait_text(
-                    "() => /Live/.test(document.querySelector('#live-stage .hud-chip.live')?.textContent || '')",
-                    20000, f"live {cam} chip")
-                self.hold(9000)
-                p.locator("#here-plates").scroll_into_view_if_needed()
-                self.hold(2500)
-            except Exception as exc:
-                print(f"    live {cam}: {type(exc).__name__}", flush=True)
-        for layout, hold_ms in (("grid", 4200), ("dense", 3600), ("tab", 3200),
-                                ("twoup", 3600), ("focus", 5000)):
+        self.hold(8000)
+        for cam in ("cam01", "cam06", "cam02", "cam04", "cam05", "cam13"):
+            self.open_live_cam(cam, 14000 if cam in {"cam01", "cam06"} else 10000)
+        for layout, hold_ms in (
+                ("grid", 24000),
+                ("dense", 18000),
+                ("tab", 12000),
+                ("twoup", 18000),
+                ("focus", 8000)):
             try:
                 p.locator(f'[data-live-layout="{layout}"]').click(force=True)
                 self.hold(hold_ms)
             except Exception as exc:
                 print(f"    layout {layout}: {type(exc).__name__}", flush=True)
-        try:
-            p.locator('#live-strip .live-tile[data-camera="cam01"]').click(force=True)
-            self.hold(6000)
-        except Exception as exc:
-            print(f"    live focus: {type(exc).__name__}", flush=True)
+        self.open_live_cam("cam01", 8000)
+        self.open_live_cam("cam06", 8000)
         p.mouse.wheel(0, -2000)
-        self.hold(1500)
-        self.finish("live", 5000)
+        self.hold(2000)
+        self.finish("live", 6000)
 
         self.chapter("map")
         self.nav("map", 2800)
@@ -536,20 +586,10 @@ class Tour:
             "() => /lookalike|REQUIRES_VERIFICATION|near match|one camera/i"
             ".test(document.body.innerText)",
             45000, "lookalike")
-        self.hold(9000)
-        p.fill("#q-plate", "")
-        p.fill("#q-type", "person")
-        p.fill("#q-camera", "cam28")
-        self.hold(350)
-        p.locator("#search-form button.primary").click(force=True)
-        self.wait_text(
-            "() => /person/i.test(document.getElementById('result-count')?.textContent || '') "
-            "|| /observation/.test(document.getElementById('result-count')?.textContent || '')",
-            45000, "person search")
-        self.hold(10000)
+        self.hold(14000)
         p.fill("#q-type", "")
         p.fill("#q-camera", "")
-        self.finish("lookalike", 5000)
+        self.finish("lookalike", 6000)
 
         self.chapter("alerts")
         self.nav("alerts", 1600)
@@ -609,8 +649,10 @@ class Tour:
 
         self.chapter("copilot_ask")
         self.ask("Which cameras are graded UNSUITABLE for ANPR?")
+        self.hold(12000)
+        self.ask("Where was GJ1VV0119 seen, and on how many cameras?")
         self.hold(14000)
-        self.finish("copilot_ask", 6000)
+        self.finish("copilot_ask", 7000)
 
         self.chapter("copilot_refuse")
         self.ask("Enhance this still and sharpen the plate so I can read it.")
@@ -685,7 +727,7 @@ def record_browser(base: str, token: str, work: Path) -> tuple[Path, list[dict]]
         page.goto(f"{base}/ui/?v=cr086", wait_until="domcontentloaded")
         page.wait_for_timeout(800)
         page.evaluate(CURSOR_JS)
-        rec = JpegFilm(page, picture, ffmpeg_bin(), fps=12, quality=94)
+        rec = JpegFilm(page, picture, ffmpeg_bin(), fps=12, quality=96)
         try:
             Tour(page, token, log, rec).run()
         finally:
@@ -798,11 +840,15 @@ def main() -> int:
     ap.add_argument("--base", default="http://127.0.0.1:8080")
     ap.add_argument("--token-file", default="")
     ap.add_argument("--out", default="var/demo/SAAKSHYA_launch")
+    ap.add_argument("--work", default="",
+                    help="Working directory (default: <out>_work, or launch_work)")
     ap.add_argument("--mux-only", action="store_true",
                     help="Remux an existing webm + chapters.json; do not record")
     a = ap.parse_args()
     out = Path(a.out)
-    work = out.parent / "launch_work"
+    work = Path(a.work) if a.work else (
+        out.parent / "launch_work" if out.name == "SAAKSHYA_launch"
+        else out.parent / f"{out.name}_work")
     work.mkdir(parents=True, exist_ok=True)
     if a.mux_only:
         log = json.loads((work / "chapters.json").read_text())
@@ -818,9 +864,6 @@ def main() -> int:
     if not a.token_file:
         raise SystemExit("--token-file is required unless --mux-only")
     token = Path(a.token_file).read_bytes().strip().decode("ascii")
-    out = Path(a.out)
-    work = out.parent / "launch_work"
-    work.mkdir(parents=True, exist_ok=True)
     print(f"recording launch film at {a.base} → {display(out)}.mp4")
     t0 = time.time()
     webm, log = record_browser(a.base, token, work)

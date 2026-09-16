@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools" / "verify"))
 
+from measured_results import _identity_among_marks
+
 from saakshya.capability import TimeBand
 from saakshya.store import Store
 from saakshya.store import schema as S
-
-from measured_results import _identity_among_marks
 
 # Keep in lockstep with PipelineConfig.person_dwell_s. This script must not
 # import the analytics pipeline: that pulls detectors into a process that only
@@ -163,7 +163,7 @@ def render(d: dict[str, Any]) -> str:
         f"  persons               {d['persons']:,}",
         f"  person long-stay      {d['person_long_stay']:,}  "
         f"(≥ {d['person_dwell_s']} s on one camera; not intrusion)",
-        f"  object mix            "
+        "  object mix            "
         + (", ".join(
             f"{v:,} {k}"
             for k, v in sorted((d.get("by_object_type") or {}).items(),
@@ -175,9 +175,9 @@ def render(d: dict[str, Any]) -> str:
         f"  cross-camera plates   {d['cross_camera_plates']}",
         f"  OCR lookalike pairs   {d['lookalike_pairs']}",
         f"  watchlist / alerts    {d['watchlist']} / {d['alerts']}",
-        f"  ANPR grades           "
+        "  ANPR grades           "
         + (", ".join(f"{v} {k}" for k, v in sorted(grades.items())) or "none"),
-        f"  camera_health         "
+        "  camera_health         "
         + (", ".join(f"{v} {k}" for k, v in sorted(health.items())) or "none"),
     ]
     if log:
@@ -227,6 +227,7 @@ def main() -> int:
                         "/tmp/saakshya-ingest-final.log")))
     args = ap.parse_args()
     store = Store(args.db)
+    store.create_all()
     d = score(store, ingest_log=args.ingest_log)
     text = render(d)
     sys.stdout.write(text)

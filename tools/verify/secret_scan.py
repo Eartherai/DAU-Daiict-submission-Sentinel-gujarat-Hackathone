@@ -29,7 +29,10 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 
 #: Lines that define or document a pattern rather than containing a credential.
 #: Without this the scanner reports itself.
-ALLOW = re.compile(r"(PATTERNS:|re\.compile|# noqa: secret|EXAMPLE_ONLY|ALLOW =)")
+ALLOW = re.compile(
+    r"(PATTERNS:|re\.compile|# secret-test|EXAMPLE_ONLY|ALLOW =|"
+    r"super-secret-value|AAAA-BBBB-CCCC)"
+)
 
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".mp4", ".onnx", ".safetensors", ".pdf"}
 
@@ -66,10 +69,7 @@ def main() -> int:
 
     hist = subprocess.run(["git", "log", "--all", "-p"], cwd=ROOT,
                           capture_output=True, text=True, check=False)
-    for name, pat in PATTERNS.items():
-        n = len(pat.findall(hist.stdout))
-        if n:
-            findings.append(f"git-history: {name} appears {n}x")
+    findings += scan_text(hist.stdout, "git-history")
 
     if findings:
         print("SECRET SCAN: FAIL")

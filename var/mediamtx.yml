@@ -8,9 +8,12 @@ rtspAddress: :8554
 rtspTransports: [tcp, udp]
 hlsAddress: :8888
 hlsAlwaysRemux: yes
+hlsAllowOrigins: ["*"]
 webrtcAddress: :8889
+webrtcAllowOrigins: ["*"]
 api: yes
 apiAddress: 127.0.0.1:9997
+apiAllowOrigins: ["*"]
 paths:
   stream/C-014:
     runOnInit: >-

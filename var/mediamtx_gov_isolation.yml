@@ -1,0 +1,12 @@
+# generated — no credentials
+logLevel: warn
+rtspAddress: :8554
+rtspTransports: [tcp]
+webrtcAddress: :8889
+webrtcAllowOrigins: ["*"]
+api: yes
+apiAddress: 127.0.0.1:9997
+paths:
+  stream/gov-cam01:
+  stream/gov-cam02:
+  stream/gov-cam05:

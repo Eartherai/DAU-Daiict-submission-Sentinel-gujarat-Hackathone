@@ -1,0 +1,30 @@
+PRE-DEMO CHECK: WARNING
+READY=21 WARNING=6 BLOCKER=0
+
+READY   [backend] src/saakshya/api/app.py: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/api/app.py)
+READY   [frontend] ui/index.html: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/ui/index.html)
+READY   [database] SAAKSHYA_DB: SQLite file readable (20 tables); live service not probed
+WARNING [stream gateway] WHEP/grid: configuration is present; gateway reachability/authentication not probed
+READY   [binaries] mediamtx: present at /Users/earther/Desktop/Gujarat CCTV/saakshya/var/bin/mediamtx
+READY   [media path] StreamPathSelector: module present; H.264 direct / HEVC transcode rules
+READY   [frontend] overlay: canvas/rAF overlay independent of WHEP playback
+READY   [demo] demo_cam01.yaml: golden cam01 config present
+READY   [evidence] AI runtime cert: report present
+READY   [evidence] golden e2e: report present
+READY   [evidence] wall scaling: report present
+READY   [evidence] failure isolation: report present
+READY   [evidence] HEVC path: report present
+READY   [analytics] src/saakshya/analytics: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/analytics)
+READY   [watchlist] src/saakshya/watchlist: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/watchlist)
+READY   [GIS] src/saakshya/gis: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/gis)
+READY   [evidence] src/saakshya/evidence: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/evidence)
+READY   [models] src/saakshya/models: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/src/saakshya/models)
+READY   [files] var/submission: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/var/submission)
+READY   [files] reports/FINAL_EVIDENCE_MATRIX.md: artifact present; runtime not probed (/Users/earther/Desktop/Gujarat CCTV/saakshya/reports/FINAL_EVIDENCE_MATRIX.md)
+WARNING [env vars] SAAKSHYA_DB: not set; documented default will be used
+WARNING [env vars] SAAKSHYA_EVIDENCE: not set; documented default will be used
+READY   [env vars] SENTINEL_GRID_EMAIL: set (value redacted)
+READY   [env vars] SENTINEL_GRID_PASSWORD: set (value redacted)
+WARNING [env vars] SAAKSHYA_MAP_TILES: not set; optional capability is not configured
+WARNING [env vars] SAAKSHYA_WHEP_BASE: not set; optional capability is not configured
+WARNING [env vars] SAAKSHYA_MODELS_OFFLINE: not set; optional capability is not configured

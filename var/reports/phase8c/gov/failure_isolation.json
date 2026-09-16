@@ -1,0 +1,131 @@
+{
+  "timestamp_utc": "2026-09-16T03:57:37.799214+00:00",
+  "command": "python tools/gov_failure_isolation_cert.py",
+  "cameras": [
+    "cam01",
+    "cam02",
+    "cam05"
+  ],
+  "victim": "cam05",
+  "peers": [
+    "cam01",
+    "cam02"
+  ],
+  "stages": [
+    {
+      "stage": "baseline_ready",
+      "status": "PASS",
+      "detail": {
+        "pending": [],
+        "before": {
+          "cam01": {
+            "ready": true,
+            "bytes": 100019,
+            "online": true
+          },
+          "cam02": {
+            "ready": true,
+            "bytes": 120257,
+            "online": true
+          },
+          "cam05": {
+            "ready": true,
+            "bytes": 162715,
+            "online": true
+          }
+        }
+      }
+    },
+    {
+      "stage": "victim_killed",
+      "status": "PASS",
+      "detail": {
+        "victim": "cam05",
+        "after_kill": {
+          "cam01": {
+            "ready": true,
+            "bytes": 180445,
+            "online": true
+          },
+          "cam02": {
+            "ready": true,
+            "bytes": 307616,
+            "online": true
+          },
+          "cam05": {
+            "ready": false,
+            "bytes": 0,
+            "online": false
+          }
+        },
+        "after_wait": {
+          "cam01": {
+            "ready": true,
+            "bytes": 354636,
+            "online": true
+          },
+          "cam02": {
+            "ready": true,
+            "bytes": 626049,
+            "online": true
+          },
+          "cam05": {
+            "ready": false,
+            "bytes": 0,
+            "online": false
+          }
+        },
+        "victim_exit": -9
+      }
+    },
+    {
+      "stage": "peers_continue",
+      "status": "PASS",
+      "detail": {
+        "peers": [
+          "cam01",
+          "cam02"
+        ],
+        "after_wait": {
+          "cam01": {
+            "ready": true,
+            "bytes": 354636,
+            "online": true
+          },
+          "cam02": {
+            "ready": true,
+            "bytes": 626049,
+            "online": true
+          }
+        }
+      }
+    },
+    {
+      "stage": "process_alive",
+      "status": "PASS",
+      "detail": {
+        "mediamtx_exit": null,
+        "peer_exits": {
+          "cam01": null,
+          "cam02": null
+        }
+      }
+    },
+    {
+      "stage": "no_credential_argv",
+      "status": "PASS",
+      "detail": "peer publisher argv inspected; credentials must not appear"
+    },
+    {
+      "stage": "no_stale_live_claim",
+      "status": "PASS",
+      "detail": "victim not ready or bytes stopped advancing"
+    }
+  ],
+  "summary": {
+    "PASS": 6,
+    "AMBER": 0,
+    "FAIL": 0
+  },
+  "overall": "PASS"
+}

@@ -1,0 +1,40 @@
+{
+  "measurement_class": "MEASURED",
+  "footage": [
+    "C-014.mp4",
+    "C-021.mp4"
+  ],
+  "results": [
+    {
+      "model": "vehicle-rtdetrv2-r18@0.1.0",
+      "status": "candidate",
+      "licence": "Apache-2.0",
+      "frames": 6,
+      "detections": 0,
+      "accuracy": null,
+      "error": null,
+      "latency_ms_p50": 47.826,
+      "latency_ms_p95": 229.689,
+      "latency_ms_p99": 273.686,
+      "throughput_fps": 11.253
+    },
+    {
+      "model": "vehicle-rfdetr-base@0.1.0",
+      "status": "candidate",
+      "licence": "Apache-2.0",
+      "frames": 6,
+      "detections": 0,
+      "accuracy": null,
+      "error": null,
+      "latency_ms_p50": 72.508,
+      "latency_ms_p95": 101.793,
+      "latency_ms_p99": 106.927,
+      "throughput_fps": 12.951
+    }
+  ],
+  "caveats": [
+    "No vehicle bounding-box ground truth is present, so accuracy is null.",
+    "Unavailable candidates are recorded; no packages or weights are installed.",
+    "FPS is inference-only and excludes decode; compare on the named footage and host."
+  ]
+}

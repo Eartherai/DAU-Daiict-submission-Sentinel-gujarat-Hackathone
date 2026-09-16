@@ -1,0 +1,44 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam18",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:03.304157+00:00",
+  "finished_at_utc": "2026-09-16T00:20:12.711667+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "hevc",
+    "width": 1920,
+    "height": 1080,
+    "resolution": "1920x1080",
+    "pixel_format": "<av.VideoFormat yuvj420p, 1920x1080>",
+    "time_base": "1/90000",
+    "declared_fps": 25.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 0,
+    "frames_with_pts": 0,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": null,
+    "pts_last": null,
+    "observed_fps": null,
+    "inter_frame_seconds": {}
+  },
+  "quality": {
+    "frames_sampled": 0,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": null,
+    "black_ratio": null,
+    "freeze_ratio": null
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

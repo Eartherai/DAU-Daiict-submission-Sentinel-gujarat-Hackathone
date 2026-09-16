@@ -1,0 +1,82 @@
+{
+  "camera_id": "cam07",
+  "label": "MEASURED_REAL",
+  "copy_compatibility": {
+    "result": "FAIL",
+    "reason": "MediaMTX WebRTC rejects H264 streams with B-frames",
+    "note": "Intentional: H.264 B-frame source cannot copy-remux to WebRTC"
+  },
+  "tiers": {
+    "PRIMARY": {
+      "tier": "PRIMARY",
+      "settings": {
+        "scale": null,
+        "fps": 15,
+        "bitrate": "1500k",
+        "profile": "baseline",
+        "g": 30
+      },
+      "startup_s": 45.4,
+      "ready": {
+        "ok": true,
+        "wait_s": 45.4,
+        "ready_n": 1,
+        "paths": {
+          "cam07": {
+            "ready": true,
+            "bytes": 30499,
+            "ok": true
+          }
+        }
+      },
+      "ffmpeg_cpu_mean": 4.33,
+      "ffmpeg_rss_mb_mean": 249.3,
+      "whep_status": "MEASURED",
+      "first_frame_ms": 4972.0999999940395,
+      "currentTime": 11.494,
+      "width": 1920,
+      "height": 1080,
+      "luma": 60.328910108024694,
+      "ice": "connected",
+      "system_cpu": 7.6,
+      "ram_available_gb": 11.599
+    },
+    "PREVIEW": {
+      "tier": "PREVIEW",
+      "settings": {
+        "scale": "1280:720",
+        "fps": 8,
+        "bitrate": "500k",
+        "profile": "baseline",
+        "g": 24
+      },
+      "startup_s": 32.69,
+      "ready": {
+        "ok": true,
+        "wait_s": 32.68,
+        "ready_n": 1,
+        "paths": {
+          "cam07": {
+            "ready": true,
+            "bytes": 14118,
+            "ok": true
+          }
+        }
+      },
+      "ffmpeg_cpu_mean": 4.91,
+      "ffmpeg_rss_mb_mean": 205.2,
+      "whep_status": "MEASURED",
+      "first_frame_ms": 3111.2999999970198,
+      "currentTime": 12.114,
+      "width": 1280,
+      "height": 720,
+      "luma": 52.34015516493056,
+      "ice": "connected",
+      "system_cpu": 4.6,
+      "ram_available_gb": 11.43
+    }
+  },
+  "cpu_ratio_preview_over_primary": 1.134,
+  "rss_ratio_preview_over_primary": 0.823,
+  "bottleneck_observation": "Primary: upstream Sentinel RTSP auth concurrency / source timeouts after large fan-in. Secondary: VT session startup \u2014 stagger \u22653.5\u20135s required. PREVIEW cheap path = VT baseline @500k (no -s/-r under concurrency). Copy remux blocked by B-frames (intentional compatibility FAIL). Solo 720p PREVIEW was MEASURED earlier; concurrency uses bitrate-only PREVIEW."
+}

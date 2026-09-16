@@ -1,0 +1,15 @@
+{
+  "status": "unavailable",
+  "dataset": "evaluation/ground_truth_lite/template.jsonl",
+  "crops": "var/evaluation/crops",
+  "records": 1,
+  "scored": 0,
+  "unavailable": 1,
+  "empty": 0,
+  "exact_accuracy": null,
+  "normalized_accuracy": null,
+  "character_accuracy": null,
+  "latency_ms_p50": null,
+  "latency_ms_p95": null,
+  "error": "no labelled crops were available for scoring"
+}

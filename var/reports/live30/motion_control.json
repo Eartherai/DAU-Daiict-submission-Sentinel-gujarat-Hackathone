@@ -1,0 +1,107 @@
+[
+  {
+    "camera_id": "cam01",
+    "frames": 180,
+    "first_last_mean_abs_diff": 19.017279411764704
+  },
+  {
+    "camera_id": "cam02",
+    "frames": 360,
+    "first_last_mean_abs_diff": 28.314338235294116
+  },
+  {
+    "camera_id": "cam03",
+    "frames": 230,
+    "first_last_mean_abs_diff": 33.35388888888889
+  },
+  {
+    "camera_id": "cam04",
+    "frames": 295,
+    "first_last_mean_abs_diff": 36.86017156862745
+  },
+  {
+    "camera_id": "cam05",
+    "frames": 360,
+    "first_last_mean_abs_diff": 25.152083333333334
+  },
+  {
+    "camera_id": "cam06",
+    "frames": 289,
+    "first_last_mean_abs_diff": 25.79950980392157
+  },
+  {
+    "camera_id": "cam07",
+    "frames": 167,
+    "first_last_mean_abs_diff": 31.514583333333334
+  },
+  {
+    "camera_id": "cam08",
+    "frames": 131,
+    "first_last_mean_abs_diff": 79.02916666666667
+  },
+  {
+    "camera_id": "cam09",
+    "frames": 300,
+    "first_last_mean_abs_diff": 7.119485294117647
+  },
+  {
+    "camera_id": "cam10",
+    "frames": 171,
+    "first_last_mean_abs_diff": 43.06200980392157
+  },
+  {
+    "camera_id": "cam11",
+    "frames": 158,
+    "first_last_mean_abs_diff": 48.86237745098039
+  },
+  {
+    "camera_id": "cam12",
+    "frames": 240,
+    "first_last_mean_abs_diff": 22.273611111111112
+  },
+  {
+    "camera_id": "cam14",
+    "frames": 64,
+    "first_last_mean_abs_diff": 13.474019607843138
+  },
+  {
+    "camera_id": "cam15",
+    "frames": 67,
+    "first_last_mean_abs_diff": 18.96580882352941
+  },
+  {
+    "camera_id": "cam16",
+    "frames": 120,
+    "first_last_mean_abs_diff": 21.191299019607843
+  },
+  {
+    "camera_id": "cam17",
+    "frames": 300,
+    "first_last_mean_abs_diff": 7.485661764705882
+  },
+  {
+    "camera_id": "cam18",
+    "frames": 300,
+    "first_last_mean_abs_diff": 16.155392156862746
+  },
+  {
+    "camera_id": "cam19",
+    "frames": 142,
+    "first_last_mean_abs_diff": 5.647777777777778
+  },
+  {
+    "camera_id": "cam20",
+    "frames": 164,
+    "first_last_mean_abs_diff": 5.995555555555556
+  },
+  {
+    "camera_id": "cam21",
+    "frames": 147,
+    "first_last_mean_abs_diff": 44.57990196078431
+  },
+  {
+    "camera_id": "cam23",
+    "frames": 103,
+    "first_last_mean_abs_diff": 11.021666666666667
+  }
+]

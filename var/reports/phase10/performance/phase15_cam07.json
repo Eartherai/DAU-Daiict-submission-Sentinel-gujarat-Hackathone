@@ -1,0 +1,18 @@
+{
+  "overall": "PASS",
+  "chosen": {
+    "browser_path": "RTSP_TRANSCODED_H264",
+    "mode": "transcode",
+    "whep": {
+      "status": "MEASURED",
+      "first_frame_ms": 1097.5999999940395,
+      "ice": "connected",
+      "currentTime": 15.157,
+      "width": 1920,
+      "height": 1080,
+      "luma": 60.506580825617284
+    }
+  },
+  "note": "reused measured proof; copy failed B-frames",
+  "label": "MEASURED_REAL"
+}

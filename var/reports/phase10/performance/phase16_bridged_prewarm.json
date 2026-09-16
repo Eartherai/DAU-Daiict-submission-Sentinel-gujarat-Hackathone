@@ -1,0 +1,32 @@
+{
+  "label": "MEASURED_REAL",
+  "path": "BRIDGED_PREVIEW_PREWARM",
+  "camera_id": "cam07",
+  "note": "Not the synthetic/local 44ms figure",
+  "cold": {
+    "click_to_frame_ms": 721.7000000029802,
+    "negotiation_ms": 220.20000000298023,
+    "error": null
+  },
+  "warm": {
+    "promotions_requested": 10,
+    "promotions_ok": 10,
+    "errors": 0,
+    "p50": 35.75,
+    "p95": 577.9599999956779,
+    "max": 904.2999999970198,
+    "times_ms": [
+      104.09999999403954,
+      45.70000000298023,
+      168.70000000298023,
+      15.599999994039536,
+      1.8999999910593033,
+      25.799999997019768,
+      3.2999999970197678,
+      179.09999999403954,
+      904.2999999970198,
+      10.299999997019768
+    ]
+  },
+  "overall": "PASS"
+}

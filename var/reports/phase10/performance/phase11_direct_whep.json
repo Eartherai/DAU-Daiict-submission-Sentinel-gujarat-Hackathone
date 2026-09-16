@@ -1,0 +1,361 @@
+{
+  "timestamp_utc": "2026-09-16T14:25:06.477394+00:00",
+  "label": "MEASURED",
+  "auth_transport": "Authorization_Basic_header",
+  "credentials_in_artifact": false,
+  "catalogue_authoritative": false,
+  "catalogue_note": "GET /api/ingest not JSON-reachable without CDN session cookie; camera URLs from configured templates.",
+  "cam01_30s": {
+    "path": "DIRECT_SENTINEL_WHEP",
+    "n_cameras": 1,
+    "seconds": 30.0,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2486.2999999970198,
+      "first_frame_ms_p95": 2486.2999999970198,
+      "negotiation_ms_p50": 313.40000000596046,
+      "negotiation_ms_p95": 313.40000000596046
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2486.2999999970198,
+        "negotiation_ms": 313.40000000596046,
+        "ice_connected_ms": 528.4000000059605,
+        "currentTime": 27.444,
+        "framesDecoded": 404,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 14.72,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep"
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": "Authorization_Basic_header",
+      "elapsed_s": 30.689,
+      "resources": {
+        "cpu_percent": 24.3,
+        "ram_available_gb": 10.927
+      },
+      "error": null
+    }
+  },
+  "cam01_60s": {
+    "path": "DIRECT_SENTINEL_WHEP",
+    "n_cameras": 1,
+    "seconds": 60.0,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 1554.0,
+      "first_frame_ms_p95": 1554.0,
+      "negotiation_ms_p50": 297.5,
+      "negotiation_ms_p95": 297.5
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 1554,
+        "negotiation_ms": 297.5,
+        "ice_connected_ms": 518.2000000029802,
+        "currentTime": 58.54,
+        "framesDecoded": 869,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 14.84,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep"
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": "Authorization_Basic_header",
+      "elapsed_s": 60.663,
+      "resources": {
+        "cpu_percent": 5.8,
+        "ram_available_gb": 11.088
+      },
+      "error": null
+    }
+  },
+  "compare_direct": {
+    "path": "DIRECT_SENTINEL_WHEP",
+    "n_cameras": 1,
+    "seconds": 30.0,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2480.5,
+      "first_frame_ms_p95": 2480.5,
+      "negotiation_ms_p50": 305.69999998807907,
+      "negotiation_ms_p95": 305.69999998807907
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2480.5,
+        "negotiation_ms": 305.69999998807907,
+        "ice_connected_ms": 529,
+        "currentTime": 27.62,
+        "framesDecoded": 414,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 14.99,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep"
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": "Authorization_Basic_header",
+      "elapsed_s": 30.709,
+      "resources": {
+        "cpu_percent": 20.4,
+        "ram_available_gb": 10.993
+      },
+      "error": null
+    }
+  },
+  "compare_local_relay": {
+    "path": "LOCAL_RELAY_WHEP",
+    "n_cameras": 1,
+    "seconds": 30.0,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 1016.5999999940395,
+      "first_frame_ms_p95": 1016.5999999940395,
+      "negotiation_ms_p50": 243.79999999701977,
+      "negotiation_ms_p95": 243.79999999701977
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": null,
+        "first_frame_ms": 1016.5999999940395,
+        "negotiation_ms": 243.79999999701977,
+        "ice_connected_ms": null,
+        "currentTime": 28.747,
+        "framesDecoded": 436,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 15.17,
+        "error": "",
+        "endpoint_safe": ""
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": null,
+      "elapsed_s": 30.684,
+      "resources": null,
+      "error": null
+    }
+  },
+  "compare": {
+    "direct_overall": "PASS",
+    "local_overall": "PASS",
+    "direct_first_frame_p50_ms": 2480.5,
+    "local_first_frame_p50_ms": 1016.5999999940395
+  },
+  "wall_n4": {
+    "path": "DIRECT_SENTINEL_WHEP",
+    "n_cameras": 4,
+    "seconds": 30.0,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 4,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2193.5,
+      "first_frame_ms_p95": 2891.3849999949334,
+      "negotiation_ms_p50": 420.3500000089407,
+      "negotiation_ms_p95": 421.8749999962747
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2451,
+        "negotiation_ms": 339.29999999701977,
+        "ice_connected_ms": 553.7999999970198,
+        "currentTime": 27.809,
+        "framesDecoded": 387,
+        "framesDropped": 1,
+        "packetsLost": 0,
+        "freezes": 1,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 13.92,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep"
+      },
+      {
+        "camera_id": "cam02",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 1936,
+        "negotiation_ms": 420.6000000089407,
+        "ice_connected_ms": 634.2999999970198,
+        "currentTime": 28.112,
+        "framesDecoded": 841,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 29.92,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam02/whep"
+      },
+      {
+        "camera_id": "cam05",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 913.2999999970198,
+        "negotiation_ms": 420.1000000089407,
+        "ice_connected_ms": 631.2999999970198,
+        "currentTime": 29.064,
+        "framesDecoded": 861,
+        "framesDropped": 4,
+        "packetsLost": 2,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 29.62,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam05/whep"
+      },
+      {
+        "camera_id": "cam04",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2969.0999999940395,
+        "negotiation_ms": 422.09999999403954,
+        "ice_connected_ms": 634.6999999880791,
+        "currentTime": 27.071,
+        "framesDecoded": 678,
+        "framesDropped": 0,
+        "packetsLost": 1,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 25.05,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam04/whep"
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": "Authorization_Basic_header",
+      "elapsed_s": 30.715,
+      "resources": {
+        "cpu_percent": 17.9,
+        "ram_available_gb": 11.05
+      },
+      "error": null
+    }
+  },
+  "recommendation": "DIRECT_SENTINEL_WHEP_PRIMARY",
+  "decision_note": "MAKE DIRECT SENTINEL WHEP THE PRIMARY BROWSER PATH. cam01 30s/60s PASS (1920x1080, 0 freezes). n=4 direct wall PASS (4 PASS). Compare first-frame p50: direct=2480.5ms local_relay=1016.5999999940395ms \u2014 local relay still faster to first frame; keep as optional fallback. AI stays on RTSP/TCP. Catalogue remains EXTERNAL session dependency.",
+  "cam02_cam05_retry": [
+    {
+      "timestamp_utc": "2026-09-16T14:28:36.314112+00:00",
+      "camera_id": "cam02",
+      "tcp_rtsp_8554": {
+        "ok": true,
+        "ms": 33.2,
+        "error": null
+      },
+      "tcp_whep_8889": {
+        "ok": true,
+        "ms": 31.6,
+        "error": null
+      },
+      "whep_basic_post_status": 400,
+      "endpoint_safe": "http://103.250.160.189:8889/stream/cam02/whep"
+    },
+    {
+      "timestamp_utc": "2026-09-16T14:28:37.456637+00:00",
+      "camera_id": "cam05",
+      "tcp_rtsp_8554": {
+        "ok": true,
+        "ms": 35.6,
+        "error": null
+      },
+      "tcp_whep_8889": {
+        "ok": true,
+        "ms": 36.5,
+        "error": null
+      },
+      "whep_basic_post_status": 400,
+      "endpoint_safe": "http://103.250.160.189:8889/stream/cam05/whep"
+    }
+  ],
+  "catalogue_session_support": {
+    "SENTINEL_GRID_COOKIE_supported_in_code": true,
+    "SENTINEL_GRID_TOKEN_supported_in_code": true,
+    "SENTINEL_GRID_BASIC_supported_in_code": true,
+    "has_session_material_now": false,
+    "note": "grid._credential() already accepts cookie/token/basic for catalogue; cookie not configured in this env."
+  }
+}

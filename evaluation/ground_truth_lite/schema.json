@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Saakshya manually verified OCR crop",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "reviewer", "verified"],
+  "properties": {
+    "image": {"type": "string", "minLength": 1},
+    "plate": {
+      "type": ["string", "null"],
+      "description": "Verified text only; null/omitted means unreadable."
+    },
+    "reviewer": {"type": "string", "minLength": 1},
+    "verified": {"type": "boolean"},
+    "camera_id": {"type": ["string", "null"]},
+    "pts_s": {"type": ["number", "null"], "minimum": 0},
+    "notes": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"verified": {"const": true}}},
+      "then": {"required": ["plate"]}
+    }
+  ]
+}

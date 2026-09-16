@@ -1,0 +1,40 @@
+{
+  "timestamp_utc": "2026-09-16T03:58:38.733807+00:00",
+  "command": "python tools/gov_whep_relay.py cam06 --seconds 35 --transcode --whep-test --whep-seconds 12",
+  "path_policy": {
+    "H264": "DIRECT_H264",
+    "HEVC + browser_hevc_supported=False": "HEVC_TRANSCODED_H264"
+  },
+  "cameras": {
+    "cam06": {
+      "path": "HEVC_TRANSCODED_H264",
+      "artifact": "var/reports/phase8c/gov/cam06_whep.json",
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 452.8999999985099,
+        "negotiation_ms": 133.89999999850988,
+        "currentTime": 9.763,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 92.33640335632506,
+        "framesDecoded_delta": 299,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 12917,
+        "peak_fps": 49,
+        "freezes": 2,
+        "reconnects": 0,
+        "ice_state": "connected"
+      }
+    },
+    "cam12": {
+      "path": "HEVC_TRANSCODED_H264",
+      "status": "prior MEASURED (GOV_HEVC_PATH_SELECTION)"
+    },
+    "cam17": {
+      "path": "HEVC_TRANSCODED_H264",
+      "status": "prior MEASURED (GOV_HEVC_PATH_SELECTION)"
+    }
+  },
+  "selector_tests": "PASS (10 tests incl. path_selector + wall_priority)",
+  "overall": "PASS"
+}

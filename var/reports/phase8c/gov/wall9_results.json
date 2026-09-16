@@ -1,0 +1,335 @@
+{
+  "decisions": [
+    {
+      "camera_id": "cam01",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam02",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam05",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam04",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam11",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam13",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam14",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam15",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam19",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    }
+  ],
+  "registered": [
+    "cam01",
+    "cam02",
+    "cam05",
+    "cam04",
+    "cam11",
+    "cam13",
+    "cam14",
+    "cam15",
+    "cam19"
+  ],
+  "whep_cameras": [
+    "cam01",
+    "cam02",
+    "cam05",
+    "cam04"
+  ],
+  "publishing": {
+    "cam01": {
+      "ready": true,
+      "bytesReceived": 385574,
+      "online": true
+    },
+    "cam02": {
+      "ready": true,
+      "bytesReceived": 760884,
+      "online": true
+    },
+    "cam05": {
+      "ready": true,
+      "bytesReceived": 753592,
+      "online": true
+    },
+    "cam04": {
+      "ready": true,
+      "bytesReceived": 2562774,
+      "online": true
+    },
+    "cam11": {
+      "ready": true,
+      "bytesReceived": 5038518,
+      "online": true
+    },
+    "cam13": {
+      "ready": true,
+      "bytesReceived": 1484711,
+      "online": true
+    },
+    "cam14": {
+      "ready": true,
+      "bytesReceived": 1447879,
+      "online": true
+    },
+    "cam15": {
+      "ready": true,
+      "bytesReceived": 303506,
+      "online": true
+    },
+    "cam19": {
+      "ready": true,
+      "bytesReceived": 4839613,
+      "online": true
+    }
+  },
+  "cameras": {
+    "cam01": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 2038.6000000014901,
+        "negotiation_ms": 139.80000000074506,
+        "currentTime": 8.066,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 97.80306568291657,
+        "framesDecoded_delta": 112,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 313,
+        "peak_fps": 18,
+        "freezes": 0,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    },
+    "cam02": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 714.1000000014901,
+        "negotiation_ms": 127.40000000223517,
+        "currentTime": 8.055,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 88.47236384398981,
+        "framesDecoded_delta": 227,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 566,
+        "peak_fps": 39,
+        "freezes": 0,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    },
+    "cam05": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 764.2000000029802,
+        "negotiation_ms": 132.80000000074506,
+        "currentTime": 8.084,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 97.0478337190766,
+        "framesDecoded_delta": 226,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 562,
+        "peak_fps": 38,
+        "freezes": 0,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    },
+    "cam04": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 448.30000000074506,
+        "negotiation_ms": 127.30000000074506,
+        "currentTime": 0.963,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 92.57801054531205,
+        "framesDecoded_delta": 40,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 404,
+        "peak_fps": 45,
+        "freezes": 1,
+        "reconnects": 0,
+        "ice_state": "disconnected"
+      },
+      "error": null
+    },
+    "cam11": {
+      "status": "PUBLISH_ONLY",
+      "summary": {
+        "ready": true,
+        "bytesReceived": 5038518,
+        "online": true
+      },
+      "error": null
+    },
+    "cam13": {
+      "status": "PUBLISH_ONLY",
+      "summary": {
+        "ready": true,
+        "bytesReceived": 1484711,
+        "online": true
+      },
+      "error": null
+    },
+    "cam14": {
+      "status": "PUBLISH_ONLY",
+      "summary": {
+        "ready": true,
+        "bytesReceived": 1447879,
+        "online": true
+      },
+      "error": null
+    },
+    "cam15": {
+      "status": "PUBLISH_ONLY",
+      "summary": {
+        "ready": true,
+        "bytesReceived": 303506,
+        "online": true
+      },
+      "error": null
+    },
+    "cam19": {
+      "status": "PUBLISH_ONLY",
+      "summary": {
+        "ready": true,
+        "bytesReceived": 4839613,
+        "online": true
+      },
+      "error": null
+    }
+  }
+}

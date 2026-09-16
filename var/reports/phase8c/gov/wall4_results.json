@@ -1,0 +1,146 @@
+{
+  "decisions": [
+    {
+      "camera_id": "cam01",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam02",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam05",
+      "path": "DIRECT_H264",
+      "transport": "whep",
+      "reason": "H.264 browser-safe path (verified managed gateway)",
+      "needs_transcode": false,
+      "metadata": {
+        "codec": "h264",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    },
+    {
+      "camera_id": "cam06",
+      "path": "HEVC_TRANSCODED_H264",
+      "transport": "whep",
+      "reason": "HEVC source; browser HEVC unsupported or unverified \u2014 transcode",
+      "needs_transcode": true,
+      "metadata": {
+        "codec": "hevc",
+        "resolution": null,
+        "has_b_frames": false,
+        "browser_hevc_supported": false,
+        "raw_stable": null,
+        "whep_stable": true,
+        "notes": []
+      }
+    }
+  ],
+  "cameras": {
+    "cam01": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 1853.9000000022352,
+        "negotiation_ms": 136.80000000074506,
+        "currentTime": 20.222,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 100.62572402259903,
+        "framesDecoded_delta": 256,
+        "framesDropped_end": 30,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 736,
+        "peak_fps": 30,
+        "freezes": 1,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    },
+    "cam02": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 295.6000000014901,
+        "negotiation_ms": 130.60000000149012,
+        "currentTime": 14.254,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 95.29851691114268,
+        "framesDecoded_delta": 453,
+        "framesDropped_end": 26,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 1120,
+        "peak_fps": 55,
+        "freezes": 1,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    },
+    "cam05": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 565.1999999992549,
+        "negotiation_ms": 137.79999999701977,
+        "currentTime": 2.075,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 93.16852735956519,
+        "framesDecoded_delta": 105,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 286,
+        "peak_fps": 55,
+        "freezes": 1,
+        "reconnects": 0,
+        "ice_state": "disconnected"
+      },
+      "error": null
+    },
+    "cam06": {
+      "status": "MEASURED",
+      "summary": {
+        "first_frame_ms": 829.6999999992549,
+        "negotiation_ms": 131.29999999701977,
+        "currentTime": 19.454,
+        "resolution": "1920x1080",
+        "canvasMeanLuma": 91.58003375759598,
+        "framesDecoded_delta": 240,
+        "framesDropped_end": 0,
+        "packetsLost_end": 0,
+        "packetsReceived_end": 10863,
+        "peak_fps": 43,
+        "freezes": 2,
+        "reconnects": 0,
+        "ice_state": "connected"
+      },
+      "error": null
+    }
+  }
+}

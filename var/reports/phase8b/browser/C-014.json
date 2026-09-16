@@ -1,0 +1,68 @@
+{
+  "endpoint": "http://127.0.0.1:8889/stream/C-014/whep",
+  "status": "NO_FRAME",
+  "negotiation_ms": 135.80000000074506,
+  "ice_state": "connected",
+  "first_frame_ms": null,
+  "video": {
+    "readyState": 0,
+    "width": 0,
+    "height": 0,
+    "paused": true,
+    "currentTime": 0
+  },
+  "stats": [
+    {
+      "at": 136.80000000074506,
+      "ice": "checking",
+      "reports": []
+    },
+    {
+      "at": 643.9000000022352,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 1147.300000000745,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 1648.699999999255,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 2153.199999999255,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 2654.400000002235,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 3155.10000000149,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 3660.400000002235,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 4166.10000000149,
+      "ice": "connected",
+      "reports": []
+    },
+    {
+      "at": 4671,
+      "ice": "connected",
+      "reports": []
+    }
+  ],
+  "error": null,
+  "elapsed_ms": 5455.2
+}

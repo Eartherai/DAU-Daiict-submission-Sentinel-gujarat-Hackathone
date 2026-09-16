@@ -1,0 +1,48 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam26",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-15T23:55:16.882987+00:00",
+  "finished_at_utc": "2026-09-15T23:55:17.129325+00:00",
+  "availability": "UNAVAILABLE",
+  "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://103.250.160.189:8554/stream/cam26'",
+  "stream": {
+    "codec": null,
+    "width": null,
+    "height": null,
+    "resolution": null,
+    "pixel_format": null,
+    "time_base": null,
+    "declared_fps": null,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 0,
+    "frames_with_pts": 0,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": null,
+    "pts_last": null,
+    "observed_fps": null,
+    "inter_frame_seconds": {}
+  },
+  "quality": {
+    "frames_sampled": 0,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": null,
+    "black_ratio": null,
+    "freeze_ratio": null
+  },
+  "reconnect": {
+    "attempts": 1,
+    "reconnects": 0
+  },
+  "limitations": [
+    "source could not be opened; no frame measurements"
+  ],
+  "camera_id": "cam26",
+  "configured_codec": "hevc"
+}

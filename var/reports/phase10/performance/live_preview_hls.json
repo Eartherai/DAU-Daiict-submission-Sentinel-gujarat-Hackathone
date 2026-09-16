@@ -1,0 +1,249 @@
+{
+  "timestamp_utc": "2026-09-16T14:00:03.389617+00:00",
+  "results": [
+    {
+      "camera_id": "cam01",
+      "transport": "HLS",
+      "url_safe": "/stream/gov-cam01/index.m3u8",
+      "live_sequence_advanced": true,
+      "samples": [
+        {
+          "t": 0.01,
+          "segments": 7,
+          "media_sequence": 1,
+          "bytes": 1785,
+          "session_kept": true
+        },
+        {
+          "t": 1.02,
+          "segments": 7,
+          "media_sequence": 1,
+          "bytes": 2229,
+          "session_kept": true
+        },
+        {
+          "t": 2.02,
+          "segments": 7,
+          "media_sequence": 2,
+          "bytes": 2672,
+          "session_kept": true
+        },
+        {
+          "t": 3.03,
+          "segments": 7,
+          "media_sequence": 2,
+          "bytes": 3132,
+          "session_kept": true
+        },
+        {
+          "t": 4.03,
+          "segments": 7,
+          "media_sequence": 2,
+          "bytes": 3465,
+          "session_kept": true
+        },
+        {
+          "t": 5.04,
+          "segments": 7,
+          "media_sequence": 3,
+          "bytes": 3307,
+          "session_kept": true
+        },
+        {
+          "t": 6.04,
+          "segments": 7,
+          "media_sequence": 3,
+          "bytes": 3529,
+          "session_kept": true
+        },
+        {
+          "t": 7.05,
+          "segments": 7,
+          "media_sequence": 4,
+          "bytes": 3365,
+          "session_kept": true
+        },
+        {
+          "t": 8.05,
+          "segments": 7,
+          "media_sequence": 5,
+          "bytes": 2977,
+          "session_kept": true
+        },
+        {
+          "t": 9.06,
+          "segments": 7,
+          "media_sequence": 5,
+          "bytes": 3310,
+          "session_kept": true
+        }
+      ],
+      "verdict": "PASS",
+      "label": "MEASURED",
+      "note": "HLS preview is live playlist advancement \u2014 not a static screenshot"
+    },
+    {
+      "camera_id": "cam02",
+      "transport": "HLS",
+      "url_safe": "/stream/gov-cam02/index.m3u8",
+      "live_sequence_advanced": true,
+      "samples": [
+        {
+          "t": 0.0,
+          "segments": 7,
+          "media_sequence": 13,
+          "bytes": 2426,
+          "session_kept": true
+        },
+        {
+          "t": 1.01,
+          "segments": 7,
+          "media_sequence": 13,
+          "bytes": 2759,
+          "session_kept": true
+        },
+        {
+          "t": 2.01,
+          "segments": 7,
+          "media_sequence": 14,
+          "bytes": 2759,
+          "session_kept": true
+        },
+        {
+          "t": 3.02,
+          "segments": 7,
+          "media_sequence": 15,
+          "bytes": 2648,
+          "session_kept": true
+        },
+        {
+          "t": 4.02,
+          "segments": 7,
+          "media_sequence": 17,
+          "bytes": 2299,
+          "session_kept": true
+        },
+        {
+          "t": 5.03,
+          "segments": 7,
+          "media_sequence": 17,
+          "bytes": 2759,
+          "session_kept": true
+        },
+        {
+          "t": 6.03,
+          "segments": 7,
+          "media_sequence": 19,
+          "bytes": 2426,
+          "session_kept": true
+        },
+        {
+          "t": 7.04,
+          "segments": 7,
+          "media_sequence": 19,
+          "bytes": 2759,
+          "session_kept": true
+        },
+        {
+          "t": 8.04,
+          "segments": 7,
+          "media_sequence": 19,
+          "bytes": 3335,
+          "session_kept": true
+        },
+        {
+          "t": 9.05,
+          "segments": 7,
+          "media_sequence": 20,
+          "bytes": 3005,
+          "session_kept": true
+        }
+      ],
+      "verdict": "PASS",
+      "label": "MEASURED",
+      "note": "HLS preview is live playlist advancement \u2014 not a static screenshot"
+    },
+    {
+      "camera_id": "cam05",
+      "transport": "HLS",
+      "url_safe": "/stream/gov-cam05/index.m3u8",
+      "live_sequence_advanced": true,
+      "samples": [
+        {
+          "t": 0.0,
+          "segments": 7,
+          "media_sequence": 20,
+          "bytes": 2658,
+          "session_kept": true
+        },
+        {
+          "t": 1.01,
+          "segments": 7,
+          "media_sequence": 21,
+          "bytes": 2775,
+          "session_kept": true
+        },
+        {
+          "t": 2.01,
+          "segments": 7,
+          "media_sequence": 23,
+          "bytes": 2439,
+          "session_kept": true
+        },
+        {
+          "t": 3.02,
+          "segments": 7,
+          "media_sequence": 24,
+          "bytes": 2439,
+          "session_kept": true
+        },
+        {
+          "t": 4.02,
+          "segments": 7,
+          "media_sequence": 24,
+          "bytes": 2775,
+          "session_kept": true
+        },
+        {
+          "t": 5.03,
+          "segments": 7,
+          "media_sequence": 25,
+          "bytes": 2775,
+          "session_kept": true
+        },
+        {
+          "t": 6.03,
+          "segments": 7,
+          "media_sequence": 27,
+          "bytes": 2551,
+          "session_kept": true
+        },
+        {
+          "t": 7.04,
+          "segments": 7,
+          "media_sequence": 28,
+          "bytes": 2439,
+          "session_kept": true
+        },
+        {
+          "t": 8.05,
+          "segments": 7,
+          "media_sequence": 28,
+          "bytes": 2775,
+          "session_kept": true
+        },
+        {
+          "t": 9.05,
+          "segments": 7,
+          "media_sequence": 29,
+          "bytes": 2775,
+          "session_kept": true
+        }
+      ],
+      "verdict": "PASS",
+      "label": "MEASURED",
+      "note": "HLS preview is live playlist advancement \u2014 not a static screenshot"
+    }
+  ],
+  "overall": "PASS"
+}

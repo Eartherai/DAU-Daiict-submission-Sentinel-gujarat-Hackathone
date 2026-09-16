@@ -1,0 +1,212 @@
+[
+  {
+    "camera_id": "cam01",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam02",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam03",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam04",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam05",
+    "suspect": false,
+    "blockiness": 1.2754502271127888,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam06",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam07",
+    "suspect": true,
+    "blockiness": 1.675629924344455,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.68x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam08",
+    "suspect": true,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.8972222222222223,
+    "reason": "90% of rows carry saturated chroma bands with no scene detail"
+  },
+  {
+    "camera_id": "cam09",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam10",
+    "suspect": true,
+    "blockiness": 1.4361488398105138,
+    "chroma_band_fraction": 0.5472222222222223,
+    "reason": "55% of rows carry saturated chroma bands with no scene detail"
+  },
+  {
+    "camera_id": "cam11",
+    "suspect": false,
+    "blockiness": 1.4371495994180983,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam12",
+    "suspect": true,
+    "blockiness": 1.8458123462415104,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.85x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam13",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam14",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam15",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam16",
+    "suspect": true,
+    "blockiness": 1.4941175185930806,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.49x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam17",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam18",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam19",
+    "suspect": false,
+    "blockiness": 1.1766563630115052,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam20",
+    "suspect": true,
+    "blockiness": 1.4593680307818304,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.46x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam21",
+    "suspect": true,
+    "blockiness": 1.7162306056780599,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.72x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam22",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam23",
+    "suspect": false,
+    "blockiness": 1.2342660538485317,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam24",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam25",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam26",
+    "suspect": true,
+    "blockiness": 1.928816640211734,
+    "chroma_band_fraction": 0.0,
+    "reason": "macroblock artefacts present: discontinuity on the 16px grid is 1.93x the discontinuity elsewhere"
+  },
+  {
+    "camera_id": "cam27",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  },
+  {
+    "camera_id": "cam28",
+    "suspect": true,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.7333333333333333,
+    "reason": "73% of rows carry saturated chroma bands with no scene detail"
+  },
+  {
+    "camera_id": "cam29",
+    "suspect": true,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.9166666666666666,
+    "reason": "92% of rows carry saturated chroma bands with no scene detail"
+  },
+  {
+    "camera_id": "cam30",
+    "suspect": false,
+    "blockiness": 1.0,
+    "chroma_band_fraction": 0.0,
+    "reason": "no macroblock or chroma artefact detected"
+  }
+]

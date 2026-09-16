@@ -1,0 +1,24 @@
+{
+  "timestamp_utc": "2026-09-16T13:25:08.947508+00:00",
+  "command": "python tools/perf_headed_wall.py --levels 8 9 --seconds 15.0",
+  "browser_mode": "headed_metal",
+  "levels": [
+    {
+      "n_cameras": 8,
+      "overall": "FAIL",
+      "label": "MEASURED",
+      "error": "TypeError: run_level() got an unexpected keyword argument 'transcode'",
+      "browser_mode": "headed_metal"
+    },
+    {
+      "n_cameras": 9,
+      "overall": "FAIL",
+      "label": "MEASURED",
+      "error": "TypeError: run_level() got an unexpected keyword argument 'transcode'",
+      "browser_mode": "headed_metal"
+    }
+  ],
+  "max_smooth_PASS": 0,
+  "max_operable_PASS_or_AMBER": 0,
+  "note": "Headed Metal Chromium. Telemetry 1 Hz, health 2 Hz, no per-frame canvas. 4-stream SwiftShader result is superseded for product planning."
+}

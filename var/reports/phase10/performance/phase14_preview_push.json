@@ -1,0 +1,71 @@
+{
+  "label": "MEASURED_REAL",
+  "rows": [
+    {
+      "n": 8,
+      "overall": "PASS",
+      "live_tiles": 8,
+      "PASS": 8,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 3554.3999999910593,
+      "resources": {
+        "cpu_percent": 17.9,
+        "ram_available_gb": 11.657
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      }
+    },
+    {
+      "n": 10,
+      "overall": "AMBER",
+      "live_tiles": 9,
+      "PASS": 9,
+      "AMBER": 0,
+      "FAIL": 1,
+      "first_frame_ms_p50": 4199.5,
+      "resources": {
+        "cpu_percent": 17.9,
+        "ram_available_gb": 11.611
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      }
+    },
+    {
+      "n": 12,
+      "overall": "AMBER",
+      "live_tiles": 12,
+      "PASS": 10,
+      "AMBER": 2,
+      "FAIL": 0,
+      "first_frame_ms_p50": 3930.4499999955297,
+      "resources": {
+        "cpu_percent": 40.3,
+        "ram_available_gb": 11.619
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      }
+    },
+    {
+      "n": 16,
+      "overall": "AMBER",
+      "live_tiles": 15,
+      "PASS": 9,
+      "AMBER": 6,
+      "FAIL": 1,
+      "first_frame_ms_p50": 5743.9000000059605,
+      "resources": {
+        "cpu_percent": 19.6,
+        "ram_available_gb": 11.599
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      }
+    }
+  ],
+  "chosen_preview_budget": 12,
+  "available_n": 30
+}

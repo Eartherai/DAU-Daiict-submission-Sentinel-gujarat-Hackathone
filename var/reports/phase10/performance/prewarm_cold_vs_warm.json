@@ -1,0 +1,25 @@
+{
+  "timestamp_utc": "2026-09-16T14:07:10.330511+00:00",
+  "label": "MEASURED_SYNTHETIC",
+  "source": "SYNTHETIC",
+  "camera_id": "syn01",
+  "endpoint_safe": "/stream/gov-syn01/whep",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "cold": {
+    "error": null,
+    "first_frame_ms": 154.29999999701977,
+    "negotiation_ms": 182.29999999701977,
+    "click_to_frame_ms": 336.79999999701977
+  },
+  "warm": {
+    "error": null,
+    "first_frame_ms": 43.399999998509884,
+    "negotiation_ms": 138.60000000149012,
+    "click_to_frame_ms": 43.5,
+    "hold_ms": 1500,
+    "prewarm_ok": true
+  },
+  "speedup": 7.74,
+  "overall": "PASS",
+  "note": "Warm path attaches a pre-negotiated MediaStream to a visible <video> without a second WHEP POST."
+}

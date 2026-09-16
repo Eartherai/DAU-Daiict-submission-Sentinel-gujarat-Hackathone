@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-09-15T23:54:36+00:00",
+  "dimensions": [
+    {
+      "name": "Successful test case",
+      "score": 7,
+      "evidence": "live_evaluation.json records the executable chain; a government cross-camera repeat is not required to score this stage."
+    },
+    {
+      "name": "Presentation",
+      "score": 9,
+      "evidence": "demo script and recorded portal assets are present."
+    },
+    {
+      "name": "Architecture",
+      "score": 9,
+      "evidence": "HLD and ADRs are in-tree; statewide scale remains modeled."
+    },
+    {
+      "name": "Working platform",
+      "score": 9,
+      "evidence": "FastAPI app, static UI, seed and serve commands are present."
+    },
+    {
+      "name": "Video analytics",
+      "score": 8,
+      "evidence": "analytics package and recorded live outputs exist."
+    },
+    {
+      "name": "Scalability / PoC",
+      "score": 8,
+      "evidence": "decode/load artifact requests 50 cameras and streamed 44; full 50-camera analytics is not claimed."
+    },
+    {
+      "name": "Submission completeness",
+      "score": 9,
+      "evidence": "14/14 recorded release gates passed."
+    },
+    {
+      "name": "Security bonus",
+      "score": 9,
+      "evidence": "14/14 security checks passed."
+    }
+  ],
+  "mean": 8.5,
+  "classification": "evidence score; not a predicted judging result"
+}

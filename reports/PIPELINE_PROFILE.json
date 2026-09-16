@@ -1,0 +1,61 @@
+{
+  "measurement_class": "MEASURED",
+  "media": "/Users/earther/Desktop/Gujarat CCTV/saakshya/var/media",
+  "clips": [
+    "C-014.mp4",
+    "C-021.mp4"
+  ],
+  "counters": {
+    "frames_received": 29,
+    "frames_processed": 29,
+    "frames_skipped": 0,
+    "detections": 0,
+    "tracks_created": 0,
+    "observations": 0,
+    "errors": 0
+  },
+  "elapsed_seconds": 4.338,
+  "throughput_fps": 6.685,
+  "stages": {
+    "decode": {
+      "samples": 29,
+      "p50_ms": 0.216,
+      "p95_ms": 0.311,
+      "p99_ms": 0.391,
+      "mean_ms": 0.233
+    },
+    "pipeline": {
+      "samples": 29,
+      "p50_ms": 70.506,
+      "p95_ms": 117.742,
+      "p99_ms": 1574.892,
+      "mean_ms": 148.015
+    },
+    "flush": {
+      "samples": 2,
+      "p50_ms": 0.005,
+      "p95_ms": 0.005,
+      "p99_ms": 0.005,
+      "mean_ms": 0.005
+    }
+  },
+  "top_bottlenecks": [
+    {
+      "stage": "pipeline",
+      "p95_ms": 117.742
+    },
+    {
+      "stage": "decode",
+      "p95_ms": 0.311
+    },
+    {
+      "stage": "flush",
+      "p95_ms": 0.005
+    }
+  ],
+  "errors": [],
+  "caveats": [
+    "CPU/GPU utilisation is not reported because it was not measured.",
+    "Accuracy is not inferred from timing; see detector/tracker reports."
+  ]
+}

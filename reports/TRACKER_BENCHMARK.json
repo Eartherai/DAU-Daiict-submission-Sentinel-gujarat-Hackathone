@@ -1,0 +1,43 @@
+{
+  "measurement_class": "MEASURED",
+  "footage": "C-014.mp4",
+  "results": [
+    {
+      "tracker": "ByteTracker (in-tree, PTS-aware)",
+      "available": true,
+      "frames": 20,
+      "detections": 0,
+      "tracks_created": 0,
+      "tracks_active": 0,
+      "latency_ms_p50": 0.208,
+      "latency_ms_p95": 0.378,
+      "latency_ms_p99": 2.155,
+      "throughput_fps": 3072.255,
+      "accuracy": null,
+      "error": null
+    },
+    {
+      "tracker": "DeepSORT",
+      "available": false,
+      "accuracy": null,
+      "error": "candidate package is not installed; not installed by benchmark"
+    },
+    {
+      "tracker": "OC-SORT",
+      "available": false,
+      "accuracy": null,
+      "error": "candidate package is not installed; not installed by benchmark"
+    },
+    {
+      "tracker": "BoT-SORT",
+      "available": false,
+      "accuracy": null,
+      "error": "candidate package is not installed; not installed by benchmark"
+    }
+  ],
+  "caveats": [
+    "No track bounding-box or identity ground truth is present; accuracy is null.",
+    "The measured input uses the project's model-free motion boxes, not fabricated boxes.",
+    "Candidate availability is an environment check only; no migration or installation occurs."
+  ]
+}

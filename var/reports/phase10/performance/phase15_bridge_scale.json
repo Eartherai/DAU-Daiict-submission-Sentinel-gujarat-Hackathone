@@ -1,0 +1,107 @@
+{
+  "label": "MEASURED_REAL",
+  "rows": [
+    {
+      "n": 1,
+      "ready_paths": 0,
+      "startup_s": 55.23,
+      "overall": "PASS",
+      "live_tiles": 1,
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 1444.5,
+      "resources": {
+        "cpu_percent": 22.5,
+        "ram_available_gb": 10.655
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "cpu_percent": 17.7,
+      "ram_available_gb": 10.65
+    },
+    {
+      "n": 2,
+      "ready_paths": 1,
+      "startup_s": 55.29,
+      "overall": "AMBER",
+      "live_tiles": 1,
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 1,
+      "first_frame_ms_p50": 1440.2000000029802,
+      "resources": {
+        "cpu_percent": 17.1,
+        "ram_available_gb": 10.685
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "cpu_percent": 15.4,
+      "ram_available_gb": 10.719
+    },
+    {
+      "n": 4,
+      "ready_paths": 0,
+      "startup_s": 55.36,
+      "overall": "FAIL",
+      "live_tiles": 0,
+      "PASS": 0,
+      "AMBER": 0,
+      "FAIL": 4,
+      "first_frame_ms_p50": null,
+      "resources": {
+        "cpu_percent": 15.8,
+        "ram_available_gb": 11.138
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "cpu_percent": 15.3,
+      "ram_available_gb": 11.137
+    },
+    {
+      "n": 6,
+      "ready_paths": 6,
+      "startup_s": 34.24,
+      "overall": "AMBER",
+      "live_tiles": 6,
+      "PASS": 5,
+      "AMBER": 1,
+      "FAIL": 0,
+      "first_frame_ms_p50": 920.8000000044703,
+      "resources": {
+        "cpu_percent": 22.7,
+        "ram_available_gb": 10.455
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "cpu_percent": 17.4,
+      "ram_available_gb": 10.462
+    },
+    {
+      "n": 8,
+      "ready_paths": 4,
+      "startup_s": 55.41,
+      "overall": "AMBER",
+      "live_tiles": 4,
+      "PASS": 3,
+      "AMBER": 1,
+      "FAIL": 4,
+      "first_frame_ms_p50": 1430.0,
+      "resources": {
+        "cpu_percent": 28.1,
+        "ram_available_gb": 10.403
+      },
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "cpu_percent": 32.3,
+      "ram_available_gb": 10.46
+    }
+  ],
+  "chosen_bridge_budget": 6,
+  "note": "All bridges use VT baseline transcode (copy rejected: H264 B-frames)"
+}

@@ -1,0 +1,1457 @@
+{
+  "endpoint": "http://127.0.0.1:8889/stream/gov-cam17/whep",
+  "status": "MEASURED",
+  "negotiation_ms": 133.60000000149012,
+  "ice_state": "connected",
+  "first_frame_ms": 9254.699999999255,
+  "video": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 11.085,
+    "canvasMeanLuma": 120.37981513660641,
+    "canvasPng": "/Users/earther/Desktop/Gujarat CCTV/saakshya/var/reports/phase8c/gov/cam17_whep.png"
+  },
+  "stats": [
+    {
+      "at": 9255.300000000745,
+      "ice": "connected",
+      "currentTime": 0,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 5304,
+          "bytesReceived": 5227026,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 5292,
+          "bytesReceived": 5109481,
+          "framesReceived": 4,
+          "framesDecoded": 1,
+          "framesDropped": 0,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.010225999999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 5304,
+          "bytesReceived": 5227026,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 9760.800000000745,
+      "ice": "connected",
+      "currentTime": -9.075,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 5466,
+          "bytesReceived": 5383926,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 5454,
+          "bytesReceived": 5262817,
+          "framesReceived": 13,
+          "framesDecoded": 13,
+          "framesDropped": 0,
+          "framesPerSecond": 26,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.08649799999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 5466,
+          "bytesReceived": 5383926,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 10266.60000000149,
+      "ice": "connected",
+      "currentTime": 1.015,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "waiting"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 5769,
+          "bytesReceived": 5689882,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 5756,
+          "bytesReceived": 5562087,
+          "framesReceived": 28,
+          "framesDecoded": 28,
+          "framesDropped": 0,
+          "framesPerSecond": 26,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.105347,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 5769,
+          "bytesReceived": 5689882,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 10767.699999999255,
+      "ice": "connected",
+      "currentTime": 0.962,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 6100,
+          "bytesReceived": 6020290,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 6087,
+          "bytesReceived": 5885213,
+          "framesReceived": 42,
+          "framesDecoded": 42,
+          "framesDropped": 0,
+          "framesPerSecond": 29,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.10775399999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 6100,
+          "bytesReceived": 6020290,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 11273.39999999851,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 6496,
+          "bytesReceived": 6422792,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 6482,
+          "bytesReceived": 6278983,
+          "framesReceived": 55,
+          "framesDecoded": 55,
+          "framesDropped": 0,
+          "framesPerSecond": 27,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.11352799999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 6496,
+          "bytesReceived": 6422792,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 11778.199999999255,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 6799,
+          "bytesReceived": 6731256,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 6785,
+          "bytesReceived": 6580781,
+          "framesReceived": 66,
+          "framesDecoded": 66,
+          "framesDropped": 0,
+          "framesPerSecond": 23,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.116089,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 6799,
+          "bytesReceived": 6731256,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 12283.699999999255,
+      "ice": "connected",
+      "currentTime": 0.962,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 6988,
+          "bytesReceived": 6923142,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 6973,
+          "bytesReceived": 6768489,
+          "framesReceived": 73,
+          "framesDecoded": 73,
+          "framesDropped": 0,
+          "framesPerSecond": 17,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.118521,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 6988,
+          "bytesReceived": 6923142,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 12787.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 7332,
+          "bytesReceived": 7273147,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 7317,
+          "bytesReceived": 7110926,
+          "framesReceived": 87,
+          "framesDecoded": 87,
+          "framesDropped": 0,
+          "framesPerSecond": 21,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.13042499999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 7332,
+          "bytesReceived": 7273147,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 13293.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 7592,
+          "bytesReceived": 7528347,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 7576,
+          "bytesReceived": 7360386,
+          "framesReceived": 98,
+          "framesDecoded": 98,
+          "framesDropped": 0,
+          "framesPerSecond": 25,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.13211799999999999,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 7592,
+          "bytesReceived": 7528347,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 13798.699999999255,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 7637,
+          "bytesReceived": 7571726,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 7621,
+          "bytesReceived": 7402775,
+          "framesReceived": 100,
+          "framesDecoded": 100,
+          "framesDropped": 0,
+          "framesPerSecond": 13,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.132638,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 7637,
+          "bytesReceived": 7571726,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 14301.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 7877,
+          "bytesReceived": 7819638,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 7860,
+          "bytesReceived": 7645387,
+          "framesReceived": 107,
+          "framesDecoded": 107,
+          "framesDropped": 0,
+          "framesPerSecond": 9,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.13572399999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 7877,
+          "bytesReceived": 7819638,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 14806.699999999255,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8103,
+          "bytesReceived": 8043542,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8086,
+          "bytesReceived": 7864319,
+          "framesReceived": 117,
+          "framesDecoded": 117,
+          "framesDropped": 0,
+          "framesPerSecond": 17,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.13772099999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8103,
+          "bytesReceived": 8043542,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 15313.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8104,
+          "bytesReceived": 8043584,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8086,
+          "bytesReceived": 7864319,
+          "framesReceived": 117,
+          "framesDecoded": 117,
+          "framesDropped": 0,
+          "framesPerSecond": 10,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.13772099999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8104,
+          "bytesReceived": 8043584,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 15814,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8147,
+          "bytesReceived": 8086435,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8129,
+          "bytesReceived": 7906224,
+          "framesReceived": 119,
+          "framesDecoded": 119,
+          "framesDropped": 0,
+          "framesPerSecond": 2,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.138484,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8147,
+          "bytesReceived": 8086435,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 16320.300000000745,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8413,
+          "bytesReceived": 8352749,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8394,
+          "bytesReceived": 8166666,
+          "framesReceived": 131,
+          "framesDecoded": 131,
+          "framesDropped": 0,
+          "framesPerSecond": 14,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.148388,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8413,
+          "bytesReceived": 8352749,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 16826.39999999851,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8477,
+          "bytesReceived": 8416318,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8458,
+          "bytesReceived": 8228827,
+          "framesReceived": 134,
+          "framesDecoded": 134,
+          "framesDropped": 0,
+          "framesPerSecond": 15,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.14925,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8477,
+          "bytesReceived": 8416318,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 17329.39999999851,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8478,
+          "bytesReceived": 8416360,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8458,
+          "bytesReceived": 8228827,
+          "framesReceived": 134,
+          "framesDecoded": 134,
+          "framesDropped": 0,
+          "framesPerSecond": 3,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.14925,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8478,
+          "bytesReceived": 8416360,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 17831.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8542,
+          "bytesReceived": 8476922,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8522,
+          "bytesReceived": 8287981,
+          "framesReceived": 137,
+          "framesDecoded": 137,
+          "framesDropped": 0,
+          "framesPerSecond": 3,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.14990699999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8542,
+          "bytesReceived": 8476922,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 18335,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8712,
+          "bytesReceived": 8646564,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8691,
+          "bytesReceived": 8453863,
+          "framesReceived": 145,
+          "framesDecoded": 145,
+          "framesDropped": 0,
+          "framesPerSecond": 11,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.154005,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8712,
+          "bytesReceived": 8646564,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 18836.300000000745,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 8821,
+          "bytesReceived": 8754640,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8800,
+          "bytesReceived": 8559541,
+          "framesReceived": 150,
+          "framesDecoded": 150,
+          "framesDropped": 0,
+          "framesPerSecond": 13,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.15587299999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 8821,
+          "bytesReceived": 8754640,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 19341.800000000745,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 9016,
+          "bytesReceived": 8957219,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 8994,
+          "bytesReceived": 8757810,
+          "framesReceived": 156,
+          "framesDecoded": 156,
+          "framesDropped": 0,
+          "framesPerSecond": 11,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.15852,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 9016,
+          "bytesReceived": 8957219,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 19847.10000000149,
+      "ice": "connected",
+      "currentTime": 0.963,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 9153,
+          "bytesReceived": 9095611,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 9131,
+          "bytesReceived": 8893188,
+          "framesReceived": 162,
+          "framesDecoded": 162,
+          "framesDropped": 0,
+          "framesPerSecond": 12,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.160276,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 9153,
+          "bytesReceived": 9095611,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 20353.39999999851,
+      "ice": "connected",
+      "currentTime": 11.109,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 9371,
+          "bytesReceived": 9309708,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 9348,
+          "bytesReceived": 9102469,
+          "framesReceived": 172,
+          "framesDecoded": 172,
+          "framesDropped": 0,
+          "framesPerSecond": 16,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.18040099999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 9371,
+          "bytesReceived": 9309708,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 20857.199999999255,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 9609,
+          "bytesReceived": 9544910,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 9586,
+          "bytesReceived": 9332435,
+          "framesReceived": 183,
+          "framesDecoded": 183,
+          "framesDropped": 0,
+          "framesPerSecond": 21,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.18670299999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 9609,
+          "bytesReceived": 9544910,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 21362.800000000745,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10001,
+          "bytesReceived": 9920773,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 9977,
+          "bytesReceived": 9699654,
+          "framesReceived": 200,
+          "framesDecoded": 200,
+          "framesDropped": 0,
+          "framesPerSecond": 27,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.190058,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10001,
+          "bytesReceived": 9920773,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 21863.699999999255,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10001,
+          "bytesReceived": 9920773,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 9977,
+          "bytesReceived": 9699654,
+          "framesReceived": 200,
+          "framesDecoded": 200,
+          "framesDropped": 0,
+          "framesPerSecond": 17,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.190058,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10001,
+          "bytesReceived": 9920773,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 22369.199999999255,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10254,
+          "bytesReceived": 10180248,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 10229,
+          "bytesReceived": 9953543,
+          "framesReceived": 208,
+          "framesDecoded": 208,
+          "framesDropped": 0,
+          "framesPerSecond": 8,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.196792,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10254,
+          "bytesReceived": 10180248,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 22875.300000000745,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10537,
+          "bytesReceived": 10455113,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 10512,
+          "bytesReceived": 10222182,
+          "framesReceived": 219,
+          "framesDecoded": 219,
+          "framesDropped": 0,
+          "framesPerSecond": 19,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.204223,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10537,
+          "bytesReceived": 10455113,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 23380.699999999255,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10681,
+          "bytesReceived": 10599513,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 10655,
+          "bytesReceived": 10363394,
+          "framesReceived": 225,
+          "framesDecoded": 225,
+          "framesDropped": 0,
+          "framesPerSecond": 17,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.20838199999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10681,
+          "bytesReceived": 10599513,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    },
+    {
+      "at": 23887,
+      "ice": "connected",
+      "currentTime": 11.085,
+      "reports": [
+        {
+          "type": "codec",
+          "mimeType": "video/H264"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 10890,
+          "bytesReceived": 10804155,
+          "state": "succeeded"
+        },
+        {
+          "type": "candidate-pair",
+          "packetsReceived": 0,
+          "bytesReceived": 0,
+          "state": "succeeded"
+        },
+        {
+          "type": "inbound-rtp",
+          "kind": "video",
+          "mediaType": "video",
+          "packetsReceived": 10864,
+          "bytesReceived": 10563438,
+          "framesReceived": 233,
+          "framesDecoded": 233,
+          "framesDropped": 0,
+          "framesPerSecond": 14,
+          "codecId": "CIT01_108_level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f",
+          "jitter": 0,
+          "jitterBufferDelay": 0.21262199999999998,
+          "packetsLost": 0
+        },
+        {
+          "type": "transport",
+          "packetsReceived": 10890,
+          "bytesReceived": 10804155,
+          "dtlsState": "connected",
+          "selectedCandidatePairId": "CPzFpXbWP/_VSv8ItT1"
+        }
+      ]
+    }
+  ],
+  "sdp": {
+    "offer": "v=0\ns=-\nt=0 0\na=group:BUNDLE 0\na=extmap-allow-mixed\na=msid-semantic: WMS\nm=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100 101 35 36 37 38 102 103 104 107 108 109 114 115 116 117 39 40 41 42 43 44 45 46 47 48 118 119 120 49\nc=IN IP4 0.0.0.0\na=rtcp:9 IN IP4 0.0.0.0\na=setup:actpass\na=mid:0\na=extmap:1 urn:ietf:params:rtp-hdrext:toffset\na=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\na=extmap:3 urn:3gpp:video-orientation\na=extmap:4 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\na=extmap:5 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\na=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/video-content-type\na=extmap:7 http://www.webrtc.org/experiments/rtp-hdrext/video-timing\na=extmap:8 http://www.webrtc.org/experiments/rtp-hdrext/color-space\na=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\na=extmap:10 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\na=extmap:11 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\na=recvonly\na=rtcp-mux\na=rtcp-rsize\na=rtcp-xr:rcvr-rtt=all\na=rtcp-fb:96 rrtr\na=rtcp-fb:97 rrtr\na=rtcp-fb:98 rrtr\na=rtcp-fb:99 rrtr\na=rtcp-fb:100 rrtr\na=rtcp-fb:101 rrtr\na=rtcp-fb:35 rrtr\na=rtcp-fb:36 rrtr\na=rtcp-fb:37 rrtr\na=rtcp-fb:38 rrtr\na=rtcp-fb:102 rrtr\na=rtcp-fb:103 rrtr\na=rtcp-fb:104 rrtr\na=rtcp-fb:107 rrtr\na=rtcp-fb:108 rrtr\na=rtcp-fb:109 rrtr\na=rtcp-fb:114 rrtr\na=rtcp-fb:115 rrtr\na=rtcp-fb:116 rrtr\na=rtcp-fb:117 rrtr\na=rtcp-fb:39 rrtr\na=rtcp-fb:40 rrtr\na=rtcp-fb:41 rrtr\na=rtcp-fb:42 rrtr\na=rtcp-fb:43 rrtr\na=rtcp-fb:44 rrtr\na=rtcp-fb:45 rrtr\na=rtcp-fb:46 rrtr\na=rtcp-fb:47 rrtr\na=rtcp-fb:48 rrtr\na=rtcp-fb:118 rrtr\na=rtcp-fb:119 rrtr\na=rtcp-fb:120 rrtr\na=rtcp-fb:49 rrtr\na=rtpmap:96 VP8/90000\na=rtcp-fb:96 goog-remb\na=rtcp-fb:96 transport-cc\na=rtcp-fb:96 ccm fir\na=rtcp-fb:96 nack\na=rtcp-fb:96 nack pli\na=rtpmap:97 rtx/90000\na=fmtp:97 apt=96\na=rtpmap:98 VP9/90000\na=rtcp-fb:98 goog-remb\na=rtcp-fb:98 transport-cc\na=rtcp-fb:98 ccm fir\na=rtcp-fb:98 nack\na=rtcp-fb:98 nack pli\na=fmtp:98 profile-id=0\na=rtpmap:99 rtx/90000\na=fmtp:99 apt=98\na=rtpmap:100 VP9/90000\na=rtcp-fb:100 goog-remb\na=rtcp-fb:100 transport-cc\na=rtcp-fb:100 ccm fir\na=rtcp-fb:100 nack\na=rtcp-fb:100 nack pli\na=fmtp:100 profile-id=2\na=rtpmap:101 rtx/90000\na=fmtp:101 apt=100\na=rtpmap:35 VP9/90000\na=rtcp-fb:35 goog-remb\na=rtcp-fb:35 transport-cc\na=rtcp-fb:35 ccm fir\na=rtcp-fb:35 nack\na=rtcp-fb:35 nack pli\na=fmtp:35 profile-id=1\na=rtpmap:36 rtx/90000\na=fmtp:36 apt=35\na=rtpmap:37 VP9/90000\na=rtcp-fb:37 goog-remb\na=rtcp-fb:37 transport-cc\na=rtcp-fb:37 ccm fir\na=rtcp-fb:37 nack\na=rtcp-fb:37 nack pli\na=fmtp:37 profile-id=3\na=rtpmap:38 rtx/90000\na=fmtp:38 apt=37\na=rtpmap:102 H264/90000\na=rtcp-fb:102 goog-remb\na=rtcp-fb:102 transport-cc\na=rtcp-fb:102 ccm fir\na=rtcp-fb:102 nack\na=rtcp-fb:102 nack pli\na=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f\na=rtpmap:103 rtx/90000\na=fmtp:103 apt=102\na=rtpmap:104 H264/90000\na=rtcp-fb:104 goog-remb\na=rtcp-fb:104 transport-cc\na=rtcp-fb:104 ccm fir\na=rtcp-fb:104 nack\na=rtcp-fb:104 nack pli\na=fmtp:104 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42001f\na=rtpmap:107 rtx/90000\na=fmtp:107 apt=104\na=rtpmap:108 H264/90000\na=rtcp-fb:108 goog-remb\na=rtcp-fb:108 transport-cc\na=rtcp-fb:108 ccm fir\na=rtcp-fb:108 nack\na=rtcp-fb:108 nack pli\na=fmtp:108 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\na=rtpmap:109 rtx/90000\na=fmtp:109 apt=108\na=rtpmap:114 H264/90000\na=rtcp-fb:114 goog-remb\na=rtcp-fb:114 transport-cc\na=rtcp-fb:114 ccm fir\na=rtcp-fb:114 nack\na=rtcp-fb:114 nack pli\na=fmtp:114 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f\na=rtpmap:115 rtx/90000\na=fmtp:115 apt=114\na=rtpmap:116 H264/90000\na=rtcp-fb:116 goog-remb\na=rtcp-fb:116 transport-cc\na=rtcp-fb:116 ccm fir\na=rtcp-fb:116 nack\na=rtcp-fb:116 nack pli\na=fmtp:116 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d001f\na=rtpmap:117 rtx/90000\na=fmtp:117 apt=116\na=rtpmap:39 H264/90000\na=rtcp-fb:39 goog-remb\na=rtcp-fb:39 transport-cc\na=rtcp-fb:39 ccm fir\na=rtcp-fb:39 nack\na=rtcp-fb:39 nack pli\na=fmtp:39 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=4d001f\na=rtpmap:40 rtx/90000\na=fmtp:40 apt=39\na=rtpmap:41 H264/90000\na=rtcp-fb:41 goog-remb\na=rtcp-fb:41 transport-cc\na=rtcp-fb:41 ccm fir\na=rtcp-fb:41 nack\na=rtcp-fb:41 nack pli\na=fmtp:41 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=f4001f\na=rtpmap:42 rtx/90000\na=fmtp:42 apt=41\na=rtpmap:43 H264/90000\na=rtcp-fb:43 goog-remb\na=rtcp-fb:43 transport-cc\na=rtcp-fb:43 ccm fir\na=rtcp-fb:43 nack\na=rtcp-fb:43 nack pli\na=fmtp:43 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=f4001f\na=rtpmap:44 rtx/90000\na=fmtp:44 apt=43\na=rtpmap:45 AV1/90000\na=rtcp-fb:45 goog-remb\na=rtcp-fb:45 transport-cc\na=rtcp-fb:45 ccm fir\na=rtcp-fb:45 nack\na=rtcp-fb:45 nack pli\na=fmtp:45 level-idx=5;profile=0;tier=0\na=rtpmap:46 rtx/90000\na=fmtp:46 apt=45\na=rtpmap:47 AV1/90000\na=rtcp-fb:47 goog-remb\na=rtcp-fb:47 transport-cc\na=rtcp-fb:47 ccm fir\na=rtcp-fb:47 nack\na=rtcp-fb:47 nack pli\na=fmtp:47 level-idx=5;profile=1;tier=0\na=rtpmap:48 rtx/90000\na=fmtp:48 apt=47\na=rtpmap:118 red/90000\na=rtpmap:119 rtx/90000\na=fmtp:119 apt=118\na=rtpmap:120 ulpfec/90000\na=rtpmap:49 flexfec-03/90000\na=rtcp-fb:49 goog-remb\na=rtcp-fb:49 transport-cc\na=fmtp:49 repair-window=10000000\n",
+    "answer": "v=0\ns=-\nt=0 0\na=msid-semantic:WMS *\na=extmap-allow-mixed\na=group:BUNDLE 0\nm=video 9 UDP/TLS/RTP/SAVPF 108\nc=IN IP4 0.0.0.0\na=setup:active\na=mid:0\na=rtcp-mux\na=rtcp-rsize\na=rtpmap:108 H264/90000\na=fmtp:108 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\na=rtcp-fb:108 nack\na=rtcp-fb:108 nack pli\na=rtcp-fb:108 transport-cc\na=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\na=extmap:10 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\na=extmap:4 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\na=extmap:11 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\na=ssrc:3713251562 cname:mediamtx\na=ssrc:3713251562 msid:mediamtx video\na=ssrc:3713251562 mslabel:mediamtx\na=ssrc:3713251562 label:video\na=msid:mediamtx video\na=sendonly\na=end-of-candidates\n"
+  },
+  "events": [
+    {
+      "type": "track",
+      "at": 133.60000000149012,
+      "kind": "video",
+      "streams": 1
+    },
+    {
+      "type": "waiting",
+      "at": 133.80000000074506
+    },
+    {
+      "type": "loadedmetadata",
+      "at": 9254.699999999255
+    },
+    {
+      "type": "loadeddata",
+      "at": 9254.699999999255
+    },
+    {
+      "type": "canplay",
+      "at": 9254.699999999255
+    },
+    {
+      "type": "playing",
+      "at": 9254.699999999255
+    }
+  ],
+  "error": null,
+  "soak": {
+    "freezes": 2,
+    "reconnects": 0,
+    "stallMs": 3500
+  },
+  "summary": {
+    "first_frame_ms": 9254.699999999255,
+    "negotiation_ms": 133.60000000149012,
+    "currentTime": 11.085,
+    "resolution": "1920x1080",
+    "canvasMeanLuma": 120.37981513660641,
+    "framesDecoded_delta": 232,
+    "framesDropped_end": 0,
+    "packetsLost_end": 0,
+    "packetsReceived_end": 10864,
+    "peak_fps": 29,
+    "freezes": 2,
+    "reconnects": 0,
+    "ice_state": "connected"
+  },
+  "elapsed_ms": 24783.6
+}

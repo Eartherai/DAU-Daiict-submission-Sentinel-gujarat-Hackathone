@@ -1,0 +1,191 @@
+{
+  "paths": [
+    "DIRECT_SENTINEL_WHEP",
+    "RTSP_BRIDGED_H264",
+    "RTSP_TRANSCODED_H264",
+    "RTSP_ONLY_AI",
+    "NO_SIGNAL"
+  ],
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam02",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam03",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam04",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam05",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam06",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam07",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam08",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam09",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam10",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam11",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam12",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam13",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam14",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam15",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam16",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam17",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam18",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam19",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam20",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam21",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam22",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam23",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam24",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam25",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam26",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam27",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam28",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam29",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam30",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    }
+  ]
+}

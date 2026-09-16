@@ -1,0 +1,13 @@
+{
+  "endpoint": "http://127.0.0.1:8889/stream/gov-cam17/whep",
+  "status": "UNAVAILABLE",
+  "negotiation_ms": null,
+  "ice_state": null,
+  "first_frame_ms": null,
+  "video": {},
+  "stats": {},
+  "sdp": {},
+  "events": [],
+  "error": "Error: Page.evaluate: Error: WHEP 400\n    at eval (eval at evaluate (:311:30), <anonymous>:36:43)\n    at async <anonymous>:337:30",
+  "elapsed_ms": 392.3
+}

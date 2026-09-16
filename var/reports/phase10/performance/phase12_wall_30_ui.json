@@ -1,0 +1,401 @@
+{
+  "timestamp_utc": "2026-09-16T15:17:41.456417+00:00",
+  "label": "MEASURED_REAL_AND_DESIGNED",
+  "registered": 30,
+  "full_whep_budget": 10,
+  "full_whep_measured": {
+    "PASS": 10,
+    "AMBER": 0,
+    "FAIL": 0,
+    "first_frame_ms_p50": 3289.6499999910593,
+    "first_frame_ms_p95": 4864.23999999836,
+    "negotiation_ms_p50": 2085.5999999940395,
+    "negotiation_ms_p95": 3445.044999995082
+  },
+  "full_whep_overall": "PASS",
+  "ux_counts": {
+    "LIVE": 10,
+    "PREVIEW": 20,
+    "DEGRADED": 0,
+    "CONNECTING": 0,
+    "NO_SIGNAL": 0,
+    "RECONNECTING": 0
+  },
+  "tiles": [
+    {
+      "camera_id": "cam01",
+      "tier": "PRIMARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "operator focus / alert / first full",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 2513.8999999910593,
+        "currentTime": 15.303,
+        "freezes": 1,
+        "effective_fps": 15.03,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam02",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 1988,
+        "currentTime": 16.038,
+        "freezes": 1,
+        "effective_fps": 29.68,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam03",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 1989,
+        "currentTime": 15.917,
+        "freezes": 2,
+        "effective_fps": 16.65,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam04",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 3034.699999988079,
+        "currentTime": 14.788,
+        "freezes": 1,
+        "effective_fps": 25.09,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam05",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 4574.5,
+        "currentTime": 13.227,
+        "freezes": 1,
+        "effective_fps": 29.41,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam06",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 3034.8999999910593,
+        "currentTime": 15.145,
+        "freezes": 1,
+        "effective_fps": 24.36,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam13",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 3544.3999999910593,
+        "currentTime": 14.196,
+        "freezes": 1,
+        "effective_fps": 10.07,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam14",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 3544.3999999910593,
+        "currentTime": 14.112,
+        "freezes": 1,
+        "effective_fps": 9.92,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam15",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 4063.0999999940395,
+        "currentTime": 13.805,
+        "freezes": 2,
+        "effective_fps": 1.88,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam19",
+      "tier": "SECONDARY",
+      "representation": "FULL_WHEP",
+      "path": "DIRECT_H264",
+      "reason": "within measured FULL_WHEP budget",
+      "ux_state": "LIVE",
+      "measured": {
+        "verdict": "PASS",
+        "first_frame_ms": 5101.29999999702,
+        "currentTime": 12.796,
+        "freezes": 1,
+        "effective_fps": 25.09,
+        "whep_http_status": 201
+      }
+    },
+    {
+      "camera_id": "cam07",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam08",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam09",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam10",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam11",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam12",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam16",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam17",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam18",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam20",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam21",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam22",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam23",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam24",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam25",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam26",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam27",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam28",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam29",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    },
+    {
+      "camera_id": "cam30",
+      "tier": "PREVIEW",
+      "representation": "PREVIEW_LIVE",
+      "path": "DIRECT_H264",
+      "reason": "outside full WHEP budget \u2014 live preview",
+      "ux_state": "PREVIEW",
+      "measured": null,
+      "note": "Preview slot \u2014 not labeled LIVE until live transport attached. Not a static screenshot placeholder in product path."
+    }
+  ],
+  "browser": {
+    "status": "MEASURED",
+    "gpu": {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+    },
+    "auth_mode": "Authorization_Basic_header",
+    "elapsed_s": 22.713,
+    "resources": {
+      "cpu_percent": 18.0,
+      "ram_available_gb": 11.454
+    },
+    "error": null
+  },
+  "catalogue_authoritative": false,
+  "credentials_in_artifact": false
+}

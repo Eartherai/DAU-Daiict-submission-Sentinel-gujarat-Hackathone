@@ -1,0 +1,35 @@
+[
+  {
+    "camera_id": "cam06",
+    "source": "rtsp://<redacted>@103.250.160.189:8554/stream/cam06",
+    "raw_status": "LIVE",
+    "frames": 20,
+    "codec": "hevc",
+    "resolution": "1920x1080",
+    "has_b_frames": false,
+    "elapsed_ms": 2990.6,
+    "raw_jpeg": "var/reports/phase8c/gov/cam06_raw.jpg"
+  },
+  {
+    "camera_id": "cam12",
+    "source": "rtsp://<redacted>@103.250.160.189:8554/stream/cam12",
+    "raw_status": "LIVE",
+    "frames": 20,
+    "codec": "hevc",
+    "resolution": "1280x720",
+    "has_b_frames": false,
+    "elapsed_ms": 3274.5,
+    "raw_jpeg": "var/reports/phase8c/gov/cam12_raw.jpg"
+  },
+  {
+    "camera_id": "cam17",
+    "source": "rtsp://<redacted>@103.250.160.189:8554/stream/cam17",
+    "raw_status": "LIVE",
+    "frames": 20,
+    "codec": "hevc",
+    "resolution": "1920x1080",
+    "has_b_frames": false,
+    "elapsed_ms": 11096.4,
+    "raw_jpeg": "var/reports/phase8c/gov/cam17_raw.jpg"
+  }
+]

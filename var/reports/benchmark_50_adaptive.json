@@ -1,0 +1,19 @@
+{
+  "measurement_class": "SYNTHETIC CATALOGUE",
+  "source": "synthetic",
+  "scheduler": "adaptive",
+  "target_catalogue_size": 50,
+  "catalogue_count": 6,
+  "available_media_count": 6,
+  "processed_camera_count": 6,
+  "frames_received": 42,
+  "frames_processed": 42,
+  "frames_dropped": 0,
+  "detections": 0,
+  "tracks_created": 0,
+  "ocr_reads": 0,
+  "observations": 0,
+  "errors": 0,
+  "elapsed_seconds": 3.96,
+  "throughput_fps": 10.606
+}

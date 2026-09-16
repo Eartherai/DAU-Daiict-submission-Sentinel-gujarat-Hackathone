@@ -1,0 +1,44 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam30",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:03.304758+00:00",
+  "finished_at_utc": "2026-09-16T00:20:18.866635+00:00",
+  "availability": "PARTIAL",
+  "error": "InvalidDataError: [Errno 1094995529] Invalid data found when processing input: 'avcodec_send_packet()'",
+  "stream": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "resolution": "1920x1080",
+    "pixel_format": "<av.VideoFormat yuvj420p, 1920x1080>",
+    "time_base": "1/90000",
+    "declared_fps": 25.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 60,
+    "frames_with_pts": 59,
+    "missing_pts": 1,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": null,
+    "pts_last": null,
+    "observed_fps": null,
+    "inter_frame_seconds": {}
+  },
+  "quality": {
+    "frames_sampled": 60,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.3274795061665356,
+    "black_ratio": null,
+    "freeze_ratio": null
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

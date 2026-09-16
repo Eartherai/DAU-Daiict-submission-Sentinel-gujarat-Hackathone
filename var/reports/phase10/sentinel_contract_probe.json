@@ -1,0 +1,420 @@
+{
+  "timestamp_utc": "2026-09-16T14:21:31.113716+00:00",
+  "client": "SaakshyaContractProbe/1.0",
+  "label": "MEASURED",
+  "credentials_configured": true,
+  "credentials_in_artifact": false,
+  "catalogue": {
+    "reachable_json": false,
+    "url_used": null,
+    "live_camera_ids": [],
+    "camera_count": 0,
+    "attempts_summary": [
+      {
+        "url_safe": "https://cctv.corp8.cloud/cameras.json",
+        "status": 200,
+        "error": "html_login_or_spa",
+        "json": false
+      },
+      {
+        "url_safe": "http://103.250.160.189/api/ingest",
+        "status": 404,
+        "error": "HTTPError: HTTP Error 404: Not Found",
+        "json": false
+      },
+      {
+        "url_safe": "http://cctv.corp8.cloud/api/ingest",
+        "status": 200,
+        "error": "html_login_or_spa",
+        "json": false
+      },
+      {
+        "url_safe": "https://cctv.corp8.cloud/api/ingest",
+        "status": 200,
+        "error": "html_login_or_spa",
+        "json": false
+      },
+      {
+        "url_safe": "http://cctv.corp8.cloud/cameras.json",
+        "status": 200,
+        "error": "html_login_or_spa",
+        "json": false
+      }
+    ]
+  },
+  "endpoint_comparison": [
+    {
+      "camera_id": "cam01",
+      "in_catalogue": false,
+      "catalogue_live": null,
+      "catalogue_rtsp": null,
+      "catalogue_whep": null,
+      "catalogue_hls": null,
+      "configured_rtsp": "rtsp://103.250.160.189:8554/stream/cam01",
+      "configured_whep": "http://103.250.160.189:8889/stream/cam01/whep",
+      "configured_hls": "https://cctv.corp8.cloud/cam01/index.m3u8",
+      "rtsp_match": null,
+      "whep_match": null,
+      "hls_match": null
+    },
+    {
+      "camera_id": "cam02",
+      "in_catalogue": false,
+      "catalogue_live": null,
+      "catalogue_rtsp": null,
+      "catalogue_whep": null,
+      "catalogue_hls": null,
+      "configured_rtsp": "rtsp://103.250.160.189:8554/stream/cam02",
+      "configured_whep": "http://103.250.160.189:8889/stream/cam02/whep",
+      "configured_hls": "https://cctv.corp8.cloud/cam02/index.m3u8",
+      "rtsp_match": null,
+      "whep_match": null,
+      "hls_match": null
+    },
+    {
+      "camera_id": "cam05",
+      "in_catalogue": false,
+      "catalogue_live": null,
+      "catalogue_rtsp": null,
+      "catalogue_whep": null,
+      "catalogue_hls": null,
+      "configured_rtsp": "rtsp://103.250.160.189:8554/stream/cam05",
+      "configured_whep": "http://103.250.160.189:8889/stream/cam05/whep",
+      "configured_hls": "https://cctv.corp8.cloud/cam05/index.m3u8",
+      "rtsp_match": null,
+      "whep_match": null,
+      "hls_match": null
+    }
+  ],
+  "rtsp_auth_mechanism_by_camera": {
+    "cam01": "basic",
+    "cam02": "basic",
+    "cam05": null
+  },
+  "probes": {
+    "rtsp": {
+      "cam01": {
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam01",
+        "tcp": {
+          "ok": true,
+          "latency_ms": 30.0
+        },
+        "describe_unauth": {
+          "status": 401,
+          "www_authenticate_scheme": "basic"
+        },
+        "auth_mechanism_advertised": "basic",
+        "auth_header_trials": {
+          "Basic": {
+            "status": 200,
+            "error": null
+          }
+        },
+        "auth_header_success": "Basic",
+        "describe_auth": {
+          "status": 200
+        },
+        "setup": {
+          "status": 200
+        },
+        "play": {
+          "status": 454
+        },
+        "pyav_url_authority_in_memory": {
+          "status": "FRAME",
+          "frames": 5,
+          "codec": "h264",
+          "error": null
+        },
+        "ffprobe": {
+          "status": "SKIPPED",
+          "error": null,
+          "codec": null
+        },
+        "first_failing_layer": null,
+        "url_source": "configured_template",
+        "note": "Hand-rolled PLAY returned 454 (session/track); PyAV demux got frames \u2014 credentials+source OK"
+      },
+      "cam02": {
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam02",
+        "tcp": {
+          "ok": true,
+          "latency_ms": 1031.2
+        },
+        "describe_unauth": {
+          "status": 401,
+          "www_authenticate_scheme": "basic"
+        },
+        "auth_mechanism_advertised": "basic",
+        "auth_header_trials": {
+          "Basic": {
+            "status": 200,
+            "error": null
+          }
+        },
+        "auth_header_success": "Basic",
+        "describe_auth": {
+          "status": 200
+        },
+        "setup": {
+          "status": null
+        },
+        "play": null,
+        "pyav_url_authority_in_memory": {
+          "status": "FAIL",
+          "frames": 0,
+          "codec": null,
+          "error": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam02'"
+        },
+        "ffprobe": {
+          "status": "SKIPPED",
+          "error": null,
+          "codec": null
+        },
+        "first_failing_layer": "SETUP",
+        "url_source": "configured_template"
+      },
+      "cam05": {
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam05",
+        "tcp": {
+          "ok": false,
+          "error": "[Errno 61] Connection refused"
+        },
+        "first_failing_layer": "TCP",
+        "url_source": "configured_template"
+      }
+    },
+    "whep": {
+      "cam01": {
+        "url_safe": "http://103.250.160.189:8889/stream/cam01/whep",
+        "http_options_or_post_status": null,
+        "negotiate_status": null,
+        "sdp_ok": false,
+        "first_frame_ms": null,
+        "ice": null,
+        "codec_hint": null,
+        "gpu": null,
+        "error": "Failed to fetch",
+        "auth_attempt": "none",
+        "status": "FAIL",
+        "codec_expected": "unknown"
+      },
+      "cam06": {
+        "url_safe": "http://103.250.160.189:8889/stream/cam06/whep",
+        "http_options_or_post_status": null,
+        "negotiate_status": null,
+        "sdp_ok": false,
+        "first_frame_ms": null,
+        "ice": null,
+        "codec_hint": null,
+        "gpu": null,
+        "error": "signal timed out",
+        "auth_attempt": "none",
+        "status": "FAIL",
+        "codec_expected": "unknown"
+      }
+    },
+    "hls": {
+      "cam01:guide_ip": {
+        "url_safe": "http://103.250.160.189/live/stream/cam01/index.m3u8",
+        "status": "FAIL",
+        "playlist_status": 404,
+        "live_sequence_advanced": false,
+        "samples": [],
+        "error": "HTTPError: HTTP Error 404: Not Found",
+        "url_source": "guide_ip"
+      },
+      "cam01:cdn": {
+        "url_safe": "https://cctv.corp8.cloud/cam01/index.m3u8",
+        "status": "FAIL",
+        "playlist_status": 200,
+        "live_sequence_advanced": false,
+        "samples": [
+          {
+            "t": 0.0,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 1.0,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 2.01,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 3.01,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 4.02,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 5.02,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          }
+        ],
+        "error": null,
+        "url_source": "cdn"
+      },
+      "cam01:configured_template": {
+        "url_safe": "https://cctv.corp8.cloud/cam01/index.m3u8",
+        "status": "FAIL",
+        "playlist_status": 200,
+        "live_sequence_advanced": false,
+        "samples": [
+          {
+            "t": 0.0,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 1.0,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 2.01,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 3.01,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 4.01,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          },
+          {
+            "t": 5.02,
+            "status": null,
+            "media_sequence": null,
+            "segments": 0,
+            "error": "InvalidURL: URL can't contain control characters. '/cam01/<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Sign in \u00b7 Sentinel</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0e14;color:' ("
+          }
+        ],
+        "error": null,
+        "url_source": "configured_template"
+      }
+    },
+    "whep_http_post": {
+      "cam01": {
+        "url_safe": "http://103.250.160.189:8889/stream/cam01/whep",
+        "no_auth_status": 401,
+        "basic_auth_status": 201,
+        "sdp_answer_received": true
+      },
+      "cam06": {
+        "url_safe": "http://103.250.160.189:8889/stream/cam06/whep",
+        "no_auth_status": 401,
+        "basic_auth_status": 400,
+        "sdp_answer_received": false
+      }
+    }
+  },
+  "decision": {
+    "case": "CATALOGUE_UNAVAILABLE_PLUS_PROTOCOL_AUTH_OK",
+    "ours_or_external": "EXTERNAL_FOR_CATALOGUE_AND_HLS_SESSION; CREDENTIALS_VALID",
+    "architecture_failure": false,
+    "detail": "Catalogue GET /api/ingest does not return JSON (RTSP host 404; CDN HTML Sign-in). RTSP advertises Basic; DESCRIBE+Basic=200; cam01 PyAV got H.264 frames. Direct WHEP POST without auth=401; with Authorization Basic=201 SDP. HLS on IP=404; CDN returns Sign-in HTML without SENTINEL_GRID_COOKIE. Not a MediaMTX architecture failure. Not a dead credential. Contract gap: catalogue/HLS session cookie. Intermittent TCP refuse on cam02/05 is external flakiness.",
+    "user_letter_mapping": {
+      "A_credential_problem": false,
+      "B_incorrect_endpoint": "UNKNOWN_UNTIL_CATALOGUE \u2014 templates match guide patterns",
+      "C_stale_catalogue": "CANNOT_VERIFY \u2014 catalogue JSON unreachable",
+      "D_auth_mechanism_mismatch": false,
+      "E_client_implementation": "PARTIAL \u2014 browser WHEP must send Authorization Basic (not bare fetch); hand-rolled PLAY 454",
+      "F_sentinel_sandbox_access": "PARTIAL \u2014 catalogue/HLS need browser session; stream Basic password works for RTSP/WHEP"
+    }
+  },
+  "support_evidence": {
+    "camera_ids": [
+      "cam01",
+      "cam02",
+      "cam05"
+    ],
+    "exact_urls_safe": {
+      "cam01": {
+        "rtsp": "rtsp://103.250.160.189:8554/stream/cam01",
+        "whep": "http://103.250.160.189:8889/stream/cam01/whep",
+        "hls": "http://103.250.160.189/live/stream/cam01/index.m3u8"
+      },
+      "cam02": {
+        "rtsp": "rtsp://103.250.160.189:8554/stream/cam02",
+        "whep": "http://103.250.160.189:8889/stream/cam02/whep",
+        "hls": "http://103.250.160.189/live/stream/cam02/index.m3u8"
+      },
+      "cam05": {
+        "rtsp": "rtsp://103.250.160.189:8554/stream/cam05",
+        "whep": "http://103.250.160.189:8889/stream/cam05/whep",
+        "hls": "http://103.250.160.189/live/stream/cam05/index.m3u8"
+      }
+    },
+    "client_version": "SaakshyaContractProbe/1.0",
+    "timestamp_utc": "2026-09-16T14:20:33.149622+00:00",
+    "catalogue_live_confirmation": "UNAVAILABLE \u2014 /api/ingest did not return JSON",
+    "client_side_error_summary": {
+      "cam01": {
+        "rtsp_first_fail": "PLAY",
+        "rtsp_describe_auth": 200,
+        "pyav": "FRAME",
+        "pyav_error_safe": null
+      },
+      "cam02": {
+        "rtsp_first_fail": "SETUP",
+        "rtsp_describe_auth": 200,
+        "pyav": "FAIL",
+        "pyav_error_safe": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam02'"
+      },
+      "cam05": {
+        "rtsp_first_fail": "TCP",
+        "rtsp_describe_auth": null,
+        "pyav": null,
+        "pyav_error_safe": null
+      }
+    },
+    "whep_basic_auth_http": {
+      "cam01": {
+        "no_auth": 401,
+        "basic_auth": 201,
+        "sdp_answer_received": true
+      },
+      "cam06": {
+        "no_auth": 401,
+        "basic_auth": 400,
+        "sdp_answer_received": false
+      }
+    }
+  }
+}

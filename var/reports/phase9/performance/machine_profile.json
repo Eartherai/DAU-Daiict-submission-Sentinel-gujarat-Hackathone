@@ -1,0 +1,121 @@
+{
+  "timestamp_utc": "2026-09-16T04:04:04.045566+00:00",
+  "label": "MEASURED",
+  "os": {
+    "system": "Darwin",
+    "release": "25.6.0",
+    "version": "Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142",
+    "macOS": {
+      "ProductName": "\tmacOS",
+      "ProductVersion": "\t26.6.2",
+      "BuildVersion": "\t25G83"
+    },
+    "machine": "arm64"
+  },
+  "cpu": {
+    "brand": "Apple M5",
+    "ncpu": 10,
+    "physical": 10,
+    "logical": 10
+  },
+  "gpu": {
+    "chipset": "Apple M5",
+    "cores": 10,
+    "metal": "Metal 4",
+    "bus": "Built-In",
+    "nvidia_smi": null,
+    "cuda": false,
+    "detection_source": "system_profiler SPDisplaysDataType"
+  },
+  "memory": {
+    "total_bytes": 25769803776,
+    "total_gb": 25.77,
+    "available_gb": 12.21,
+    "percent_used": 52.6
+  },
+  "hardware_video": {
+    "ffmpeg_hwaccels": [
+      "videotoolbox"
+    ],
+    "videotoolbox_encode": {
+      "h264_videotoolbox": true,
+      "hevc_videotoolbox": true
+    },
+    "pyav_h264_software_decode": true,
+    "pyav_hevc_software_decode": true,
+    "note": "ffmpeg reports videotoolbox. PyAV exposes h264_videotoolbox/hevc_videotoolbox encode; decode uses libav software codecs in current relay path (not yet VT-decode wired)."
+  },
+  "software": {
+    "python": "3.12.13",
+    "pyav": "18.1.0",
+    "ffmpeg_libs": {
+      "libavutil": [
+        60,
+        26,
+        102
+      ],
+      "libavcodec": [
+        62,
+        28,
+        102
+      ],
+      "libavformat": [
+        62,
+        12,
+        102
+      ],
+      "libavdevice": [
+        62,
+        3,
+        102
+      ],
+      "libavfilter": [
+        11,
+        14,
+        102
+      ],
+      "libswscale": [
+        9,
+        5,
+        102
+      ],
+      "libswresample": [
+        6,
+        3,
+        102
+      ]
+    },
+    "mediamtx": "v1.20.1",
+    "chromium_playwright": {
+      "version": "151.0.7922.34",
+      "headless_webgl": {
+        "vendor": "Google Inc. (Google)",
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+      },
+      "media_capabilities": {
+        "h264": {
+          "supported": true,
+          "smooth": true,
+          "powerEfficient": false
+        },
+        "hevc": {
+          "supported": false,
+          "smooth": false,
+          "powerEfficient": false
+        }
+      }
+    }
+  },
+  "network": {
+    "default_iface": "en0",
+    "ipv4": "192.168.1.2",
+    "gateway": "192.168.1.1",
+    "throughput_mbps": null,
+    "throughput_label": "UNAVAILABLE this cycle"
+  },
+  "implications": {
+    "local_accel": "Apple VideoToolbox / Metal \u2014 no CUDA on this machine",
+    "headless_benchmark_bias": "Playwright headless uses SwiftShader; H.264 powerEfficient=false; HEVC unsupported in harness. Concurrent decode ceilings MEASURED here are lower-bound for headed operator UI.",
+    "gpu_server_path": "NVIDIA NVDEC/NVENC/CUDA abstraction for remote deploy"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "camera_id": "cam01",
+  "timestamp_utc": "2026-09-16T03:49:55.093533+00:00",
+  "command": "python tools/gov_cam01_golden_e2e.py",
+  "stages": [
+    {
+      "stage": "credentials_env",
+      "status": "PASS",
+      "detail": "SENTINEL_GRID_* present"
+    },
+    {
+      "stage": "cam01_whep_browser",
+      "status": "PASS",
+      "detail": "status=MEASURED summary={'first_frame_ms': 1866.5, 'negotiation_ms': 143.19999999925494, 'currentTime': 15.2, 'resolution': '1920x1080', 'canvasMeanLuma': 97.88796810693272, 'framesDecoded_delta': 216, 'framesDropped_end': 0, 'packetsLost_end': 0, 'packetsReceived_end': 573, 'peak_fps': 19, 'freezes': 0, 'reconnects': 0, 'ice_state': 'connected'}"
+    },
+    {
+      "stage": "overlay_raf",
+      "status": "PASS",
+      "detail": "live overlay canvas/rAF present in ui/app.js"
+    },
+    {
+      "stage": "path_selector",
+      "status": "PASS",
+      "detail": "StreamPathSelector module present"
+    },
+    {
+      "stage": "watchlist_module",
+      "status": "PASS",
+      "detail": "watchlist package present"
+    },
+    {
+      "stage": "evidence_module",
+      "status": "PASS",
+      "detail": "evidence package present"
+    },
+    {
+      "stage": "follow_vehicle_api",
+      "status": "PASS",
+      "detail": "follow-vehicle route present"
+    },
+    {
+      "stage": "gis_module",
+      "status": "PASS",
+      "detail": "gis package present"
+    },
+    {
+      "stage": "demo_cam01_config",
+      "status": "PASS",
+      "detail": "config/demo_cam01.yaml present"
+    },
+    {
+      "stage": "secret_scan",
+      "status": "PASS",
+      "detail": "SECRET SCAN: PASS (0 tracked files + full history)"
+    },
+    {
+      "stage": "api_health",
+      "status": "AMBER",
+      "detail": "API not reachable at http://127.0.0.1:8080 (code=0); static stages still valid"
+    }
+  ],
+  "summary": {
+    "PASS": 10,
+    "AMBER": 1,
+    "FAIL": 0
+  },
+  "overall": "AMBER",
+  "note": "Live detection\u2192alert chain is PASS only when API+ingest are running with real observations; this harness does not invent them."
+}

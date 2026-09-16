@@ -1,0 +1,147 @@
+{
+  "timestamp_utc": "2026-09-16T14:12:07.053349+00:00",
+  "label": "MEASURED",
+  "host_safe": "103.250.160.189:8554",
+  "credentials_configured": true,
+  "credentials_in_report": false,
+  "auth_transport": "RTSP Authorization header for DESCRIBE/SETUP/PLAY; PyAV ephemeral in-memory authority for demux (never persisted)",
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "endpoint_safe": "rtsp://103.250.160.189:8554/stream/cam01",
+      "tcp": {
+        "ok": true,
+        "latency_ms": 30.0,
+        "error": null
+      },
+      "rtsp": {
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate_present": true
+        },
+        "describe_auth": {
+          "status": 401,
+          "error": null
+        },
+        "setup": null,
+        "play": null,
+        "auth_scheme": "Basic",
+        "first_failing_layer": "DESCRIBE_AUTH",
+        "authenticated": false
+      },
+      "pyav": {
+        "status": "AUTH_401",
+        "frames": 0,
+        "codec": null,
+        "elapsed_ms": 376.0,
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam01'",
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam01"
+      },
+      "relay_30s": {
+        "status": "SKIPPED_NO_FRAME",
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam01'"
+      },
+      "whep": {
+        "status": "SKIPPED_NO_FRAME"
+      },
+      "classification": "AUTH_REJECTED",
+      "first_failing_layer": "DESCRIBE_AUTH"
+    },
+    {
+      "camera_id": "cam02",
+      "endpoint_safe": "rtsp://103.250.160.189:8554/stream/cam02",
+      "tcp": {
+        "ok": true,
+        "latency_ms": 30.3,
+        "error": null
+      },
+      "rtsp": {
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate_present": true
+        },
+        "describe_auth": {
+          "status": 401,
+          "error": null
+        },
+        "setup": null,
+        "play": null,
+        "auth_scheme": "Basic",
+        "first_failing_layer": "DESCRIBE_AUTH",
+        "authenticated": false
+      },
+      "pyav": {
+        "status": "AUTH_401",
+        "frames": 0,
+        "codec": null,
+        "elapsed_ms": 3174.7,
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam02'",
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam02"
+      },
+      "relay_30s": {
+        "status": "SKIPPED_NO_FRAME",
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam02'"
+      },
+      "whep": {
+        "status": "SKIPPED_NO_FRAME"
+      },
+      "classification": "AUTH_REJECTED",
+      "first_failing_layer": "DESCRIBE_AUTH"
+    },
+    {
+      "camera_id": "cam05",
+      "endpoint_safe": "rtsp://103.250.160.189:8554/stream/cam05",
+      "tcp": {
+        "ok": true,
+        "latency_ms": 30.7,
+        "error": null
+      },
+      "rtsp": {
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate_present": true
+        },
+        "describe_auth": {
+          "status": 401,
+          "error": null
+        },
+        "setup": null,
+        "play": null,
+        "auth_scheme": "Basic",
+        "first_failing_layer": "DESCRIBE_AUTH",
+        "authenticated": false
+      },
+      "pyav": {
+        "status": "AUTH_401",
+        "frames": 0,
+        "codec": null,
+        "elapsed_ms": 1558.7,
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam05'",
+        "url_safe": "rtsp://103.250.160.189:8554/stream/cam05"
+      },
+      "relay_30s": {
+        "status": "SKIPPED_NO_FRAME",
+        "error": "HTTPUnauthorizedError: [Errno 825242872] Server returned 401 Unauthorized (authorization failed): 'rtsp://<redacted>@103.250.160.189:8554/stream/cam05'"
+      },
+      "whep": {
+        "status": "SKIPPED_NO_FRAME"
+      },
+      "classification": "AUTH_REJECTED",
+      "first_failing_layer": "DESCRIBE_AUTH"
+    }
+  ],
+  "summary": {
+    "classifications": {
+      "cam01": "AUTH_REJECTED",
+      "cam02": "AUTH_REJECTED",
+      "cam05": "AUTH_REJECTED"
+    },
+    "failure_domain": "EXTERNAL_ACCESS/AUTHENTICATION",
+    "architecture_failure": false,
+    "note": "If DESCRIBE/PLAY/PyAV return 401 with fresh env credentials while synthetic WHEP passes, classify as EXTERNAL_ACCESS/AUTHENTICATION.",
+    "earliest_failing_layer": "DESCRIBE_AUTH"
+  }
+}

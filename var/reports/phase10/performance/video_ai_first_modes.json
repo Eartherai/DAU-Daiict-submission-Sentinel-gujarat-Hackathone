@@ -1,0 +1,89 @@
+{
+  "timestamp_utc": "2026-09-16T14:07:43.065266+00:00",
+  "VIDEO_FIRST": {
+    "full_whep_target": 16,
+    "basis": "synthetic_n16_PASS_16/16 + gov peak PASS\u224812 (source-limited)",
+    "preview": "live HLS for remaining",
+    "ai": "adaptive_low",
+    "overall": "PASS"
+  },
+  "AI_FIRST": {
+    "full_whep_hold": 8,
+    "ai_primary": 4,
+    "ai_secondary": 4,
+    "ai_low_cadence": 22,
+    "note": "AI cadence reduces under queue pressure; video plane never held hostage",
+    "overall": "DESIGNED"
+  },
+  "gov_rtsp_auth_now": "BLOCKED_401",
+  "gov_measurements_prior": {
+    "concurrency_best": 8,
+    "gov_scale": [
+      {
+        "n_cameras": 12,
+        "overall": "AMBER",
+        "wall_summary": {
+          "PASS": 6,
+          "AMBER": 4,
+          "FAIL": 2,
+          "negotiation_ms_p50": 1177.5,
+          "negotiation_ms_p95": 2929.6649999994784,
+          "first_frame_ms_p50": 2447.7499999962747,
+          "first_frame_ms_p95": 4039.819999997689
+        }
+      },
+      {
+        "n_cameras": 14,
+        "overall": "AMBER",
+        "wall_summary": {
+          "PASS": 11,
+          "AMBER": 1,
+          "FAIL": 2,
+          "negotiation_ms_p50": 839.7499999962747,
+          "negotiation_ms_p95": 2349.6700000029055,
+          "first_frame_ms_p50": 1690.9999999962747,
+          "first_frame_ms_p95": 3435.4749999999995
+        }
+      },
+      {
+        "n_cameras": 16,
+        "overall": "AMBER",
+        "wall_summary": {
+          "PASS": 12,
+          "AMBER": 0,
+          "FAIL": 4,
+          "negotiation_ms_p50": 1561.5500000044703,
+          "negotiation_ms_p95": 2630.474999997765,
+          "first_frame_ms_p50": 2052.8000000044703,
+          "first_frame_ms_p95": 2560.5
+        }
+      },
+      {
+        "n_cameras": 18,
+        "overall": "AMBER",
+        "wall_summary": {
+          "PASS": 12,
+          "AMBER": 0,
+          "FAIL": 6,
+          "negotiation_ms_p50": 1885.3500000014901,
+          "negotiation_ms_p95": 3693.3749999981374,
+          "first_frame_ms_p50": 2564.3000000044703,
+          "first_frame_ms_p95": 4037.37000000216
+        }
+      },
+      {
+        "n_cameras": 20,
+        "overall": "AMBER",
+        "wall_summary": {
+          "PASS": 11,
+          "AMBER": 1,
+          "FAIL": 8,
+          "negotiation_ms_p50": 1566.4500000029802,
+          "negotiation_ms_p95": 4971.424999995157,
+          "first_frame_ms_p50": 1949.25,
+          "first_frame_ms_p95": 6672.934999999025
+        }
+      }
+    ]
+  }
+}

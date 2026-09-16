@@ -1,0 +1,25 @@
+{
+  "path": "RTSP_TRANSCODED_H264",
+  "codec": "h264_videotoolbox_baseline",
+  "ready": true,
+  "whep_status": "MEASURED",
+  "first_frame_ms": 1097.5999999940395,
+  "ice": "connected",
+  "currentTime": 15.157,
+  "wh": "1920x1080",
+  "luma": 60.506580825617284,
+  "error": null,
+  "resources": {
+    "cpu_percent": 15.8,
+    "ram_available_gb": 10.567
+  },
+  "bframe_reject": false,
+  "copy_remux": {
+    "result": "FAIL",
+    "reason": "MediaMTX WebRTC rejects H264 B-frames"
+  },
+  "transcode": {
+    "result": "PASS",
+    "codec": "h264_videotoolbox_baseline"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "timestamp_utc": "2026-09-16T14:07:54.724641+00:00",
+  "label": "LOGICAL_SCALE",
+  "registered": 50,
+  "counts": {
+    "PRIMARY": 1,
+    "full_whep": 16,
+    "SECONDARY": 19,
+    "secondary_whep": 4,
+    "PREVIEW": 30,
+    "preview_live": 30
+  },
+  "real_government_cap": 30,
+  "synthetic_entries": 20,
+  "note": "50 registry/scheduler entries; not 50 real gov cameras"
+}

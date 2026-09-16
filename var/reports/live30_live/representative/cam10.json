@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam10",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:03.303969+00:00",
+  "finished_at_utc": "2026-09-16T00:20:12.651166+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "resolution": "1920x1080",
+    "pixel_format": "<av.VideoFormat yuv420p, 1920x1080>",
+    "time_base": "1/90000",
+    "declared_fps": 25.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 106,
+    "frames_with_pts": 106,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": 4.185066666666667,
+    "pts_last": 8.385066666666667,
+    "observed_fps": 25.0,
+    "inter_frame_seconds": {
+      "p50": 0.04,
+      "p95": 0.04,
+      "min": 0.04,
+      "max": 0.04
+    }
+  },
+  "quality": {
+    "frames_sampled": 106,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.2702942605923686,
+    "black_ratio": 0.0,
+    "freeze_ratio": 0.0
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

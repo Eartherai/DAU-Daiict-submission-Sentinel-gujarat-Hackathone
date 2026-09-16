@@ -1,0 +1,124 @@
+{
+  "n_cameras": 4,
+  "mode": "VIDEO_ONLY",
+  "browser_mode": "headed_metal",
+  "architecture": "A_concurrent_independent_WHEP",
+  "seconds": 15.0,
+  "timestamp_utc": "2026-09-16T13:21:51.421010+00:00",
+  "label": "MEASURED",
+  "cameras": [
+    "cam01",
+    "cam02",
+    "cam05",
+    "cam04"
+  ],
+  "not_ready": [],
+  "tiles": [
+    {
+      "camera_id": "cam01",
+      "verdict": "PASS",
+      "first_frame_ms": 1549,
+      "negotiation_ms": 215.10000000149012,
+      "currentTime": 15.114,
+      "framesDecoded": 215,
+      "framesDropped": 0,
+      "packetsLost": 0,
+      "freezes": 0,
+      "reconnects": 0,
+      "ice": "connected",
+      "resolution": "1920x1080",
+      "effective_fps": 14.23,
+      "jitterBufferDelay": 46.601844,
+      "error": null
+    },
+    {
+      "camera_id": "cam02",
+      "verdict": "PASS",
+      "first_frame_ms": 1548.9000000059605,
+      "negotiation_ms": 240.80000000447035,
+      "currentTime": 15.738,
+      "framesDecoded": 460,
+      "framesDropped": 0,
+      "packetsLost": 0,
+      "freezes": 0,
+      "reconnects": 0,
+      "ice": "connected",
+      "resolution": "1920x1080",
+      "effective_fps": 29.23,
+      "jitterBufferDelay": 127.363523,
+      "error": null
+    },
+    {
+      "camera_id": "cam05",
+      "verdict": "PASS",
+      "first_frame_ms": 1548.3000000044703,
+      "negotiation_ms": 256.80000000447035,
+      "currentTime": 14.984,
+      "framesDecoded": 440,
+      "framesDropped": 0,
+      "packetsLost": 0,
+      "freezes": 0,
+      "reconnects": 0,
+      "ice": "connected",
+      "resolution": "1920x1080",
+      "effective_fps": 29.36,
+      "jitterBufferDelay": 60.822714,
+      "error": null
+    },
+    {
+      "camera_id": "cam04",
+      "verdict": "AMBER",
+      "first_frame_ms": 1547.3999999985099,
+      "negotiation_ms": 287.70000000298023,
+      "currentTime": 13.773,
+      "framesDecoded": 59,
+      "framesDropped": 5,
+      "packetsLost": 0,
+      "freezes": 3,
+      "reconnects": 0,
+      "ice": "connected",
+      "resolution": "1920x1080",
+      "effective_fps": 4.28,
+      "jitterBufferDelay": 2.635388,
+      "error": null
+    }
+  ],
+  "wall_summary": {
+    "PASS": 3,
+    "AMBER": 1,
+    "FAIL": 0,
+    "first_frame_ms_p50": 1548.6000000052154,
+    "first_frame_ms_p95": 1548.9850000008942,
+    "currentTime_p50": 15.049,
+    "currentTime_p95": 15.6444,
+    "effective_fps_p50": 21.73,
+    "effective_fps_p95": 29.3405
+  },
+  "resources": {
+    "before": {
+      "cpu_percent": 17.4,
+      "ram_available_gb": 10.995,
+      "ram_percent": 57.3
+    },
+    "mid": {
+      "cpu_percent": 26.6,
+      "ram_available_gb": 10.895,
+      "ram_percent": 57.7
+    },
+    "after": {
+      "cpu_percent": 17.1,
+      "ram_available_gb": 10.827,
+      "ram_percent": 58.0
+    }
+  },
+  "browser_wall": {
+    "status": "MEASURED",
+    "elapsed_s": 17.314,
+    "gpu": {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+    },
+    "error": null
+  },
+  "bottleneck_hint": "session_stability_under_load",
+  "overall": "AMBER"
+}

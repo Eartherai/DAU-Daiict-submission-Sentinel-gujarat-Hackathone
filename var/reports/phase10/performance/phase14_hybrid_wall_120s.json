@@ -1,0 +1,355 @@
+{
+  "label": "MEASURED_REAL",
+  "seconds": 120.0,
+  "full_cams": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam12",
+    "cam13"
+  ],
+  "preview_cams": [
+    "cam14",
+    "cam16",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam23",
+    "cam26"
+  ],
+  "available_n": 30,
+  "unavailable_n": 0,
+  "ux_counts": {
+    "LIVE": 8,
+    "PREVIEW": 7,
+    "DEGRADED": 0,
+    "AWAITING_SLOT": 15,
+    "NO_SIGNAL": 0
+  },
+  "tiles": [
+    {
+      "camera_id": "cam01",
+      "role": "FULL",
+      "verdict": "PASS",
+      "ux": "LIVE",
+      "first_frame_ms": 9981.699999988079,
+      "currentTime": 109.7,
+      "framesDecoded": 1603,
+      "framesDropped": 3,
+      "packetsLost": 2,
+      "freezes": 1,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam02",
+      "role": "FULL",
+      "verdict": "AMBER",
+      "ux": "LIVE",
+      "first_frame_ms": 9442.5,
+      "currentTime": 110.333,
+      "framesDecoded": 3215,
+      "framesDropped": 6,
+      "packetsLost": 13,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam03",
+      "role": "FULL",
+      "verdict": "AMBER",
+      "ux": "LIVE",
+      "first_frame_ms": 9443.40000000596,
+      "currentTime": 110.716,
+      "framesDecoded": 2621,
+      "framesDropped": 4,
+      "packetsLost": 22,
+      "freezes": 1,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam04",
+      "role": "FULL",
+      "verdict": "AMBER",
+      "ux": "LIVE",
+      "first_frame_ms": 11024.5,
+      "currentTime": 109.068,
+      "framesDecoded": 2653,
+      "framesDropped": 2,
+      "packetsLost": 12,
+      "freezes": 1,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam05",
+      "role": "FULL",
+      "verdict": "AMBER",
+      "ux": "LIVE",
+      "first_frame_ms": 10496.90000000596,
+      "currentTime": 109.446,
+      "framesDecoded": 3188,
+      "framesDropped": 12,
+      "packetsLost": 14,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam06",
+      "role": "FULL",
+      "verdict": "AMBER",
+      "ux": "LIVE",
+      "first_frame_ms": 10497.10000000894,
+      "currentTime": 109.373,
+      "framesDecoded": 2577,
+      "framesDropped": 5,
+      "packetsLost": 11,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam12",
+      "role": "FULL",
+      "verdict": "PASS",
+      "ux": "LIVE",
+      "first_frame_ms": 12589.5,
+      "currentTime": 107.525,
+      "framesDecoded": 2119,
+      "framesDropped": 0,
+      "packetsLost": 8,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam13",
+      "role": "FULL",
+      "verdict": "PASS",
+      "ux": "LIVE",
+      "first_frame_ms": 13103.60000000894,
+      "currentTime": 106.858,
+      "framesDecoded": 1044,
+      "framesDropped": 2,
+      "packetsLost": 4,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam14",
+      "role": "PREVIEW",
+      "verdict": "AMBER",
+      "ux": "PREVIEW",
+      "first_frame_ms": 15721.60000000894,
+      "currentTime": 102.183,
+      "framesDecoded": 276,
+      "framesDropped": 92,
+      "packetsLost": 0,
+      "freezes": 17,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam16",
+      "role": "PREVIEW",
+      "verdict": "PASS",
+      "ux": "PREVIEW",
+      "first_frame_ms": 25654.90000000596,
+      "currentTime": 94.21,
+      "framesDecoded": 936,
+      "framesDropped": 0,
+      "packetsLost": 3,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam18",
+      "role": "PREVIEW",
+      "verdict": "PASS",
+      "ux": "PREVIEW",
+      "first_frame_ms": 19378.70000000298,
+      "currentTime": 100.361,
+      "framesDecoded": 2500,
+      "framesDropped": 3,
+      "packetsLost": 2,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam19",
+      "role": "PREVIEW",
+      "verdict": "PASS",
+      "ux": "PREVIEW",
+      "first_frame_ms": 17285.89999999106,
+      "currentTime": 102.447,
+      "framesDecoded": 2472,
+      "framesDropped": 33,
+      "packetsLost": 5,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam20",
+      "role": "PREVIEW",
+      "verdict": "PASS",
+      "ux": "PREVIEW",
+      "first_frame_ms": 18853.59999999404,
+      "currentTime": 100.965,
+      "framesDecoded": 2484,
+      "framesDropped": 5,
+      "packetsLost": 5,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam23",
+      "role": "PREVIEW",
+      "verdict": "AMBER",
+      "ux": "PREVIEW",
+      "first_frame_ms": 18854.20000000298,
+      "currentTime": 100.928,
+      "framesDecoded": 2448,
+      "framesDropped": 33,
+      "packetsLost": 13,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    },
+    {
+      "camera_id": "cam26",
+      "role": "PREVIEW",
+      "verdict": "AMBER",
+      "ux": "PREVIEW",
+      "first_frame_ms": 19378.59999999404,
+      "currentTime": 100.244,
+      "framesDecoded": 1479,
+      "framesDropped": 0,
+      "packetsLost": 12,
+      "freezes": 0,
+      "ice": "connected",
+      "http": 201,
+      "error": ""
+    }
+  ],
+  "awaiting_slot": [
+    {
+      "camera_id": "cam07",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam08",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam09",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam10",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam11",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam15",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam17",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam21",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam22",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam24",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam25",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam27",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam28",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam29",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    },
+    {
+      "camera_id": "cam30",
+      "ux": "AWAITING_SLOT",
+      "reason": "healthy_but_over_whep_budget"
+    }
+  ],
+  "true_no_signal": [],
+  "wall_summary": {
+    "PASS": 7,
+    "AMBER": 8,
+    "FAIL": 0,
+    "first_frame_ms_p50": 13103.60000000894,
+    "first_frame_ms_p95": 21261.56000000387,
+    "negotiation_ms_p50": 11997.10000000894,
+    "negotiation_ms_p95": 17774.52999999821
+  },
+  "overall": "AMBER",
+  "gpu": {
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+  },
+  "resources": {
+    "cpu_percent": 17.7,
+    "ram_available_gb": 11.659
+  },
+  "note": "NO_SIGNAL reserved for census-unavailable sources only. Healthy cameras beyond FULL+PREVIEW budget are AWAITING_SLOT."
+}

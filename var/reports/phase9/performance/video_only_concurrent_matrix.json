@@ -1,0 +1,300 @@
+{
+  "timestamp_utc": "2026-09-16T04:27:35.017750+00:00",
+  "mode": "VIDEO_ONLY",
+  "command": "python tools/perf_video_only_wall.py --levels 1 4 9 --seconds 18 (+ n6/n9 timeout)",
+  "smooth_definition": {
+    "currentTime_min_ratio_of_soak": 0.55,
+    "max_freezes": 2,
+    "packetsLost_max": 0,
+    "ice_ok": [
+      "connected",
+      "completed"
+    ],
+    "black_sample_ratio_max": 0.25,
+    "status": "PROVISIONAL_FROM_MEASUREMENT"
+  },
+  "levels": [
+    {
+      "n_cameras": 1,
+      "mode": "VIDEO_ONLY",
+      "architecture": "A_concurrent_independent_WHEP",
+      "seconds": 18.0,
+      "timestamp_utc": "2026-09-16T04:04:30.176118+00:00",
+      "cameras": [
+        "cam01"
+      ],
+      "publishing": {
+        "cam01": {
+          "ready": true,
+          "bytesReceived": 97377
+        }
+      },
+      "not_ready": [],
+      "tiles": [
+        {
+          "camera_id": "cam01",
+          "verdict": "PASS",
+          "first_frame_ms": 820.7000000029802,
+          "negotiation_ms": 158.30000000074506,
+          "currentTime": 17.855,
+          "framesDecoded": 268,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "packetsReceived": 638,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice": "connected",
+          "resolution": "1920x1080",
+          "meanLuma": 94.56170370370367,
+          "black_sample_ratio": 0.0,
+          "effective_fps": 15.01,
+          "error": null
+        }
+      ],
+      "wall_summary": {
+        "PASS": 1,
+        "AMBER": 0,
+        "FAIL": 0,
+        "first_frame_ms_p50": 820.7000000029802,
+        "first_frame_ms_p95": 820.7000000029802,
+        "currentTime_p50": 17.855,
+        "currentTime_p95": 17.855,
+        "effective_fps_p50": 15.01,
+        "effective_fps_p95": 15.01
+      },
+      "resources": {
+        "before": {
+          "cpu_percent": 8.6,
+          "ram_available_gb": 12.142,
+          "ram_percent": 52.9,
+          "harness_rss_mb": 58.85
+        },
+        "during_publish": {
+          "cpu_percent": 8.3,
+          "ram_available_gb": 12.039,
+          "ram_percent": 53.3,
+          "harness_rss_mb": 58.85
+        },
+        "after": {
+          "cpu_percent": 7.8,
+          "ram_available_gb": 12.199,
+          "ram_percent": 52.7,
+          "harness_rss_mb": 66.93
+        }
+      },
+      "browser_wall": {
+        "status": "MEASURED",
+        "elapsed_s": 19.397,
+        "note": "Headless Chromium uses SwiftShader; headed Metal decode may differ",
+        "error": null
+      },
+      "overall": "PASS",
+      "label": "MEASURED"
+    },
+    {
+      "n_cameras": 4,
+      "mode": "VIDEO_ONLY",
+      "architecture": "A_concurrent_independent_WHEP",
+      "seconds": 18.0,
+      "timestamp_utc": "2026-09-16T04:04:57.307887+00:00",
+      "cameras": [
+        "cam01",
+        "cam02",
+        "cam05",
+        "cam04"
+      ],
+      "publishing": {
+        "cam01": {
+          "ready": true,
+          "bytesReceived": 94816
+        },
+        "cam02": {
+          "ready": true,
+          "bytesReceived": 113104
+        },
+        "cam05": {
+          "ready": true,
+          "bytesReceived": 115346
+        },
+        "cam04": {
+          "ready": true,
+          "bytesReceived": 385406
+        }
+      },
+      "not_ready": [],
+      "tiles": [
+        {
+          "camera_id": "cam01",
+          "verdict": "PASS",
+          "first_frame_ms": 4171.89999999851,
+          "negotiation_ms": 135.39999999850988,
+          "currentTime": 20.965,
+          "framesDecoded": 313,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "packetsReceived": 770,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice": "connected",
+          "resolution": "1920x1080",
+          "meanLuma": 96.21736419753088,
+          "black_sample_ratio": 0.0,
+          "effective_fps": 14.93,
+          "error": null
+        },
+        {
+          "camera_id": "cam02",
+          "verdict": "PASS",
+          "first_frame_ms": 3074.10000000149,
+          "negotiation_ms": 134.80000000074506,
+          "currentTime": 20.234,
+          "framesDecoded": 604,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "packetsReceived": 1456,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice": "connected",
+          "resolution": "1920x1080",
+          "meanLuma": 91.1211111111111,
+          "black_sample_ratio": 0.0,
+          "effective_fps": 29.85,
+          "error": null
+        },
+        {
+          "camera_id": "cam05",
+          "verdict": "PASS",
+          "first_frame_ms": 2320.300000000745,
+          "negotiation_ms": 127.19999999925494,
+          "currentTime": 19.34,
+          "framesDecoded": 578,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "packetsReceived": 1373,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice": "connected",
+          "resolution": "1920x1080",
+          "meanLuma": 95.12998842592597,
+          "black_sample_ratio": 0.0,
+          "effective_fps": 29.89,
+          "error": null
+        },
+        {
+          "camera_id": "cam04",
+          "verdict": "PASS",
+          "first_frame_ms": 1428.5,
+          "negotiation_ms": 127.90000000223517,
+          "currentTime": 17.932,
+          "framesDecoded": 438,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "packetsReceived": 4322,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice": "connected",
+          "resolution": "1920x1080",
+          "meanLuma": 84.11667283950615,
+          "black_sample_ratio": 0.0,
+          "effective_fps": 24.43,
+          "error": null
+        }
+      ],
+      "wall_summary": {
+        "PASS": 4,
+        "AMBER": 0,
+        "FAIL": 0,
+        "first_frame_ms_p50": 2697.2000000011176,
+        "first_frame_ms_p95": 4007.2299999989564,
+        "currentTime_p50": 19.787,
+        "currentTime_p95": 20.85535,
+        "effective_fps_p50": 27.14,
+        "effective_fps_p95": 29.884
+      },
+      "resources": {
+        "before": {
+          "cpu_percent": 7.9,
+          "ram_available_gb": 12.165,
+          "ram_percent": 52.8,
+          "harness_rss_mb": 66.95
+        },
+        "during_publish": {
+          "cpu_percent": 7.5,
+          "ram_available_gb": 12.059,
+          "ram_percent": 53.2,
+          "harness_rss_mb": 66.98
+        },
+        "after": {
+          "cpu_percent": 11.2,
+          "ram_available_gb": 11.997,
+          "ram_percent": 53.4,
+          "harness_rss_mb": 67.42
+        }
+      },
+      "browser_wall": {
+        "status": "MEASURED",
+        "elapsed_s": 22.776,
+        "note": "Headless Chromium uses SwiftShader; headed Metal decode may differ",
+        "error": null
+      },
+      "overall": "PASS",
+      "label": "MEASURED"
+    },
+    {
+      "n_cameras": 6,
+      "mode": "VIDEO_ONLY",
+      "architecture": "A_concurrent_independent_WHEP",
+      "overall": "FAIL",
+      "label": "MEASURED",
+      "browser_wall": {
+        "status": "TIMEOUT",
+        "note": "Headless Chromium + SwiftShader concurrent evaluate did not return within multi-minute window; publishers were healthy (paths ready). Interpreted as concurrent full-WHEP decode ceiling under THIS harness."
+      },
+      "wall_summary": null,
+      "seconds": 12
+    },
+    {
+      "n_cameras": 9,
+      "mode": "VIDEO_ONLY",
+      "architecture": "A_concurrent_independent_WHEP",
+      "overall": "FAIL",
+      "label": "MEASURED",
+      "browser_wall": {
+        "status": "TIMEOUT",
+        "note": "Headless Chromium + SwiftShader concurrent evaluate did not return within multi-minute window; publishers were healthy (paths ready). Interpreted as concurrent full-WHEP decode ceiling under THIS harness."
+      },
+      "wall_summary": null,
+      "seconds": 12
+    }
+  ],
+  "max_smooth_PASS_concurrent_WHEP_headless": 4,
+  "max_operable_hybrid_9_publish_4_decode": {
+    "source": "var/reports/phase8c/gov/wall9_results.json",
+    "registered": 9,
+    "whep_measured": 4,
+    "publish_only": 5,
+    "label": "MEASURED",
+    "architecture": "C_hybrid_publish_all_decode_budget"
+  },
+  "harness_limitation": "Playwright headless Chromium uses SwiftShader; H.264 powerEfficient=false. Concurrent Architecture A hangs at n>=6 under this harness. Headed Metal operator UI may sustain more \u2014 UNTESTED this cycle.",
+  "first_bottleneck": {
+    "stage": "browser_decode_or_harness_main_thread",
+    "evidence": "Publish side: 9 MediaMTX paths ready with multi-MB bytesReceived while browser concurrent evaluate hung. n=1 and n=4 concurrent WHEP PASS. Therefore bottleneck is NOT government RTSP/PyAV/MediaMTX for \u22649 H.264 publishers on this machine; it is concurrent Chromium decode/evaluate (SwiftShader headless).",
+    "label": "MEASURED"
+  },
+  "latency_components_ms": {
+    "WHEP_negotiation_n1_p50": 820.7000000029802,
+    "first_frame_n1_p50": 820.7000000029802,
+    "first_frame_n4_p50": 2697.2000000011176,
+    "first_frame_n4_p95": 4007.2299999989564,
+    "negotiation_n4_tiles": [
+      135.39999999850988,
+      134.80000000074506,
+      127.19999999925494,
+      127.90000000223517
+    ],
+    "true_camera_to_screen_e2e": null,
+    "true_camera_to_screen_label": "UNAVAILABLE \u2014 no trusted source timestamps on feeds",
+    "label": "MEASURED"
+  }
+}

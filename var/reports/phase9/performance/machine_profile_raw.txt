@@ -1,0 +1,102 @@
+===OS===
+Darwin Earthers-MacBook-Air.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142 arm64
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+===CPU===
+Apple M5
+10
+10
+10
+25769803776
+===RAM===
+25769803776
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                    44828.
+Pages active:                                 581392.
+Pages inactive:                               582751.
+Pages speculative:                              1675.
+Pages throttled:                                   0.
+Pages wired down:                             173841.
+Pages purgeable:                               46354.
+"Translation faults":                       75543997.
+Pages copy-on-write:                         3089080.
+Pages zero filled:                          98066668.
+Pages reactivated:                           2855539.
+Pages purged:                                2583877.
+File-backed pages:                            315476.
+Anonymous pages:                              850342.
+Pages stored in compressor:                   361683.
+Pages occupied by compressor:                 146435.
+Decompressions:                              1172331.
+Compressions:                                2896319.
+Pageins:                                     4740861.
+The system has 25769803776 (1572864 pages with a page size of 16384).
+
+Stats: 
+Pages free: 44903 
+Pages purgeable: 46354 
+===GPU===
+Graphics/Displays:
+
+    Apple M5:
+
+      Chipset Model: Apple M5
+      Type: GPU
+      Bus: Built-In
+      Total Number of Cores: 10
+      Vendor: Apple (0x106b)
+      Metal Support: Metal 4
+      Displays:
+        Color LCD:
+          Display Type: Built-in Liquid Retina Display
+          Resolution: 2560 x 1664 Retina
+          Main Display: Yes
+          Mirror: Off
+          Online: Yes
+          Automatically Adjust Brightness: Yes
+          Connection Type: Internal
+
+===HW_DECODE_HINT===
+Resources
+Versions
+VideoToolbox
+pyav 18.1.0
+ffmpeg {'libavutil': (60, 26, 102), 'libavcodec': (62, 28, 102), 'libavformat': (62, 12, 102), 'libavdevice': (62, 3, 102), 'libavfilter': (11, 14, 102), 'libswscale': (9, 5, 102), 'libswresample': (6, 3, 102)}
+hwaccels_err AttributeError module 'av.codec.hwaccel' has no attribute 'hwaccels'
+===CHROMIUM===
+chromium_version 151.0.7922.34
+browser_info {'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36', 'webgl': {'vendor': 'Google Inc. (Google)', 'renderer': 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)'}, 'hardwareConcurrency': 10, 'deviceMemory': None}
+===MEDIAMTX===
+v1.20.1
+===PYTHON===
+Python 3.12.13
+===NET===
+lo0: flags=8049<UP,LOOPBACK,RUNNING,MULTICAST> mtu 16384
+	inet 127.0.0.1 netmask 0xff000000
+gif0: flags=8010<POINTOPOINT,MULTICAST> mtu 1280
+stf0: flags=0<> mtu 1280
+anpi1: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+anpi0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+en2: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+en4: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+en1: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500
+en5: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500
+bridge0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+utun0: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1380
+ap1: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.1.2 netmask 0xffffff00 broadcast 192.168.1.255
+awdl0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+llw0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+utun1: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 2000
+utun2: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1000
+utun3: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1500
+   route to: default
+destination: default
+       mask: default
+    gateway: 192.168.1.1
+  interface: en0
+      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING,GLOBAL>
+ recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
+       0         0         0         0         0         0      1500         0 

@@ -1,0 +1,207 @@
+{
+  "hls": {
+    "transport": "HLS",
+    "camera_id": "cam01",
+    "overall": "FAIL",
+    "chosen": null,
+    "candidates": [
+      {
+        "label": "guide_ip",
+        "url_safe": "http://103.250.160.189/live/stream/cam01/index.m3u8",
+        "live_sequence_advanced": false,
+        "verdict": "FAIL",
+        "samples": [
+          {
+            "t": 0.09,
+            "error": "HTTPError: HTTP Error 404: Not Found"
+          },
+          {
+            "t": 1.17,
+            "error": "HTTPError: HTTP Error 404: Not Found"
+          },
+          {
+            "t": 2.28,
+            "error": "HTTPError: HTTP Error 404: Not Found"
+          }
+        ],
+        "error": "HTTPError: HTTP Error 404: Not Found"
+      },
+      {
+        "label": "cdn",
+        "url_safe": "https://cctv.corp8.cloud/cam01/index.m3u8",
+        "live_sequence_advanced": false,
+        "verdict": "FAIL",
+        "samples": [
+          {
+            "t": 1.32,
+            "status": 200,
+            "error": "html_sign_in"
+          }
+        ],
+        "error": "html_sign_in"
+      },
+      {
+        "label": "cdn_live",
+        "url_safe": "https://cctv.corp8.cloud/live/stream/cam01/index.m3u8",
+        "live_sequence_advanced": false,
+        "verdict": "FAIL",
+        "samples": [
+          {
+            "t": 1.16,
+            "status": 200,
+            "error": "html_sign_in"
+          }
+        ],
+        "error": "html_sign_in"
+      }
+    ],
+    "label": "MEASURED_REAL"
+  },
+  "preview_whep": {
+    "path": "PREVIEW_WHEP_DIRECT_SENTINEL",
+    "n_cameras": 6,
+    "seconds": 15,
+    "overall": "PASS",
+    "label": "MEASURED",
+    "wall_summary": {
+      "PASS": 6,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2723.7500000074506,
+      "first_frame_ms_p95": 4794.125,
+      "negotiation_ms_p50": 575.0500000044703,
+      "negotiation_ms_p95": 1316.8250000029802
+    },
+    "tiles": [
+      {
+        "camera_id": "cam01",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 5054.29999999702,
+        "negotiation_ms": 639.4000000059605,
+        "ice_connected_ms": 850.7000000029802,
+        "currentTime": 10.049,
+        "framesDecoded": 148,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 14.73,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep"
+      },
+      {
+        "camera_id": "cam02",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 921.2000000029802,
+        "negotiation_ms": 405.40000000596046,
+        "ice_connected_ms": 617.3000000119209,
+        "currentTime": 14.072,
+        "framesDecoded": 394,
+        "framesDropped": 0,
+        "packetsLost": 6,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 28.0,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam02/whep"
+      },
+      {
+        "camera_id": "cam05",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 921.6000000089407,
+        "negotiation_ms": 456.80000001192093,
+        "ice_connected_ms": 663.2000000029802,
+        "currentTime": 14.022,
+        "framesDecoded": 396,
+        "framesDropped": 1,
+        "packetsLost": 4,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 28.24,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam05/whep"
+      },
+      {
+        "camera_id": "cam04",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2985.1000000089407,
+        "negotiation_ms": 510.70000000298023,
+        "ice_connected_ms": 732.3000000119209,
+        "currentTime": 11.791,
+        "framesDecoded": 294,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 24.93,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam04/whep"
+      },
+      {
+        "camera_id": "cam13",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 4013.6000000089407,
+        "negotiation_ms": 1381.2000000029802,
+        "ice_connected_ms": 1599.4000000059605,
+        "currentTime": 11.065,
+        "framesDecoded": 106,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 9.58,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam13/whep"
+      },
+      {
+        "camera_id": "cam14",
+        "verdict": "PASS",
+        "whep_http_status": 201,
+        "first_frame_ms": 2462.4000000059605,
+        "negotiation_ms": 1123.7000000029802,
+        "ice_connected_ms": 1336.5,
+        "currentTime": 12.509,
+        "framesDecoded": 123,
+        "framesDropped": 0,
+        "packetsLost": 0,
+        "freezes": 0,
+        "ice": "connected",
+        "width": 1920,
+        "height": 1080,
+        "effective_fps": 9.83,
+        "error": "",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam14/whep"
+      }
+    ],
+    "browser_wall": {
+      "status": "MEASURED",
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "auth_mode": "Authorization_Basic_header",
+      "elapsed_s": 15.732,
+      "resources": {
+        "cpu_percent": 19.9,
+        "ram_available_gb": 10.967
+      },
+      "error": null
+    },
+    "transport": "WHEP_PREVIEW_POOL",
+    "note": "Preview uses same Sentinel WHEP endpoint with Basic auth; no separate low-res representation advertised. Budgeted separately from PRIMARY FULL_WHEP slots."
+  }
+}

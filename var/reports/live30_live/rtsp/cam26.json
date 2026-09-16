@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam26",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:24.883438+00:00",
+  "finished_at_utc": "2026-09-16T00:20:36.552264+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "hevc",
+    "width": 2560,
+    "height": 1440,
+    "resolution": "2560x1440",
+    "pixel_format": "<av.VideoFormat yuv420p, 2560x1440>",
+    "time_base": "1/90000",
+    "declared_fps": 25.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 35,
+    "frames_with_pts": 35,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": 0.9967333333333334,
+    "pts_last": 2.7717333333333336,
+    "observed_fps": 19.15493,
+    "inter_frame_seconds": {
+      "p50": 0.052,
+      "p95": 0.056,
+      "min": 0.043,
+      "max": 0.056
+    }
+  },
+  "quality": {
+    "frames_sampled": 35,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.27481617978354544,
+    "black_ratio": 0.0,
+    "freeze_ratio": 0.0
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

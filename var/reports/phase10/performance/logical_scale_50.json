@@ -1,0 +1,52 @@
+{
+  "timestamp_utc": "2026-09-16T14:07:43.065266+00:00",
+  "label": "LOGICAL_SCALE",
+  "real_government_cameras": 30,
+  "synthetic_control_streams": 20,
+  "registry_entries": 50,
+  "scheduler": {
+    "PRIMARY": 1,
+    "SECONDARY_full_whep_budget": 15,
+    "PREVIEW_live": 34
+  },
+  "browser_full_whep_ceiling_synthetic": {
+    "n16": {
+      "PASS": 16,
+      "AMBER": 0,
+      "FAIL": 0,
+      "negotiation_ms_p50": 882.4499999955297,
+      "negotiation_ms_p95": 1480.2499999962747,
+      "first_frame_ms_p50": 1415.1000000014901,
+      "first_frame_ms_p95": 2178.9999999981374
+    },
+    "n20": {
+      "PASS": 19,
+      "AMBER": 0,
+      "FAIL": 1,
+      "negotiation_ms_p50": 1426.1000000014901,
+      "negotiation_ms_p95": 2687.75000000149,
+      "first_frame_ms_p50": 1945.1000000014901,
+      "first_frame_ms_p95": 4632.310000003871
+    },
+    "n24": {
+      "PASS": 19,
+      "AMBER": 3,
+      "FAIL": 2,
+      "negotiation_ms_p50": 1394.699999999255,
+      "negotiation_ms_p95": 5998.599999997017,
+      "first_frame_ms_p50": 1933.5999999977648,
+      "first_frame_ms_p95": 6974.534999998658
+    },
+    "n30": {
+      "PASS": 18,
+      "AMBER": 7,
+      "FAIL": 5,
+      "negotiation_ms_p50": 2732.2000000029802,
+      "negotiation_ms_p95": 9573.699999998506,
+      "first_frame_ms_p50": 3474.2999999970198,
+      "first_frame_ms_p95": 9767.919999995824
+    }
+  },
+  "nvidia_regional": "ESTIMATED_UNTESTED",
+  "note": "Do not claim 50 real government cameras."
+}

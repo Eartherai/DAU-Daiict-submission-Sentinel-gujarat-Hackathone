@@ -1,0 +1,371 @@
+{
+  "timestamp_utc": "2026-09-16T14:07:54.721419+00:00",
+  "budget": {
+    "max_full_whep": 16,
+    "max_secondary_whep": 4,
+    "preview_refresh_hz": 2.0,
+    "label": "SEEDED_FROM_PHASE10_PEAK_PASS_12"
+  },
+  "registered": 50,
+  "counts": {
+    "PRIMARY": 1,
+    "full_whep": 16,
+    "SECONDARY": 19,
+    "secondary_whep": 4,
+    "PREVIEW": 30,
+    "preview_live": 30
+  },
+  "assignments": [
+    {
+      "camera_id": "cam01",
+      "tier": "PRIMARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "operator focus"
+    },
+    {
+      "camera_id": "cam02",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam05",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam04",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam11",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam13",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam14",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam15",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam19",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam03",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam07",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam08",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam09",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam10",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam16",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam18",
+      "tier": "SECONDARY",
+      "representation": "full_whep",
+      "path": "DIRECT_H264",
+      "reason": "full WHEP budget"
+    },
+    {
+      "camera_id": "cam20",
+      "tier": "SECONDARY",
+      "representation": "secondary_whep",
+      "path": "DIRECT_H264",
+      "reason": "secondary live"
+    },
+    {
+      "camera_id": "cam21",
+      "tier": "SECONDARY",
+      "representation": "secondary_whep",
+      "path": "DIRECT_H264",
+      "reason": "secondary live"
+    },
+    {
+      "camera_id": "cam22",
+      "tier": "SECONDARY",
+      "representation": "secondary_whep",
+      "path": "DIRECT_H264",
+      "reason": "secondary live"
+    },
+    {
+      "camera_id": "cam23",
+      "tier": "SECONDARY",
+      "representation": "secondary_whep",
+      "path": "DIRECT_H264",
+      "reason": "secondary live"
+    },
+    {
+      "camera_id": "cam24",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam25",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam26",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam27",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam28",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam29",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam30",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam31",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam32",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam33",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam34",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam35",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam36",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam37",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam38",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam39",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam40",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam41",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam42",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam43",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam44",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam45",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam46",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam47",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam48",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam49",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam50",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "DIRECT_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam06",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam12",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "live preview (not still)"
+    },
+    {
+      "camera_id": "cam17",
+      "tier": "PREVIEW",
+      "representation": "preview_live",
+      "path": "HEVC_TRANSCODED_H264",
+      "reason": "live preview (not still)"
+    }
+  ],
+  "note": "PREVIEW is live representation, not a static screenshot. Full WHEP budget seeded from Phase 10 peak PASS (~12)."
+}

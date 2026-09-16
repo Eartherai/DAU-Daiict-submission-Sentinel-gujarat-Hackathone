@@ -1,0 +1,21 @@
+{
+  "timestamp_utc": "2026-09-16T13:31:39.530734+00:00",
+  "local_m5": {
+    "label": "MEASURED",
+    "metal_headed": true,
+    "max_operable_concurrent_whep": 12,
+    "recommended_full_whep_budget": 8,
+    "cuda": false
+  },
+  "nvidia_server": {
+    "label": "ESTIMATED_UNTESTED",
+    "note": "No NVIDIA GPU on this machine; do not cite as MEASURED",
+    "skus": [
+      "RTX",
+      "L4",
+      "A10",
+      "A100",
+      "H100"
+    ]
+  }
+}

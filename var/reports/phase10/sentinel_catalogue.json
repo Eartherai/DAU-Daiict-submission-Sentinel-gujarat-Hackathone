@@ -1,0 +1,51 @@
+{
+  "timestamp_utc": "2026-09-16T14:19:54.076976+00:00",
+  "reachable_json": false,
+  "catalogue_url_used": null,
+  "attempts": [
+    {
+      "url_safe": "https://cctv.corp8.cloud/cameras.json",
+      "status": 200,
+      "content_type": "text/html",
+      "json": false,
+      "error": "html_login_or_spa",
+      "bytes": 8068
+    },
+    {
+      "url_safe": "http://103.250.160.189/api/ingest",
+      "status": 404,
+      "content_type": null,
+      "json": false,
+      "error": "HTTPError: HTTP Error 404: Not Found",
+      "bytes": 0
+    },
+    {
+      "url_safe": "http://cctv.corp8.cloud/api/ingest",
+      "status": 200,
+      "content_type": "text/html",
+      "json": false,
+      "error": "html_login_or_spa",
+      "bytes": 8068
+    },
+    {
+      "url_safe": "https://cctv.corp8.cloud/api/ingest",
+      "status": 200,
+      "content_type": "text/html",
+      "json": false,
+      "error": "html_login_or_spa",
+      "bytes": 8068
+    },
+    {
+      "url_safe": "http://cctv.corp8.cloud/cameras.json",
+      "status": 200,
+      "content_type": "text/html",
+      "json": false,
+      "error": "html_login_or_spa",
+      "bytes": 8068
+    }
+  ],
+  "session_cookie_configured": false,
+  "live_camera_ids": [],
+  "cameras": [],
+  "note": "Authoritative only when reachable_json=true. Credentials never stored."
+}

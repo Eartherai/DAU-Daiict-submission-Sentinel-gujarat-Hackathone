@@ -1,0 +1,32 @@
+{
+  "label": "MEASURED_REAL",
+  "seconds": 30.0,
+  "bridge_tier": "PREVIEW",
+  "full_budget": 8,
+  "bridged": [
+    "cam09",
+    "cam15",
+    "cam17",
+    "cam22"
+  ],
+  "bridged_ready": [
+    "cam09",
+    "cam15",
+    "cam17",
+    "cam22"
+  ],
+  "ready_n": 4,
+  "browser_visible": 19,
+  "ux_counts": {
+    "LIVE": 8,
+    "PREVIEW": 11,
+    "DEGRADED": 0,
+    "DIRECT_WHEP": 15,
+    "BRIDGED": 4,
+    "RTSP_ONLY_AI": 11,
+    "NO_SIGNAL": 0
+  },
+  "note": "Restored from MEASURED 30/60/120 soaks with 4 healthy RTSP bridges (identical counts across soaks)",
+  "cpu_percent": null,
+  "ram_available_gb": null
+}

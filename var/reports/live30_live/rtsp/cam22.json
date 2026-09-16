@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam22",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:24.875639+00:00",
+  "finished_at_utc": "2026-09-16T00:20:41.464941+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "hevc",
+    "width": 1920,
+    "height": 1080,
+    "resolution": "1920x1080",
+    "pixel_format": "<av.VideoFormat yuv420p, 1920x1080>",
+    "time_base": "1/90000",
+    "declared_fps": null,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 94,
+    "frames_with_pts": 93,
+    "missing_pts": 1,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": 0.08,
+    "pts_last": 3.7600000000000002,
+    "observed_fps": 25.0,
+    "inter_frame_seconds": {
+      "p50": 0.04,
+      "p95": 0.04,
+      "min": 0.04,
+      "max": 0.04
+    }
+  },
+  "quality": {
+    "frames_sampled": 94,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.009104247464680654,
+    "black_ratio": 0.0,
+    "freeze_ratio": 0.0
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

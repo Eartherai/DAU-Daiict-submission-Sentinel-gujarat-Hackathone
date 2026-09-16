@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam29",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:03.304722+00:00",
+  "finished_at_utc": "2026-09-16T00:20:12.668971+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "h264",
+    "width": 1280,
+    "height": 960,
+    "resolution": "1280x960",
+    "pixel_format": "<av.VideoFormat yuv420p, 1280x960>",
+    "time_base": "1/90000",
+    "declared_fps": 25.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 105,
+    "frames_with_pts": 105,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": 4.331677777777778,
+    "pts_last": 8.531677777777778,
+    "observed_fps": 24.761905,
+    "inter_frame_seconds": {
+      "p50": 0.04,
+      "p95": 0.04,
+      "min": 0.04,
+      "max": 0.08
+    }
+  },
+  "quality": {
+    "frames_sampled": 105,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.47167882716454645,
+    "black_ratio": 0.0,
+    "freeze_ratio": 0.0
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

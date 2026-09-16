@@ -1,0 +1,37 @@
+{
+  "label": "MEASURED_REAL",
+  "path": "DIRECT_SENTINEL_WHEP_PREWARM",
+  "camera_id": "cam01",
+  "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep",
+  "auth_mode": "Authorization_Basic_header",
+  "overall": "PASS",
+  "cold": {
+    "click_to_frame_ms": 1857.2999999970198,
+    "negotiation_ms": 901,
+    "error": null,
+    "http": 201
+  },
+  "warm": {
+    "promotions_requested": 10,
+    "promotions_ok": 10,
+    "errors": 0,
+    "times_ms": [
+      36.20000000298023,
+      4.700000002980232,
+      194,
+      74.19999998807907,
+      71,
+      5.200000002980232,
+      35.20000000298023,
+      272.5,
+      158.5,
+      112.19999998807907
+    ],
+    "p50": 72.59999999403954,
+    "p95": 237.17499999999993,
+    "max": 272.5,
+    "mean": 96.36999999880791
+  },
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "note": "Warm = attach pre-negotiated MediaStream to visible <video> without second WHEP POST. Not the old local-relay 44ms figure."
+}

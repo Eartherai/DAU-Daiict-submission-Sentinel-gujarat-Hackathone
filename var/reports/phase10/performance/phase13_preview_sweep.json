@@ -1,0 +1,57 @@
+{
+  "label": "MEASURED_REAL",
+  "rows": [
+    {
+      "n": 4,
+      "overall": "PASS",
+      "live_tiles": 4,
+      "PASS": 4,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2318.5500000044703,
+      "negotiation_ms_p50": 376.8500000014901
+    },
+    {
+      "n": 6,
+      "overall": "PASS",
+      "live_tiles": 6,
+      "PASS": 6,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 1542.2000000029802,
+      "negotiation_ms_p50": 564.5
+    },
+    {
+      "n": 8,
+      "overall": "AMBER",
+      "live_tiles": 8,
+      "PASS": 7,
+      "AMBER": 1,
+      "FAIL": 0,
+      "first_frame_ms_p50": 2818.75,
+      "negotiation_ms_p50": 917.8000000044703
+    },
+    {
+      "n": 10,
+      "overall": "AMBER",
+      "live_tiles": 10,
+      "PASS": 8,
+      "AMBER": 2,
+      "FAIL": 0,
+      "first_frame_ms_p50": 4136.1500000059605,
+      "negotiation_ms_p50": 1923.1500000059605
+    },
+    {
+      "n": 12,
+      "overall": "AMBER",
+      "live_tiles": 12,
+      "PASS": 4,
+      "AMBER": 8,
+      "FAIL": 0,
+      "first_frame_ms_p50": 7654.250000007451,
+      "negotiation_ms_p50": 5898.9000000059605
+    }
+  ],
+  "chosen_preview_budget": 8,
+  "note": "Largest pool \u226575% live, \u226550% PASS, first-frame p50 < 4s"
+}

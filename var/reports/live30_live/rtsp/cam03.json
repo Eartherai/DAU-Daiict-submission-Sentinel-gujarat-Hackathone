@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "source": "rtsp://103.250.160.189:8554/stream/cam03",
+  "source_kind": "url",
+  "started_at_utc": "2026-09-16T00:20:24.874324+00:00",
+  "finished_at_utc": "2026-09-16T00:20:35.236857+00:00",
+  "availability": "MEASURED",
+  "error": null,
+  "stream": {
+    "codec": "h264",
+    "width": 1280,
+    "height": 720,
+    "resolution": "1280x720",
+    "pixel_format": "<av.VideoFormat yuv420p, 1280x720>",
+    "time_base": "1/90000",
+    "declared_fps": 30.0,
+    "duration_seconds": null
+  },
+  "timing": {
+    "frames_decoded": 180,
+    "frames_with_pts": 180,
+    "missing_pts": 0,
+    "pts_regressions": 0,
+    "pts_jumps": 0,
+    "pts_first": 0.49502222222222225,
+    "pts_last": 9.378022222222222,
+    "observed_fps": 20.15085,
+    "inter_frame_seconds": {
+      "p50": 0.04,
+      "p95": 0.08,
+      "min": 0.037,
+      "max": 0.16
+    }
+  },
+  "quality": {
+    "frames_sampled": 180,
+    "black_frames": 0,
+    "freeze_frames": 0,
+    "corrupt_frames": 0,
+    "mean_luma": 0.30465896742522247,
+    "black_ratio": 0.0,
+    "freeze_ratio": 0.0
+  },
+  "reconnect": {
+    "attempts": 2,
+    "reconnects": 0
+  },
+  "limitations": []
+}

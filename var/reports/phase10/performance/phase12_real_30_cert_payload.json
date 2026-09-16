@@ -1,0 +1,206 @@
+{
+  "timestamp_utc": "2026-09-16T15:17:41.561117+00:00",
+  "catalogue_authoritative": false,
+  "catalogue_session_configured": false,
+  "peak_pass_tiles_MEASURED_REAL": 10,
+  "best_full_pass_wall": {
+    "n": 8,
+    "PASS": 8
+  },
+  "levels_best_unique": [
+    {
+      "n": 1,
+      "overall": "PASS",
+      "PASS": 1,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_p50": 2485.3,
+      "first_p95": 2485.3,
+      "neg_p50": 940.7,
+      "cameras": [
+        "cam01"
+      ],
+      "run": "phase12_initial",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 4,
+      "overall": "PASS",
+      "PASS": 4,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_p50": 2066.3,
+      "first_p95": 2948.9,
+      "neg_p50": 420.1,
+      "cameras": [
+        "cam01",
+        "cam02",
+        "cam05",
+        "cam04"
+      ],
+      "run": "phase12_rerun_25s",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 8,
+      "overall": "PASS",
+      "PASS": 8,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_p50": 2821.4,
+      "first_p95": 3078.8,
+      "neg_p50": 988.6,
+      "cameras": [
+        "cam01",
+        "cam02",
+        "cam05",
+        "cam04",
+        "cam13",
+        "cam14",
+        "cam19",
+        "cam15"
+      ],
+      "run": "phase12_initial",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 12,
+      "overall": "AMBER",
+      "PASS": 10,
+      "AMBER": 0,
+      "FAIL": 2,
+      "first_p50": 3154.5,
+      "first_p95": 5015.5,
+      "neg_p50": 2136.6,
+      "cameras": [
+        "cam01",
+        "cam02",
+        "cam05",
+        "cam04",
+        "cam13",
+        "cam14",
+        "cam19",
+        "cam15",
+        "cam11",
+        "cam03",
+        "cam06",
+        "cam07"
+      ],
+      "fail_ids": [
+        "cam11",
+        "cam07"
+      ],
+      "run": "phase12_clean",
+      "label": "MEASURED_REAL",
+      "note": "cam06 HEVC direct WHEP PASS"
+    },
+    {
+      "n": 16,
+      "overall": "AMBER",
+      "PASS": 10,
+      "AMBER": 0,
+      "FAIL": 6,
+      "first_p50": 2456.1,
+      "first_p95": 3476.3,
+      "neg_p50": 2064.8,
+      "cameras": [
+        "cam01",
+        "cam02",
+        "cam05",
+        "cam04",
+        "cam13",
+        "cam14",
+        "cam19",
+        "cam15",
+        "cam11",
+        "cam03",
+        "cam06",
+        "cam07",
+        "cam08",
+        "cam09",
+        "cam10",
+        "cam12"
+      ],
+      "run": "phase12_initial",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 20,
+      "overall": "AMBER",
+      "PASS": 10,
+      "AMBER": 0,
+      "FAIL": 10,
+      "first_p50": 3008.3,
+      "first_p95": 6290.6,
+      "neg_p50": 2003.1,
+      "run": "phase12_clean",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 24,
+      "overall": "AMBER",
+      "PASS": 7,
+      "AMBER": 3,
+      "FAIL": 14,
+      "first_p50": 8233.8,
+      "first_p95": 17270.4,
+      "neg_p50": 6534.6,
+      "run": "phase12_initial",
+      "label": "MEASURED_REAL"
+    },
+    {
+      "n": 30,
+      "overall": "AMBER",
+      "PASS": 9,
+      "AMBER": 1,
+      "FAIL": 20,
+      "first_p50": 2619.1,
+      "first_p95": 4224.9,
+      "neg_p50": 2088.9,
+      "run": "phase12_clean",
+      "label": "MEASURED_REAL"
+    }
+  ],
+  "wall_30_adaptive": {
+    "full_whep_budget": 10,
+    "full_whep_overall": "PASS",
+    "full_whep_measured": {
+      "PASS": 10,
+      "AMBER": 0,
+      "FAIL": 0,
+      "first_frame_ms_p50": 3289.6499999910593,
+      "first_frame_ms_p95": 4864.23999999836,
+      "negotiation_ms_p50": 2085.5999999940395,
+      "negotiation_ms_p95": 3445.044999995082
+    },
+    "ux_counts": {
+      "LIVE": 10,
+      "PREVIEW": 20,
+      "DEGRADED": 0,
+      "CONNECTING": 0,
+      "NO_SIGNAL": 0,
+      "RECONNECTING": 0
+    }
+  },
+  "scheduler_50_logical": {
+    "registered": 50,
+    "counts": {
+      "PRIMARY": 1,
+      "FULL_WHEP": 10,
+      "LIVE": 10,
+      "SECONDARY": 9,
+      "PREVIEW": 80,
+      "PREVIEW_LIVE": 40
+    },
+    "budget": 10,
+    "label": "DESIGNED"
+  },
+  "synthetic_separate": {
+    "label": "MEASURED_SYNTHETIC",
+    "n16": "16/16 PASS",
+    "n20": "19P/1F",
+    "n24": "19P/3A/2F",
+    "n30": "18P/7A/5F"
+  },
+  "recommendation": "PRIMARY browser path: direct Sentinel WHEP + Basic auth. Real peak simultaneous PASS \u2248 8\u201310. 30-camera wall: FULL_WHEP for measured band + PREVIEW/RECONNECTING for remainder (not stale LIVE). AI remains RTSP/TCP. Catalogue session still EXTERNAL."
+}

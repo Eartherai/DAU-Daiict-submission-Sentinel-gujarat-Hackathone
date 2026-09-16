@@ -1,0 +1,39 @@
+{
+  "timestamp_utc": "2026-09-16T14:03:38.749644+00:00",
+  "label": "MEASURED",
+  "videotoolbox_encoder_available": true,
+  "libx264_available": true,
+  "results": [
+    {
+      "codec": "libx264",
+      "source_kind": "local_file",
+      "source_safe": "C-021.mp4",
+      "local": "rtsp://127.0.0.1:8554/stream/gov-vt-libx264",
+      "status": "PUBLISHING",
+      "frames": 411,
+      "elapsed_s": 0.994,
+      "fps": 413.42,
+      "cpu_seconds": 4.109,
+      "cpu_per_frame_ms": 9.999,
+      "rss_delta_mb": 41.57,
+      "error": "ArgumentError: Invalid argument: 'rtsp://127.0.0.1:8554/stream/gov-vt-libx264' returned 22"
+    },
+    {
+      "codec": "h264_videotoolbox",
+      "source_kind": "local_file",
+      "source_safe": "C-021.mp4",
+      "local": "rtsp://127.0.0.1:8554/stream/gov-vt-videotoolbox",
+      "status": "PUBLISHING",
+      "frames": 421,
+      "elapsed_s": 1.007,
+      "fps": 418.19,
+      "cpu_seconds": 1.924,
+      "cpu_per_frame_ms": 4.57,
+      "rss_delta_mb": 53.89,
+      "error": "ArgumentError: Invalid argument: 'rtsp://127.0.0.1:8554/stream/gov-vt-videotoolbox' returned 22"
+    }
+  ],
+  "keep_videotoolbox": true,
+  "decision_reason": "VT lower CPU/frame with similar FPS",
+  "note": "H.264 DIRECT_H264 remains packet-copy (no decode). This bench is HEVC\u2192H.264 encode only. PyAV VideoToolbox decode is not required on the copy path."
+}

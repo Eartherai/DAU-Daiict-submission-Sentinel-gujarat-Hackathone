@@ -1,0 +1,246 @@
+{
+  "camera_id": "cam01",
+  "path": "DIRECT_H264 managed gateway",
+  "seconds_per_mode": 45.0,
+  "timestamp_utc": "2026-09-16T03:41:32.122281+00:00",
+  "modes": [
+    {
+      "mode": "VIDEO_ONLY",
+      "verdict": "AMBER",
+      "duration_s": 45.0,
+      "timestamp_utc": "2026-09-16T03:41:32.121588+00:00",
+      "browser": {
+        "status": "MEASURED",
+        "summary": {
+          "first_frame_ms": 1511.9000000022352,
+          "negotiation_ms": 145.10000000149012,
+          "currentTime": 19.42,
+          "resolution": "1920x1080",
+          "canvasMeanLuma": 96.71532407414298,
+          "framesDecoded_delta": 278,
+          "framesDropped_end": 0,
+          "packetsLost_end": 0,
+          "packetsReceived_end": 689,
+          "peak_fps": 18,
+          "freezes": 1,
+          "reconnects": 0,
+          "ice_state": "disconnected"
+        },
+        "artifact_json": "var/reports/phase8c/gov/cam01_ai_video_only_whep.json",
+        "artifact_png": "var/reports/phase8c/gov/cam01_ai_video_only_whep.png",
+        "error": null
+      },
+      "ai": {
+        "status": "SKIPPED",
+        "mode": "VIDEO_ONLY"
+      },
+      "resources": {
+        "note": "AI and browser are separate MediaMTX consumers"
+      },
+      "note": "Early ICE/session termination (~19s); measured browser path still produced frames. Keep AMBER per prior evidence."
+    },
+    {
+      "mode": "DETECTION",
+      "verdict": "PASS",
+      "duration_s": 45.0,
+      "timestamp_utc": "2026-09-16T03:41:32.122273+00:00",
+      "browser": {
+        "status": "MEASURED",
+        "summary": {
+          "first_frame_ms": 1574.9000000022352,
+          "negotiation_ms": 130.30000000074506,
+          "currentTime": 45.327,
+          "resolution": "1920x1080",
+          "canvasMeanLuma": 95.51054092716254,
+          "framesDecoded_delta": 662,
+          "framesDropped_end": 0,
+          "packetsLost_end": 0,
+          "packetsReceived_end": 1614,
+          "peak_fps": 60,
+          "freezes": 1,
+          "reconnects": 0,
+          "ice_state": "connected"
+        },
+        "artifact_json": "var/reports/phase8c/gov/cam01_ai_detection_whep.json",
+        "artifact_png": "var/reports/phase8c/gov/cam01_ai_detection_whep.png",
+        "error": null
+      },
+      "ai": {
+        "mode": "DETECTION",
+        "status": "MEASURED",
+        "frames_in": 775,
+        "frames_analysed": 775,
+        "detections": 6736,
+        "tracks_created": 270,
+        "observations": 259,
+        "errors": 0,
+        "elapsed_s": 53.89,
+        "rss_mb_end": 768.4,
+        "plate_detections": 0,
+        "vehicle_detections": 5457,
+        "pipeline_latency": {
+          "samples": 775,
+          "p50_ms": 47.8,
+          "p95_ms": 90.43,
+          "mean_ms": 40.48
+        }
+      },
+      "resources": {
+        "note": "AI and browser are separate MediaMTX consumers"
+      }
+    },
+    {
+      "mode": "DETECTION_TRACKER",
+      "verdict": "PASS",
+      "duration_s": 45.0,
+      "timestamp_utc": "2026-09-16T03:39:27.614129+00:00",
+      "browser": {
+        "status": "MEASURED",
+        "summary": {
+          "first_frame_ms": 1110,
+          "negotiation_ms": 145.89999999850988,
+          "currentTime": 45.351,
+          "resolution": "1920x1080",
+          "canvasMeanLuma": 92.98344151879517,
+          "framesDecoded_delta": 667,
+          "framesDropped_end": 0,
+          "packetsLost_end": 0,
+          "packetsReceived_end": 1594,
+          "peak_fps": 22,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice_state": "connected"
+        },
+        "artifact_json": "var/reports/phase8c/gov/cam01_ai_detection_tracker_whep.json",
+        "artifact_png": "var/reports/phase8c/gov/cam01_ai_detection_tracker_whep.png",
+        "error": null
+      },
+      "ai": {
+        "mode": "DETECTION_TRACKER",
+        "status": "MEASURED",
+        "frames_in": 761,
+        "frames_analysed": 761,
+        "detections": 12891,
+        "tracks_created": 346,
+        "observations": 353,
+        "errors": 0,
+        "elapsed_s": 53.28,
+        "rss_mb_end": 766.3,
+        "plate_detections": 0,
+        "vehicle_detections": 10306,
+        "pipeline_latency": {
+          "samples": 761,
+          "p50_ms": 61.0,
+          "p95_ms": 69.48,
+          "mean_ms": 64.41
+        }
+      },
+      "resources": {
+        "parent_rss_mb": 766.4,
+        "note": "AI and browser are separate consumers of the same MediaMTX fanout"
+      }
+    },
+    {
+      "mode": "DETECTION_TRACKER_OCR",
+      "verdict": "PASS",
+      "duration_s": 45.0,
+      "timestamp_utc": "2026-09-16T03:40:19.642437+00:00",
+      "browser": {
+        "status": "MEASURED",
+        "summary": {
+          "first_frame_ms": 607,
+          "negotiation_ms": 134.69999999925494,
+          "currentTime": 45.361,
+          "resolution": "1920x1080",
+          "canvasMeanLuma": 99.11360853901668,
+          "framesDecoded_delta": 678,
+          "framesDropped_end": 0,
+          "packetsLost_end": 0,
+          "packetsReceived_end": 1595,
+          "peak_fps": 59,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice_state": "connected"
+        },
+        "artifact_json": "var/reports/phase8c/gov/cam01_ai_detection_tracker_ocr_whep.json",
+        "artifact_png": "var/reports/phase8c/gov/cam01_ai_detection_tracker_ocr_whep.png",
+        "error": null
+      },
+      "ai": {
+        "mode": "DETECTION_TRACKER_OCR",
+        "status": "MEASURED",
+        "frames_in": 777,
+        "frames_analysed": 777,
+        "detections": 7677,
+        "tracks_created": 275,
+        "observations": 270,
+        "errors": 0,
+        "elapsed_s": 52.028,
+        "rss_mb_end": 842.1,
+        "plate_detections": 1,
+        "vehicle_detections": 6347,
+        "pipeline_latency": {
+          "samples": 777,
+          "p50_ms": 54.45,
+          "p95_ms": 133.86,
+          "mean_ms": 50.23
+        }
+      },
+      "resources": {
+        "parent_rss_mb": 842.1,
+        "note": "AI and browser are separate consumers of the same MediaMTX fanout"
+      }
+    },
+    {
+      "mode": "FULL",
+      "verdict": "PASS",
+      "duration_s": 45.0,
+      "timestamp_utc": "2026-09-16T03:41:11.748380+00:00",
+      "browser": {
+        "status": "MEASURED",
+        "summary": {
+          "first_frame_ms": 1921.3999999985099,
+          "negotiation_ms": 127.29999999701977,
+          "currentTime": 45.116,
+          "resolution": "1920x1080",
+          "canvasMeanLuma": 99.41598122421894,
+          "framesDecoded_delta": 614,
+          "framesDropped_end": 54,
+          "packetsLost_end": 0,
+          "packetsReceived_end": 1616,
+          "peak_fps": 171,
+          "freezes": 0,
+          "reconnects": 0,
+          "ice_state": "connected"
+        },
+        "artifact_json": "var/reports/phase8c/gov/cam01_ai_full_whep.json",
+        "artifact_png": "var/reports/phase8c/gov/cam01_ai_full_whep.png",
+        "error": null
+      },
+      "ai": {
+        "mode": "FULL",
+        "status": "MEASURED",
+        "frames_in": 547,
+        "frames_analysed": 547,
+        "detections": 10673,
+        "tracks_created": 203,
+        "observations": 224,
+        "errors": 0,
+        "elapsed_s": 52.105,
+        "rss_mb_end": 863.4,
+        "plate_detections": 0,
+        "vehicle_detections": 9050,
+        "pipeline_latency": {
+          "samples": 547,
+          "p50_ms": 101.07,
+          "p95_ms": 119.97,
+          "mean_ms": 90.18
+        }
+      },
+      "resources": {
+        "parent_rss_mb": 863.4,
+        "note": "AI and browser are separate consumers of the same MediaMTX fanout"
+      }
+    }
+  ]
+}

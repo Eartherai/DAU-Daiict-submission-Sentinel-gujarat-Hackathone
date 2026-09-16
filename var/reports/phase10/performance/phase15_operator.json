@@ -1,0 +1,1087 @@
+{
+  "timestamp_utc": "2026-09-16T17:50:47.901678+00:00",
+  "catalogue": "NOT_AUTHORITATIVE",
+  "cam07": {
+    "overall": "PASS",
+    "chosen": {
+      "browser_path": "RTSP_TRANSCODED_H264",
+      "mode": "transcode",
+      "whep": {
+        "status": "MEASURED",
+        "first_frame_ms": 1097.5999999940395,
+        "ice": "connected",
+        "currentTime": 15.157,
+        "width": 1920,
+        "height": 1080,
+        "luma": 60.506580825617284
+      }
+    },
+    "note": "reused measured proof; copy failed B-frames",
+    "label": "MEASURED_REAL"
+  },
+  "bridge_scale": {
+    "label": "MEASURED_REAL",
+    "rows": [
+      {
+        "n": 1,
+        "ready_paths": 0,
+        "startup_s": 55.23,
+        "overall": "PASS",
+        "live_tiles": 1,
+        "PASS": 1,
+        "AMBER": 0,
+        "FAIL": 0,
+        "first_frame_ms_p50": 1444.5,
+        "resources": {
+          "cpu_percent": 22.5,
+          "ram_available_gb": 10.655
+        },
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "cpu_percent": 17.7,
+        "ram_available_gb": 10.65
+      },
+      {
+        "n": 2,
+        "ready_paths": 1,
+        "startup_s": 55.29,
+        "overall": "AMBER",
+        "live_tiles": 1,
+        "PASS": 1,
+        "AMBER": 0,
+        "FAIL": 1,
+        "first_frame_ms_p50": 1440.2000000029802,
+        "resources": {
+          "cpu_percent": 17.1,
+          "ram_available_gb": 10.685
+        },
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "cpu_percent": 15.4,
+        "ram_available_gb": 10.719
+      },
+      {
+        "n": 4,
+        "ready_paths": 0,
+        "startup_s": 55.36,
+        "overall": "FAIL",
+        "live_tiles": 0,
+        "PASS": 0,
+        "AMBER": 0,
+        "FAIL": 4,
+        "first_frame_ms_p50": null,
+        "resources": {
+          "cpu_percent": 15.8,
+          "ram_available_gb": 11.138
+        },
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "cpu_percent": 15.3,
+        "ram_available_gb": 11.137
+      },
+      {
+        "n": 6,
+        "ready_paths": 6,
+        "startup_s": 34.24,
+        "overall": "AMBER",
+        "live_tiles": 6,
+        "PASS": 5,
+        "AMBER": 1,
+        "FAIL": 0,
+        "first_frame_ms_p50": 920.8000000044703,
+        "resources": {
+          "cpu_percent": 22.7,
+          "ram_available_gb": 10.455
+        },
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "cpu_percent": 17.4,
+        "ram_available_gb": 10.462
+      },
+      {
+        "n": 8,
+        "ready_paths": 4,
+        "startup_s": 55.41,
+        "overall": "AMBER",
+        "live_tiles": 4,
+        "PASS": 3,
+        "AMBER": 1,
+        "FAIL": 4,
+        "first_frame_ms_p50": 1430.0,
+        "resources": {
+          "cpu_percent": 28.1,
+          "ram_available_gb": 10.403
+        },
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "cpu_percent": 32.3,
+        "ram_available_gb": 10.46
+      }
+    ],
+    "chosen_bridge_budget": 6,
+    "note": "All bridges use VT baseline transcode (copy rejected: H264 B-frames)"
+  },
+  "selector": [
+    {
+      "camera_id": "cam01",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam02",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam03",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam04",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam05",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam06",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam07",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam08",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam09",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam10",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam11",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam12",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam13",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam14",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam15",
+      "path": "RTSP_TRANSCODED_H264",
+      "browser": true,
+      "reason": "local MediaMTX bridge measured PASS"
+    },
+    {
+      "camera_id": "cam16",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam17",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam18",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam19",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam20",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam21",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam22",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam23",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam24",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam25",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam26",
+      "path": "DIRECT_SENTINEL_WHEP",
+      "browser": true,
+      "reason": "Phase14 WHEP browser decode OK"
+    },
+    {
+      "camera_id": "cam27",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam28",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam29",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    },
+    {
+      "camera_id": "cam30",
+      "path": "RTSP_ONLY_AI",
+      "browser": false,
+      "reason": "RTSP live; browser bridge not yet established"
+    }
+  ],
+  "walls": [
+    {
+      "label": "MEASURED_REAL",
+      "seconds": 30.0,
+      "full_budget": 8,
+      "direct_on_wall": [
+        "cam01",
+        "cam02",
+        "cam03",
+        "cam04",
+        "cam05",
+        "cam06",
+        "cam12",
+        "cam13",
+        "cam14",
+        "cam16",
+        "cam18",
+        "cam19",
+        "cam20",
+        "cam23",
+        "cam26"
+      ],
+      "bridged_on_wall": [
+        "cam07",
+        "cam08",
+        "cam09",
+        "cam10",
+        "cam11",
+        "cam15"
+      ],
+      "ux_counts": {
+        "LIVE": 8,
+        "PREVIEW": 10,
+        "DEGRADED": 3,
+        "DIRECT_WHEP": 15,
+        "BRIDGED": 3,
+        "NO_SIGNAL": 0,
+        "RTSP_ONLY_AI": 9
+      },
+      "browser_visible": 18,
+      "tiles": [
+        {
+          "camera_id": "cam01",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 1440.300000011921,
+          "currentTime": 28.327,
+          "framesDecoded": 422,
+          "framesDropped": 0,
+          "packetsLost": 1,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam02",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 2455.5,
+          "currentTime": 27.311,
+          "framesDecoded": 775,
+          "framesDropped": 1,
+          "packetsLost": 5,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam03",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 1948.8999999910593,
+          "currentTime": 27.866,
+          "framesDecoded": 689,
+          "framesDropped": 0,
+          "packetsLost": 2,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam04",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 1440.2999999970198,
+          "currentTime": 28.287,
+          "framesDecoded": 709,
+          "framesDropped": 2,
+          "packetsLost": 6,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam05",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 2455.5,
+          "currentTime": 27.378,
+          "framesDecoded": 793,
+          "framesDropped": 3,
+          "packetsLost": 10,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam06",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 5020.399999991059,
+          "currentTime": 24.804,
+          "framesDecoded": 596,
+          "framesDropped": 0,
+          "packetsLost": 7,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam12",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 5020.5999999940395,
+          "currentTime": 25.086,
+          "framesDecoded": 505,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam13",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 3477.5,
+          "currentTime": 26.587,
+          "framesDecoded": 267,
+          "framesDropped": 1,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam14",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 11710.10000000894,
+          "currentTime": 17.862,
+          "framesDecoded": 180,
+          "framesDropped": 1,
+          "packetsLost": 1,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam16",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 9140.5,
+          "currentTime": 20.557,
+          "framesDecoded": 207,
+          "framesDropped": 0,
+          "packetsLost": 4,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam18",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 14277.40000000596,
+          "currentTime": 15.75,
+          "framesDecoded": 393,
+          "framesDropped": 3,
+          "packetsLost": 6,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam19",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 7078.20000000298,
+          "currentTime": 22.628,
+          "framesDecoded": 527,
+          "framesDropped": 1,
+          "packetsLost": 16,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam20",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 10167.60000000894,
+          "currentTime": 19.746,
+          "framesDecoded": 485,
+          "framesDropped": 0,
+          "packetsLost": 5,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam23",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 10680.5,
+          "currentTime": 19.017,
+          "framesDecoded": 485,
+          "framesDropped": 1,
+          "packetsLost": 5,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam26",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 13757.70000000298,
+          "currentTime": 16.012,
+          "framesDecoded": 203,
+          "framesDropped": 0,
+          "packetsLost": 4,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam07",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "DEGRADED",
+          "verdict": "FAIL",
+          "first_frame_ms": null,
+          "currentTime": 0,
+          "framesDecoded": 0,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "new",
+          "http": 404,
+          "error": "WHEP 404"
+        },
+        {
+          "camera_id": "cam08",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "DEGRADED",
+          "verdict": "FAIL",
+          "first_frame_ms": null,
+          "currentTime": 0,
+          "framesDecoded": 0,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "new",
+          "http": 404,
+          "error": "WHEP 404"
+        },
+        {
+          "camera_id": "cam09",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 12223.90000000596,
+          "currentTime": 16.367,
+          "framesDecoded": 308,
+          "framesDropped": 211,
+          "packetsLost": 0,
+          "freezes": 2,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam10",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "DEGRADED",
+          "verdict": "FAIL",
+          "first_frame_ms": null,
+          "currentTime": 0,
+          "framesDecoded": 0,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "new",
+          "http": 404,
+          "error": "WHEP 404"
+        },
+        {
+          "camera_id": "cam11",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 13251.29999999702,
+          "currentTime": 15.998,
+          "framesDecoded": 221,
+          "framesDropped": 77,
+          "packetsLost": 0,
+          "freezes": 3,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam15",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 15305.5,
+          "currentTime": 13.901,
+          "framesDecoded": 56,
+          "framesDropped": 17,
+          "packetsLost": 0,
+          "freezes": 2,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        }
+      ],
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "resources": {
+        "cpu_percent": 45.9,
+        "ram_available_gb": 10.752
+      },
+      "cpu_percent": 43.1,
+      "ram_available_gb": 10.962
+    },
+    {
+      "label": "MEASURED_REAL",
+      "seconds": 60.0,
+      "full_budget": 8,
+      "direct_on_wall": [
+        "cam01",
+        "cam02",
+        "cam03",
+        "cam04",
+        "cam05",
+        "cam06",
+        "cam12",
+        "cam13",
+        "cam14",
+        "cam16",
+        "cam18",
+        "cam19",
+        "cam20",
+        "cam23",
+        "cam26"
+      ],
+      "bridged_on_wall": [
+        "cam07",
+        "cam08",
+        "cam09",
+        "cam10",
+        "cam11",
+        "cam15"
+      ],
+      "ux_counts": {
+        "LIVE": 8,
+        "PREVIEW": 11,
+        "DEGRADED": 2,
+        "DIRECT_WHEP": 15,
+        "BRIDGED": 4,
+        "NO_SIGNAL": 0,
+        "RTSP_ONLY_AI": 9
+      },
+      "browser_visible": 19,
+      "tiles": [
+        {
+          "camera_id": "cam01",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 2459.7000000029802,
+          "currentTime": 57.663,
+          "framesDecoded": 814,
+          "framesDropped": 1,
+          "packetsLost": 6,
+          "freezes": 1,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam02",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "AMBER",
+          "first_frame_ms": 2459.699999988079,
+          "currentTime": 57.774,
+          "framesDecoded": 1625,
+          "framesDropped": 18,
+          "packetsLost": 15,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam03",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 2459.699999988079,
+          "currentTime": 57.841,
+          "framesDecoded": 1377,
+          "framesDropped": 5,
+          "packetsLost": 10,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam04",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 2459.699999988079,
+          "currentTime": 57.664,
+          "framesDecoded": 1425,
+          "framesDropped": 2,
+          "packetsLost": 4,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam05",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "AMBER",
+          "first_frame_ms": 3494.9000000059605,
+          "currentTime": 56.761,
+          "framesDecoded": 1625,
+          "framesDropped": 2,
+          "packetsLost": 11,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam06",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "AMBER",
+          "first_frame_ms": 3494.9000000059605,
+          "currentTime": 56.472,
+          "framesDecoded": 1315,
+          "framesDropped": 4,
+          "packetsLost": 14,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam12",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 5560.4000000059605,
+          "currentTime": 54.527,
+          "framesDecoded": 1076,
+          "framesDropped": 1,
+          "packetsLost": 1,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam13",
+          "role": "FULL",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "LIVE",
+          "verdict": "PASS",
+          "first_frame_ms": 3494.9000000059605,
+          "currentTime": 56.374,
+          "framesDecoded": 540,
+          "framesDropped": 3,
+          "packetsLost": 9,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam14",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 4533.100000008941,
+          "currentTime": 55.651,
+          "framesDecoded": 528,
+          "framesDropped": 9,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam16",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 6075.70000000298,
+          "currentTime": 53.722,
+          "framesDecoded": 530,
+          "framesDropped": 0,
+          "packetsLost": 1,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam18",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 8634.20000000298,
+          "currentTime": 51.285,
+          "framesDecoded": 1267,
+          "framesDropped": 7,
+          "packetsLost": 3,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam19",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 5560.300000011921,
+          "currentTime": 54.237,
+          "framesDecoded": 1305,
+          "framesDropped": 14,
+          "packetsLost": 70,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam20",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 8634.20000000298,
+          "currentTime": 51.003,
+          "framesDecoded": 1261,
+          "framesDropped": 11,
+          "packetsLost": 1,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam23",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 7097.300000011921,
+          "currentTime": 53.023,
+          "framesDecoded": 1211,
+          "framesDropped": 33,
+          "packetsLost": 68,
+          "freezes": 0,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam26",
+          "role": "PREVIEW",
+          "path": "DIRECT_SENTINEL_WHEP",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 7097.5,
+          "currentTime": 21.122,
+          "framesDecoded": 324,
+          "framesDropped": 388,
+          "packetsLost": 29,
+          "freezes": 1,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam07",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 7611,
+          "currentTime": 50.248,
+          "framesDecoded": 463,
+          "framesDropped": 567,
+          "packetsLost": 0,
+          "freezes": 3,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam08",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "DEGRADED",
+          "verdict": "FAIL",
+          "first_frame_ms": null,
+          "currentTime": 0,
+          "framesDecoded": 0,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "new",
+          "http": 404,
+          "error": "WHEP 404"
+        },
+        {
+          "camera_id": "cam09",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 8126.20000000298,
+          "currentTime": 50.578,
+          "framesDecoded": 399,
+          "framesDropped": 395,
+          "packetsLost": 0,
+          "freezes": 7,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam10",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "PASS",
+          "first_frame_ms": 12725.70000000298,
+          "currentTime": 43.376,
+          "framesDecoded": 705,
+          "framesDropped": 425,
+          "packetsLost": 0,
+          "freezes": 1,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        },
+        {
+          "camera_id": "cam11",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "DEGRADED",
+          "verdict": "FAIL",
+          "first_frame_ms": null,
+          "currentTime": 0,
+          "framesDecoded": 0,
+          "framesDropped": 0,
+          "packetsLost": 0,
+          "freezes": 0,
+          "ice": "new",
+          "http": 404,
+          "error": "WHEP 404"
+        },
+        {
+          "camera_id": "cam15",
+          "role": "PREVIEW",
+          "path": "RTSP_TRANSCODED_H264",
+          "ux": "PREVIEW",
+          "verdict": "AMBER",
+          "first_frame_ms": 9656.40000000596,
+          "currentTime": 35.329,
+          "framesDecoded": 181,
+          "framesDropped": 19,
+          "packetsLost": 0,
+          "freezes": 6,
+          "ice": "connected",
+          "http": 201,
+          "error": ""
+        }
+      ],
+      "gpu": {
+        "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+      },
+      "resources": {
+        "cpu_percent": 29.9,
+        "ram_available_gb": 10.761
+      },
+      "cpu_percent": 23.3,
+      "ram_available_gb": 10.88
+    }
+  ]
+}

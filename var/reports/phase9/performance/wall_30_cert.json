@@ -1,0 +1,36 @@
+{
+  "timestamp_utc": "2026-09-16T13:31:23.386874+00:00",
+  "label": "MEASURED_AND_DESIGNED",
+  "registered": 30,
+  "full_whep_budget_requested": 8,
+  "full_whep_budget_applied": 8,
+  "headed_max_operable": 12,
+  "headed_max_pass": 0,
+  "scheduler_counts": {
+    "PRIMARY": 1,
+    "full_whep": 8,
+    "SECONDARY": 11,
+    "secondary_whep": 4,
+    "PREVIEW": 18,
+    "preview_live": 18
+  },
+  "modes": {
+    "VIDEO_FIRST": {
+      "priority": "smoothness",
+      "full_whep": 8,
+      "ai": "adaptive_low"
+    },
+    "AI_FIRST": {
+      "priority": "selected_camera_analytics",
+      "full_whep": 4,
+      "ai": "primary_secondary_full"
+    }
+  },
+  "path_policy": {
+    "H264": "DIRECT_H264",
+    "HEVC": "HEVC_TRANSCODED_H264"
+  },
+  "overall": "PASS",
+  "note": "30 cameras registered via scheduler. Concurrent full WHEP budget comes from headed Metal measurements, not SwiftShader. Preview tier is live-capable publish path, not static screenshots.",
+  "credentials_configured": true
+}

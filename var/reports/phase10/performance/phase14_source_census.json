@@ -1,0 +1,3973 @@
+{
+  "timestamp_utc": "2026-09-16T17:00:14.133798+00:00",
+  "label": "MEASURED_REAL",
+  "catalogue_authoritative": false,
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 1974.2999999970198,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam02",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 1454.5999999940395,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam03",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 1454.5999999940395,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam04",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 2484.7999999970198,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam05",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 2484.7000000029802,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam06",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 3527.1000000089407,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam07",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam08",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam09",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam10",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam11",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam12",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 1582.4000000059605,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam13",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 955.5,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam14",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 2009.7000000029802,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam15",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam16",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 4257.29999999702,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam17",
+      "source_health": "HEVC_UNSUPPORTED",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_HEVC_BROWSER",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false
+    },
+    {
+      "camera_id": "cam18",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 4717.899999991059,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam19",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 1984.2000000029802,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam20",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 5208.0999999940395,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam21",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam22",
+      "source_health": "HEVC_UNSUPPORTED",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_HEVC_BROWSER",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false
+    },
+    {
+      "camera_id": "cam23",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 4775.4000000059605,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam24",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam25",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam26",
+      "source_health": "LIVE",
+      "available": true,
+      "codec": "hevc",
+      "rtsp_frames": 3,
+      "whep_frames": true,
+      "whep_first_frame_ms": 3715.5999999940395,
+      "whep_http": 201,
+      "first_fail": null,
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": true,
+        "C_preview_capable": true,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "BROWSER_AND_RTSP",
+      "wall_eligible": true
+    },
+    {
+      "camera_id": "cam27",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam28",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam29",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    },
+    {
+      "camera_id": "cam30",
+      "source_health": "WHEP_UNAVAILABLE",
+      "available": true,
+      "codec": "h264",
+      "rtsp_frames": 3,
+      "whep_frames": false,
+      "whep_first_frame_ms": null,
+      "whep_http": 201,
+      "first_fail": "WHEP_NO_FRAME",
+      "questions": {
+        "A_rtsp_frames": true,
+        "B_whep_frames": false,
+        "C_preview_capable": false,
+        "D_concurrency_pressure": null,
+        "E_catalogue_unavailable": true
+      },
+      "label": "NOT_AUTHORITATIVE",
+      "rtsp_frame_count": 3,
+      "tier": "RTSP_ONLY_AI",
+      "wall_eligible": false,
+      "operator_note": "RTSP live; browser WHEP no frame in census window"
+    }
+  ],
+  "detail": [
+    {
+      "camera_id": "cam01",
+      "rtsp": {
+        "camera_id": "cam01",
+        "attempt": 2,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 52.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "87440f3a2e8a457e9c85ac5c658c9061"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2430.3,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam01",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam01/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.2,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 1974.2999999970198,
+            "negotiation_ms": 350.79999999701977,
+            "framesDecoded": 143,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 1974.2999999970198,
+          "negotiation_ms": 350.79999999701977,
+          "framesDecoded": 143,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam01",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 1974.2999999970198,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam02",
+      "rtsp": {
+        "camera_id": "cam02",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 32.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "aba00e4a373e45d198413b4164d18a97"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1204.4,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam02",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam02/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.9,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 1454.5999999940395,
+            "negotiation_ms": 378.5,
+            "framesDecoded": 308,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 1454.5999999940395,
+          "negotiation_ms": 378.5,
+          "framesDecoded": 308,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam02",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 1454.5999999940395,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam03",
+      "rtsp": {
+        "camera_id": "cam03",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 30.1,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "cf7396210f944af3b913890a9d06ff1c"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2885.0,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x720"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam03",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam03/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 35.0,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 1454.5999999940395,
+            "negotiation_ms": 401.40000000596046,
+            "framesDecoded": 201,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 1454.5999999940395,
+          "negotiation_ms": 401.40000000596046,
+          "framesDecoded": 201,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam03",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 1454.5999999940395,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam04",
+      "rtsp": {
+        "camera_id": "cam04",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 32.3,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "b7f2e385a5a4445c83bde188061ded3d"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2448.7,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam04",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam04/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 35.7,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 2484.7999999970198,
+            "negotiation_ms": 1430.7999999970198,
+            "framesDecoded": 233,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 2484.7999999970198,
+          "negotiation_ms": 1430.7999999970198,
+          "framesDecoded": 233,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam04",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 2484.7999999970198,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam05",
+      "rtsp": {
+        "camera_id": "cam05",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 30.3,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "614aa4640fa6426da6a30911767443a3"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1581.8,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam05",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam05/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 32.1,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 2484.7000000029802,
+            "negotiation_ms": 1537.7000000029802,
+            "framesDecoded": 269,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 2484.7000000029802,
+          "negotiation_ms": 1537.7000000029802,
+          "framesDecoded": 269,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam05",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 2484.7000000029802,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam06",
+      "rtsp": {
+        "camera_id": "cam06",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 31.7,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "025fafd9c3324f568290e801cc2f8934"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1151.7,
+          "codec": "hevc",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam06",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam06/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 33.1,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 3527.1000000089407,
+            "negotiation_ms": 2178.5,
+            "framesDecoded": 195,
+            "ice": "connected",
+            "error": "",
+            "attempt": 1
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 3527.1000000089407,
+          "negotiation_ms": 2178.5,
+          "framesDecoded": 195,
+          "ice": "connected",
+          "error": "",
+          "attempt": 1
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "batch_real_sdp"
+      },
+      "class": {
+        "camera_id": "cam06",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 3527.1000000089407,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam07",
+      "rtsp": {
+        "camera_id": "cam07",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 31.1,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "8c9a7faafdec43798af78b61f6731cfe"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 9431.7,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam07",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam07/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.4,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 2282.800000011921,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 323,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 323,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.83
+      },
+      "class": {
+        "camera_id": "cam07",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam08",
+      "rtsp": {
+        "camera_id": "cam08",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 41.7,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "82fe365d78804c518dd75b2bd6acc23d"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 7048.3,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam08",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam08/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.0,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 2380.6000000089407,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 308.8999999910593,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 308.8999999910593,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.82
+      },
+      "class": {
+        "camera_id": "cam08",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam09",
+      "rtsp": {
+        "camera_id": "cam09",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 42.1,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "2cf19076ebc04342a6c8ce3e8131cee0"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 7869.0,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam09",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam09/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 29.3,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 3629,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 304.29999999701977,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 304.29999999701977,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.85
+      },
+      "class": {
+        "camera_id": "cam09",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam10",
+      "rtsp": {
+        "camera_id": "cam10",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 33.9,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "8ad996715bd542f28ef4e16fc810c41d"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2212.6,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam10",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam10/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 748.4,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 911.2999999970198,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 911.2999999970198,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 13.51
+      },
+      "class": {
+        "camera_id": "cam10",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam11",
+      "rtsp": {
+        "camera_id": "cam11",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 46.3,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "ff5ca9b1656949b0a350b9731c82dcf2"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1666.6,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam11",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam11/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 31.4,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 365.6000000089407,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 365.6000000089407,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.82
+      },
+      "class": {
+        "camera_id": "cam11",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam12",
+      "rtsp": {
+        "camera_id": "cam12",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 39.0,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "8a53763e668f4753aa9bd57e278a03a3"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1482.2,
+          "codec": "hevc",
+          "error": null,
+          "wh": "1280x720"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam12",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam12/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.6,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 1582.4000000059605,
+            "negotiation_ms": 369.5,
+            "framesDecoded": 166,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 1582.4000000059605,
+          "negotiation_ms": 369.5,
+          "framesDecoded": 166,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.86
+      },
+      "class": {
+        "camera_id": "cam12",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 1582.4000000059605,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam13",
+      "rtsp": {
+        "camera_id": "cam13",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 117.4,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": null,
+          "error": "TimeoutError: timed out",
+          "session": null
+        },
+        "play": {
+          "status": null,
+          "error": "skipped_incomplete_setup",
+          "setup_status": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 3577.0,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true
+      },
+      "whep": {
+        "camera_id": "cam13",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam13/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 38.9,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 955.5,
+            "negotiation_ms": 445.5,
+            "framesDecoded": 85,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 955.5,
+          "negotiation_ms": 445.5,
+          "framesDecoded": 85,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.85
+      },
+      "class": {
+        "camera_id": "cam13",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 955.5,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam14",
+      "rtsp": {
+        "camera_id": "cam14",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 71.7,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "e3df39d9640346978879a2cf325e1c87"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 3664.8,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam14",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam14/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.6,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 2009.7000000029802,
+            "negotiation_ms": 302.09999999403954,
+            "framesDecoded": 80,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 2009.7000000029802,
+          "negotiation_ms": 302.09999999403954,
+          "framesDecoded": 80,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.8
+      },
+      "class": {
+        "camera_id": "cam14",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 2009.7000000029802,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam15",
+      "rtsp": {
+        "camera_id": "cam15",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 31.8,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "4041f526dc0249b897c0e68d897041bc"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 4348.0,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam15",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam15/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 31.8,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 728.0999999940395,
+            "framesDecoded": 0,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 728.0999999940395,
+          "framesDecoded": 0,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.83
+      },
+      "class": {
+        "camera_id": "cam15",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam16",
+      "rtsp": {
+        "camera_id": "cam16",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 34.4,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "b19e0ec2222141dc976b8978d7604f1e"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 5688.6,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam16",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam16/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 29.7,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 4257.29999999702,
+            "negotiation_ms": 300.20000000298023,
+            "framesDecoded": 59,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 4257.29999999702,
+          "negotiation_ms": 300.20000000298023,
+          "framesDecoded": 59,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.82
+      },
+      "class": {
+        "camera_id": "cam16",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 4257.29999999702,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam17",
+      "rtsp": {
+        "camera_id": "cam17",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 42.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "feb6ef9b3eed49e1885f57fe5fe9210a"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 6868.1,
+          "codec": "hevc",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam17",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam17/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.2,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 315.80000001192093,
+            "framesDecoded": 0,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 315.80000001192093,
+          "framesDecoded": 0,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 11.89
+      },
+      "class": {
+        "camera_id": "cam17",
+        "source_health": "HEVC_UNSUPPORTED",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_HEVC_BROWSER",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam18",
+      "rtsp": {
+        "camera_id": "cam18",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 29.7,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "b57fb611c8734d12a0e953177565a9e3"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 3852.0,
+          "codec": "hevc",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam18",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam18/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.7,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 4717.899999991059,
+            "negotiation_ms": 663.3999999910593,
+            "framesDecoded": 134,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 4717.899999991059,
+          "negotiation_ms": 663.3999999910593,
+          "framesDecoded": 134,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.83
+      },
+      "class": {
+        "camera_id": "cam18",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 4717.899999991059,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam19",
+      "rtsp": {
+        "camera_id": "cam19",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 32.4,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "20a6e7ee8e7748a2a04fb56fa69f6793"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1367.3,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x720"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam19",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam19/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 31.5,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 1984.2000000029802,
+            "negotiation_ms": 392,
+            "framesDecoded": 180,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 1984.2000000029802,
+          "negotiation_ms": 392,
+          "framesDecoded": 180,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.85
+      },
+      "class": {
+        "camera_id": "cam19",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 1984.2000000029802,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam20",
+      "rtsp": {
+        "camera_id": "cam20",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 37.9,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "7d7d46fe61f941a18c1337753525daab"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 1805.2,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x720"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam20",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam20/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.7,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 5208.0999999940395,
+            "negotiation_ms": 610.2000000029802,
+            "framesDecoded": 124,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 5208.0999999940395,
+          "negotiation_ms": 610.2000000029802,
+          "framesDecoded": 124,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.89
+      },
+      "class": {
+        "camera_id": "cam20",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 5208.0999999940395,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam21",
+      "rtsp": {
+        "camera_id": "cam21",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 32.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "b0697c63286641a584030b81af029f86"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 11251.8,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam21",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam21/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 29.8,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 453,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 453,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.84
+      },
+      "class": {
+        "camera_id": "cam21",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam22",
+      "rtsp": {
+        "camera_id": "cam22",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 92.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "fdb720fb05d84bfaa84b507734499d65"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 24648.1,
+          "codec": "hevc",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam22",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam22/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 116.4,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 389,
+            "framesDecoded": 0,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 389,
+          "framesDecoded": 0,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.91
+      },
+      "class": {
+        "camera_id": "cam22",
+        "source_health": "HEVC_UNSUPPORTED",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_HEVC_BROWSER",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam23",
+      "rtsp": {
+        "camera_id": "cam23",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 59.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "03cee998cab1470bb7f1a9d7d4c0a7c4"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2285.8,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x720"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam23",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam23/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 632.5,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 4775.4000000059605,
+            "negotiation_ms": 305,
+            "framesDecoded": 134,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 4775.4000000059605,
+          "negotiation_ms": 305,
+          "framesDecoded": 134,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 11.37
+      },
+      "class": {
+        "camera_id": "cam23",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 4775.4000000059605,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam24",
+      "rtsp": {
+        "camera_id": "cam24",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 36.2,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "464d5697497b4e9b92ff721abd02bbf9"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 19240.8,
+          "codec": "h264",
+          "error": null,
+          "wh": "960x576"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam24",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam24/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.3,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 303.30000001192093,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 303.30000001192093,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.78
+      },
+      "class": {
+        "camera_id": "cam24",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam25",
+      "rtsp": {
+        "camera_id": "cam25",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 83.7,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "e613e713292b43ce97ca34ac5c2d587e"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 6792.9,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x960"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam25",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam25/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 30.7,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 448.5,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 448.5,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.88
+      },
+      "class": {
+        "camera_id": "cam25",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam26",
+      "rtsp": {
+        "camera_id": "cam26",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 30.3,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "hevc"
+        },
+        "setup": {
+          "status": null,
+          "error": "TimeoutError: timed out",
+          "session": null
+        },
+        "play": {
+          "status": null,
+          "error": "skipped_incomplete_setup",
+          "setup_status": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 2351.2,
+          "codec": "hevc",
+          "error": null,
+          "wh": "2560x1440"
+        },
+        "codec": "hevc",
+        "first_fail": null,
+        "rtsp_live": true
+      },
+      "whep": {
+        "camera_id": "cam26",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam26/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 34.4,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": true,
+            "http": 201,
+            "first_frame_ms": 3715.5999999940395,
+            "negotiation_ms": 306.09999999403954,
+            "framesDecoded": 80,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": true,
+          "http": 201,
+          "first_frame_ms": 3715.5999999940395,
+          "negotiation_ms": 306.09999999403954,
+          "framesDecoded": 80,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": true,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 10.78
+      },
+      "class": {
+        "camera_id": "cam26",
+        "source_health": "LIVE",
+        "available": true,
+        "codec": "hevc",
+        "rtsp_frames": 3,
+        "whep_frames": true,
+        "whep_first_frame_ms": 3715.5999999940395,
+        "whep_http": 201,
+        "first_fail": null,
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": true,
+          "C_preview_capable": true,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam27",
+      "rtsp": {
+        "camera_id": "cam27",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 35.3,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "11bce679b21e4c2cafe47b3c1a6cec3d"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 8115.1,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x960"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam27",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam27/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 34.1,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 907.5999999940395,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 907.5999999940395,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.82
+      },
+      "class": {
+        "camera_id": "cam27",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam28",
+      "rtsp": {
+        "camera_id": "cam28",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 30.9,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "b578ef3e75744384b01b2c3df4f0236e"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 8531.9,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x960"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam28",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam28/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 29.6,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 1162.2000000029802,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 1162.2000000029802,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.82
+      },
+      "class": {
+        "camera_id": "cam28",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam29",
+      "rtsp": {
+        "camera_id": "cam29",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 35.5,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "29dcc1987a3d428d96b64c100700c006"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 7806.3,
+          "codec": "h264",
+          "error": null,
+          "wh": "1280x960"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam29",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam29/whep",
+        "tcp_8889": {
+          "ok": false,
+          "ms": 30.1,
+          "error": "CONNECTION_REFUSED",
+          "detail": "[Errno 61] Connection refused"
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 366.70000000298023,
+            "framesDecoded": 0,
+            "ice": "disconnected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 366.70000000298023,
+          "framesDecoded": 0,
+          "ice": "disconnected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.86
+      },
+      "class": {
+        "camera_id": "cam29",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    },
+    {
+      "camera_id": "cam30",
+      "rtsp": {
+        "camera_id": "cam30",
+        "attempt": 1,
+        "tcp_8554": {
+          "ok": true,
+          "ms": 32.9,
+          "error": null
+        },
+        "describe_unauth": {
+          "status": 401,
+          "error": null,
+          "www_authenticate": true
+        },
+        "describe_auth": {
+          "status": 200,
+          "error": null,
+          "codec_hint": "h264"
+        },
+        "setup": {
+          "status": 200,
+          "error": null,
+          "session": "61477f809f6142f2926b3b4429242eb4"
+        },
+        "play": {
+          "status": 454,
+          "error": null
+        },
+        "pyav": {
+          "frames": 3,
+          "ms": 6011.7,
+          "codec": "h264",
+          "error": null,
+          "wh": "1920x1080"
+        },
+        "codec": "h264",
+        "first_fail": null,
+        "rtsp_live": true,
+        "handshake_note": "raw_PLAY_failed_but_pyav_frames_ok"
+      },
+      "whep": {
+        "camera_id": "cam30",
+        "endpoint_safe": "http://103.250.160.189:8889/stream/cam30/whep",
+        "tcp_8889": {
+          "ok": true,
+          "ms": 29.2,
+          "error": null
+        },
+        "attempts": [
+          {
+            "ok": false,
+            "http": null,
+            "first_frame_ms": null,
+            "negotiation_ms": null,
+            "framesDecoded": 0,
+            "ice": "new",
+            "error": "",
+            "attempt": 1
+          },
+          {
+            "ok": false,
+            "http": 201,
+            "first_frame_ms": null,
+            "negotiation_ms": 463.29999999701977,
+            "framesDecoded": 0,
+            "ice": "connected",
+            "error": "",
+            "attempt": "solo_retry"
+          }
+        ],
+        "best": {
+          "ok": false,
+          "http": 201,
+          "first_frame_ms": null,
+          "negotiation_ms": 463.29999999701977,
+          "framesDecoded": 0,
+          "ice": "connected",
+          "error": "",
+          "attempt": "solo_retry"
+        },
+        "whep_live": false,
+        "gpu": {
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+        },
+        "mode": "solo_retry_real_sdp",
+        "elapsed_s": 12.88
+      },
+      "class": {
+        "camera_id": "cam30",
+        "source_health": "WHEP_UNAVAILABLE",
+        "available": true,
+        "codec": "h264",
+        "rtsp_frames": 3,
+        "whep_frames": false,
+        "whep_first_frame_ms": null,
+        "whep_http": 201,
+        "first_fail": "WHEP_NO_FRAME",
+        "questions": {
+          "A_rtsp_frames": true,
+          "B_whep_frames": false,
+          "C_preview_capable": false,
+          "D_concurrency_pressure": null,
+          "E_catalogue_unavailable": true
+        },
+        "label": "NOT_AUTHORITATIVE",
+        "rtsp_frame_count": 3
+      }
+    }
+  ],
+  "available": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam07",
+    "cam08",
+    "cam09",
+    "cam10",
+    "cam11",
+    "cam12",
+    "cam13",
+    "cam14",
+    "cam15",
+    "cam16",
+    "cam17",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam21",
+    "cam22",
+    "cam23",
+    "cam24",
+    "cam25",
+    "cam26",
+    "cam27",
+    "cam28",
+    "cam29",
+    "cam30"
+  ],
+  "unavailable": [],
+  "artifact": "var/reports/phase10/performance/phase14_source_census.json",
+  "browser_available": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam12",
+    "cam13",
+    "cam14",
+    "cam16",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam23",
+    "cam26"
+  ],
+  "rtsp_only": [
+    "cam07",
+    "cam08",
+    "cam09",
+    "cam10",
+    "cam11",
+    "cam15",
+    "cam17",
+    "cam21",
+    "cam22",
+    "cam24",
+    "cam25",
+    "cam27",
+    "cam28",
+    "cam29",
+    "cam30"
+  ],
+  "wall_eligible": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam12",
+    "cam13",
+    "cam14",
+    "cam16",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam23",
+    "cam26"
+  ],
+  "timestamp_utc_refined": "2026-09-16T17:09:36.164140+00:00"
+}

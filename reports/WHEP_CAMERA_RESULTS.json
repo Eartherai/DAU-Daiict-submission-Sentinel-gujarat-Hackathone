@@ -1,0 +1,42 @@
+{
+  "schema_version": "phase8-whep-1",
+  "status": "UNAVAILABLE",
+  "cameras": {
+    "cam01": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    },
+    "cam03": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    },
+    "cam18": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    },
+    "cam22": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    },
+    "cam26": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    },
+    "cam30": {
+      "negotiation": "UNAVAILABLE",
+      "first_decoded_frame": "UNAVAILABLE",
+      "webrtc_stats": "UNAVAILABLE",
+      "reason": "No authenticated WHEP/gateway endpoint or browser session was configured."
+    }
+  }
+}

@@ -205,6 +205,12 @@ class Camera(BaseModel):
     capability: dict[TimeBand, CapabilityVector] = Field(default_factory=dict)
 
     quality_note: str | None = None
+    owner: str | None = None
+    region: str | None = None
+    road: str | None = None
+    integration_model: str | None = None  # direct_whep | rtsp_bridge | rtsp_ai | mock
+    maintenance_status: str | None = None
+    access_state: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

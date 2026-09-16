@@ -3,8 +3,9 @@
         serve demo demo-reset evaluation release-check perf queryplan loadtest \
         jobs live benchmark wrong-cases bandwidth security-scorecard \
         live-evaluation measured-results detection-report daily-live-score \
-        rebuild rebuild-check models-validate live-profile live-profile-anpr \
-        live-ingest live-watch \
+        rebuild rebuild-check models-validate judge-score live-profile live-profile-anpr \
+        live-ingest live-watch benchmark-30 benchmark-50 \
+        profile-pipeline benchmark-detectors benchmark-trackers benchmark-ocr \
         live-serve clean
 
 PY := .venv/bin/python
@@ -36,6 +37,7 @@ help:
 	@echo "  make perf          Measure API p50/p95/p99 against the demo store"
 	@echo "  make queryplan     EXPLAIN the hot queries; evidence for every index"
 	@echo "  make loadtest      Concurrent camera simulation"
+	@echo "  make judge-score   Generate a conservative score from evidence artifacts"
 	@echo "  make release-check Everything, from a clean state"
 	@echo ""
 	@echo "  make live-evaluation PLATE=GJ38BH5815"
@@ -113,6 +115,23 @@ eval:
 
 bench:
 	$(PY) tools/benchmark_models/run.py --task plate_detect_ocr --fps 2 --include-rejected
+
+profile-pipeline:
+	$(PY) tools/profile_pipeline.py
+
+benchmark-detectors:
+	$(PY) tools/benchmark_detectors.py
+
+benchmark-trackers:
+	$(PY) tools/benchmark_trackers.py
+
+benchmark-ocr:
+	$(PY) tools/benchmark_ocr.py --crops "$(OCR_CROPS)" \
+	       --ground-truth "$(OCR_GROUND_TRUTH)" --out "$(OCR_REPORT)"
+
+OCR_CROPS ?= var/evaluation/crops
+OCR_GROUND_TRUTH ?= evaluation/ground_truth_lite/template.jsonl
+OCR_REPORT ?= var/reports/ocr_evaluation.json
 
 test-unit:
 	$(PY) -m pytest tests/unit -q
@@ -217,6 +236,14 @@ benchmark:
 	@$(RUN_JOB) --class C --name benchmark --wait $(WAIT) -- \
 	  $(PY) -u tools/benchmark_models/run.py $(BENCH_ARGS)
 
+benchmark-30:
+	@$(RUN_JOB) --class C --name benchmark-30 --wait $(WAIT) -- \
+	  $(PY) -u tools/benchmark_30.py $(BENCH_ARGS)
+
+benchmark-50:
+	@$(RUN_JOB) --class C --name benchmark-50 --wait $(WAIT) -- \
+	  $(PY) -u tools/benchmark_50.py $(BENCH_ARGS)
+
 # Full gate. Run before declaring a milestone complete.
 verify:
 	@$(RUN_JOB) --class D --name verify --wait $(WAIT) -- \
@@ -305,6 +332,9 @@ queryplan:
 
 loadtest:
 	$(PY) tools/perf/camera_load.py --cameras 50 --seconds 60
+
+judge-score:
+	$(PY) tools/judge_score.py
 
 evaluation: media
 	$(PY) tests/evaluation/run_anpr_eval.py --fps 4

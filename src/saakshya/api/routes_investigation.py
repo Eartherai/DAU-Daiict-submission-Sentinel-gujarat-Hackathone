@@ -428,6 +428,16 @@ async def camera_whep(state: StateDep, ctx: AuthDep, camera_id: str,
                              media_type="application/sdp")
 
 
+@router.get("/cameras/{camera_id}/live-boxes", include_in_schema=False)
+async def live_boxes_alias(state: StateDep, ctx: AuthDep, camera_id: str,
+                           overlay: str = "full",
+                           people: bool = True, vehicles: bool = True,
+                           anpr: bool = True) -> dict[str, Any]:
+    from saakshya.api.routes_command import boxes
+    return await boxes(state, ctx, camera_id, overlay=overlay,
+                       people=people, vehicles=vehicles, anpr=anpr)
+
+
 @router.get("/cameras/{camera_id}", summary="Camera context: registry, health, capability")
 async def camera_context(state: StateDep, ctx: AuthDep, camera_id: str
                          ) -> dict[str, Any]:

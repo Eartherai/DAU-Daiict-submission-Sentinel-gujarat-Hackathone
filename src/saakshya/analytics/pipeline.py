@@ -37,6 +37,7 @@ from saakshya.analytics.motion import MotionConfig, MotionDetector
 from saakshya.analytics.quality import ObservationQuality, assess
 from saakshya.analytics.tracker import Detection, Track, TrackerConfig, TrackerPool, iou
 from saakshya.ingest.frame import Frame
+from saakshya.runtime.inference_scheduler import AdaptiveInferenceScheduler
 from saakshya.store import VehicleObservation, to_us
 
 log = logging.getLogger(__name__)
@@ -86,6 +87,9 @@ class PipelineConfig:
     min_track_hits: int = 2
     #: Skip analytics on warm-up frames — they arrive faster than real time.
     skip_warmup: bool = True
+    #: Optional adaptive gate. ``None`` retains the historical every-frame
+    #: behaviour and therefore keeps existing callers/API semantics unchanged.
+    inference_scheduler: AdaptiveInferenceScheduler | None = None
 
 
 @dataclass
@@ -354,6 +358,27 @@ class CameraPipeline:
 
     # -- main entry point --------------------------------------------------- #
     def process(self, frame: Frame) -> list[VehicleObservation]:
+        """Analyse one frame, using an optional bounded scheduler slot.
+
+        A full queue never causes evidence loss: the frame is processed
+        synchronously as a fallback, outside the advisory queue.
+        """
+        gate = self.cfg.inference_scheduler
+        plan = gate.plan(self.stats.frames_in) if gate else None
+        admitted = bool(plan and plan.sample and plan.infer and gate and
+                        gate.admit(plan.mode))
+        if plan and plan.sample and plan.infer and gate and not admitted:
+            log.warning("scheduler queue full on %s; processing synchronously",
+                        self.camera_id)
+        try:
+            return self._process(frame, plan)
+        finally:
+            if admitted and gate:
+                gate.complete()
+
+    def _process(
+        self, frame: Frame, plan: Any = None
+    ) -> list[VehicleObservation]:
         """Analyse one frame. Returns observations for tracks that just ended."""
         self.stats.frames_in += 1
 
@@ -371,9 +396,13 @@ class CameraPipeline:
             return []
         self.stats.frames_analysed += 1
 
+        if plan is not None and not plan.sample:
+            return []
+
         # 1. Detect. Plate reads come from the ANPR engine, which already does
         #    resolution normalisation and full-resolution cropping.
-        reads = self.anpr.read_frame(frame.image, frame.pts_s)
+        reads = self.anpr.read_frame(frame.image, frame.pts_s) if (
+            plan is None or plan.ocr) else []
         self.stats.plate_detections += len(reads)
 
         # Body candidates: the detector where it is usable, motion everywhere.
@@ -465,15 +494,16 @@ class CameraPipeline:
         # so ties went to the last frame, which is systematically the worst one
         # (the vehicle half out of shot). Measured symptom: colour "black" on
         # every observation, sampled from road.
-        for t in active:
-            view = self._view_score(t, frame)
-            best_view = self._best_attrs.get(t.track_id)
-            if best_view is None or view > best_view[0]:
-                body = self._body_box(t, frame)
-                if body is None:
-                    self.stats.attrs_abstained_implausible_box += 1
-                    continue
-                self._best_attrs[t.track_id] = (view, extract_attrs(frame.image, body))
+        if plan is None or plan.reid:
+            for t in active:
+                view = self._view_score(t, frame)
+                best_view = self._best_attrs.get(t.track_id)
+                if best_view is None or view > best_view[0]:
+                    body = self._body_box(t, frame)
+                    if body is None:
+                        self.stats.attrs_abstained_implausible_box += 1
+                        continue
+                    self._best_attrs[t.track_id] = (view, extract_attrs(frame.image, body))
 
         # 4. Emit for tracks that ended this step.
         out: list[VehicleObservation] = []

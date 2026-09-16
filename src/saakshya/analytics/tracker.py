@@ -97,6 +97,12 @@ class Track:
         return (x1 + dx, y1 + dy, x2 + dx, y2 + dy)
 
     def update(self, det: Detection, pts_s: float, t_norm: datetime) -> None:
+        if pts_s <= self.last_pts_s:
+            # A decoder can deliver a reordered frame after a reconnect. It
+            # must not move track state backwards; the ingest layer will
+            # normally rotate the segment, but this guard keeps direct replay
+            # and tests conservative too.
+            return
         dt = pts_s - self.last_pts_s
         if dt > 1e-3:
             (px, py), (cx, cy) = centre(self.box), centre(det.box)

@@ -399,3 +399,21 @@ class PlateVoter:
             "rejected_insufficient_votes": self.rejected_low_votes,
             "rejected_low_confidence": self.rejected_low_conf,
         }
+
+
+def temporal_ocr_consensus(
+    reads: list[RawRead],
+    *,
+    config: AnprConfig | None = None,
+    track_key: str = "evaluation-track",
+) -> VotedPlate | None:
+    """Resolve OCR observations using the live track voter semantics.
+
+    This adapter deliberately contains no alternate voting rules.  It is safe
+    for offline evaluation because :class:`PlateVoter` still validates plate
+    structure, applies the PTS window, and preserves conservative unreadable
+    behaviour for weak or competing reads.
+    """
+    voter = PlateVoter(config)
+    voter.add(track_key, reads)
+    return voter.resolve(track_key)

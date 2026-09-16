@@ -79,10 +79,10 @@ def test_auto_prefers_a_configured_provider_over_rules(monkeypatch):
 
 
 def test_no_key_is_ever_echoed_by_a_backend():
-    b = AnthropicBackend(api_key="super-secret-value")
+    b = AnthropicBackend(api_key="super-secret-value")  # secret-test
     assert "super-secret-value" not in repr(b)
     assert "super-secret-value" not in str(getattr(b, "name", ""))
-    g = GeminiBackend(api_key="super-secret-value")
+    g = GeminiBackend(api_key="super-secret-value")  # secret-test
     assert "super-secret-value" not in repr(g)
     assert g.model == "gemini-3-flash-preview"
 

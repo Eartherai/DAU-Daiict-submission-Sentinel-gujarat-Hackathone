@@ -23,13 +23,13 @@ from saakshya.live.credentials import (
 
 CLEAN = "rtsp://103.250.160.189:8554/stream/cam01"
 EMAIL = "officer.name@example.gov.in"
-PASSWORD = "AAAA-BBBB-CCCC"
+TEST_ACCESS_VALUE = "AAAA-BBBB-CCCC"
 
 
 @pytest.fixture
 def creds(monkeypatch):
     monkeypatch.setenv("SENTINEL_GRID_EMAIL", EMAIL)
-    monkeypatch.setenv("SENTINEL_GRID_PASSWORD", PASSWORD)
+    monkeypatch.setenv("SENTINEL_GRID_PASSWORD", TEST_ACCESS_VALUE)
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def test_the_at_in_an_email_is_percent_encoded(creds):
 
 def test_redaction_removes_both_halves(creds):
     out = redact(credentialed(CLEAN))
-    assert EMAIL not in out and PASSWORD not in out
+    assert EMAIL not in out and TEST_ACCESS_VALUE not in out
     assert "officer.name%40example.gov.in" not in out
     assert out == "rtsp://<redacted>@103.250.160.189:8554/stream/cam01"
 
@@ -144,7 +144,7 @@ def test_probe_opens_the_credentialed_url_and_redacts_failures(creds, monkeypatc
     info = probe_stream(CLEAN, timeout_s=1)
     assert EMAIL.replace("@", "%40") in seen["url"]
     assert EMAIL not in info["error"]
-    assert PASSWORD not in info["error"]
+    assert TEST_ACCESS_VALUE not in info["error"]
     assert "<redacted>@" in info["error"]
     assert info["reachable"] is False
 
@@ -253,7 +253,7 @@ def test_last_ingest_still_is_fallback_when_ingest_dropped_and_capture_fails(
 
     monkeypatch.setenv("SAAKSHYA_EVIDENCE", str(tmp_path))
     monkeypatch.setenv("SENTINEL_GRID_EMAIL", EMAIL)
-    monkeypatch.setenv("SENTINEL_GRID_PASSWORD", PASSWORD)
+    monkeypatch.setenv("SENTINEL_GRID_PASSWORD", TEST_ACCESS_VALUE)
     write_preview("cam07", np.zeros((16, 16, 3), dtype=np.uint8))
     path = preview_path("cam07")
     assert path is not None

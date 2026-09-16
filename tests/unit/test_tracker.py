@@ -96,6 +96,18 @@ def test_track_ages_out_on_pts_not_frames():
     assert len(tr.finished) == 1
 
 
+def test_irregular_pts_regression_does_not_create_backwards_velocity():
+    """A reordered frame must not turn a track's velocity into nonsense."""
+    tr = ByteTracker("C", "S")
+    tr.step([Detection(moving(100), 0.9)], 10.0, t_at(10.0))
+    tr.step([Detection(moving(150), 0.9)], 10.5, t_at(10.5))
+    before = next(iter(tr.tracks.values())).velocity
+    tr.step([Detection(moving(120), 0.9)], 10.2, t_at(10.2))
+    track = next(iter(tr.tracks.values()))
+    assert track.last_pts_s == 10.5
+    assert track.velocity == before
+
+
 def test_segment_break_ends_tracks():
     """Identity must not survive a scene cut — the corpus loops, and carrying a
     track across the loop fabricates continuity."""

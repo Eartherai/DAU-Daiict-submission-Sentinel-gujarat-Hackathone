@@ -8,7 +8,7 @@ answer is a third state — a lead — and these tests pin the boundary.
 """
 from __future__ import annotations
 
-from saakshya.analytics.anpr import AnprConfig, PlateVoter, RawRead
+from saakshya.analytics.anpr import AnprConfig, PlateVoter, RawRead, temporal_ocr_consensus
 
 
 def read(text: str, conf: float, pts: float, det: float = 0.9) -> RawRead:
@@ -105,6 +105,23 @@ def test_forensic_rows_keep_rejected_ocr():
     assert by_text["GJ05AB1234"]["valid"] is True
     assert by_text["GJ05AB1234"]["canonical"] == "GJ05AB1234"
     assert by_text["GJ05AB1234"]["plate_pixel_width"] == 100.0
+
+
+def test_temporal_consensus_keeps_conservative_voter_semantics():
+    assert temporal_ocr_consensus([
+        read("GJ05AB1234", 0.70, 1.0),
+        read("GJ05AB1234", 0.72, 1.4),
+    ]).votes == 2
+    assert temporal_ocr_consensus([read("GJ05AB1234", 0.60, 1.0)]) is None
+
+
+def test_temporal_consensus_uses_pts_window_not_arrival_order():
+    cfg = AnprConfig(vote_window_s=1.0)
+    result = temporal_ocr_consensus([
+        read("GJ05AB1234", 0.90, 100.0),
+        read("GJ05AB1234", 0.90, 98.0),
+    ], config=cfg)
+    assert result is not None and result.votes == 1 and result.provisional
 
 
 def test_pipeline_records_rejected_ocr_even_when_no_observation():

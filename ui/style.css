@@ -255,6 +255,13 @@ a { color: var(--accent); }
 /* Demonstration state is called out in the seal colour. It is not an error —
    it is the one fact a viewer must not carry away wrong. */
 .handling .src.demo { color: var(--seal); font-weight: 600; }
+.handling .feed-indicator {
+  border-left: 1px solid var(--navy-line);
+  padding-left: 10px;
+  font: 600 9px/1.2 var(--mono);
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
 
 /* Masthead controls sit on navy, so they cannot borrow the page's surfaces. */
 .topbar button.ghost {
@@ -1588,7 +1595,12 @@ main .result .plate { font-size: calc(13px * var(--content)); }
   padding: 10px 16px 6px; border-bottom: 1px solid var(--line);
 }
 .live-head h2 { margin: 0; font: 650 18px/1.2 var(--sans); display: inline; margin-right: 8px; }
-.live-layouts { display: flex; gap: 4px; }
+.live-layouts { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.live-control-label {
+  color: var(--ink-3); font: 650 9px/1 var(--sans);
+  letter-spacing: .1em; text-transform: uppercase; margin-left: 5px;
+}
+.live-priority-label, .live-focus-label { border-left: 1px solid var(--line); padding-left: 9px; }
 .live-layouts button, .live-filters button {
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
   border-radius: 999px; padding: 5px 10px; font: 500 12px/1 var(--sans); cursor: pointer;
@@ -1596,6 +1608,79 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 .live-layouts button.on, .live-filters button.on {
   background: var(--accent-soft); border-color: #e6d9c9; color: var(--seal); font-weight: 600;
 }
+.live-layouts .telemetry-toggle { margin-left: 6px; }
+.live-telemetry {
+  margin: 8px 16px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.live-telemetry > div:first-child {
+  display: flex; gap: 10px; align-items: baseline;
+  font: 650 11px/1.2 var(--sans); text-transform: uppercase; letter-spacing: .08em;
+}
+.telemetry-note { color: var(--ink-3); font: 400 11px/1.2 var(--sans); text-transform: none; letter-spacing: 0; }
+.telemetry-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px 16px; margin: 8px 0 0;
+}
+.telemetry-grid div { min-width: 0; }
+.telemetry-grid dt { color: var(--ink-3); font-size: 10px; }
+.telemetry-grid dd { margin: 2px 0 0; font: 600 11px/1.3 var(--mono); overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .handling .feed-indicator { display: none; }
+  .telemetry-grid { grid-template-columns: 1fr 1fr; }
+}
+.cc-status {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  margin-left: 8px;
+}
+.cc-chip {
+  font: 600 11px/1 var(--sans); color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 9px; white-space: nowrap;
+}
+.live-intel, .live-presets {
+  display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+  padding: 6px 16px; border-bottom: 1px solid var(--line);
+}
+.live-intel button, .live-presets button {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border-radius: 999px; padding: 5px 10px; font: 500 12px/1 var(--sans); cursor: pointer;
+}
+.live-intel button.on, .live-presets button.on {
+  background: var(--accent-soft); border-color: #e6d9c9; color: var(--seal); font-weight: 600;
+}
+.live-counts { margin-left: auto; font: 600 12px/1 var(--mono); color: var(--ink-2); }
+.live-compare {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  position: absolute; inset: 0; z-index: 3; background: #111;
+}
+.live-compare .pane { position: relative; overflow: hidden; }
+.live-compare .pane video, .live-compare .pane img, .live-compare .pane canvas {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.live-compare .pane-label {
+  position: absolute; left: 8px; top: 8px; z-index: 4;
+  background: rgba(0,0,0,.65); color: #fff; font: 650 11px/1 var(--sans);
+  padding: 4px 8px; border-radius: 6px;
+}
+.track-panel {
+  border-top: 1px solid var(--line); max-height: 280px; overflow: auto;
+  background: var(--surface);
+}
+.track-hop { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.track-hop .role { font: 650 11px/1 var(--sans); letter-spacing: .08em; min-width: 9em; }
+.alert-card .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px; margin: 0 0 16px;
+}
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.kpi .k { font: 650 10px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.kpi .v { font: 650 22px/1.2 var(--mono); margin-top: 4px; }
+
 .live-filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px; }
 .live-body { flex: 1; min-height: 0; overflow: auto; }
 .live-focus {
@@ -1610,6 +1695,10 @@ main .result .plate { font-size: calc(13px * var(--content)); }
   min-height: 420px;
 }
 .live-stage img, .live-stage video { width: 100%; height: 100%; object-fit: cover; display: block; min-height: 420px; }
+.live-stage .live-overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 2;
+}
 .live-stage .hud {
   position: absolute; left: 10px; top: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap;
   padding-right: 168px;
@@ -1706,6 +1795,37 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 #live[data-layout="twoup"] .live-grid { grid-template-columns: 1fr 1fr; }
 #live[data-layout="dense"] .live-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 #live[data-layout="dense"] .live-tile .meta .grades { display: none; }
+/* Fixed wall grids: 12 (3×4), 16 (4×4), 25 (5×5), 30 (6×5) */
+#live[data-wall="12"][data-layout="grid"] .live-grid,
+#live[data-wall="12"][data-layout="dense"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#live[data-wall="16"][data-layout="grid"] .live-grid,
+#live[data-wall="16"][data-layout="dense"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#live[data-wall="25"][data-layout="grid"] .live-grid,
+#live[data-wall="25"][data-layout="dense"] .live-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#live[data-wall="30"][data-layout="grid"] .live-grid,
+#live[data-wall="30"][data-layout="dense"] .live-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1100px) {
+  #live[data-wall="25"][data-layout="grid"] .live-grid,
+  #live[data-wall="25"][data-layout="dense"] .live-grid,
+  #live[data-wall="30"][data-layout="grid"] .live-grid,
+  #live[data-wall="30"][data-layout="dense"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+#live[data-wall="4"] .live-grid .live-tile:nth-child(n+5),
+#live[data-wall="9"] .live-grid .live-tile:nth-child(n+10),
+#live[data-wall="12"] .live-grid .live-tile:nth-child(n+13),
+#live[data-wall="16"] .live-grid .live-tile:nth-child(n+17),
+#live[data-wall="25"] .live-grid .live-tile:nth-child(n+26),
+#live[data-wall="4"] .filmstrip .live-tile:nth-child(n+5),
+#live[data-wall="9"] .filmstrip .live-tile:nth-child(n+10),
+#live[data-wall="12"] .filmstrip .live-tile:nth-child(n+13),
+#live[data-wall="16"] .filmstrip .live-tile:nth-child(n+17),
+#live[data-wall="25"] .filmstrip .live-tile:nth-child(n+26) { display: none; }
+.live-tile[data-priority="inactive"] { opacity: .62; }
+.live-tile .stream-meta { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.live-tile .stream-meta .chip { font-size: 8px; }
+.live-tile .stream-meta .chip.ux-live { color: #0a7; border-color: color-mix(in srgb, #0a7 40%, var(--line)); }
+.live-tile .stream-meta .chip.ux-preview { color: #b80; border-color: color-mix(in srgb, #b80 40%, var(--line)); }
+.live-tile .meta .sub { font-size: 10px; opacity: 0.85; }
 #live[data-layout="focus"] .live-grid { display: none; }
 #live[data-layout="tab"] .live-grid, #live[data-layout="tab"] .live-focus { display: none; }
 #live[data-layout="grid"] .live-focus, #live[data-layout="twoup"] .live-focus,

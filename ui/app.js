@@ -12,7 +12,7 @@
  *  - Uncertainty is stated in words, not implied by colour. CONFIRMED BY PLATE
  *    and REQUIRES VERIFICATION are printed; the colour only reinforces them.
  */
-import { MapView } from "/ui/map.js?v=cr086";
+import { MapView } from "/ui/map.js?v=cr087";
 
 /* ─── API client ─────────────────────────────────────────────────────────── */
 const state = {
@@ -29,6 +29,18 @@ const state = {
   openCase: null,
   copilotConfig: { available: false, gemini: false },
   liveConfig: { whep: false },
+  telemetry: {
+    snapshot: { started: 0, completed: 0, error: "" },
+    whep: { started: 0, completed: 0, error: "" },
+    playbackError: "",
+    reconnect: "idle",
+    browser: {
+      framesDecoded: null, framesDropped: null, packetsLost: null,
+      packetsReceived: null, fps: null, jitterMs: null, jitterBufferMs: null,
+      rttMs: null, codec: "", decoder: "", width: null, height: null,
+      freezes: 0, lastFrameAt: 0, state: "IDLE",
+    },
+  },
 };
 
 class ApiError extends Error {
@@ -439,6 +451,23 @@ async function applyDeploymentConfig(cfg) {
     src.textContent = `${cfg.data.store} · ${cfg.data.holds}`;
     src.classList.toggle("demo", cfg.data.holds === "DEMONSTRATION");
   }
+  const value = (...keys) => {
+    for (const key of keys) {
+      const v = cfg.live?.[key];
+      if (v !== undefined && v !== null && String(v).trim()) return String(v);
+    }
+    return "not reported";
+  };
+  const setIndicator = (id, label, text) => {
+    const node = $(`#${id}`);
+    if (node) node.textContent = `${label}: ${text}`;
+  };
+  setIndicator("feed-government", "GOVERNMENT FEED",
+               value("government_feed", "government", "source"));
+  setIndicator("feed-own", "OWN FEED / FULL ANALYTICS",
+               value("own_feed", "analytics_mode"));
+  setIndicator("feed-central", "CENTRAL ANALYTICS MODE",
+               value("central_analytics_mode", "central_analytics"));
   if (mapOpts.tileTemplate) {
     map1?.setRasterBasemap?.(mapOpts.tileTemplate, mapOpts.attribution);
     map2?.setRasterBasemap?.(mapOpts.tileTemplate, mapOpts.attribution);
@@ -489,7 +518,7 @@ $("#search-form").addEventListener("submit", async (e) => {
   if ($("#q-watchlist").checked) params.set("watchlist_only", "true");
   for (const [id, key] of [["q-colour", "colour"], ["q-type", "object_type"],
                            ["q-district", "district"], ["q-camera", "camera"]]) {
-    const v = $(`#${id}`).value.trim();
+    const v = $(`#${id}`)?.value.trim();
     if (v) params.set(key, v);
   }
   const from = localToIso($("#q-from").value);
@@ -501,11 +530,30 @@ $("#search-form").addEventListener("submit", async (e) => {
   btn.disabled = true;
   btn.textContent = "Searching…";
   try {
-    const res = await api(`/search?${params}`);
-    state.results = res.candidates || [];
-    state.target = plate || null;
-    renderResults(res);
-    if (plate && state.results.length) await loadTrajectory(plate);
+    const eventType = $("#q-event")?.value.trim();
+    const severity = $("#q-severity")?.value.trim();
+    if (eventType || severity) {
+      const ep = new URLSearchParams(params);
+      if (eventType) ep.set("event_type", eventType);
+      if (severity) ep.set("severity", severity);
+      if (plate) ep.set("plate", plate);
+      const ev = await api(`/command/events?${ep}`);
+      state.results = (ev.events || []).map((e) => ({
+        observation_id: e.observation_id || e.event_id,
+        camera_id: e.camera_id, plate: e.entity, t_norm: e.timestamp,
+        object_type: e.object_type, score: e.confidence,
+        event: e.event,
+      }));
+      state.target = plate || null;
+      renderResults({ candidates: state.results, note: ev.provenance });
+      if (plate && state.results.length) await loadTrajectory(plate);
+    } else {
+      const res = await api(`/search?${params}`);
+      state.results = res.candidates || [];
+      state.target = plate || null;
+      renderResults(res);
+      if (plate && state.results.length) await loadTrajectory(plate);
+    }
   } catch (err) {
     renderSearchError(err);
   } finally {
@@ -765,6 +813,10 @@ function renderDetail(c) {
         class: "ghost",
         onclick: () => attach("target", c.plate, { plate: c.plate }),
       }, "Attach target to case"),
+      c.plate && el("button", {
+        class: "primary",
+        onclick: () => followVehicle(c.plate),
+      }, "Follow vehicle"),
       el("button", {
         class: "ghost",
         onclick: () => nextCameras(c),
@@ -906,6 +958,45 @@ async function loadTrajectory(plate) {
     $("#traj-body").replaceChildren(
       el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
   }
+}
+
+async function followVehicle(plate) {
+    try {
+      const res = await api(`/follow/${encodeURIComponent(plate)}`);
+      const body = $("#traj-body");
+      clear(body);
+      body.append(el("div", { class: "notice" },
+        el("strong", { text: `Follow vehicle · ${plate}` }),
+        `${res.route_confidence?.confirmed_sightings || 0} confirmed sighting(s), `
+        + `${res.candidates?.length || 0} ranked follow-up lead(s).`));
+      for (const c of res.candidates || []) {
+        body.append(el("div", { class: "result" },
+          el("div", { class: "top" },
+            el("span", { class: "plate", text: c.camera_id }),
+            el("span", { class: "chip verify", text: c.status }),
+            el("span", { class: "time", text: fmtClock(c.t_norm) })),
+          el("div", { class: "meta" },
+            el("span", { text: `score ${num(c.score)}` }),
+            el("span", { text: c.reason || "ranked lead" }),
+            c.distance_m != null && el("span", {
+              text: `${Math.round(c.distance_m)} m · ${Math.round(c.elapsed_s)} s`,
+            }))));
+      }
+      for (const x of res.contradictions || []) {
+        body.append(el("div", { class: "notice bad" },
+          el("strong", { text: "ROUTE_CONTRADICTION" }),
+          `${x.from_camera} → ${x.to_camera}: ${x.reason}. `
+          + `Distance ${Math.round(x.distance_m)} m, elapsed ${Math.round(x.elapsed_s)} s, `
+          + `implied ${Math.round(x.implied_speed_kmh)} km/h.`));
+      }
+      if (!(res.candidates || []).length && !(res.contradictions || []).length) {
+        body.append(el("div", { class: "notice neutral",
+          text: "No feasible subsequent camera lead was found in this window." }));
+      }
+      $("#traj-target").textContent = plate;
+    } catch (err) {
+      toast(`${err.code}: ${err.message}`, true);
+    }
 }
 
 function renderTrajectory() {
@@ -1357,6 +1448,16 @@ async function onMapSelect(hit, map) {
           class: "notice neutral", style: "margin-top:6px",
           text: cam.location_note }));
       }
+      target.append(el("div", { class: "live-actions", style: "display:flex;margin-top:8px" },
+        el("button", { class: "primary", onclick: () => {
+          show("live");
+          const tile = $(`#live .live-tile[data-camera="${CSS.escape(hit.id)}"]`);
+          openLive(tile || el("div"), hit.id);
+        } }, "Live video"),
+        el("button", { class: "ghost", onclick: () => {
+          if ($("#q-camera")) $("#q-camera").value = hit.id;
+          show("investigate");
+        } }, "Events")));
     } else {
       toast(summary);
     }
@@ -1378,9 +1479,10 @@ loaders.overview = async () => {
   clear(box);
   box.append(el("div", { class: "ov-page" }, loadingNote("Loading the shift picture…")));
   try {
-    const [o, marksPay] = await Promise.all([
+    const [o, marksPay, cmd] = await Promise.all([
       api("/overview"),
       api("/marks").catch(() => ({ marks: [] })),
+      api("/command/summary").catch(() => null),
     ]);
     const copy = situationCopy(o);
     const hour = o.observations.marks_last_hour || {};
@@ -1437,7 +1539,12 @@ loaders.overview = async () => {
         el("h4", { text: "Alerts unacknowledged" }),
         el("div", { class: "big", text: String(o.alerts.open) }),
         el("div", { class: "sub", text: "each names the watchlist rule that fired" }),
-        bar(o.alerts.open, "red")));
+        bar(o.alerts.open, "red")),
+      cmd ? el("div", { class: "kpi" },
+        el("h4", { text: "Persons / vehicles in store" }),
+        el("div", { class: "big", text: `${cmd.persons_detected || 0} / ${cmd.vehicles_tracked || 0}` }),
+        el("div", { class: "sub", text: `${cmd.anpr_reads_per_min || 0} ANPR / min · ${cmd.events_per_min || 0} events / min · ${cmd.label}` }),
+        bar(cmd.persons_detected || 0)) : null);
 
     const prove = el("div", { class: "ov-card" },
       el("h3", { text: "What the estate can prove" }),
@@ -1479,6 +1586,7 @@ loaders.overview = async () => {
 
     fillNavFoot(o);
     loadHealthPanel(el("div")); // keep sys-dot updated
+    paintCommandStatus(cmd, o);
   } catch (err) {
     clear(box);
     box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
@@ -1855,6 +1963,31 @@ loaders.system = async () => {
 
     box.append(hybridArchitecture());
     box.append(worldSystemsResearch());
+    try {
+      const sys = await api("/command/systems");
+      const table = el("table", { class: "data" },
+        el("thead", {}, el("tr", {},
+          el("th", { text: "System" }), el("th", { text: "Department" }),
+          el("th", { text: "Vendor" }), el("th", { text: "Protocol" }),
+          el("th", { text: "Cameras" }), el("th", { text: "Health" }),
+          el("th", { text: "Last sync" }))));
+      const tb = el("tbody");
+      for (const s of sys.systems || []) {
+        tb.append(el("tr", {},
+          el("td", { class: "mono", text: s.system }),
+          el("td", { text: s.department }),
+          el("td", { text: s.vendor }),
+          el("td", { class: "mono", text: s.protocol }),
+          el("td", { class: "num", text: String(s.cameras) }),
+          el("td", { text: s.health }),
+          el("td", { class: "mono", text: s.last_sync || "—" })));
+      }
+      table.append(tb);
+      box.append(el("div", { class: "panel", style: "margin-top:14px" },
+        el("div", { class: "panel-head" }, el("h3", { text: "Connected systems" })),
+        el("div", { class: "section-note", text: sys.provenance }),
+        table));
+    } catch { /* command systems optional */ }
 
     const grid = el("div", { class: "command-grid", style: "margin-top:14px" });
     for (const c of h.components) {
@@ -1907,17 +2040,19 @@ function hybridArchitecture() {
    * modelled bandwidth, not left as an unfinished page. */
   const wrap = el("div", { class: "panel", style: "margin-top:14px" });
   wrap.append(el("div", { class: "panel-head" },
-    el("h3", { text: "Submitted architecture — hybrid of models 1, 2 and 3" })));
+    el("h3", { text: "Submitted architecture — hybrid Models 1+2+3+4+5" })));
   const body = el("div", { style: "padding:10px 14px" });
   const rows = [
-    ["Model 1 — Registry & GIS (mandatory, kept)",
-     "Central CCTV inventory and GIS. Nineteen cameras are placed from their names (DERIVED_FROM_NAME). Eleven remain in the registry without coordinates (NAME_INSUFFICIENT) and are listed, not invented onto the map. Model 1 does not stream live video; stills are Model 2."],
-    ["Model 2 — Unified viewing (kept as ingest live stills)",
-     "One JPEG per camera from the decode analytics already paid for, refreshed about once a second, badged LIVE when the frame is under 2.5 s old. Click one tile for optional WebRTC. A thirty-tile live-video wall would be thirty extra RTSP sessions — organiser guide: each client gets its own copy."],
-    ["Model 3 — Federation & metadata (kept)",
-     "Heterogeneous sources: government RTSP plus local MediaMTX synthetic. The observation store is the metadata bus. Adapters, not a replacement VMS. Two-source federation is the working demonstration."],
-    ["Model 4 — Central VMS recording (rejected)",
-     "MODELLED: ~80,000 cameras × 2 Mbps ≈ 160 Gbps ingest; 30-day retention ≈ 52 PB. Analytics without ingesting every raw frame. Not built. The arithmetic is the justification."],
+    ["Model 1 — Registry & GIS (foundation)",
+     "Central CCTV inventory, health and GIS. Positions that cannot be surveyed stay unlocated rather than invented. Map click opens camera detail → live video → events."],
+    ["Model 2 — Unified viewing + metadata analytics",
+     "Native video (WHEP / stills) with a decoupled overlay. Operator modes: VIDEO / VEHICLES / PEOPLE / ANPR / FULL without restarting streams."],
+    ["Model 3 — Federation & event bus (kept)",
+     "VMSAdapter contract (RTSP / ONVIF / Generic). DEMO/TEST connected-systems rows are not government VMS integrations. In-process bus with a Kafka-shaped publish/subscribe seam."],
+    ["Model 4 — Selective central analytics (not statewide recording)",
+     "Regional ingest + selective central ANPR / watchlist / route / alerts. PRIMARY/SECONDARY/PREVIEW/INACTIVE scheduler. Raw 80k video is not centralised — that remains MODELLED bandwidth arithmetic, not a deployment."],
+    ["Model 5 — Adaptive regional media / AI",
+     "Direct WHEP where the browser can decode; VideoToolbox H.264 bridge where required; RTSP/TCP stays the AI plane."],
   ];
   for (const [title, detail] of rows) {
     body.append(el("div", { class: "stat-row", style: "align-items:flex-start" },
@@ -2022,6 +2157,132 @@ let liveCaptureEnabled = true;
 let liveLayout = "focus";
 let liveDistrict = "all";
 let liveCamsAll = [];
+let liveWallMode = 12;
+let livePriority = "all";
+const intelState = {
+  analytics: true,
+  mode: "full",
+  people: true,
+  vehicles: true,
+  anpr: true,
+  tracking: true,
+  compare: false,
+};
+const snapshotInflight = new Map();
+const snapshotCache = new Map();
+let telemetryTimer = null;
+
+function telemetryValue(started, completed) {
+  if (!started) return "not started";
+  if (!completed) return "in progress";
+  return `${Math.round(completed - started)} ms`;
+}
+
+function updateTelemetry() {
+  const t = state.telemetry;
+  const videos = $$("video").filter((v) => !v.paused && v.readyState >= 2);
+  const tiles = $$("#live .live-tile").filter((tile) => {
+    const r = tile.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0
+      && r.top < innerHeight && r.left < innerWidth;
+  });
+  const set = (id, text) => { const n = $(`#${id}`); if (n) n.textContent = text; };
+  set("telemetry-video", `${videos.length} active / ${$$("video").length} total`);
+  set("telemetry-visible", `${tiles.length} of ${$$("#live .live-tile").length}`);
+  set("telemetry-snapshot", telemetryValue(t.snapshot.started, t.snapshot.completed)
+    + (t.snapshot.error ? ` · error: ${t.snapshot.error}` : ""));
+  set("telemetry-whep", telemetryValue(t.whep.started, t.whep.completed)
+    + (t.whep.error ? ` · error: ${t.whep.error}` : ""));
+  set("telemetry-playback", `${t.reconnect}${t.playbackError ? ` · error: ${t.playbackError}` : ""}`);
+  const b = t.browser;
+  const browserText = b.state === "LIVE"
+    ? `LIVE · ${b.fps == null ? "FPS unavailable" : `${b.fps.toFixed(1)} FPS`}`
+    : b.state;
+  set("telemetry-browser", browserText);
+  set("telemetry-frames", b.framesDecoded == null
+    ? "UNAVAILABLE" : `${b.framesDecoded} decoded · ${b.framesDropped ?? 0} dropped`);
+  set("telemetry-network", b.packetsReceived == null
+    ? "UNAVAILABLE"
+    : `${b.packetsReceived} received · ${b.packetsLost ?? 0} lost · `
+      + `${b.jitterMs == null ? "jitter unavailable" : `${b.jitterMs.toFixed(1)} ms jitter`}`);
+  set("telemetry-codec", b.codec || "not reported");
+}
+
+function startTelemetry() {
+  if (telemetryTimer) return;
+  telemetryTimer = setInterval(updateTelemetry, 500);
+  updateTelemetry();
+}
+
+function streamPriority(cam) {
+  if (livePlayer?.id && livePlayer.id === cam?.camera_id) return "PRIMARY";
+  const declared = String(cam?.stream_priority || cam?.priority || "").toUpperCase();
+  if (["PRIMARY", "SECONDARY", "PREVIEW", "INACTIVE"].includes(declared)) return declared;
+  const status = String(cam?.state || "").toUpperCase();
+  if (status === "STREAMING") return "SECONDARY";
+  if (status === "OBSERVED") return "PREVIEW";
+  if (status === "UNKNOWN" || status === "STOPPED" || status === "DOWN"
+      || status === "FAILED") return "INACTIVE";
+  return "PREVIEW";
+}
+
+function wallCams(cams) {
+  const filtered = livePriority === "all"
+    ? cams
+    : cams.filter((cam) => streamPriority(cam).toLowerCase() === livePriority);
+  return filtered.slice(0, liveWallMode);
+}
+
+/* All visual representations of a camera share this request and blob URL.
+ * The grid, filmstrip and table are intentionally separate accessible views,
+ * but they must never become separate upstream consumers. */
+async function sharedSnapshot(id) {
+  const overlay = intelState.analytics ? intelState.mode : "off";
+  const key = `${id}:${overlay}:${intelState.people}:${intelState.vehicles}:${intelState.anpr}`;
+  const cached = snapshotCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < 1000) return cached;
+  const existing = snapshotInflight.get(key);
+  if (existing) return existing;
+  state.telemetry.snapshot.started = performance.now();
+  state.telemetry.snapshot.error = "";
+  const qs = new URLSearchParams({
+    overlay,
+    people: String(intelState.people),
+    vehicles: String(intelState.vehicles),
+    anpr: String(intelState.anpr),
+  });
+  const request = fetch(`/cameras/${encodeURIComponent(id)}/snapshot?${qs}`,
+                         { headers: authHeaders() })
+    .then(async (res) => {
+      if (!res.ok) {
+        let why = "";
+        try { why = (await res.json())?.detail?.message || ""; } catch { /* not json */ }
+        const e = new Error(String(res.status));
+        e.why = why;
+        throw e;
+      }
+      const blob = await res.blob();
+      const old = snapshotCache.get(key);
+      if (old?.url) URL.revokeObjectURL(old.url);
+      const value = {
+        url: URL.createObjectURL(blob),
+        age: Number(res.headers.get("X-Frame-Age-Seconds")),
+        kind: (res.headers.get("X-Frame-Kind") || "").toLowerCase(),
+        source: res.headers.get("X-Frame-Source") || "",
+        fetchedAt: Date.now(),
+      };
+      snapshotCache.set(key, value);
+      state.telemetry.snapshot.completed = performance.now();
+      return value;
+    })
+    .catch((err) => {
+      state.telemetry.snapshot.error = err.message || "request failed";
+      throw err;
+    })
+    .finally(() => snapshotInflight.delete(key));
+  snapshotInflight.set(key, request);
+  return request;
+}
 
 /* `front` is for a tile the operator has just scrolled to. Without it a newly
  * visible tile joined the back of a queue behind twenty cameras that had
@@ -2093,10 +2354,12 @@ function setTileState(id, state, text) {
 }
 
 loaders.live = async () => {
+  startTelemetry();
   const box = $("#live");
   clear(box);
   liveLayout = liveLayout || "focus";
   box.dataset.layout = liveLayout;
+  box.dataset.wall = String(liveWallMode);
 
   let cams = [];
   try {
@@ -2123,7 +2386,7 @@ loaders.live = async () => {
     cams.sort((a, b) => rank.get(a.camera_id) - rank.get(b.camera_id));
   }
   liveCamsAll = cams;
-  $("#live-count").textContent = `${cams.length} cameras`;
+  $("#live-count").textContent = `${cams.length} cameras · wall ${liveWallMode}`;
   $("#n-live").textContent = String(cams.length);
   labelCount("#n-live", "cameras on the wall");
 
@@ -2171,9 +2434,10 @@ function paintLiveWorkspace(all) {
   const box = $("#live");
   if (!box) return;
   const keep = livePlayer?.id;
-  const cams = visibleLiveCams(all || liveCamsAll);
+  const cams = wallCams(visibleLiveCams(all || liveCamsAll));
   clear(box);
   box.dataset.layout = liveLayout;
+  box.dataset.wall = String(liveWallMode);
 
   const focus = el("div", { class: "live-focus" });
   const stage = el("div", { class: "live-stage", id: "live-stage" });
@@ -2208,19 +2472,21 @@ function paintLiveWorkspace(all) {
     }
   }, { rootMargin: "200px" });
 
-  for (const c of cams) {
+  for (const [index, c] of cams.entries()) {
     const tile = liveTile(c, { state: c.state, frames: c.frames, last_error: c.last_error });
+    tile.dataset.wallIndex = String(index);
     grid.append(tile);
     const mini = liveTile(c, { state: c.state, frames: c.frames, last_error: c.last_error });
+    mini.dataset.wallIndex = String(index);
     strip.append(mini);
     liveObserver.observe(tile);
     liveObserver.observe(mini);
     tile.dataset.requested = "1";
     mini.dataset.requested = "1";
-    queueStill(mini._img, c.camera_id);
+    if (index < liveWallMode) queueStill(mini._img, c.camera_id);
 
     const thumb = el("img", { alt: c.camera_id, "data-camera": c.camera_id });
-    queueStill(thumb, c.camera_id);
+    if (index < liveWallMode) queueStill(thumb, c.camera_id);
     const row = el("tr", {},
       el("td", {}, thumb),
       el("td", {}, el("div", { text: c.name || c.camera_id }),
@@ -2470,6 +2736,117 @@ let liveClock = null;
 function stopLiveClock() {
   if (liveClock) { clearInterval(liveClock); liveClock = null; }
 }
+
+/* Detection overlay is independent of WHEP playback: metadata is polled into a
+ * bounded queue and painted on rAF. A stalled detector must not pause video. */
+let overlayState = null;
+const OVERLAY_STALE_MS = 2500;
+const OVERLAY_QUEUE_MAX = 32;
+
+function stopDetectionOverlay() {
+  if (!overlayState) return;
+  if (overlayState.raf) cancelAnimationFrame(overlayState.raf);
+  if (overlayState.poll) clearInterval(overlayState.poll);
+  overlayState = null;
+}
+
+function startDetectionOverlay(cameraId, canvas) {
+  stopDetectionOverlay();
+  if (!canvas) return;
+  const tracks = new Map(); // track_id -> {bbox, plate, ts, colour}
+  overlayState = {
+    cameraId, canvas, tracks, raf: 0, poll: 0,
+    lastMetaAt: 0, overlayLatencyMs: null,
+  };
+  const poll = async () => {
+    if (!overlayState || overlayState.cameraId !== cameraId) return;
+    try {
+      if (!intelState.analytics) {
+        overlayState.tracks.clear();
+      }
+      const qs = new URLSearchParams({
+        overlay: intelState.analytics ? intelState.mode : "off",
+        people: String(intelState.people),
+        vehicles: String(intelState.vehicles),
+        anpr: String(intelState.anpr),
+      });
+      const res = await api(`/command/cameras/${encodeURIComponent(cameraId)}/boxes?${qs}`);
+      const marks = intelState.analytics ? (res.boxes || []) : [];
+      const now = performance.now();
+      overlayState.lastMetaAt = now;
+      overlayState.tracks.clear();
+      let n = 0;
+      for (const m of marks) {
+        if (n >= OVERLAY_QUEUE_MAX) break;
+        const bbox = m.bbox || m.box;
+        if (!bbox || bbox.length < 4) continue;
+        const tid = String(m.track_id || m.plate || `m${n}`);
+        const person = (m.object_type || "").toLowerCase() === "person";
+        overlayState.tracks.set(tid, {
+          bbox, plate: m.plate || "", ts: now,
+          otype: m.object_type,
+          conf: m.confidence,
+          showTrack: intelState.tracking,
+          colour: person ? "#3ec8dc" : (m.plate ? "#28c85a" : "#f1c40f"),
+        });
+        n += 1;
+      }
+      const counts = res.counts || res;
+      const node = $("#live-counts");
+      if (node) {
+        node.textContent =
+          `People: ${Number(counts.people || 0)} · Vehicles: ${Number(counts.vehicles || 0)} · Tracked: ${Number(counts.tracked || 0)}`;
+      }
+      if (state.telemetry) {
+        state.telemetry.overlayLatencyMs = overlayState.overlayLatencyMs;
+      }
+    } catch {
+      /* overlay must never take down live video */
+    }
+  };
+  const paint = () => {
+    if (!overlayState || overlayState.cameraId !== cameraId) return;
+    const stage = canvas.parentElement;
+    const media = stage?.querySelector("video.live-whep, img");
+    const w = media?.clientWidth || stage?.clientWidth || 0;
+    const h = media?.clientHeight || stage?.clientHeight || 0;
+    if (w && h && (canvas.width !== w || canvas.height !== h)) {
+      canvas.width = w; canvas.height = h;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const now = performance.now();
+    for (const [tid, t] of [...tracks.entries()]) {
+      if (now - t.ts > OVERLAY_STALE_MS) { tracks.delete(tid); continue; }
+      const [x1, y1, x2, y2] = t.bbox;
+      // bboxes are normalized 0..1 or pixel coords; support both.
+      const norm = Math.max(x1, y1, x2, y2) <= 1.5;
+      const rx1 = (norm ? x1 * canvas.width : x1);
+      const ry1 = (norm ? y1 * canvas.height : y1);
+      const rx2 = (norm ? x2 * canvas.width : x2);
+      const ry2 = (norm ? y2 * canvas.height : y2);
+      ctx.strokeStyle = t.colour;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx1, ry1, Math.max(1, rx2 - rx1), Math.max(1, ry2 - ry1));
+      const label = [t.plate, t.showTrack ? tid : "", t.otype,
+                     t.conf != null ? Number(t.conf).toFixed(2) : ""]
+        .filter(Boolean).join(" · ");
+      if (label) {
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(rx1, Math.max(0, ry1 - 18), Math.min(canvas.width - rx1, 8 * label.length + 10), 16);
+        ctx.fillStyle = "#fff";
+        ctx.font = "12px ui-monospace, monospace";
+        ctx.fillText(label, rx1 + 4, Math.max(12, ry1 - 5));
+      }
+      overlayState.overlayLatencyMs = Math.round(now - t.ts);
+    }
+    overlayState.raf = requestAnimationFrame(paint);
+  };
+  overlayState.poll = setInterval(poll, 1000);
+  poll();
+  overlayState.raf = requestAnimationFrame(paint);
+}
+
 function startLiveClock() {
   stopLiveClock();
   const tick = () => {
@@ -2501,7 +2878,11 @@ function fillLiveStage(id) {
   const note = el("div", { class: "stage-note",
     text: "Timestamp is the camera's own burned-in clock." });
   stage.append(img, hud, caption, note);
+  const overlay = el("canvas", { class: "live-overlay", id: "live-overlay" });
+  stage.append(overlay);
   startLiveClock();
+  startDetectionOverlay(id, overlay);
+  mountCompare(stage, img);
   fillLiveSidecar(cam);
   fillLiveActions(cam);
   fillHerePlates(id);
@@ -2526,18 +2907,37 @@ function liveTile(cam, health) {
       el("div", { text: "still not requested" }),
       el("div", { class: "known", text: known })));
   frame.dataset.known = known;
-  const tile = el("div", { class: "live-tile", "data-camera": id }, frame,
+  const priority = streamPriority(cam);
+  const uxLabel = (cam.ux_state || cam.ux || priority || "PREVIEW").toString().toUpperCase();
+  const codecLabel = (cam.codec || "h264").toString();
+  const latencyLabel = (cam.latency_ms != null)
+    ? `${Math.round(Number(cam.latency_ms))} ms`
+    : (cam.rtt_ms != null ? `${Math.round(Number(cam.rtt_ms))} ms rtt` : null);
+  const aiLabel = (cam.ai_state || cam.ai || "AI idle").toString();
+  const tile = el("div", { class: "live-tile", "data-camera": id,
+    "data-priority": priority.toLowerCase() }, frame,
     el("div", { class: "meta" },
       el("div", { class: "name", text: `${id} · ${cam.name || "unnamed"}` }),
       el("div", { class: "sub",
                   text: [
-                    cam.located === false ? "not on the map" : (cam.district || "district unknown"),
-                    cam.codec || "", cam.width ? `${cam.width}x${cam.height}` : ""]
+                    cam.located === false ? "not on the map" : (cam.district || cam.location || "district unknown"),
+                    codecLabel,
+                    latencyLabel]
                     .filter(Boolean).join(" · ") }),
       el("div", { class: "grades" },
         gradeChip(cam.anpr || cam.anpr_grade || "UNKNOWN", "ANPR"),
         gradeChip(cam.vehicle || cam.vehicle_reid_grade || "UNKNOWN",
                   "appearance"),
+        el("div", { class: "stream-meta" },
+          el("span", {
+            class: `chip plain ${uxLabel === "LIVE" ? "ux-live" : "ux-preview"}`,
+            text: uxLabel === "LIVE" ? "LIVE" : (uxLabel === "PRIMARY" ? "LIVE" : "PREVIEW"),
+          }),
+          el("span", { class: "chip plain", text: codecLabel }),
+          latencyLabel
+            ? el("span", { class: "chip plain", text: latencyLabel })
+            : null,
+          el("span", { class: "chip plain", text: aiLabel })),
         Number(cam.published_marks || 0)
           ? el("span", { class: "chip confirmed",
                          title: publishedMarksLabel(cam),
@@ -2573,28 +2973,13 @@ async function refreshTile(img, id, attempt = 1) {
     const pumping = tile?.classList.contains("selected");
     if (!inStage && frame && frame.dataset.state !== "live" && !pumping) setTileState(id, "capturing");
   try {
-    const res = await fetch(`/cameras/${encodeURIComponent(id)}/snapshot`,
-                            { headers: authHeaders() });
-    if (!res.ok) {
-      /* Carry the server's own words. A refusal by the camera grid and a busy
-       * grid are different facts, and showing "retrying" over the first sent
-       * an operator hunting a fault on a camera that was working and simply
-       * would not let us in. */
-      let why = "";
-      try { why = (await res.json())?.detail?.message || ""; } catch { /* not json */ }
-      const e = new Error(String(res.status));
-      e.why = why;
-      throw e;
-    }
-    const blob = await res.blob();
-    if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
-    const url = URL.createObjectURL(blob);
+    const snapshot = await sharedSnapshot(id);
+    const url = snapshot.url;
+    const ageS = snapshot.age;
+    const kind = snapshot.kind;
+    const src = snapshot.source;
     img.dataset.url = url;
     img.src = url;
-    const age = res.headers.get("X-Frame-Age-Seconds");
-    const ageS = age ? Number(age) : NaN;
-    const kind = (res.headers.get("X-Frame-Kind") || "").toLowerCase();
-    const src = res.headers.get("X-Frame-Source") || "";
     const moving = kind === "live-view" || kind === "file-view"
       || /selected camera|own-feed recording|PTS-paced/i.test(src);
     const fresh = moving || (Number.isFinite(ageS) && ageS < 2.5);
@@ -2696,8 +3081,70 @@ function startStillPump(id) {
       }
     }
   };
-  livePump = setInterval(tick, 140);
+  livePump = setInterval(tick, 250);
   tick();
+}
+
+function resetBrowserTelemetry() {
+  state.telemetry.browser = {
+    framesDecoded: null, framesDropped: null, packetsLost: null,
+    packetsReceived: null, fps: null, jitterMs: null, jitterBufferMs: null,
+    rttMs: null, codec: "", decoder: "", width: null, height: null,
+    freezes: 0, lastFrameAt: 0, state: "NEGOTIATING",
+  };
+}
+
+function startBrowserWatchdog(video, pc, id) {
+  let previous = null;
+  const sample = async () => {
+    if (!livePlayer || livePlayer.id !== id) return;
+    const b = state.telemetry.browser;
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (!b.lastFrameAt) b.lastFrameAt = performance.now();
+      if (performance.now() - b.lastFrameAt > 3000) {
+        b.freezes += 1;
+        b.state = "DEGRADED";
+        state.telemetry.reconnect = "degraded: no decoded frame";
+      } else if (b.state !== "NEGOTIATING") {
+        b.state = "LIVE";
+      }
+    } else if (b.lastFrameAt && performance.now() - b.lastFrameAt > 3000) {
+      b.freezes += 1;
+      b.state = "NO_FRAME";
+    }
+    if (!pc?.getStats) return;
+    try {
+      const reports = await pc.getStats();
+      reports.forEach((r) => {
+        if (r.type === "inbound-rtp" && r.kind === "video") {
+          const delta = previous && r.framesDecoded != null
+            ? r.framesDecoded - previous.framesDecoded : null;
+          b.framesDecoded = r.framesDecoded ?? null;
+          b.framesDropped = r.framesDropped ?? null;
+          b.packetsLost = r.packetsLost ?? null;
+          b.packetsReceived = r.packetsReceived ?? null;
+          b.fps = r.framesPerSecond ?? (delta != null ? delta / 1.0 : null);
+          b.jitterMs = r.jitter == null ? null : r.jitter * 1000;
+          b.jitterBufferMs = r.jitterBufferDelay == null || !r.jitterBufferEmittedCount
+            ? null : 1000 * r.jitterBufferDelay / r.jitterBufferEmittedCount;
+          b.width = r.frameWidth ?? null;
+          b.height = r.frameHeight ?? null;
+          previous = r;
+        } else if (r.type === "codec" && r.mimeType?.startsWith("video/")) {
+          b.codec = r.mimeType;
+          b.decoder = r.decoderImplementation || "";
+        } else if (r.type === "candidate-pair" && r.state === "succeeded"
+                   && r.currentRoundTripTime != null) {
+          b.rttMs = r.currentRoundTripTime * 1000;
+        }
+      });
+    } catch (err) {
+      state.telemetry.playbackError = `stats unavailable: ${err.message || "error"}`;
+    }
+    updateTelemetry();
+  };
+  sample();
+  return setInterval(sample, 1000);
 }
 
 /* WHEP: the browser offers, the media server answers, and the video arrives on
@@ -2706,7 +3153,7 @@ function startStillPump(id) {
 async function openLive(tile, id) {
   closeLive();
   $$(`.live-tile[data-camera="${CSS.escape(id)}"]`).forEach((t) => t.classList.add("selected"));
-  livePlayer = { pc: null, tile, id };
+  livePlayer = { pc: null, tile, id, statsTimer: null };
   fillLiveStage(id);
 
   let fileView = false;
@@ -2724,18 +3171,58 @@ async function openLive(tile, id) {
   const live = state.liveConfig || {};
   if (!live.whep || fileView) return;
 
+  resetBrowserTelemetry();
+  state.telemetry.whep.started = performance.now();
+  state.telemetry.whep.completed = 0;
+  state.telemetry.whep.error = "";
+  state.telemetry.reconnect = "negotiating";
   const video = el("video", { autoplay: true, muted: true, playsInline: true, class: "live-whep" });
   video.setAttribute("playsinline", "");
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
   livePlayer.pc = pc;
+  pc.onconnectionstatechange = () => {
+    state.telemetry.reconnect = pc.connectionState;
+    updateTelemetry();
+  };
+  video.addEventListener("error", () => {
+    state.telemetry.playbackError = video.error?.message || "media error";
+    state.telemetry.reconnect = "playback error";
+    updateTelemetry();
+  });
+  video.addEventListener("loadeddata", () => {
+    state.telemetry.browser.lastFrameAt = performance.now();
+    state.telemetry.browser.state = "LIVE";
+    updateTelemetry();
+  });
+  video.addEventListener("timeupdate", () => {
+    state.telemetry.browser.lastFrameAt = performance.now();
+    if (state.telemetry.browser.state !== "NEGOTIATING") {
+      state.telemetry.browser.state = "LIVE";
+    }
+  });
+  video.addEventListener("stalled", () => {
+    state.telemetry.browser.state = "DEGRADED";
+    state.telemetry.reconnect = "stalled";
+    updateTelemetry();
+  });
 
   pc.addTransceiver("video", { direction: "recvonly" });
   pc.addTransceiver("audio", { direction: "recvonly" });
   pc.ontrack = (e) => {
     if (!livePlayer || livePlayer.id !== id) return;
-    video.srcObject = e.streams[0];
+    // Attach the remote track directly. Relying only on e.streams[0] left the
+    // video element without a live track in some MediaMTX/WHEP answers.
+    const stream = video.srcObject instanceof MediaStream
+      ? video.srcObject
+      : new MediaStream();
+    if (!stream.getTracks().includes(e.track)) stream.addTrack(e.track);
+    video.srcObject = stream;
+    video.play().catch(() => {
+      state.telemetry.playbackError = "autoplay blocked";
+      updateTelemetry();
+    });
     const stage = $("#live-stage");
     if (!stage) return;
     stopStillPump();
@@ -2744,11 +3231,19 @@ async function openLive(tile, id) {
     if (!stage.querySelector("video.live-whep")) {
       stage.insertBefore(video, stage.firstChild);
     }
+    if (intelState.compare) {
+      stage.querySelector(".live-compare")?.remove();
+      mountCompare(stage, video);
+    }
     const chip = stage.querySelector(".hud-chip.live");
     if (chip) {
       chip.textContent = "Live";
       chip.classList.add("live");
     }
+    state.telemetry.whep.completed = performance.now();
+    state.telemetry.reconnect = "connected";
+    livePlayer.statsTimer = startBrowserWatchdog(video, pc, id);
+    updateTelemetry();
   };
 
   const url = live.proxy
@@ -2781,6 +3276,9 @@ async function openLive(tile, id) {
     const answer = await res.text();
     await pc.setRemoteDescription({ type: "answer", sdp: answer });
   } catch (err) {
+    state.telemetry.whep.error = err.message || "negotiation failed";
+    state.telemetry.reconnect = "fallback to snapshot";
+    updateTelemetry();
     try { pc.close(); } catch { /* already closed */ }
     if (livePlayer) livePlayer.pc = null;
   }
@@ -2789,8 +3287,11 @@ async function openLive(tile, id) {
 function closeLive() {
   stopStillPump();
   stopLiveClock();
+  stopDetectionOverlay();
   if (!livePlayer) return;
+  if (livePlayer.statsTimer) clearInterval(livePlayer.statsTimer);
   try { livePlayer.pc && livePlayer.pc.close(); } catch { /* already closed */ }
+  state.telemetry.browser.state = "IDLE";
   const id = livePlayer.id || livePlayer.tile?.dataset.camera;
   $$(`.live-tile[data-camera="${CSS.escape(id || "")}"]`).forEach((t) => t.classList.remove("selected"));
   const frame = livePlayer.tile?.querySelector(".frame");
@@ -2829,6 +3330,40 @@ $$("[data-live-layout]").forEach((b) => b.addEventListener("click", () => {
   }
 }));
 
+$("#btn-telemetry")?.addEventListener("click", () => {
+  const panel = $("#live-telemetry");
+  const button = $("#btn-telemetry");
+  if (!panel || !button) return;
+  const open = panel.hidden;
+  panel.hidden = !open;
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) {
+    startTelemetry();
+    updateTelemetry();
+  }
+});
+
+$$("[data-live-wall]").forEach((b) => b.addEventListener("click", () => {
+  liveWallMode = Number(b.dataset.liveWall) || 9;
+  if ($("#live-count")) $("#live-count").textContent = `${liveCamsAll.length} cameras · wall ${liveWallMode}`;
+  $$("[data-live-wall]").forEach((x) => {
+    const active = x === b;
+    x.classList.toggle("on", active);
+    x.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+}));
+
+$$("[data-live-priority]").forEach((b) => b.addEventListener("click", () => {
+  livePriority = b.dataset.livePriority || "all";
+  $$("[data-live-priority]").forEach((x) => {
+    const active = x === b;
+    x.classList.toggle("on", active);
+    x.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+}));
+
 $("#masthead-search")?.addEventListener("submit", (e) => {
   e.preventDefault();
   const q = ($("#masthead-q").value || "").trim();
@@ -2865,20 +3400,21 @@ loaders.alerts = async () => {
         el("div", { class: "body" },
           el("div", { class: "pl", text: a.plate || "—" }),
           el("div", { class: "meta", text:
-            `${String(a.category || "watchlist").replace(/_/g, " ")} · ${a.camera_id || "—"} · ${a.priority || ""}` }),
-          el("div", { class: "tm", text: fmtAlertClock(a) })),
-        a.status === "OPEN" ? el("button", {
-          class: "ghost",
-          onclick: async (e) => {
-            e.target.disabled = true;
-            try {
-              await api(`/alerts/${encodeURIComponent(a.alert_id)}/acknowledge`,
-                        { method: "POST" });
-              toast("Acknowledged");
-              loaders.alerts();
-            } catch (err) { toast(`${err.code}: ${err.message}`, true); }
-          },
-        }, "Acknowledge") : el("span", { class: "chip", text: a.status }))));
+            `WATCHLIST MATCH · ${String(a.category || "").replace(/_/g, " ")} · ${a.camera_id || "—"} · ${a.priority || ""}` }),
+          el("div", { class: "tm", text:
+            `${fmtAlertClock(a)} · confidence ${a.confidence != null ? (Number(a.confidence) * 100).toFixed(1) + "%" : "—"}` }),
+          el("div", { class: "actions" },
+            el("button", { class: "ghost", onclick: () => jumpAlert(a) }, "VIEW VIDEO"),
+            el("button", { class: "ghost", onclick: () => trackEntity(a.plate, a) }, "TRACK"),
+            el("button", { class: "ghost", onclick: () => routeAlert(a) }, "ROUTE"),
+            el("button", { class: "ghost", onclick: () => { show("map"); toast("GIS: camera " + (a.camera_id || "")); } }, "OPEN GIS"),
+            a.status === "OPEN" ? el("button", { class: "ghost", onclick: async (e) => {
+              e.target.disabled = true;
+              try {
+                await api(`/alerts/${encodeURIComponent(a.alert_id)}/acknowledge`, { method: "POST" });
+                toast("Acknowledged"); loaders.alerts();
+              } catch (err) { toast(`${err.code}: ${err.message}`, true); }
+            } }, "ACKNOWLEDGE") : el("span", { class: "chip", text: a.status })))))));
     box.append(cards, alertTable(res.alerts, true));
   } catch (err) {
     clear(box);
@@ -2925,7 +3461,7 @@ async function loadOverviewMap(body) {
   holder.append(canvas);
   body.append(holder);
   try {
-    const { MapView } = await import("/ui/map.js?v=cr086");
+    const { MapView } = await import("/ui/map.js?v=cr087");
     map3 = new MapView(canvas,
       { ...(state.mapOpts || {}), onSelect: () => {} });
     const ext = await api("/gis/extent");
@@ -3423,6 +3959,189 @@ $("#chat-form").addEventListener("submit", async (e) => {
   log.scrollTop = log.scrollHeight;
 });
 
+function paintCommandStatus(cmd, o) {
+  const health = $("#cc-health");
+  const alerts = $("#cc-alerts");
+  const ai = $("#cc-ai");
+  if (health) {
+    health.textContent = `Healthy ${cmd?.healthy ?? "—"} · down ${cmd?.down ?? "—"}`;
+  }
+  if (alerts) alerts.textContent = `Alerts ${o?.alerts?.open ?? cmd?.active_alerts ?? "—"}`;
+  if (ai) ai.textContent = `AI store ${cmd?.observations ?? "—"} obs`;
+}
+
+function applyIntelMode(mode) {
+  intelState.mode = mode;
+  intelState.analytics = mode !== "video" && mode !== "off";
+  if (mode === "video") intelState.analytics = false;
+  if (mode === "vehicles") { intelState.vehicles = true; intelState.people = false; intelState.anpr = false; }
+  if (mode === "people") { intelState.vehicles = false; intelState.people = true; intelState.anpr = false; }
+  if (mode === "anpr") { intelState.vehicles = true; intelState.people = false; intelState.anpr = true; }
+  if (mode === "full" || mode === "incident" || mode === "both") {
+    intelState.vehicles = true; intelState.people = true; intelState.anpr = true;
+  }
+  snapshotCache.clear();
+  if (overlayState) overlayState.poll && overlayState.poll._noop;
+  const cam = livePlayer?.id;
+  const canvas = $("#live-overlay");
+  if (cam && canvas) startDetectionOverlay(cam, canvas);
+  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+}
+
+$$("[data-intel]").forEach((b) => b.addEventListener("click", () => {
+  $$("[data-intel]").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
+  b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+  intelState.analytics = b.dataset.intel !== "off";
+  applyIntelMode(intelState.analytics ? (intelState.mode === "video" ? "full" : intelState.mode) : "video");
+}));
+
+$$("[data-viewmode]").forEach((b) => b.addEventListener("click", () => {
+  $$("[data-viewmode]").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); });
+  b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+  applyIntelMode(b.dataset.viewmode);
+}));
+
+$$("[data-class]").forEach((b) => b.addEventListener("click", () => {
+  const key = b.dataset.class;
+  intelState[key] = !intelState[key];
+  b.classList.toggle("on", intelState[key]);
+  b.setAttribute("aria-pressed", String(intelState[key]));
+  applyIntelMode(intelState.mode);
+}));
+
+$("#btn-compare")?.addEventListener("click", () => {
+  intelState.compare = !intelState.compare;
+  $("#btn-compare").classList.toggle("on", intelState.compare);
+  $("#btn-compare").setAttribute("aria-pressed", String(intelState.compare));
+  const cam = livePlayer?.id;
+  if (cam) fillLiveStage(cam);
+});
+
+$$("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+  const id = b.dataset.preset;
+  const spec = {
+    "control-room": { wall: 12, mode: "video", view: "live" },
+    "overview-30": { wall: 30, mode: "video", view: "live" },
+    "traffic": { wall: 12, mode: "anpr", view: "live" },
+    "person-search": { wall: 9, mode: "people", view: "live" },
+    "watchlist-incident": { wall: 4, mode: "full", view: "alerts" },
+    "designated-vehicle": { wall: 4, mode: "anpr", view: "investigate" },
+  }[id];
+  if (!spec) return;
+  liveWallMode = spec.wall;
+  $$("[data-live-wall]").forEach((x) => {
+    const on = Number(x.dataset.liveWall) === spec.wall;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
+  applyIntelMode(spec.mode);
+  show(spec.view);
+  if (spec.view === "live") loaders.live?.();
+}));
+
+async function trackEntity(plate, alert) {
+  if (!plate) { toast("No plate on this alert", true); return; }
+  show("investigate");
+  if ($("#q-plate")) $("#q-plate").value = plate;
+  try {
+    const card = await api(`/command/track/${encodeURIComponent(plate)}`);
+    paintTrackPanel(card, alert);
+    await loadTrajectory(plate);
+    await followVehicle(plate);
+  } catch (err) {
+    toast(`${err.code || ""} ${err.message}`, true);
+  }
+}
+
+function paintTrackPanel(card, alert) {
+  const panel = $("#track-panel");
+  const body = $("#track-body");
+  if (!panel || !body) return;
+  panel.hidden = false;
+  clear(body);
+  body.append(el("div", { class: "sid", text:
+    `${card.subject || card.target} · ${card.identifier || ""}` }));
+  for (const hop of card.hops || []) {
+    body.append(el("div", { class: "track-hop" },
+      el("div", { class: "role", text: hop.role }),
+      el("div", {},
+        el("div", { class: "mono", text: hop.camera_id || "—" }),
+        el("div", { class: "muted", text: `${hop.signal || ""} · ${hop.t || ""}` })),
+      hop.observation_id ? el("button", { class: "ghost", onclick: () => jumpObservation(hop.observation_id, hop.camera_id) },
+        "JUMP TO EVENT") : null));
+  }
+  for (const t of card.transitions || []) {
+    body.append(el("div", { class: "notice " + (t.result === "CONTRADICTION" ? "bad" : "neutral") },
+      `${t.from_camera} → ${t.to_camera} · ${t.distance_km ?? "?"} km · `
+      + `${t.elapsed_s ?? "?"}s elapsed · min ${t.expected_minimum_s ?? "—"}s · ${t.result}`));
+  }
+  if (alert?.camera_id) {
+    body.append(el("div", { class: "live-actions", style: "display:flex" },
+      el("button", { class: "primary", onclick: () => jumpAlert(alert) }, "VIEW VIDEO")));
+  }
+}
+
+async function jumpObservation(oid, cameraId) {
+  try {
+    const j = await api(`/command/jump/${encodeURIComponent(oid)}`);
+    toast(`Event ${j.event_time || ""} · ${j.camera_id} · ${j.signal || ""}`);
+    show("live");
+    openLive($(`.live-tile[data-camera="${CSS.escape(j.camera_id)}"]`) || el("div"), j.camera_id);
+  } catch (err) {
+    if (cameraId) {
+      show("live");
+      openLive($(`.live-tile[data-camera="${CSS.escape(cameraId)}"]`) || el("div"), cameraId);
+    } else toast(`${err.code}: ${err.message}`, true);
+  }
+}
+
+function jumpAlert(a) {
+  if (a.observation_id) return jumpObservation(a.observation_id, a.camera_id);
+  if (!a.camera_id) { toast("No camera on this alert", true); return; }
+  show("live");
+  openLive($(`.live-tile[data-camera="${CSS.escape(a.camera_id)}"]`) || el("div"), a.camera_id);
+}
+
+async function routeAlert(a) {
+  if (!a.plate) { toast("No plate to route", true); return; }
+  show("map");
+  await trackEntity(a.plate, a);
+}
+
+function startCommandClock() {
+  const tick = () => {
+    const n = $("#cc-clock");
+    if (n) n.textContent = istClock();
+  };
+  setInterval(tick, 1000);
+  tick();
+}
+
+/* Compare uses the same live element: left is native video, right is a canvas
+ * copy plus metadata boxes. A second WHEP session is not opened. */
+function mountCompare(stage, videoOrImg) {
+  if (!intelState.compare) return;
+  const wrap = el("div", { class: "live-compare" });
+  const left = el("div", { class: "pane" },
+    el("div", { class: "pane-label", text: "ORIGINAL" }));
+  const right = el("div", { class: "pane" },
+    el("div", { class: "pane-label", text: "AI ANNOTATED (store metadata)" }));
+  const canvas = el("canvas");
+  right.append(canvas);
+  wrap.append(left, right);
+  stage.append(wrap);
+  const src = videoOrImg;
+  const paint = () => {
+    if (!intelState.compare) return;
+    const w = src.clientWidth || 320, h = src.clientHeight || 180;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    try { ctx.drawImage(src, 0, 0, w, h); } catch { /* not ready */ }
+    requestAnimationFrame(paint);
+  };
+  requestAnimationFrame(paint);
+}
+
 /* ─── start ──────────────────────────────────────────────────────────────── */
 (async function start() {
   await identify();
@@ -3433,6 +4152,7 @@ $("#chat-form").addEventListener("submit", async (e) => {
    * /config is in flight. */
   const mapsP = initMaps();
   state.mapsReady = mapsP;
+  startCommandClock();
   loaders.cases();
   loaders.alerts();
   /* A shift starts on the command picture, not in a search box. A deep link

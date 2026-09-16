@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr086">
+<link rel="stylesheet" href="/ui/style.css?v=cr087">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -39,6 +39,14 @@
              autocomplete="off">
     </div>
 
+    <div class="cc-status" id="cc-status" aria-label="System status">
+      <span class="cc-chip" id="cc-health">Health —</span>
+      <span class="cc-chip" id="cc-alerts">Alerts —</span>
+      <span class="cc-chip" id="cc-ai">AI store</span>
+      <span class="cc-chip" id="cc-net">Network local</span>
+      <span class="cc-chip" id="cc-clock">—</span>
+    </div>
+
     <div class="officer" id="officer-block">
       <strong id="officer-name">Sign in</strong>
       <small id="who" class="dim">not signed in</small>
@@ -61,6 +69,9 @@
     <span>Law-enforcement use only. Every query is attributed and written to a hash-chained audit log.</span>
     <span class="rule"></span>
     <span class="src" id="handling-src">source: —</span>
+    <span class="feed-indicator" id="feed-government">GOVERNMENT FEED: not reported</span>
+    <span class="feed-indicator" id="feed-own">OWN FEED / FULL ANALYTICS: not reported</span>
+    <span class="feed-indicator" id="feed-central">CENTRAL ANALYTICS MODE: not reported</span>
   </div>
 
   <!-- Seven places, named for what an officer is trying to do rather than for
@@ -158,7 +169,16 @@
                 <input type="text" id="q-camera" placeholder="any" autocomplete="off">
               </div>
             </div>
-        <button class="primary" type="submit">Search</button>
+            <div class="row2">
+              <div class="field">
+                <label for="q-event">Event type</label>
+                <input type="text" id="q-event" placeholder="plate.read, person.detected" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="q-severity">Severity</label>
+                <input type="text" id="q-severity" placeholder="HIGH, CRITICAL" autocomplete="off">
+              </div>
+            </div>
       </form>
 
       <div class="workspace">
@@ -246,10 +266,8 @@
             <div class="group-label">Colour by</div>
             <button class="ghost on" data-mode2="health">Health</button>
             <button class="ghost" data-mode2="capability">ANPR capability</button>
-            <div class="group-label">Layers</div>
-            <button class="ghost on" data-toggle2="alerts">Alerts</button>
-            <button class="ghost" data-toggle2="coverage">Coverage gaps</button>
-            <button class="ghost" data-toggle2="labels">Labels</button>
+            <div class="group-label">Filter</div>
+            <input id="map-filter-q" placeholder="search camera" autocomplete="off">
           </div>
           <details class="map-legend" id="legend2-wrap" open><summary>Legend</summary><div id="legend2"></div></details>
         </div>
@@ -273,15 +291,78 @@
             <span class="n" id="live-progress" role="status" aria-live="polite"></span>
           </div>
           <div class="live-layouts" role="tablist" aria-label="Live layout">
+            <span class="live-control-label">Wall</span>
+            <button type="button" class="on" data-live-wall="12" aria-pressed="true">12</button>
+            <button type="button" data-live-wall="16" aria-pressed="false" title="4×4">16</button>
+            <button type="button" data-live-wall="25" aria-pressed="false" title="5×5">25</button>
+            <button type="button" data-live-wall="30" aria-pressed="false" title="6×5">30</button>
+            <button type="button" data-live-wall="9" aria-pressed="false">9</button>
+            <button type="button" data-live-wall="4" aria-pressed="false">4</button>
+            <span class="live-control-label live-priority-label">Priority</span>
+            <button type="button" class="on" data-live-priority="all" aria-pressed="true">All</button>
+            <button type="button" data-live-priority="primary" aria-pressed="false">Primary</button>
+            <button type="button" data-live-priority="secondary" aria-pressed="false">Secondary</button>
+            <button type="button" data-live-priority="preview" aria-pressed="false">Preview</button>
+            <button type="button" data-live-priority="inactive" aria-pressed="false">Inactive</button>
+            <span class="live-control-label live-focus-label">View</span>
             <button type="button" class="on" data-live-layout="focus">Focus</button>
             <button type="button" data-live-layout="twoup">Two up</button>
             <button type="button" data-live-layout="grid">Grid</button>
             <button type="button" data-live-layout="dense">Dense</button>
             <button type="button" data-live-layout="tab">Tab</button>
+            <button type="button" class="telemetry-toggle" id="btn-telemetry"
+                    aria-expanded="false" aria-controls="live-telemetry">Telemetry</button>
           </div>
         </div>
+        <div class="live-intel" id="live-intel" role="toolbar" aria-label="Analytics overlay">
+          <span class="live-control-label">Analytics</span>
+          <button type="button" data-intel="off">ANALYTICS OFF</button>
+          <button type="button" class="on" data-intel="on" aria-pressed="true">ANALYTICS ON</button>
+          <span class="live-control-label">Mode</span>
+          <button type="button" data-viewmode="video">VIDEO</button>
+          <button type="button" data-viewmode="vehicles">VEHICLES</button>
+          <button type="button" data-viewmode="people">PEOPLE</button>
+          <button type="button" data-viewmode="anpr">ANPR</button>
+          <button type="button" class="on" data-viewmode="full" aria-pressed="true">FULL</button>
+          <button type="button" data-viewmode="incident">INCIDENT</button>
+          <span class="live-control-label">Show</span>
+          <button type="button" class="on" data-class="people" aria-pressed="true">PEOPLE</button>
+          <button type="button" class="on" data-class="vehicles" aria-pressed="true">VEHICLES</button>
+          <button type="button" class="on" data-class="anpr" aria-pressed="true">ANPR</button>
+          <button type="button" class="on" data-class="tracking" aria-pressed="true">TRACKING</button>
+          <button type="button" id="btn-compare" aria-pressed="false">COMPARE</button>
+          <span class="live-counts" id="live-counts">People: 0 · Vehicles: 0 · Tracked: 0</span>
+        </div>
+        <div class="live-presets" id="live-presets" role="toolbar" aria-label="Demo presets">
+          <span class="live-control-label">Preset</span>
+          <button type="button" data-preset="control-room">CONTROL ROOM</button>
+          <button type="button" data-preset="overview-30">30-CAMERA OVERVIEW</button>
+          <button type="button" data-preset="traffic">TRAFFIC INTELLIGENCE</button>
+          <button type="button" data-preset="person-search">PERSON SEARCH</button>
+          <button type="button" data-preset="watchlist-incident">WATCHLIST INCIDENT</button>
+          <button type="button" data-preset="designated-vehicle">DESIGNATED VEHICLE</button>
+        </div>
+        <section class="live-telemetry" id="live-telemetry" hidden aria-label="Operator telemetry">
+          <div><strong>Operator telemetry</strong><span class="telemetry-note">Browser-observable values only</span></div>
+          <dl class="telemetry-grid">
+            <div><dt>Active video elements</dt><dd id="telemetry-video">—</dd></div>
+            <div><dt>Visible tiles</dt><dd id="telemetry-visible">—</dd></div>
+            <div><dt>Snapshot startup</dt><dd id="telemetry-snapshot">—</dd></div>
+            <div><dt>WHEP startup</dt><dd id="telemetry-whep">—</dd></div>
+            <div><dt>Playback / reconnect</dt><dd id="telemetry-playback">—</dd></div>
+            <div><dt>Browser playback</dt><dd id="telemetry-browser">—</dd></div>
+            <div><dt>Decoded / dropped</dt><dd id="telemetry-frames">UNAVAILABLE</dd></div>
+            <div><dt>Packets / jitter</dt><dd id="telemetry-network">UNAVAILABLE</dd></div>
+            <div><dt>Codec</dt><dd id="telemetry-codec">not reported</dd></div>
+            <div><dt>CPU / GPU</dt><dd id="telemetry-resources">UNAVAILABLE — browser APIs do not reliably expose these values.</dd></div>
+          </dl>
+        </section>
         <div class="live-filters" id="live-filters"></div>
         <div class="col-body live-body" id="live"></div>
+        <aside class="track-panel" id="track-panel" hidden>
+          <div class="col-head">Entity tracking</div>
+          <div class="col-body pad" id="track-body"></div>
+        </aside>
       </div>
     </section>
 
@@ -300,8 +381,10 @@
       <div style="display:flex;flex-direction:column;height:100%">
         <div class="col-head">Alerts
           <div style="margin-left:auto;display:flex;gap:4px">
-            <button class="ghost on" data-alert-status="OPEN">Open</button>
-            <button class="ghost" data-alert-status="ACK">Acknowledged</button>
+            <button class="ghost on" data-alert-status="OPEN">New</button>
+            <button class="ghost" data-alert-status="ACKNOWLEDGED">Acknowledged</button>
+            <button class="ghost" data-alert-status="INVESTIGATING">Investigating</button>
+            <button class="ghost" data-alert-status="CLEARED">Resolved</button>
             <button class="ghost" data-alert-status="">All</button>
           </div>
         </div>
@@ -379,7 +462,7 @@
             <b>Live</b> — every onboarded camera. Each tile is a decoded still with detector boxes. Click one camera for moving video (one extra stream, RTSP over TCP, timed from PTS).<br>
             <b>Cameras</b> — ANPR / appearance grades measured from the stream, not claimed by the catalogue.<br>
             <b>Analytics</b> — distinct marks, person observations, which clocks may share a timeline.<br>
-            <b>System</b> — hybrid Models 1+2+3. Model 4 (central recording of 80,000 cameras) was refused on bandwidth arithmetic.<br>
+            <b>System</b> — hybrid Models 1+2+3+4 (selective central analytics) + 5 (adaptive media). Departmental VMS systems are not replaced.<br>
             <b>Estate map</b> — OpenStreetMap streets plus camera markers. Unlocated cameras stay in the strip; they are not invented onto the map.<br>
             <b>Copilot</b> — ask in sentences. I call the same read-only tools. I will not invent a plate, enhance a still, or identify a face. Person boxes are presence, not identity.
           </div>
@@ -472,6 +555,6 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr086"></script>
+<script type="module" src="/ui/app.js?v=cr087"></script>
 </body>
 </html>

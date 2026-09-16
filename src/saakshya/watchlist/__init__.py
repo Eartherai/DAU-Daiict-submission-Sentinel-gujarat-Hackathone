@@ -1,4 +1,6 @@
-from saakshya.watchlist.alerts import Alert, AlertEngine, AlertPolicy, AlertStatus
+from saakshya.watchlist.alerts import (
+    Alert, AlertEngine, AlertPolicy, AlertStatus, parse_alert_status,
+)
 from saakshya.watchlist.service import (
     ADAPTERS,
     Category,
@@ -16,6 +18,7 @@ __all__ = [
     "AlertEngine",
     "AlertPolicy",
     "AlertStatus",
+    "parse_alert_status",
     "Category",
     "Priority",
     "Status",

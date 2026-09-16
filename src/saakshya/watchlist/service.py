@@ -38,9 +38,12 @@ log = logging.getLogger(__name__)
 class Category(StrEnum):
     STOLEN_VEHICLE = "stolen_vehicle"
     WANTED_VEHICLE = "wanted_vehicle"
+    WANTED_PERSON = "wanted_person"
+    MISSING_PERSON = "missing_person"
     INVESTIGATION_TARGET = "investigation_target"
     MISSING_PERSON_ASSOCIATED = "missing_person_associated"
     SUSPECT_VEHICLE = "suspect_vehicle"
+    BLACKLISTED_VEHICLE = "blacklisted_vehicle"
     CUSTOM = "custom"
 
 
@@ -64,7 +67,10 @@ class Status(StrEnum):
 CATEGORY_WEIGHT = {
     Category.STOLEN_VEHICLE: 1.0,
     Category.WANTED_VEHICLE: 1.0,
+    Category.WANTED_PERSON: 1.0,
+    Category.MISSING_PERSON: 0.95,
     Category.MISSING_PERSON_ASSOCIATED: 0.95,
+    Category.BLACKLISTED_VEHICLE: 0.9,
     Category.SUSPECT_VEHICLE: 0.8,
     Category.INVESTIGATION_TARGET: 0.7,
     Category.CUSTOM: 0.5,

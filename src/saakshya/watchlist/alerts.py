@@ -39,8 +39,32 @@ log = logging.getLogger(__name__)
 class AlertStatus(StrEnum):
     OPEN = "OPEN"
     ACKNOWLEDGED = "ACKNOWLEDGED"
+    INVESTIGATING = "INVESTIGATING"
     CLEARED = "CLEARED"
     FALSE_POSITIVE = "FALSE_POSITIVE"
+
+
+#: Operator labels (New / Acknowledged / Investigating / Resolved) map onto
+#: stored statuses. The stored values remain the audit vocabulary.
+OPERATOR_STATUS = {
+    "NEW": AlertStatus.OPEN,
+    "OPEN": AlertStatus.OPEN,
+    "ACK": AlertStatus.ACKNOWLEDGED,
+    "ACKNOWLEDGED": AlertStatus.ACKNOWLEDGED,
+    "INVESTIGATING": AlertStatus.INVESTIGATING,
+    "RESOLVED": AlertStatus.CLEARED,
+    "CLEARED": AlertStatus.CLEARED,
+    "FALSE_POSITIVE": AlertStatus.FALSE_POSITIVE,
+}
+
+
+def parse_alert_status(raw: str | None) -> AlertStatus | None:
+    if not raw:
+        return None
+    key = raw.strip().upper().replace(" ", "_")
+    if key not in OPERATOR_STATUS:
+        raise ValueError(f"unknown alert status {raw!r}")
+    return OPERATOR_STATUS[key]
 
 
 @dataclass
@@ -276,6 +300,13 @@ class AlertEngine:
                       .values(status=str(AlertStatus.ACKNOWLEDGED),
                               acknowledged_by=actor, acknowledged_at_us=now_us()))
         self.store.audit(actor, "alert_acknowledge", target=alert_id)
+
+    def investigate(self, alert_id: str, *, actor: str) -> None:
+        with self.store.engine.begin() as c:
+            c.execute(update(S.alerts).where(S.alerts.c.alert_id == alert_id)
+                      .values(status=str(AlertStatus.INVESTIGATING),
+                              acknowledged_by=actor, acknowledged_at_us=now_us()))
+        self.store.audit(actor, "alert_investigate", target=alert_id)
 
     def clear(self, alert_id: str, *, actor: str, reason: str,
               false_positive: bool = False) -> None:

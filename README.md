@@ -5,14 +5,19 @@
 Federated CCTV intelligence and evidence fabric for a camera estate that was never built to be one.
 
 [![GPIC 2026](https://img.shields.io/badge/Gujarat_Police-Innovation_Challenge_2026-1B4F72?style=flat-square)](https://sentinel.gujarat.gov.in/)
-[![Hybrid 1+2+3](https://img.shields.io/badge/Architecture-Hybrid_Models_1%2B2%2B3-0E7C7B?style=flat-square)](docs/HLD.md)
+[![Hybrid 1+2+3+4](https://img.shields.io/badge/Architecture-Hybrid_Models_1%2B2%2B3%2B4-0E7C7B?style=flat-square)](docs/HLD.md)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI_%2B_OpenAPI-009688?style=flat-square)](docs/API.md)
 [![Tests](https://img.shields.io/badge/Tests-666_collected-2E7D32?style=flat-square)](#verify-the-stack)
 [![Licence policy](https://img.shields.io/badge/Models-permissive_only_(AGPL_rejected)-6A1B9A?style=flat-square)](docs/THIRD_PARTY_LICENSES.md)
 
 **Gujarat Police Innovation Challenge 2026** · Sentinel Camera Grid · **DAU / DAIICT**  
-**Hybrid of Models 1 + 2 + 3.** Model 4 (central VMS of ~80,000 cameras) is **rejected on arithmetic** — 80k × 2 Mbps ≈ **160 Gbps**, 30-day ≈ **52 PB** — not left unfinished.
+**Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 central analytics.**
+The official live test targets **approximately 50 cameras**. Our currently
+accessible/probed sandbox exposes **30 cameras**; that is the current access
+result, not the official limit. Full statewide centralization of ~80,000
+cameras remains rejected on arithmetic — 80k × 2 Mbps ≈ **160 Gbps**, 30-day
+≈ **52 PB** — while selected-camera central analytics is supported.
 
 [Live README images](#watch-first-26-seconds) · [HLD](docs/HLD.md) · [Measured results](docs/MEASURED_RESULTS.md) · [API](docs/API.md) · [Portal pack](docs/PORTAL_UPLOAD.md) · [Judge Q&A](docs/JUDGE_QA.md)
 
@@ -87,12 +92,12 @@ Forbidden phrases on every slide and in this README: *production ready* · *lega
 | **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Model 4 rejected with bandwidth arithmetic |
 | **4. Working platform & demonstration** | `make install && make media && make demo && make serve` → http://127.0.0.1:8080 · bearer gate · OpenAPI `/docs` |
 | **5. Video analytics output** | Vehicle + person detection, tracking, per-track ANPR with voting, capability grades, CSV/JSON paired to overlay films |
-| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · measured 30-cam / 50-cam load · **MODELLED** 80k sizing kept separate |
+| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · 30 currently reachable government cameras + 50 logical-camera load · **MODELLED** 80k sizing kept separate |
 | **7. Submission completeness** | This README, `.env.example`, 666 tests, portal pack checklist, secret scan in `make verify` |
 
 | Bonus ask | What is built |
 |---|---|
-| Hybrid architecture | Models **1 + 2 + 3**; Model **4 refused** |
+| Hybrid architecture | Models **1 + 2 + 3** plus selected-camera Model **4** central analytics; statewide full-video centralization refused |
 | Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); live store: **0** exact cross-camera plate repeats (honest) |
 | Analytics beyond ANPR | Motion / track / person presence / attributes / measured capability |
 | Edge + low bandwidth | Metadata ~400 B/observation; video stays at the camera; edge queue + SERVICE token sync |
@@ -171,7 +176,7 @@ Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **20
 
 | | |
 |---|---|
-| Cameras onboarded | **30** of 30 issued |
+| Cameras onboarded | **30 currently reachable/probed**; official evaluation target is approximately 50 |
 | On the map / listed, not invented | **19** / **11** |
 | Observations stored | **689,502** |
 | Person observations (presence, not identity) | **178,757** |
@@ -191,7 +196,7 @@ We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometr
 
 | Store | What we show |
 |---|---|
-| **Live government** | Rehearse `GJ1VV0119` (cam07, looping). Open alert `GJ38BH5815` on cam21 |
+| **Live government** | Rehearse `GJ1VV0119` (cam07, looping). Open alert `GJ38BH5815` on cam21. Current accessible set is 30; final evaluation set is catalogue-dependent. |
 | **Own-feed corpus** | Cross-camera `GJ05AB1234` / `GJ35BV6925` on **C-014** + **C-021** |
 
 ---
@@ -213,7 +218,7 @@ Metadata moves. Video stays where it is.
 | **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
 | **2** Unified viewing | Ingest stills on the wall; click → one extra stream copy | **Kept** |
 | **3** Federation | Government RTSP + local media; observation store as bus | **Kept** |
-| **4** Central VMS | Record ~80,000 cameras in one hall | **Not built** |
+| **4** Central analytics/VMS PoC | Selected-camera central ingest, analytics, events, watchlist, evidence, GIS | **Supported for selected feeds; not statewide full-video centralization** |
 
 ```
 RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track → T2 ANPR)

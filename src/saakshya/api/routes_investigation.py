@@ -118,6 +118,23 @@ async def trajectory(state: StateDep, ctx: AuthDep, plate: str,
         raise access_error(exc) from exc
 
 
+@router.get("/follow/{plate}", summary="Follow a vehicle through feasible cameras")
+@router.get("/follow-vehicle/{plate}", include_in_schema=False)
+async def follow_vehicle(state: StateDep, ctx: AuthDep, plate: str,
+                         t_from: str | None = None, t_to: str | None = None,
+                         limit: Annotated[int, Query(ge=1, le=100)] = 20
+                         ) -> dict[str, Any]:
+    """Return a plate route plus ranked, physically feasible follow-up leads."""
+    tf, tt = parse_time(t_from, "t_from"), parse_time(t_to, "t_to")
+    check_span(state, tf, tt)
+    try:
+        async with ConcurrencyGuard(state.search_sem, what="searches"):
+            return state.investigation.follow_vehicle(
+                ctx, plate=plate, t_from=tf, t_to=tt, limit=limit)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
 @router.get("/cameras/{camera_id}/next", summary="Where to look next, and why")
 async def next_cameras(state: StateDep, ctx: AuthDep, camera_id: str,
                        seen_at: str,
@@ -140,7 +157,11 @@ async def next_cameras(state: StateDep, ctx: AuthDep, camera_id: str,
 
 @router.get("/cameras/{camera_id}/snapshot", include_in_schema=False)
 async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
-                          force: bool = False):
+                          force: bool = False,
+                          overlay: str = "full",
+                          people: bool = True,
+                          vehicles: bool = True,
+                          anpr: bool = True):
     """A still preview for the interface.
 
     A still, deliberately, not a video proxy. Transcoding thirty live streams
@@ -213,7 +234,8 @@ async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
                 snap.jpeg, state.store, camera_id,
                 preview_wh=(snap.width, snap.height),
                 camera_wh=(cam.get("width"), cam.get("height")),
-                pts_s=snap.pts_s if snap.source == "file-view" else None)
+                pts_s=snap.pts_s if snap.source == "file-view" else None,
+                overlay=overlay, people=people, vehicles=vehicles, anpr=anpr)
     except Exception:
         jpeg = snap.jpeg
     return Response(

@@ -376,6 +376,43 @@ class InvestigationService:
             },
         }
 
+    def follow_vehicle(self, ctx: AuthContext, *, plate: str,
+                       t_from: datetime | None = None,
+                       t_to: datetime | None = None,
+                       limit: int = 20) -> dict[str, Any]:
+        """Follow a plate while keeping unplated results as explicit leads."""
+        ctx.authorise(Permission.TRAJECTORY_BUILD)
+        result = self.search.follow_vehicle(
+            plate, t_from=t_from, t_to=t_to, limit=max(1, min(limit, 100)),
+            actor=ctx.principal.user_id, role=str(ctx.principal.role),
+            case_id=ctx.case_id, purpose=ctx.purpose)
+        allowed = set(self._scoped_cameras(ctx))
+        # Do not disclose observations, route nodes, or evidence references
+        # outside the requester's jurisdiction.
+        result["route"] = [r for r in result["route"]
+                           if r["camera_id"] in allowed]
+        result["candidates"] = [c for c in result["candidates"]
+                                if c["camera_id"] in allowed
+                                and c["from_camera"] in allowed]
+        result["contradictions"] = [c for c in result["contradictions"]
+                                    if c["from_camera"] in allowed
+                                    and c["to_camera"] in allowed]
+        result["timeline"] = sorted(
+            result["route"] + result["candidates"],
+            key=lambda item: item.get("t_norm", ""))
+        result["evidence_refs"] = sorted({
+            r["evidence_ref"] for r in result["route"] + result["candidates"]
+            if r.get("evidence_ref")
+        })
+        result["route_confidence"] = {
+            "confirmed_sightings": len(result["route"]),
+            "ranked_follow_ups": len(result["candidates"]),
+            "contradictions": len(result["contradictions"]),
+            "meaning": ("engineering ordering score; candidates require "
+                        "operator verification, and are not identity claims"),
+        }
+        return result
+
     # -- next best camera (§25) ---------------------------------------------- #
     def next_best_cameras(self, ctx: AuthContext, *, camera_id: str,
                           seen_at: datetime, horizon_s: float = 900.0,

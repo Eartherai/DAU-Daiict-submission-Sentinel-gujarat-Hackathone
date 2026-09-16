@@ -25,7 +25,7 @@ from saakshya.common.clock import iso
 from saakshya.obs import METRICS
 from saakshya.security import AccessError, Permission
 from saakshya.store.provenance import refuses_live_writes, store_name
-from saakshya.watchlist import AlertStatus, Category, Priority, VehicleOfInterest
+from saakshya.watchlist import AlertStatus, Category, Priority, VehicleOfInterest, parse_alert_status
 
 router = APIRouter(tags=["operations"])
 
@@ -193,8 +193,12 @@ async def alerts(state: StateDep, ctx: AuthDep, status: str | None = "OPEN",
         ctx.principal.require(Permission.ALERT_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
-    rows = state.investigation.alerts.list_alerts(
-        AlertStatus(status) if status else None)
+    try:
+        wanted = parse_alert_status(status)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_STATUS", "message": str(exc)}) from exc
+    rows = state.investigation.alerts.list_alerts(wanted)
     scope = ctx.principal.scope_filter()
     if scope is not None:
         allowed = {c["camera_id"] for c in state.store.list_cameras()
@@ -213,7 +217,22 @@ async def alert_ack(state: StateDep, ctx: AuthDep, alert_id: str) -> dict[str, A
         ctx.audit(state.store, "alert_acknowledge", target=alert_id)
     except AccessError as exc:
         raise access_error(exc) from exc
-    return {"alert_id": alert_id, "status": "ACK",
+    return {"alert_id": alert_id, "status": "ACKNOWLEDGED",
+            "operator_status": "Acknowledged",
+            "acknowledged_by": ctx.principal.user_id}
+
+
+@router.post("/alerts/{alert_id}/investigate", summary="Mark an alert under investigation")
+async def alert_investigate(state: StateDep, ctx: AuthDep, alert_id: str
+                            ) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.ALERT_ACK)
+        state.investigation.alerts.investigate(alert_id, actor=ctx.principal.user_id)
+        ctx.audit(state.store, "alert_investigate", target=alert_id)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    return {"alert_id": alert_id, "status": "INVESTIGATING",
+            "operator_status": "Investigating",
             "acknowledged_by": ctx.principal.user_id}
 
 

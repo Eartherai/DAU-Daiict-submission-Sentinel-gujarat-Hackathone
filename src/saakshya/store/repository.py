@@ -360,6 +360,8 @@ class Store:
     CURATED_COLUMNS = frozenset({
         "name", "site", "district", "department", "lat", "lon",
         "location_precision", "location_basis", "location_note",
+        "owner", "region", "road", "integration_model",
+        "maintenance_status", "access_state",
     })
 
     def upsert_camera(self, cam: dict[str, Any], *,
@@ -1057,6 +1059,9 @@ class Store:
                 purpose=purpose, target=target, result_count=result_count,
                 jurisdiction=jurisdiction, prev_hash=prev, entry_hash=entry,
                 t_us=t))
+        # `stats()` is cached for dashboard reads; an audit write must be
+        # visible immediately to the same request/test process.
+        self._stats_cache = None
 
     def verify_audit_chain(self) -> tuple[bool, str | None]:
         import hashlib

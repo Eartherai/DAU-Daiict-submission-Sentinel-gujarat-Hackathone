@@ -73,6 +73,12 @@ cameras = Table(
     Column("tier", String(16), default="UNASSIGNED", index=True),
     Column("enabled", Boolean, default=True),
     Column("quality_note", Text),
+    Column("owner", String(160)),
+    Column("region", String(120), index=True),
+    Column("road", String(200)),
+    Column("integration_model", String(40)),
+    Column("maintenance_status", String(40)),
+    Column("access_state", String(40)),
     Column("created_at_us", Integer), Column("updated_at_us", Integer),
 )
 

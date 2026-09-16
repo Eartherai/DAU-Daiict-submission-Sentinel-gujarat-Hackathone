@@ -29,12 +29,17 @@ SCHEMA_VERSION: Literal["cctv-event/1"] = "cctv-event/1"
 class EventType(StrEnum):
     CAMERA_HEALTH = "camera.health"
     SEGMENT_BREAK = "camera.segment_break"
+    CAMERA_FAULT = "camera.fault"
+    CAMERA_RECONNECTED = "camera.reconnected"
     VEHICLE_DETECTED = "vehicle.detected"
+    PERSON_DETECTED = "person.detected"
     PLATE_READ = "plate.read"
     TRACK_CLOSED = "vehicle.track_closed"
     WATCHLIST_HIT = "watchlist.hit"
     ALERT_CREATED = "alert.created"
     EVIDENCE_CREATED = "evidence.created"
+    VEHICLE_FOLLOW = "vehicle.follow"
+    ROUTE_UPDATE = "route.update"
 
 
 class ObjectType(StrEnum):

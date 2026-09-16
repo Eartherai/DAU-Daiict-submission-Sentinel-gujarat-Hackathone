@@ -1,0 +1,9 @@
+# generated — no credentials
+logLevel: warn
+rtspAddress: :8554
+rtspTransports: [tcp]
+api: yes
+apiAddress: 127.0.0.1:9997
+paths:
+  stream/gov-vt-libx264:
+  stream/gov-vt-videotoolbox:

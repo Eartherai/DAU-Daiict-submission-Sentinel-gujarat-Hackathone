@@ -1,0 +1,16 @@
+# phase15 bridges — no credentials
+logLevel: warn
+rtspAddress: :8554
+rtspTransports: [tcp]
+webrtcAddress: :8889
+webrtcAllowOrigins: ["*"]
+api: yes
+apiAddress: 127.0.0.1:9997
+apiAllowOrigins: ["*"]
+paths:
+  stream/gov-cam07:
+  stream/gov-cam08:
+  stream/gov-cam09:
+  stream/gov-cam10:
+  stream/gov-cam11:
+  stream/gov-cam15:

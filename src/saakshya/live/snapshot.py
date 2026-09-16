@@ -353,12 +353,12 @@ class SnapshotService:
             force: bool = False) -> Snapshot | None:
         """A still for one camera, from cache where possible."""
         live = self.selected.latest(camera_id)
-        if live is None and self.selected.camera_id == camera_id:
+        if (live is None and self.selected.camera_id == camera_id
+                and self.selected._awaited != camera_id):
             # Wait once for the extra decode. If it never produces a frame,
             # later requests must not block 7s each — serve ingest instead.
-            if self.selected._awaited != camera_id:
-                self.selected._awaited = camera_id
-                live = self.selected.wait_for(camera_id)
+            self.selected._awaited = camera_id
+            live = self.selected.wait_for(camera_id)
         if live is not None:
             self.stats["served_from_cache"] += 1
             return live
@@ -384,13 +384,6 @@ class SnapshotService:
             self.stats["served_from_ingest"] += 1
             self._store(from_ingest)
             return from_ingest
-        # Ingest is down. A stored government frame is still the camera —
-        # serve it immediately rather than blocking the wall on RTSP.
-        if ancient is not None and not force:
-            self.stats["served_from_ingest"] += 1
-            self._store(ancient)
-            return ancient
-
         if publishing:
             self.last_error[camera_id] = (
                 "ingest has not published a still for this camera yet. "
@@ -434,6 +427,9 @@ class SnapshotService:
 
         if snap is None:
             self.stats["failed"] += 1
+            # A capture attempt was made because the ingest still exceeded the
+            # stale window. If the upstream is unavailable, preserve the last
+            # frame and expose its age instead of turning a known camera black.
             fallback = self._cache.get(camera_id) or ancient
             if fallback is not None:
                 return fallback

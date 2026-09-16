@@ -37,19 +37,57 @@ _PLATE = (40, 220, 90)
 _WINDOW_S = 12.0
 _PTS_WINDOW_S = 1.2
 _MAX_BOXES = 24
-_rows_cache: dict[str, tuple[float, list[tuple[str, str | None, Any]]]] = {}
+_rows_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+# Overlay modes are metadata filters. They never invent detections.
+OVERLAY_OFF = frozenset({"off", "none", "video", "video-only", "video_only"})
+OVERLAY_VEHICLES = frozenset({"vehicles", "vehicle", "cars"})
+OVERLAY_PEOPLE = frozenset({"people", "person", "persons"})
+OVERLAY_ANPR = frozenset({"anpr", "plates", "plate"})
+
+
+def overlay_allows(otype: str | None, plate: str | None, *,
+                   overlay: str = "full",
+                   people: bool = True, vehicles: bool = True,
+                   anpr: bool = True, tracking: bool = True) -> bool:
+    """Whether a stored observation should be drawn for this operator mode."""
+    mode = (overlay or "full").strip().lower()
+    if mode in OVERLAY_OFF:
+        return False
+    kind = (otype or "").lower()
+    is_person = kind == "person"
+    if mode in OVERLAY_VEHICLES:
+        return (not is_person) and vehicles
+    if mode in OVERLAY_PEOPLE:
+        return is_person and people
+    if mode in OVERLAY_ANPR:
+        return bool(plate) and anpr
+    if is_person and not people:
+        return False
+    if (not is_person) and not vehicles:
+        return bool(plate) and anpr
+    if not anpr and plate and not vehicles and not people:
+        return False
+    _ = tracking  # track-id is a label choice; boxes still come from store
+    return True
 
 
 def annotate_jpeg(jpeg: bytes, store: Store, camera_id: str, *,
                   preview_wh: tuple[int, int],
                   camera_wh: tuple[int | None, int | None],
-                  pts_s: float | None = None) -> bytes:
+                  pts_s: float | None = None,
+                  overlay: str = "full",
+                  people: bool = True, vehicles: bool = True,
+                  anpr: bool = True) -> bytes:
     """Return a JPEG with recent boxes. On any failure, return the original.
 
     `pts_s` is the selected-camera decode clock. When it is set, boxes come
     from that moment in the recording — not the newest rows in the store.
+    Overlay filters never fabricate detections: empty store → clean still.
     """
     if not jpeg:
+        return jpeg
+    if (overlay or "full").strip().lower() in OVERLAY_OFF:
         return jpeg
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -57,13 +95,17 @@ def annotate_jpeg(jpeg: bytes, store: Store, camera_id: str, *,
         return jpeg
     try:
         rows = _recent(store, camera_id, pts_s=pts_s)
+        rows = [r for r in rows if overlay_allows(
+            r.get("object_type"), r.get("plate"), overlay=overlay,
+            people=people, vehicles=vehicles, anpr=anpr)]
         if not rows:
             return jpeg
         im = Image.open(io.BytesIO(jpeg)).convert("RGB")
         draw = ImageDraw.Draw(im)
         pw, ph = im.size
         cw, ch = camera_wh
-        for otype, plate, bbox in rows:
+        for rec in rows:
+            otype, plate, bbox = rec.get("object_type"), rec.get("plate"), rec.get("bbox")
             box = _scale(bbox, pw, ph, cw, ch)
             if box is None:
                 continue
@@ -71,15 +113,20 @@ def annotate_jpeg(jpeg: bytes, store: Store, camera_id: str, *,
             colour = _PLATE if plate else _COLOURS.get((otype or "").lower(),
                                                        (220, 220, 220))
             draw.rectangle([x1, y1, x2, y2], outline=colour, width=3)
-            label = plate or (otype or "object")
+            bits = [plate or (otype or "object")]
+            if rec.get("track_id") and overlay not in OVERLAY_ANPR:
+                bits.append(str(rec["track_id"]))
+            if rec.get("confidence") is not None:
+                bits.append(f"{float(rec['confidence']):.2f}")
+            label = " · ".join(bits)
             try:
                 font = ImageFont.truetype(
                     "/System/Library/Fonts/Supplemental/Arial Bold.ttf", 13)
             except Exception:
                 font = ImageFont.load_default()
-            bbox = draw.textbbox((0, 0), label, font=font)
-            tw = max(bbox[2] - bbox[0] + 8, 12)
-            th = max(bbox[3] - bbox[1] + 4, 12)
+            tb = draw.textbbox((0, 0), label, font=font)
+            tw = max(tb[2] - tb[0] + 8, 12)
+            th = max(tb[3] - tb[1] + 4, 12)
             top = max(0, y1 - th)
             draw.rectangle([x1, top, x1 + tw, y1], fill=colour)
             draw.text((x1 + 4, top + 1), label, fill=(10, 10, 10), font=font)
@@ -91,14 +138,52 @@ def annotate_jpeg(jpeg: bytes, store: Store, camera_id: str, *,
         return jpeg
 
 
+def live_boxes(store: Store, camera_id: str, *,
+               overlay: str = "full",
+               people: bool = True, vehicles: bool = True,
+               anpr: bool = True,
+               pts_s: float | None = None) -> dict[str, Any]:
+    """Metadata overlay payload for native <video>. Never fabricates boxes."""
+    rows = _recent(store, camera_id, pts_s=pts_s)
+    people_n = vehicles_n = plated = 0
+    tracks: set[str] = set()
+    boxes: list[dict[str, Any]] = []
+    for rec in rows:
+        otype = (rec.get("object_type") or "").lower()
+        if otype == "person":
+            people_n += 1
+        else:
+            vehicles_n += 1
+        if rec.get("track_id"):
+            tracks.add(str(rec["track_id"]))
+        if rec.get("plate"):
+            plated += 1
+        if not overlay_allows(rec.get("object_type"), rec.get("plate"),
+                              overlay=overlay, people=people,
+                              vehicles=vehicles, anpr=anpr):
+            continue
+        boxes.append(rec)
+    return {
+        "camera_id": camera_id,
+        "overlay": overlay,
+        "boxes": boxes,
+        "people": people_n,
+        "vehicles": vehicles_n,
+        "tracked": len(tracks),
+        "plates": plated,
+        "note": ("Counts and boxes are recent store observations. "
+                 "Zero means none stored — detections are never invented."),
+    }
+
+
 def _recent(store: Store, camera_id: str, *,
-            pts_s: float | None = None) -> list[tuple[str, str | None, Any]]:
+            pts_s: float | None = None) -> list[dict[str, Any]]:
     now = time.monotonic()
     bucket = f"{camera_id}:{round(pts_s, 1)}" if pts_s is not None else camera_id
     hit = _rows_cache.get(bucket)
     if hit and now - hit[0] < (0.12 if pts_s is not None else 0.8):
         return hit[1]
-    out: list[tuple[str, str | None, Any]] = []
+    out: list[dict[str, Any]] = []
     with store.engine.connect() as c:
         if pts_s is not None:
             window = _PTS_WINDOW_S
@@ -139,7 +224,19 @@ def _recent(store: Store, camera_id: str, *,
             bbox = None
             if m["bbox_x1"] is not None:
                 bbox = (m["bbox_x1"], m["bbox_y1"], m["bbox_x2"], m["bbox_y2"])
-            out.append((m["object_type"] or "object", m["plate"], bbox))
+            conf = m["detection_confidence"]
+            if conf is None:
+                conf = m["plate_confidence"]
+            out.append({
+                "object_type": m["object_type"] or "object",
+                "plate": m["plate"],
+                "bbox": bbox,
+                "track_id": m["track_id"],
+                "confidence": float(conf) if conf is not None else None,
+                "observation_id": m["observation_id"],
+                "pts_s": m["pts_s"],
+                "evidence_ref": m["evidence_ref"],
+            })
     _rows_cache[bucket] = (now, out)
     return out
 

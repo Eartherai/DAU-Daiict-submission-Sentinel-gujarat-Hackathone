@@ -1,0 +1,37 @@
+# Golden judge demo — government cam01 on the verified managed path.
+# Secrets must NEVER be placed in this file. Use SENTINEL_GRID_* env vars.
+
+camera_id: cam01
+label: GOLDEN
+source: government
+
+stream_path:
+  mode: DIRECT_H264
+  transport: whep
+  gateway: local_mediamtx
+  gateway_path: stream/gov-cam01
+  browser_signaling: /cameras/cam01/whep
+  copy_remux: true
+  transcode: false
+
+playback:
+  ai_independent_of_video: true
+  overlay: canvas_raf
+  stale_track_ms: 2500
+  priority: PRIMARY
+
+analytics:
+  detector: true
+  tracker: true
+  anpr: true
+  watchlist: true
+  alerts: true
+
+demo_story:
+  - live_video
+  - vehicle_box
+  - track_id
+  - anpr
+  - watchlist_match
+  - alert
+  - evidence

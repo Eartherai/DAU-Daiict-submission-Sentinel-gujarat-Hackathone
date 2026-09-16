@@ -276,6 +276,10 @@ def render(cam: CameraSpec, force: bool = False) -> tuple[Path, list[dict], floa
         "-g", str(cam.fps * 2),
         "-b:v", "2000k" if cam.width >= 1280 else "900k",
     ]
+    if cam.codec == "libx264":
+        # MediaMTX WebRTC rejects H.264 with B-frames ("WebRTC doesn't support
+        # H264 streams with B-frames"). Baseline + bf=0 keeps WHEP stable.
+        cmd += ["-profile:v", "baseline", "-bf", "0", "-x264-params", "bframes=0"]
     if cam.codec == "libx265":
         cmd += ["-tag:v", "hvc1", "-x265-params", "log-level=error"]
     cmd += [str(dst)]
@@ -380,9 +384,12 @@ def write_mediamtx_config() -> Path:
         "rtspTransports: [tcp, udp]",
         "hlsAddress: :8888",
         "hlsAlwaysRemux: yes",
+        "hlsAllowOrigins: [\"*\"]",
         "webrtcAddress: :8889",
+        "webrtcAllowOrigins: [\"*\"]",
         "api: yes",
         "apiAddress: 127.0.0.1:9997",
+        "apiAllowOrigins: [\"*\"]",
         "paths:",
     ]
     # Relative paths only. The project root can contain spaces, and MediaMTX

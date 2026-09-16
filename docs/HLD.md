@@ -1,7 +1,8 @@
 # High-Level Design
 
 **SAAKSHYA — Federated CCTV Intelligence and Evidence Fabric**
-Gujarat Police Innovation Challenge 2026 · Hybrid of Models 1 + 2 + 3. Model 4 rejected on arithmetic.
+Gujarat Police Innovation Challenge 2026 · Hybrid of Models 1 + 2 + 3 with a
+selected-camera Model 4 central analytics proof-of-concept.
 
 Submitted as the Technical Proposal. Engineering detail is in
 `docs/ARCHITECTURE.md`; this document states the design and its justification.
@@ -50,7 +51,12 @@ across that estate has three obstacles:
                                             (fail closed)
 ```
 
-**Submitted as a hybrid of Models 1 + 2 + 3.** Model 4 is rejected, not deferred.
+**Submitted as a hybrid of Models 1 + 2 + 3, with selected-camera Model 4
+central analytics.** The official evaluation target is approximately 50
+heterogeneous cameras. The currently accessible sandbox evidence contains 30
+reachable/probed cameras; that is an access result, not the evaluation limit.
+The catalogue-driven importer accepts the authoritative set when its
+authenticated Resources-page endpoint is available.
 
 **Model 1 — Camera registry & GIS (mandatory, kept).** Identity, geometry,
 transport, health and *measured capability*. Nineteen cameras are placed from
@@ -68,9 +74,13 @@ RTSP plus local MediaMTX synthetic. The observation store is the metadata bus.
 Search, camera graph, trajectory, watchlist, alerts and evidence read that bus.
 Adapters, not a replacement VMS.
 
-**Model 4 — Central VMS recording (rejected).** MODELLED: ~80,000 cameras ×
-2 Mbps ≈ 160 Gbps ingest; 30-day retention ≈ 52 PB. Not built. The arithmetic
-is the justification.
+**Model 4 — selected central analytics (kept as a PoC).** Own-feed and
+selected-camera streams can be pulled through one controlled gateway into
+central analytics, event storage, watchlist correlation, evidence, and GIS.
+This proves the central monitoring/analytics pattern required by the challenge
+without claiming that all statewide video is permanently centralized.
+**Statewide full-video centralization remains rejected on arithmetic:**
+~80,000 cameras × 2 Mbps ≈ 160 Gbps ingest and ~52 PB for 30-day retention.
 
 ## 4. Component design
 
@@ -159,7 +169,9 @@ runtime from detected hardware. One codebase.
 
 ## 7. Measured, and modelled
 
-**MEASURED** — 50 concurrent cameras, mixed codecs: 52,637 frames, **0 decoder
+**MEASURED** — 30 government cameras were onboarded in the recorded accessible
+estate. Separately, 50 logical local cameras with mixed codecs delivered
+52,637 frames with **0 decoder
 errors**, 6 failures recovered. One analytics process sustains 11.4 frames/s
 (~11 cameras at 1 fps). 10 of 10 hot queries indexed. API p50 1.7–9.6 ms.
 Offline replay with no duplicates and no loss. 5 of 5 tamper tests detected.
@@ -177,7 +189,8 @@ The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 | Analytics throughput per process | GPU profiles; more processes per node | Measured, understood |
 | No PKI for evidence or bundles | Content hashes with the limitation stated everywhere | Accepted; needs a policy decision |
 | Insider misuse | Purpose binding, scope, hash-chained audit | Recorded, not prevented |
-| Unavailable government feed | Catalogue-driven intake; no code change needed | **Blocked on registration** |
+| Catalogue exposes fewer cameras than the official target | Catalogue-driven intake; preserve the exact returned count and do not fabricate capacity | **Current accessible evidence is 30; target is approximately 50** |
+| Unavailable government feed | Catalogue-driven intake; no code change needed | **Blocked on authenticated catalogue/session** |
 
 ## 9. Compliance
 

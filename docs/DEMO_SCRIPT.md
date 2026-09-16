@@ -221,6 +221,20 @@ make live-ingest            # staged 5 -> 10 -> 20 -> 30, capability-aware
 make live-serve             # workspace over the live store
 ```
 
+### Phase 6 live-video path
+
+Use `config/demo_live.yaml` as the single operator configuration. The wall
+remains ingest stills by default; select one camera for the preferred
+WHEP/WebRTC path. If negotiation fails or the source is a file-view, the
+selected stage falls back to the fresh ingest snapshot rather than displaying a
+black rectangle. Open the expandable **Telemetry** drawer to show only browser-
+observed decoded frames, dropped frames, packets, jitter, codec, startup, and
+reconnect state. CPU/GPU utilisation is explicitly unavailable.
+
+Do not claim a measured WebRTC/HLS winner until the authenticated venue run has
+populated `reports/LIVE_FEED_FINAL_BENCHMARK.md`. The current path decision is
+provisional and is documented in `reports/LIVE_FEED_PATH_DECISION.md`.
+
 ### 0:00 — 0:25 · The real estate
 
 Open **Cameras** over the live store. Thirty government cameras.

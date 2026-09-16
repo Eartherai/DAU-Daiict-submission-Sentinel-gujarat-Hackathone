@@ -31,7 +31,7 @@ from saakshya.analytics.anpr import plate_status
 from saakshya.analytics.attributes import colour_agreement, size_agreement
 from saakshya.analytics.plates import agreement as plate_agreement
 from saakshya.analytics.plates import parse, repair_candidates
-from saakshya.intelligence.graph import CameraGraph
+from saakshya.intelligence.graph import CameraGraph, haversine_m
 from saakshya.store import SearchFilter, Store, VehicleObservation
 
 log = logging.getLogger(__name__)
@@ -174,6 +174,144 @@ class VehicleSearch:
     def __init__(self, store: Store, graph: CameraGraph | None = None) -> None:
         self.store = store
         self.graph = graph or CameraGraph(store).load()
+
+    def follow_vehicle(self, plate: str, *, t_from: datetime | None = None,
+                       t_to: datetime | None = None, limit: int = 20,
+                       actor: str = "system", role: str | None = None,
+                       case_id: str | None = None,
+                       purpose: str | None = None) -> dict:
+        """Find subsequent, physically feasible sightings of a plate.
+
+        This is intentionally a follow-up search, not an identity assertion:
+        unplated observations are ranked leads and remain outside the route.
+        Geometry is checked before scoring so a learned graph cannot make an
+        impossible transition look plausible.
+        """
+        found = self.search_plate(plate, t_from=t_from, t_to=t_to,
+                                  actor=actor, role=role, case_id=case_id,
+                                  purpose=purpose)
+        origins = [c.observation for c in found.candidates]
+        contradictions: list[dict] = []
+        candidates: list[dict] = []
+        all_obs = self.store.search(SearchFilter(t_from=t_from, t_to=t_to,
+                                                 limit=20_000))
+        target = (parse(plate).canonical or plate.upper())
+        seen_pairs: set[tuple[str, str, str]] = set()
+        for origin in sorted(origins, key=lambda o: o.t_norm):
+            for candidate in all_obs:
+                if candidate.t_norm <= origin.t_norm or candidate.camera_id == origin.camera_id:
+                    continue
+                dt = (candidate.t_norm - origin.t_norm).total_seconds()
+                if dt <= 0 or dt > 3600:
+                    continue
+                pair = (origin.observation_id, candidate.observation_id,
+                        candidate.camera_id)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                cam_a = self.graph.cameras.get(origin.camera_id) or {}
+                cam_b = self.graph.cameras.get(candidate.camera_id) or {}
+                distance = None
+                speed = None
+                if None not in (cam_a.get("lat"), cam_a.get("lon"),
+                                cam_b.get("lat"), cam_b.get("lon")):
+                    distance = haversine_m(cam_a["lat"], cam_a["lon"],
+                                           cam_b["lat"], cam_b["lon"])
+                    if dt >= 1:
+                        speed = distance / dt * 3.6
+                if speed is not None and speed > 200.0:
+                    contradictions.append({
+                        "code": "ROUTE_CONTRADICTION",
+                        "from_camera": origin.camera_id,
+                        "to_camera": candidate.camera_id,
+                        "from_observation_id": origin.observation_id,
+                        "to_observation_id": candidate.observation_id,
+                        "distance_m": round(distance or 0, 1),
+                        "elapsed_s": round(dt, 1),
+                        "implied_speed_kmh": round(speed, 1),
+                        "reason": (
+                            f"{distance / 1000:.2f} km in {dt:.1f} s implies "
+                            f"{speed:,.0f} km/h, above the 200 km/h road ceiling"),
+                    })
+                    continue
+                edge = self.graph.edge(origin.camera_id, candidate.camera_id)
+                if edge is not None and edge.trusted and not edge.feasible(dt):
+                    contradictions.append({
+                        "code": "ROUTE_CONTRADICTION",
+                        "from_camera": origin.camera_id,
+                        "to_camera": candidate.camera_id,
+                        "from_observation_id": origin.observation_id,
+                        "to_observation_id": candidate.observation_id,
+                        "distance_m": round(distance, 1)
+                        if distance is not None else None,
+                        "elapsed_s": round(dt, 1),
+                        "implied_speed_kmh": round(speed, 1)
+                        if speed is not None else None,
+                        "reason": edge.explain(dt),
+                    })
+                    continue
+                graph_score = edge.plausibility(dt) if edge else (
+                    max(0.0, 1.0 - (speed or 0.0) / 200.0)
+                    if speed is not None else 0.35)
+                plate_score = plate_agreement(target, candidate.plate) \
+                    if candidate.plate else 0.0
+                colour_score = colour_agreement(origin.colour, candidate.colour)
+                class_score = size_agreement(origin.object_type,
+                                              candidate.object_type)
+                quality = candidate.observation_quality or 0.0
+                score = (0.40 * plate_score + 0.15 * colour_score
+                         + 0.10 * class_score + 0.25 * graph_score
+                         + 0.10 * quality)
+                candidates.append({
+                    "observation_id": candidate.observation_id,
+                    "camera_id": candidate.camera_id,
+                    "t_norm": candidate.t_norm.isoformat(),
+                    "plate": candidate.plate,
+                    "colour": candidate.colour,
+                    "object_type": candidate.object_type,
+                    "evidence_ref": candidate.evidence_ref,
+                    "from_camera": origin.camera_id,
+                    "from_observation_id": origin.observation_id,
+                    "elapsed_s": round(dt, 1),
+                    "distance_m": round(distance, 1) if distance is not None else None,
+                    "implied_speed_kmh": round(speed, 1) if speed is not None else None,
+                    "score": round(score, 3),
+                    "status": "REQUIRES_VERIFICATION",
+                    "terms": {
+                        "plate": round(plate_score, 3),
+                        "appearance_colour": round(colour_score, 3),
+                        "vehicle_class": round(class_score, 3),
+                        "time_route": round(graph_score, 3),
+                        "source_quality": round(quality, 3),
+                    },
+                    "reason": ("same plate" if plate_score >= 0.99 else
+                               "appearance/class/colour lead; plate unreadable"),
+                })
+        candidates.sort(key=lambda c: (-c["score"], c["t_norm"]))
+        self.store.audit(actor, "follow_vehicle", role=role, case_id=case_id,
+                         purpose=purpose, target=target,
+                         result_count=len(candidates))
+        rejected_ids = {c["to_observation_id"] for c in contradictions}
+        route = [{
+            "observation_id": o.observation_id, "camera_id": o.camera_id,
+            "t_norm": o.t_norm.isoformat(), "plate": o.plate,
+            "evidence_ref": o.evidence_ref,
+        } for o in sorted(origins, key=lambda o: o.t_norm)
+          if o.observation_id not in rejected_ids]
+        return {
+            "query": {"type": "follow_vehicle", "plate": target,
+                      "t_from": t_from.isoformat() if t_from else None,
+                      "t_to": t_to.isoformat() if t_to else None},
+            "route": route,
+            "timeline": sorted(route + candidates[:limit],
+                               key=lambda item: item.get("t_norm", "")),
+            "candidates": candidates[:limit],
+            "contradictions": contradictions,
+            "evidence_refs": sorted({o.evidence_ref for o in origins
+                                     if o.evidence_ref}),
+            "note": ("Candidates are ranked leads, not cross-camera identity. "
+                     "Impossible transitions are excluded and listed explicitly."),
+        }
 
     # -- stage 1: exact / fuzzy plate --------------------------------------- #
     def search_plate(self, plate: str, *, t_from: datetime | None = None,

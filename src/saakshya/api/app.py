@@ -30,6 +30,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from saakshya.api import (
+    routes_command,
     routes_gis,
     routes_investigation,
     routes_ops,
@@ -201,6 +202,7 @@ def create_app(state: AppState | None = None, *,
     app.include_router(routes_gis.router)
     app.include_router(routes_ops.router)
     app.include_router(routes_system.router)
+    app.include_router(routes_command.router)
 
     from saakshya.api import routes_admin, routes_copilot, routes_edge
     app.include_router(routes_edge.router)

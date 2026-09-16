@@ -57,6 +57,11 @@ async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
                   department: str | None = None, tier: str | None = None,
                   status: str | None = None, capability: str | None = None,
                   grade: str | None = None,
+                  codec: str | None = None,
+                  region: str | None = None,
+                  camera_type: str | None = None,
+                  ai_status: str | None = None,
+                  q: str | None = None,
                   limit: Annotated[int, Query(ge=1, le=20000)] = 1500
                   ) -> dict[str, Any]:
     try:
@@ -65,7 +70,10 @@ async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
             bbox=_bbox(bbox), zoom=zoom, districts=_districts(ctx, district),
             departments=csv_list(department), tiers=csv_list(tier),
             states=csv_list(status), capability=capability,
-            capability_grades=csv_list(grade), max_features=limit)
+            capability_grades=csv_list(grade), max_features=limit,
+            codecs=csv_list(codec), regions=csv_list(region),
+            camera_types=csv_list(camera_type),
+            ai_statuses=csv_list(ai_status), q=q)
     except AccessError as exc:
         raise access_error(exc) from exc
 
@@ -133,9 +141,13 @@ async def alerts(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
                  status: str | None = "OPEN") -> dict[str, Any]:
     try:
         ctx.principal.require(Permission.ALERT_READ)
-        from saakshya.watchlist import AlertStatus
-        rows = state.investigation.alerts.list_alerts(
-            AlertStatus(status) if status else None)
+        from saakshya.watchlist import parse_alert_status
+        try:
+            wanted = parse_alert_status(status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={
+                "code": "BAD_STATUS", "message": str(exc)}) from exc
+        rows = state.investigation.alerts.list_alerts(wanted)
         scope = ctx.principal.scope_filter()
         if scope is not None:
             allowed = {c["camera_id"] for c in state.store.list_cameras()

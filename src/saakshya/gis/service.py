@@ -178,11 +178,17 @@ def _publication(pub: dict[str, dict[str, int]], camera_id: str) -> dict[str, in
         "published_confirmed": int(row.get("confirmed") or 0),
         "published_leads": int(row.get("leads") or 0),
     }
-    present = [s for s in states if s]
-    if not present:
-        return "UNKNOWN"
-    return min(present, key=lambda s: _STATE_ORDER.index(s)
-               if s in _STATE_ORDER else len(_STATE_ORDER))
+
+
+def _ai_status(cap: dict[str, Any], marks: dict[str, int]) -> str:
+    """Operator label from measured grades, not a live detector heartbeat."""
+    anpr = (cap.get("anpr_grade") or "UNKNOWN").upper()
+    vehicle = (cap.get("vehicle_reid_grade") or "UNKNOWN").upper()
+    if marks.get("published_marks"):
+        return "OBSERVING"
+    if anpr in {"GOOD", "DEGRADED"} or vehicle in {"GOOD", "DEGRADED"}:
+        return "GRADED"
+    return "IDLE"
 
 
 # --------------------------------------------------------------------------- #
@@ -213,6 +219,11 @@ class MapService:
                 states: tuple[str, ...] | None = None,
                 capability: str | None = None,
                 capability_grades: tuple[str, ...] | None = None,
+                codecs: tuple[str, ...] | None = None,
+                regions: tuple[str, ...] | None = None,
+                camera_types: tuple[str, ...] | None = None,
+                ai_statuses: tuple[str, ...] | None = None,
+                q: str | None = None,
                 max_features: int = MAX_FEATURES) -> dict[str, Any]:
         """Camera layer, filtered server-side and clustered when dense.
 
@@ -244,6 +255,24 @@ class MapService:
             if capability_grades:
                 key = "anpr" if (capability or "anpr") == "anpr" else "vehicle"
                 if (feat.get(key) or "UNKNOWN") not in capability_grades:
+                    continue
+            if codecs and (feat.get("codec") or "").lower() not in {
+                    c.lower() for c in codecs}:
+                continue
+            if regions:
+                region = (feat.get("region") or feat.get("district") or "")
+                if region not in regions:
+                    continue
+            if camera_types and (feat.get("camera_type") or "") not in camera_types:
+                continue
+            if ai_statuses and (feat.get("ai_status") or "") not in ai_statuses:
+                continue
+            if q:
+                needle = q.lower()
+                hay = " ".join(str(feat.get(k) or "") for k in (
+                    "camera_id", "name", "site", "road", "district",
+                    "department", "vendor")).lower()
+                if needle not in hay:
                     continue
             feats.append(feat)
 
@@ -289,16 +318,29 @@ class MapService:
             "location_basis": r.get("location_basis") or "UNKNOWN",
             "location_precision": r.get("location_precision") or "UNKNOWN",
             "site": r.get("site"),
+            "road": r.get("road"),
+            "owner": r.get("owner"),
+            "region": r.get("region") or r.get("district"),
             "district": r["district"], "department": r["department"],
+            "vendor": r.get("vendor"), "camera_type": r.get("camera_type"),
+            "vms": r.get("vms"),
+            "integration_model": r.get("integration_model"),
+            "maintenance_status": r.get("maintenance_status"),
+            "access_state": r.get("access_state"),
             "tier": r["tier"], "enabled": bool(r["enabled"]),
             "codec": r["codec"], "width": r["width"], "height": r["height"],
+            "rtsp_capable": bool(r.get("rtsp_url")),
+            "whep_capable": bool(r.get("whep_url")),
+            "hls_capable": bool(r.get("hls_url")),
             "state": _stream_state(r["camera_id"], h, seen),
             "reachable": h.get("reachable"),
             "measured_fps": _round(h.get("measured_fps"), 2),
             "reconnects": h.get("reconnects"),
+            "last_heartbeat": h.get("last_seen_us") or h.get("updated_at_us"),
             "anpr": cap.get("anpr_grade") or "UNKNOWN",
             "vehicle": cap.get("vehicle_reid_grade") or "UNKNOWN",
             "presence": cap.get("presence_grade") or "UNKNOWN",
+            "ai_status": _ai_status(cap, marks),
             "capability_samples": cap.get("samples") or 0,
             "plate_yield": cap.get("plate_yield"),
             "plate_reads": cap.get("plate_reads"),

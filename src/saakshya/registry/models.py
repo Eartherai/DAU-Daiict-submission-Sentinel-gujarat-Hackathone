@@ -211,6 +211,7 @@ class Camera(BaseModel):
     integration_model: str | None = None  # direct_whep | rtsp_bridge | rtsp_ai | mock
     maintenance_status: str | None = None
     access_state: str | None = None
+    source_domain: str | None = None  # GOVERNMENT | OWN_FEED | SYNTHETIC_CONTROL
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

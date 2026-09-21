@@ -97,6 +97,7 @@ class SelectedView:
         self.camera_id: str | None = None
         self._snap: Snapshot | None = None
         self._awaited: str | None = None
+        self._seek_pts_s: float | None = None
 
     def latest(self, camera_id: str) -> Snapshot | None:
         with self._lock:
@@ -125,10 +126,22 @@ class SelectedView:
         self._stop = threading.Event()
         self.camera_id = camera_id
         self._awaited = None
+        self._seek_pts_s = None
         self._thread = threading.Thread(
             target=self._run, args=(camera_id, url),
             name=f"live-view-{camera_id}", daemon=True)
         self._thread.start()
+
+    def seek_file(self, pts_s: float) -> bool:
+        """Own-feed file replay: skip to this PTS on the next decode loop.
+
+        Live RTSP/WHEP is not seekable. Callers must check local_media_url.
+        """
+        with self._lock:
+            if self.camera_id is None:
+                return False
+            self._seek_pts_s = float(pts_s)
+            return True
 
     def stop(self) -> None:
         self._stop.set()
@@ -175,6 +188,16 @@ class SelectedView:
                         continue
                     pts = (float(frame.pts) * tb if frame.pts is not None
                            else None)
+                    with self._lock:
+                        seek_to = self._seek_pts_s
+                    if looping and seek_to is not None and pts is not None:
+                        if pts + 0.08 < seek_to:
+                            continue
+                        with self._lock:
+                            if self._seek_pts_s == seek_to:
+                                self._seek_pts_s = None
+                        first_pts = pts
+                        loop_origin = time.monotonic()
                     if looping and pts is not None:
                         if first_pts is None:
                             first_pts = pts
@@ -352,6 +375,33 @@ class SnapshotService:
     def get(self, camera_id: str, url: str, *,
             force: bool = False) -> Snapshot | None:
         """A still for one camera, from cache where possible."""
+        try:
+            from saakshya.live.relay import get_relay
+            relay = get_relay()
+            if relay is not None:
+                rs = relay.grab_jpeg(camera_id)
+                if rs is not None:
+                    self.stats["served_from_ingest"] += 1
+                    return rs
+                # Relay owns the stream. Do not open a second Sentinel RTSP grab.
+                if relay._slots.get(camera_id) is not None:
+                    self.last_error[camera_id] = (
+                        "local relay has this camera; a second Sentinel capture "
+                        "is not opened. JPEG is PREVIEW fallback only.")
+                    self.stats["failed"] += 1
+                    return None
+        except Exception:
+            pass
+        try:
+            from saakshya.live.hub import get_hub
+            hub = get_hub()
+            if hub is not None:
+                hs = hub.as_snapshot(camera_id)
+                if hs is not None:
+                    self.stats["served_from_ingest"] += 1
+                    return hs
+        except Exception:
+            pass
         live = self.selected.latest(camera_id)
         if (live is None and self.selected.camera_id == camera_id
                 and self.selected._awaited != camera_id):

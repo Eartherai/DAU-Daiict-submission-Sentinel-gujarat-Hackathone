@@ -14,9 +14,9 @@ So locations are derived from the place names the cameras themselves carry, and
     UNKNOWN    no coordinate assigned
 
 A camera whose name does not identify a place gets **no coordinate**. Several
-carry only a device label — "IPC", "CP IP Cam" — and two name a junction whose
-town is not stated. Guessing at those would put a marker somewhere plausible and
-wrong, which is worse for an investigator than an honest gap.
+carry only a device label — "IPC", "CP IP Cam". Guessing at those would put a
+marker somewhere plausible and wrong, which is worse for an investigator than
+an honest gap.
 
 These positions let an investigator reason about corridors. They are not
 evidence of where a vehicle was, and nothing in the system treats them as such:
@@ -107,8 +107,12 @@ def main() -> int:
                     "department": entry.get("department") or cam.get("department"),
                     "location_basis": "NAME_INSUFFICIENT",
                     "location_precision": "UNKNOWN",
+                    "location_note": entry.get("note") or entry.get("source")
+                    or cam.get("location_note"),
                     "quality_note": entry.get("note") or cam.get("quality_note"),
-                })
+                    "lat": None,
+                    "lon": None,
+                }, clear={"lat", "lon"})
             skipped += 1
             continue
 
@@ -132,6 +136,8 @@ def main() -> int:
                 "lat": lat, "lon": lon,
                 "location_basis": basis,
                 "location_precision": entry.get("precision", "UNKNOWN"),
+                "location_note": entry.get("source") or entry.get("note")
+                or cam.get("location_note"),
             })
         applied += 1
 

@@ -35,12 +35,13 @@
     {
       "id": "cam02",
       "name": "Janpath",
-      "site": "Janpath Cross Road",
-      "district": "Ahmedabad",
-      "lat": 23.0261,
-      "lon": 72.5106,
+      "site": "Janpath petrol pump, Kalol",
+      "district": "Gandhinagar",
+      "lat": 23.255987,
+      "lon": 72.480567,
       "precision": "LANDMARK",
-      "overlay": "Janpath T CSITMS-10_PTZ2"
+      "overlay": "Janpath T CSITMS-10_PTZ2",
+      "source": "Gujarat Informatics Limited VISWAS Annexure-A, row 516"
     },
     {
       "id": "cam03",
@@ -216,27 +217,29 @@
     {
       "id": "cam21",
       "name": "Dethali Char Rasta",
-      "site": "Dethali four-way junction",
-      "district": "Gujarat (town not confirmed)",
-      "lat": null,
-      "lon": null,
-      "precision": "UNKNOWN",
+      "site": "Dethali Circle, Siddhpur",
+      "district": "Patan",
+      "lat": 23.9166145,
+      "lon": 72.3611474,
+      "precision": "LANDMARK",
       "overlay": "Dethali Char Rasta_FIX1",
-      "note": "the junction name is legible but the town is not; left unlocated"
+      "source": "OpenStreetMap Nominatim Dethali Circle; corroborated by Gujarat Housing Board and other public addresses naming Dethali Char Rasta, Siddhpur 384151"
     },
     {
       "id": "cam22",
-      "name": "Merwada Tran Rasta",
-      "site": "Merwada three-way junction",
-      "district": "Gujarat (town not confirmed)",
-      "lat": null,
-      "lon": null,
-      "precision": "UNKNOWN",
-      "overlay": "MERWADA_TRAN_RASTA-FIX-1"
+      "name": "Mervada Tran Rasta",
+      "site": "Mervada three-way junction, Palanpur",
+      "district": "Banaskantha",
+      "lat": 24.141452,
+      "lon": 72.478998,
+      "precision": "LANDMARK",
+      "overlay": "MERWADA_TRAN_RASTA-FIX-1",
+      "source": "Gujarat Informatics Limited CCTV Phase-1 City New Locations table, MERVADA TRAN RASTA"
     },
     {
       "id": "cam23",
       "name": "cam23",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -245,6 +248,7 @@
     {
       "id": "cam24",
       "name": "cam24",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -253,6 +257,7 @@
     {
       "id": "cam25",
       "name": "cam25",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -263,6 +268,7 @@
     {
       "id": "cam26",
       "name": "CP IP Cam",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -271,6 +277,7 @@
     {
       "id": "cam27",
       "name": "cam27 (IPC)",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -279,6 +286,7 @@
     {
       "id": "cam28",
       "name": "cam28 (IPC)",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -287,6 +295,7 @@
     {
       "id": "cam29",
       "name": "cam29 (IPC)",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",
@@ -295,6 +304,7 @@
     {
       "id": "cam30",
       "name": "cam30",
+      "district": "Gujarat (location unknown)",
       "lat": null,
       "lon": null,
       "precision": "UNKNOWN",

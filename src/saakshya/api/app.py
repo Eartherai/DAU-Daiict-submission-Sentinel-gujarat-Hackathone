@@ -17,6 +17,8 @@ tell a missing case id from a jurisdiction boundary.
 from __future__ import annotations
 
 import logging
+import os
+import threading
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -26,7 +28,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from saakshya.api import (
@@ -65,10 +67,93 @@ candidates requiring verification, never identifications.
 async def lifespan(app: FastAPI):
     configure_logging()
     state: AppState = app.state.saakshya
+    try:
+        from saakshya.analytics.worker import boot_ai_worker
+        from saakshya.command.domain import (
+            attach_government_grid_urls,
+            enforce_evaluation_50,
+        )
+        from saakshya.live.hub import boot_hub
+        from saakshya.live.relay import boot_relay, relay_enabled
+        try:
+            enforce_evaluation_50(state.store)
+            # The evaluation registry can legitimately begin with camera IDs
+            # and metadata only.  The documented GridConfig templates are not
+            # credentials, and attaching them here lets the same-origin WHEP
+            # signaling proxy use the authenticated live plane when it is
+            # explicitly configured.  This never contacts the grid or writes
+            # a password to the registry.
+            attach_government_grid_urls(state.store)
+        except Exception:
+            log.exception("evaluation-50 enforce failed")
+        media_disabled = os.environ.get(
+            "SAAKSHYA_MEDIA_DISABLED", "").strip().lower() in {
+                "1", "true", "yes", "on"}
+        if media_disabled:
+            # Health/API checks must not turn into an unannounced 30-camera
+            # connection attempt. This also makes deployment probes safe when
+            # the organiser's feed is in an authentication backoff window.
+            state.relay = None
+            state.hub = None
+        else:
+            state.relay = boot_relay(state.store) if relay_enabled() else None
+            # JPEG hub is not a fallback for the local video plane.
+            state.hub = None if relay_enabled() else boot_hub(state.store)
+
+        from saakshya.live.simulation import boot_simulation, simulation_enabled
+        try:
+            state.simulation = boot_simulation() if simulation_enabled() else None
+        except Exception:
+            log.exception("demo simulation failed to start")
+            state.simulation = None
+
+        def _deferred_ai() -> None:
+            time.sleep(12.0)
+            if getattr(state, "ai_worker", None) is not None:
+                return
+            try:
+                state.ai_worker = boot_ai_worker(state.db_url)
+            except Exception:
+                log.exception("ai worker failed to start")
+                state.ai_worker = None
+
+        threading.Thread(target=_deferred_ai, name="ai-boot", daemon=True).start()
+        state.ai_worker = None
+    except Exception:
+        log.exception("media plane failed to start")
+        state.hub = getattr(state, "hub", None)
+        state.relay = getattr(state, "relay", None)
     log.info("saakshya api starting", extra={"extra_fields": {
         "db": state.db_url, "auth_required": state.require_auth,
-        "cameras": len(state.store.list_cameras())}})
+        "cameras": len(state.store.list_cameras()),
+        "hub": bool(getattr(state, "hub", None)),
+        "relay": bool(getattr(state, "relay", None)),
+        "simulation": bool(getattr(state, "simulation", None))}})
     yield
+    simulation = getattr(state, "simulation", None)
+    if simulation is not None:
+        try:
+            simulation.stop()
+        except Exception:
+            log.exception("demo simulation stop failed")
+    worker = getattr(state, "ai_worker", None)
+    if worker is not None:
+        try:
+            worker.terminate()
+        except Exception:
+            log.exception("ai worker stop failed")
+    relay = getattr(state, "relay", None)
+    if relay is not None:
+        try:
+            relay.stop()
+        except Exception:
+            log.exception("local relay stop failed")
+    hub = getattr(state, "hub", None)
+    if hub is not None:
+        try:
+            hub.stop()
+        except Exception:
+            log.exception("media hub stop failed")
     log.info("saakshya api stopping")
 
 
@@ -154,6 +239,12 @@ def create_app(state: AppState | None = None, *,
             origin = _origin_of(whep)
             if origin:
                 connect_src += f" {origin}"
+        # The local 30-camera wall pulls LL-HLS directly from the loopback
+        # MediaMTX data plane. Proxying those long-poll playlists through the
+        # API worker pool can deadlock control-plane requests and leave every
+        # tile gray even while all publishers are healthy.
+        if getattr(request.app.state.saakshya, "relay", None) is not None:
+            connect_src += " http://127.0.0.1:18888"
         response.headers.setdefault(
             "Content-Security-Policy",
             f"default-src 'self'; img-src {img_src}; "
@@ -239,7 +330,32 @@ def create_app(state: AppState | None = None, *,
 
         @app.get("/", include_in_schema=False)
         async def root():
-            return FileResponse(ui / "index.html")
+            """Serve the workspace with cache-busting stamped from file content.
+
+            The asset versions were hardcoded (`app.js?v=cr135`). A browser
+            that had cached that key never re-fetched, so an edited file was
+            served by the API and silently not used by the page - changes
+            appeared to have no effect, and the only way to notice was to diff
+            the fetched text against the file on disk. Stamp the query string
+            from a hash of the bytes actually being served: the URL changes
+            when, and only when, the file does.
+            """
+            import hashlib
+            import re as _re
+
+            html = (ui / "index.html").read_text(encoding="utf-8")
+
+            def stamp(match: _re.Match[str]) -> str:
+                name = match.group(1)
+                path = ui / name
+                if not path.is_file():
+                    return match.group(0)
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+                return f'/ui/{name}?v={digest}'
+
+            html = _re.sub(r"/ui/([A-Za-z0-9_.-]+\.(?:js|css))(?:\?v=[^\"\']*)?",
+                           stamp, html)
+            return HTMLResponse(html)
 
     return app
 

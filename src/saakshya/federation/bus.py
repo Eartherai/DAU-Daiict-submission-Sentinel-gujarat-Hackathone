@@ -11,9 +11,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from saakshya.common.clock import utc_now
 from saakshya.common.ids import new_id
 from saakshya.events.schema import CanonicalEvent, EventType
-from saakshya.common.clock import utc_now
 
 
 @dataclass

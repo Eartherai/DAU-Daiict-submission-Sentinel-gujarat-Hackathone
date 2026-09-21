@@ -39,14 +39,51 @@ def _check(name: str, state: str, detail: str,
 
 
 def _feed_health(state: Any) -> dict[str, Any]:
-    """Live grid, from health persisted by ingest — plus observations.
-
-    A missing health row is not "never ingested". Unbounded ingest used to
-    write health only at close, so a long run produced observations for every
-    camera while Overview said half the estate had never been seen. Count
-    observations separately; say unknown when health has not been persisted,
-    and reserve "never ingested" for cameras with neither.
-    """
+    """Live grid from the local relay or in-process hub when present."""
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        try:
+            from saakshya.live.relay import get_relay
+            relay = get_relay()
+        except Exception:
+            relay = None
+    if relay is not None:
+        snap = relay.snapshot()
+        n = snap["upstream_sessions"]
+        streaming = snap["source_connected"]
+        relay_ready = snap["relay_ready"]
+        st = (HEALTHY if streaming == n and n else
+              FAILED if streaming == 0 else DEGRADED)
+        return _check(
+            "feed", st,
+            (f"local relay: {streaming}/{n} upstream publishers connected, "
+             f"{relay_ready}/{n} local WHEP paths ready. Browser-rendered "
+             "frame counts are reported only by the browser wall. Not per-tile "
+             "Sentinel WHEP. JPEG is PREVIEW fallback only."),
+            cameras=n, streaming=streaming, browser_live=snap["browser_live"],
+            relay_ready=relay_ready,
+            plane="local_relay")
+    hub = getattr(state, "hub", None)
+    if hub is None:
+        try:
+            from saakshya.live.hub import get_hub
+            hub = get_hub()
+        except Exception:
+            hub = None
+    if hub is not None:
+        snap = hub.snapshot()
+        n = snap["upstream_sessions"]
+        streaming = snap["source_connected"]
+        live = snap["browser_live"]
+        st = (HEALTHY if streaming == n and n else
+              FAILED if streaming == 0 else DEGRADED)
+        return _check(
+            "feed", st,
+            (f"local hub: {streaming}/{n} upstream RTSP connected, "
+             f"{live} browser LIVE (hub JPEG age ≤ {4.0}s). "
+             "Not per-tile Sentinel WHEP."),
+            cameras=n, streaming=streaming, browser_live=live,
+            plane="local_hub")
     from sqlalchemy import select
 
     from saakshya.store import schema as S

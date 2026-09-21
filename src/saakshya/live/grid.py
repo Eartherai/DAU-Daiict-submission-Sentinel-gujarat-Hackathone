@@ -3,9 +3,10 @@
 This module is the only place that knows how to reach the organiser's live
 grid, and it holds three rules that the rest of the system depends on.
 
-**The catalogue is the contract, not the id pattern.** `cameras.json` is
-authoritative and the camera set is expected to change. Ids are never written
-into code. Where the catalogue cannot be reached, discovery falls back to
+**The catalogue is the contract, not the id pattern.** The current Sentinel
+portal publishes its authenticated catalogue at `/cameras.json`; a future
+deployment can point `SENTINEL_CATALOGUE_URL` at `/api/ingest` without a code
+change. Ids are never written into code. Where the catalogue cannot be reached, discovery falls back to
 *probing* the documented id pattern and records that it did — a discovered set
 is labelled as such and never presented as the authoritative one.
 
@@ -22,6 +23,7 @@ says precisely what is missing rather than trying anything else.
 from __future__ import annotations
 
 import contextlib
+import base64
 import json
 import os
 from dataclasses import dataclass, field
@@ -29,6 +31,9 @@ from typing import Any
 
 #: Documented in the Integrator's Guide. Overridable so a change of host is a
 #: configuration change rather than a code change.
+# The verified current portal catalogue. Keep the full URL configurable: the
+# integration guide describes `/api/ingest`, but this live deployment returns
+# 404 for that path and serves the signed-in camera list at `/cameras.json`.
 DEFAULT_CATALOGUE_URL = "https://cctv.corp8.cloud/cameras.json"
 DEFAULT_HLS_TEMPLATE = "https://cctv.corp8.cloud/{id}/index.m3u8"
 DEFAULT_RTSP_TEMPLATE = "rtsp://103.250.160.189:8554/stream/{id}"
@@ -90,6 +95,7 @@ class LiveCamera:
             # what a camera can do.
             "tier": "UNASSIGNED",
             "enabled": True,
+            "source_domain": "GOVERNMENT",
         }
         for key, value in (("name", self.name or self.location),
                            ("site", self.location),
@@ -147,6 +153,8 @@ def _credential() -> dict[str, str]:
       SENTINEL_GRID_COOKIE   a session cookie captured after signing in
       SENTINEL_GRID_TOKEN    a bearer token, if the portal issues one
       SENTINEL_GRID_BASIC    user:pass for HTTP basic, if that is the mechanism
+      SENTINEL_GRID_EMAIL / SENTINEL_GRID_PASSWORD
+                             used for an in-memory portal form-login
 
     Nothing here is written to disk, echoed into an exception, or committed.
     """
@@ -159,18 +167,19 @@ def _credential() -> dict[str, str]:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     if basic:
-        import base64
         headers["Authorization"] = "Basic " + base64.b64encode(
             basic.encode()).decode()
     return headers
 
 
 def has_credential() -> bool:
-    return bool(_credential())
+    return bool(_credential() or (
+        os.environ.get("SENTINEL_GRID_EMAIL")
+        and os.environ.get("SENTINEL_GRID_PASSWORD")))
 
 
 def fetch_catalogue(cfg: GridConfig | None = None) -> list[LiveCamera]:
-    """Fetch and normalise `cameras.json`.
+    """Fetch and normalise the authenticated Sentinel catalogue.
 
     Several plausible JSON shapes are accepted — a bare list, `{"cameras": …}`,
     `{"items": …}` — because an unexpected layout should be a mapping change
@@ -180,22 +189,37 @@ def fetch_catalogue(cfg: GridConfig | None = None) -> list[LiveCamera]:
 
     cfg = cfg or GridConfig.from_env()
     headers = _credential()
+    email = os.environ.get("SENTINEL_GRID_EMAIL")
+    password = os.environ.get("SENTINEL_GRID_PASSWORD")
     try:
-        r = httpx.get(cfg.catalogue_url, headers=headers,
-                      timeout=cfg.timeout_s, follow_redirects=False)
+        with httpx.Client(headers=headers, timeout=cfg.timeout_s,
+                          follow_redirects=True) as client:
+            # The current portal uses a regular form login, not HTTP Basic.
+            # Keep its resulting cookie only in this client; do not expose it
+            # through config, logs, the database, or process environment.
+            if email and password and not headers:
+                login_url = str(httpx.URL(cfg.catalogue_url).join("/auth/login"))
+                login = client.post(login_url, data={
+                    "email": email, "password": password,
+                })
+                if login.status_code >= 400:
+                    raise CatalogueUnavailable(
+                        f"portal sign-in returned HTTP {login.status_code}")
+            r = client.get(cfg.catalogue_url, follow_redirects=False)
     except Exception as exc:
+        if isinstance(exc, CatalogueUnavailable):
+            raise
         raise CatalogueUnavailable(
             f"catalogue at {cfg.catalogue_url} is unreachable: "
             f"{type(exc).__name__}") from exc
 
     if r.status_code in (301, 302, 303, 307, 308):
         raise CatalogueUnavailable(
-            f"catalogue at {cfg.catalogue_url} redirected to "
-            f"{r.headers.get('location')!r} — the CDN host requires a signed-in "
-            "session. Provide it through SENTINEL_GRID_COOKIE (a session cookie "
-            "captured after signing in), SENTINEL_GRID_TOKEN, or "
-            "SENTINEL_GRID_BASIC. It must not be written into any file in this "
-            "repository.")
+            f"catalogue at {cfg.catalogue_url} redirected to the sign-in page — "
+            "the CDN host requires a signed-in session. Provide either the "
+            "registered SENTINEL_GRID_EMAIL and SENTINEL_GRID_PASSWORD for an "
+            "in-memory sign-in, or a session credential. It must not be written "
+            "into any file in this repository.")
     if r.status_code == 401 or r.status_code == 403:
         raise CatalogueUnavailable(
             f"catalogue returned {r.status_code}: the supplied session material "

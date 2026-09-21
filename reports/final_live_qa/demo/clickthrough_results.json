@@ -1,0 +1,320 @@
+{
+  "clicks": [
+    {
+      "t": "00:02",
+      "shot": "00_login",
+      "ok": true
+    },
+    {
+      "t": "00:04",
+      "shot": "01_invalid_auth",
+      "ok": true
+    },
+    {
+      "t": "00:06",
+      "shot": "02_overview",
+      "ok": true
+    },
+    {
+      "t": "00:06",
+      "action": "nav:live",
+      "ok": true
+    },
+    {
+      "t": "00:07",
+      "action": "#view-live [data-live-layout='grid']",
+      "ok": true
+    },
+    {
+      "t": "00:08",
+      "action": "#view-live [data-live-domain='government']",
+      "ok": true
+    },
+    {
+      "t": "00:08",
+      "action": "#view-live [data-live-wall='12']",
+      "ok": true
+    },
+    {
+      "t": "00:23",
+      "shot": "03_gov_grid_12",
+      "ok": true
+    },
+    {
+      "t": "00:23",
+      "action": "#view-live [data-live-layout='focus']",
+      "ok": true
+    },
+    {
+      "t": "00:26",
+      "shot": "04_focus",
+      "ok": true
+    },
+    {
+      "t": "00:26",
+      "action": "#view-live [data-live-layout='grid']",
+      "ok": true
+    },
+    {
+      "t": "00:26",
+      "action": "#view-live [data-live-wall='16']",
+      "ok": true
+    },
+    {
+      "t": "00:32",
+      "shot": "05_wall_16",
+      "ok": true
+    },
+    {
+      "t": "00:32",
+      "action": "#view-live [data-live-wall='25']",
+      "ok": true
+    },
+    {
+      "t": "00:37",
+      "shot": "05_wall_25",
+      "ok": true
+    },
+    {
+      "t": "00:37",
+      "action": "#view-live [data-live-wall='30']",
+      "ok": true
+    },
+    {
+      "t": "00:47",
+      "shot": "05_wall_30",
+      "ok": true
+    },
+    {
+      "t": "00:50",
+      "shot": "06_camera_open",
+      "ok": true
+    },
+    {
+      "t": "00:50",
+      "action": "#view-live [data-live-layout='grid']",
+      "ok": true
+    },
+    {
+      "t": "00:50",
+      "action": "#view-live [data-live-wall='12']",
+      "ok": true
+    },
+    {
+      "t": "00:52",
+      "action": "#view-live [data-live-domain='fifty']",
+      "ok": true
+    },
+    {
+      "t": "00:53",
+      "action": "#view-live [data-live-wall='50']",
+      "ok": true
+    },
+    {
+      "t": "01:00",
+      "shot": "07_wall_50",
+      "ok": true
+    },
+    {
+      "t": "01:00",
+      "action": "#view-live [data-live-domain='government']",
+      "ok": true
+    },
+    {
+      "t": "01:01",
+      "action": "#view-live [data-live-wall='12']",
+      "ok": true
+    },
+    {
+      "t": "01:01",
+      "action": "#view-live [data-viewmode='video']",
+      "ok": true
+    },
+    {
+      "t": "01:03",
+      "action": "#view-live [data-viewmode='vehicles']",
+      "ok": true
+    },
+    {
+      "t": "01:04",
+      "action": "#view-live [data-viewmode='people']",
+      "ok": true
+    },
+    {
+      "t": "01:05",
+      "action": "#view-live [data-viewmode='anpr']",
+      "ok": true
+    },
+    {
+      "t": "01:06",
+      "action": "#view-live [data-viewmode='full']",
+      "ok": true
+    },
+    {
+      "t": "01:07",
+      "action": "#view-live [data-viewmode='incident']",
+      "ok": true
+    },
+    {
+      "t": "01:08",
+      "shot": "08_analytics_full",
+      "ok": true
+    },
+    {
+      "t": "01:08",
+      "action": "product:intelligence",
+      "ok": true
+    },
+    {
+      "t": "01:09",
+      "action": "nav:intelligence",
+      "ok": true
+    },
+    {
+      "t": "01:15",
+      "shot": "09_intelligence",
+      "ok": true
+    },
+    {
+      "t": "01:19",
+      "action": "nav:intelligence",
+      "ok": true
+    },
+    {
+      "t": "01:22",
+      "action": "nav:alerts",
+      "ok": true
+    },
+    {
+      "t": "01:25",
+      "shot": "10_alerts",
+      "ok": true
+    },
+    {
+      "t": "01:29",
+      "shot": "11_alerts_tabs",
+      "ok": true
+    },
+    {
+      "t": "01:32",
+      "shot": "12_track",
+      "ok": true
+    },
+    {
+      "t": "01:32",
+      "action": "nav:investigate",
+      "ok": true
+    },
+    {
+      "t": "01:38",
+      "shot": "13_search",
+      "ok": true
+    },
+    {
+      "t": "01:41",
+      "shot": "14_route",
+      "ok": true
+    },
+    {
+      "t": "01:41",
+      "action": "nav:map",
+      "ok": true
+    },
+    {
+      "t": "01:47",
+      "shot": "15_gis",
+      "ok": true
+    },
+    {
+      "t": "01:49",
+      "action": "nav:evidence",
+      "ok": true
+    },
+    {
+      "t": "01:52",
+      "shot": "16_evidence",
+      "ok": true
+    },
+    {
+      "t": "01:52",
+      "action": "nav:cameras",
+      "ok": true
+    },
+    {
+      "t": "01:56",
+      "shot": "17_camera_health",
+      "ok": true
+    },
+    {
+      "t": "01:56",
+      "action": "nav:analytics",
+      "ok": true
+    },
+    {
+      "t": "02:00",
+      "shot": "18_analytics",
+      "ok": true
+    },
+    {
+      "t": "02:00",
+      "action": "nav:system",
+      "ok": true
+    },
+    {
+      "t": "02:04",
+      "shot": "19_system",
+      "ok": true
+    },
+    {
+      "t": "02:06",
+      "shot": "20_system_ranks",
+      "ok": true
+    },
+    {
+      "t": "02:06",
+      "action": "nav:audit",
+      "ok": true
+    },
+    {
+      "t": "02:10",
+      "shot": "21_audit",
+      "ok": true
+    },
+    {
+      "t": "02:10",
+      "action": "nav:live",
+      "ok": true
+    },
+    {
+      "t": "02:11",
+      "action": "#view-live [data-live-layout='grid']",
+      "ok": true
+    },
+    {
+      "t": "02:11",
+      "action": "#view-live [data-live-domain='government']",
+      "ok": true
+    },
+    {
+      "t": "02:12",
+      "action": "#view-live [data-live-wall='12']",
+      "ok": true
+    },
+    {
+      "t": "02:20",
+      "shot": "22_refresh",
+      "ok": true
+    },
+    {
+      "t": "02:20",
+      "action": "nav:overview",
+      "ok": true
+    },
+    {
+      "t": "02:24",
+      "shot": "23_final_overview",
+      "ok": true
+    }
+  ],
+  "n": 63
+}

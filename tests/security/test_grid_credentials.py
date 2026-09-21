@@ -71,6 +71,16 @@ def test_redaction_catches_a_credential_from_anywhere():
     assert "someone%40elsewhere.com" not in out
 
 
+def test_redaction_catches_an_unescaped_email_authority():
+    """Exception messages can contain a vendor-provided, unescaped email.
+    Its internal @ must not make the password survive redaction."""
+    msg = "ConnectionError: rtsp://user@example.org:TEST-ACCESS@host/s/cam01"
+    out = redact(msg)
+    assert "user@example.org" not in out
+    assert "TEST-ACCESS" not in out
+    assert "<redacted>@host" in out
+
+
 def test_without_a_credential_the_url_is_unchanged(no_creds):
     """A deployment against an unauthenticated grid needs no special case."""
     assert configured() is False

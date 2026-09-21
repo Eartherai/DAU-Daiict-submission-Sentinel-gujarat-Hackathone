@@ -29,6 +29,7 @@ import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import av
@@ -186,6 +187,8 @@ class StreamWorker(threading.Thread):
         self._on_segment_break = on_segment_break
         self._frame_index = 0
         self._cut = SceneCutDetector(camera_id=camera_id)
+        #: Wall cameras can skip inter-frames. AI cameras must not.
+        self.keyframes_only = False
 
     # -- consumer API ------------------------------------------------------- #
     def subscribe(self, name: str) -> queue.Queue[Frame | None]:
@@ -268,9 +271,12 @@ class StreamWorker(threading.Thread):
                 vstream.thread_type = "AUTO"  # type: ignore[attr-defined]
 
                 self.stats.connects += 1
-                if self.stats.connects > 1:
+                is_file = Path(self.url).is_file() or str(self.url).startswith("file:")
+                if self.stats.connects > 1 and not is_file:
                     self.stats.reconnects += 1
                     self._new_segment("reconnect")
+                elif self.stats.connects > 1 and is_file:
+                    self._new_segment("file_loop")
                 self.stats.connected_since = utc_now()
                 self.stats.state = "streaming"
                 self.stats.codec = getattr(vstream.codec_context, "name", None)
@@ -283,10 +289,16 @@ class StreamWorker(threading.Thread):
                 backoff = self.cfg.backoff_initial_s
 
                 self._decode_loop(container, vstream)
+                if Path(self.url).is_file() and not self._stopping.is_set():
+                    # Loop local files immediately. This is replay, not an
+                    # upstream drop — do not count it as a reconnect storm.
+                    continue
+                if not self._stopping.is_set():
+                    raise ConnectionError("stream ended")
 
             except Exception as exc:
                 self.stats.open_failures += 1
-                self.stats.last_error = f"{type(exc).__name__}: {exc}"[:300]
+                self.stats.last_error = f"{type(exc).__name__}: {redact(str(exc))}"[:300]
                 self.stats.state = "error"
                 log.warning("stream error camera=%s %s", self.camera_id, self.stats.last_error)
             finally:
@@ -315,12 +327,15 @@ class StreamWorker(threading.Thread):
         last_pts: float | None = None
         connect_wall = time.monotonic()
         first_pts: float | None = None
-        warmup = True
+        is_file = Path(self.url).is_file() or str(self.url).startswith("file:")
+        warmup = not is_file
         warmup_frames = 0
 
         for packet in container.demux(vstream):
             if self._stopping.is_set():
                 return
+            if self.keyframes_only and not getattr(packet, "is_keyframe", True):
+                continue
             try:
                 frames = packet.decode()
             # `av.FFmpegError` is the base of every PyAV decode error —
@@ -358,13 +373,15 @@ class StreamWorker(threading.Thread):
                         self._new_segment("pts_regression")
                         first_pts = pts_s
                         connect_wall = now_wall
-                        warmup, warmup_frames = True, 0
+                        if not is_file:
+                            warmup, warmup_frames = True, 0
                     elif delta > self.cfg.pts_forward_jump_s:
                         self.stats.pts_forward_jumps += 1
                         self._new_segment("pts_forward_jump")
                         first_pts = pts_s
                         connect_wall = now_wall
-                        warmup, warmup_frames = True, 0
+                        if not is_file:
+                            warmup, warmup_frames = True, 0
                     else:
                         self.stats.note_frame_interval(delta, self.cfg.fps_window)
 
@@ -401,7 +418,7 @@ class StreamWorker(threading.Thread):
                 # grid replica showed a looping publisher advances PTS straight
                 # across the loop point, so timing evidence alone misses the cut
                 # and long-lived state (tracks, galleries) would survive it.
-                if not warmup and self._cut.update(img):
+                if not is_file and not warmup and self._cut.update(img):
                     self.stats.scene_cuts += 1
                     self._new_segment("scene_cut")
 
@@ -411,6 +428,12 @@ class StreamWorker(threading.Thread):
                 self.stats.last_frame_wall = t_ingest
                 self.stats.clock_drift_s = round(self.clock.drift_s, 4)
                 self._frame_index += 1
+
+                if is_file and first_pts is not None:
+                    due = connect_wall + (pts_s - first_pts)
+                    wait = due - time.monotonic()
+                    if wait > 0.003 and self._stopping.wait(min(wait, 0.4)):
+                        return
 
                 self._publish(
                     Frame(
@@ -427,8 +450,10 @@ class StreamWorker(threading.Thread):
                         frame_index=self._frame_index,
                     )
                 )
-        # Demux ended: the feed closed. Outer loop reconnects with backoff.
-        raise ConnectionError("stream ended")
+        # Demux ended. File workers return so the outer loop can reopen
+        # immediately. RTSP workers raise and back off.
+
+
 
 
 class StreamManager:

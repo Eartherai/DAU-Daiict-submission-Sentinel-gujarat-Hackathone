@@ -12,7 +12,9 @@
  *  - Uncertainty is stated in words, not implied by colour. CONFIRMED BY PLATE
  *    and REQUIRES VERIFICATION are printed; the colour only reinforces them.
  */
-import { MapView } from "/ui/map.js?v=cr087";
+import HlsEngine from "/ui/vendor/hls-1.5.17.mjs?v=1.5.17";
+import { MapView } from "/ui/map.js?v=cr100";
+import { officerIdMismatch } from "/ui/auth-gate.js?v=cr100";
 
 /* ─── API client ─────────────────────────────────────────────────────────── */
 const state = {
@@ -29,6 +31,8 @@ const state = {
   openCase: null,
   copilotConfig: { available: false, gemini: false },
   liveConfig: { whep: false },
+  simulationConfig: { enabled: false, available: false, proxy: false,
+                      catalog_count: 30, ready_count: 0, label: "" },
   telemetry: {
     snapshot: { started: 0, completed: 0, error: "" },
     whep: { started: 0, completed: 0, error: "" },
@@ -56,6 +60,9 @@ class ApiError extends Error {
  * token through a query string, where it would land in server logs, browser
  * history, and any screenshot of a demonstration. */
 function authHeaders() {
+  if (!state.token) {
+    state.token = sessionStorage.getItem("saakshya.token") || "";
+  }
   const h = {};
   if (state.token) h.Authorization = `Bearer ${state.token}`;
   if (state.caseId) h["X-Case-Id"] = state.caseId;
@@ -287,16 +294,72 @@ function show(view) {
   $$(".nav button").forEach((b) =>
     b.setAttribute("aria-current", String(b.dataset.view === view)));
   location.hash = view;
+  const product = view === "intelligence" ? "intelligence"
+    : view === "system" || view === "audit" || view === "cameras" ? "system"
+    : view === "investigate" || view === "map" || view === "cases"
+      || view === "evidence" || view === "copilot" || view === "alerts" ? "investigation"
+    : "operations";
+  productState.mode = product;
+  $$("[data-product]").forEach((b) => {
+    const on = b.dataset.product === product;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
   if (loaders[view]) loaders[view]();
   if (view !== "live") {
-    stopLiveRefresh(); closeLive();
-    liveObserver?.disconnect(); liveObserver = null; liveQueue.length = 0;
+    stopLiveRefresh(); stopWallHeartbeat();
+    closeLive(); closeTileWhepAll(); closeTileHlsAll();
+    liveObserver?.disconnect(); liveObserver = null;
+    abortSnapshots();
+  } else {
+    /* Leaving Live tears every session down, so entering it has to build them
+     * back. That was left to the post-paint callback inside the wall painter,
+     * which does not run on every path into this view: navigating back to Live
+     * showed a full grid of tiles with no video at all, and stayed that way
+     * until the operator happened to click a layout or wall-size button, which
+     * re-ran the sync as a side effect. Establish the media plane explicitly on
+     * entry instead of depending on which code path painted the wall.
+     *
+     * Two frames, because the tiles must be laid out before they can be
+     * measured: the scheduler skips any tile smaller than 8px, and on the frame
+     * the grid is created every tile is still 0x0. */
+    /* The loader that paints the wall is async, so two frames is not enough:
+     * on entry the grid is usually still empty, every tile measures 0x0, the
+     * scheduler correctly skips them all, and nothing ever retries - which is
+     * the bug this block exists to fix. Re-run a few times over the first few
+     * seconds instead of guessing one moment. syncTileWhep is idempotent: it
+     * reattaches sessions it already holds and only negotiates what is
+     * missing, so repeating it costs nothing. */
+    applyCommandChrome();
+    applyMediaPolicy();
+    startWallHeartbeat();
+    for (const delay of [0, 300, 900, 2000, 4000]) {
+      setTimeout(() => {
+        if (!$("#view-live")?.classList.contains("active")) return;
+        bindWhepScroll();
+        applyCommandChrome();
+        applyMediaPolicy();
+        fitWall();
+        syncTileWhep();
+      }, delay);
+    }
+  }
+  if (view !== "intelligence") {
+    for (const host of [$("#intel-stage-a"), $("#intel-stage-b")]) {
+      if (host?._intelTimer) { clearInterval(host._intelTimer); host._intelTimer = null; }
+    }
   }
   if (view === "map" && map2) {
-    map2.resize();
-    refreshMapLayers(map2, map2.bbox());
+    const refit = () => {
+      map2.resize();
+      refreshMapLayers(map2, map2.bbox());
+    };
+    refit();
+    setTimeout(refit, 250);
+    setTimeout(refit, 800);
   }
   if (view === "investigate" && map1) { map1.resize(); }
+  if (view === "intelligence" && intelMap) intelMap.resize();
 }
 
 $$(".nav button").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
@@ -339,8 +402,12 @@ $("#btn-token").addEventListener("click", () => {
 });
 $("#gate-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const officerId = $("#gate-officer")?.value.trim();
   const tok = $("#gate-token").value.trim();
-  if (!tok) return;
+  if (!officerId || !tok) {
+    toast("Enter your Officer ID and the access token issued to you.", true);
+    return;
+  }
   state.token = tok;
   sessionStorage.setItem("saakshya.token", tok);
   const c = $("#gate-case")?.value.trim();
@@ -348,12 +415,27 @@ $("#gate-form")?.addEventListener("submit", async (e) => {
   if (c) { state.caseId = c; $("#case-id").value = c; }
   if (p) { state.purpose = p; $("#purpose").value = p; }
   await identify();
-  if (state.principal) {
-    syncPurpose();
-    show((location.hash || "#overview").slice(1) || "overview");
-  } else {
+  if (!state.principal) {
     toast("Token was refused. Check it and try again.", true);
+    return;
   }
+  /* The token authenticated *someone*; this confirms it authenticated the
+   * officer who typed it. A mismatch is treated as a failed sign-in, not a
+   * warning — the token is dropped rather than left active under the wrong
+   * name. */
+  if (officerIdMismatch(officerId, state.principal)) {
+    state.principal = null;
+    state.token = "";
+    sessionStorage.removeItem("saakshya.token");
+    $("#who").textContent = "not signed in";
+    const gate = $("#gate");
+    if (gate) gate.hidden = false;
+    toast("That token is not issued to this Officer ID. Sign in with your "
+      + "own Officer ID and the token issued to you.", true);
+    return;
+  }
+  syncPurpose();
+  show((location.hash || "#overview").slice(1) || "overview");
 });
 $("#token-dialog").addEventListener("close", async (e) => {
   const dlg = e.target;
@@ -431,15 +513,18 @@ $("#btn-gemini")?.addEventListener("click", () => {
 
 async function applyDeploymentConfig(cfg) {
   const mapOpts = {};
-  if (cfg.map?.google?.enabled && cfg.map.google.key) {
-    mapOpts.googleKey = cfg.map.google.key;
-  } else if (cfg.map?.tiles && cfg.map.template) {
+  if (cfg.map?.google?.enabled) {
+    mapOpts.googleLoader = cfg.map.google.loader || "/maps/google-api";
+  }
+  if (cfg.map?.tiles && cfg.map.template) {
     mapOpts.tileTemplate = cfg.map.template;
     mapOpts.attribution = cfg.map.attribution;
   }
   state.mapConfig = cfg.map;
   state.mapOpts = { ...(state.mapOpts || {}), ...mapOpts };
   state.liveConfig = cfg.live || { whep: false };
+  state.simulationConfig = cfg.simulation || { enabled: false, available: false, proxy: false,
+                                               catalog_count: 30, ready_count: 0, label: "" };
   state.dataHolds = cfg.data?.holds || "";
   state.copilotConfig = cfg.copilot || { available: false, gemini: false };
   if (state.copilotConfig.gemini && sessionStorage.getItem("saakshya.gemini") == null) {
@@ -476,6 +561,9 @@ async function applyDeploymentConfig(cfg) {
 }
 
 async function identify() {
+  if (!state.token) {
+    state.token = sessionStorage.getItem("saakshya.token") || "";
+  }
   try {
     const me = await api("/me");
     state.principal = me.principal;
@@ -969,7 +1057,8 @@ async function followVehicle(plate) {
         el("strong", { text: `Follow vehicle · ${plate}` }),
         `${res.route_confidence?.confirmed_sightings || 0} confirmed sighting(s), `
         + `${res.candidates?.length || 0} ranked follow-up lead(s).`));
-      for (const c of res.candidates || []) {
+      const visibleCandidates = (res.candidates || []).slice(0, 5);
+      for (const c of visibleCandidates) {
         body.append(el("div", { class: "result" },
           el("div", { class: "top" },
             el("span", { class: "plate", text: c.camera_id }),
@@ -982,12 +1071,39 @@ async function followVehicle(plate) {
               text: `${Math.round(c.distance_m)} m · ${Math.round(c.elapsed_s)} s`,
             }))));
       }
+      if ((res.candidates || []).length > visibleCandidates.length) {
+        body.append(el("div", { class: "section-note", text:
+          `Showing the five highest-ranked leads; ${(res.candidates || []).length - visibleCandidates.length} more remain available in the case API.` }));
+      }
+
+      // A burst of observations can produce many copies of the same
+      // impossible camera-to-camera transition.  Preserve the count while
+      // showing one representative (the highest implied speed) per pair, so
+      // the operator sees a decision rather than a scrolling wall of noise.
+      const contradictions = new Map();
       for (const x of res.contradictions || []) {
+        const key = `${x.from_camera}→${x.to_camera}`;
+        const current = contradictions.get(key);
+        if (!current) contradictions.set(key, { ...x, count: 1 });
+        else {
+          current.count += 1;
+          if ((x.implied_speed_kmh || 0) > (current.implied_speed_kmh || 0)) {
+            Object.assign(current, x);
+          }
+        }
+      }
+      const visibleContradictions = [...contradictions.values()].slice(0, 3);
+      for (const x of visibleContradictions) {
         body.append(el("div", { class: "notice bad" },
           el("strong", { text: "ROUTE_CONTRADICTION" }),
           `${x.from_camera} → ${x.to_camera}: ${x.reason}. `
           + `Distance ${Math.round(x.distance_m)} m, elapsed ${Math.round(x.elapsed_s)} s, `
-          + `implied ${Math.round(x.implied_speed_kmh)} km/h.`));
+          + `implied ${Math.round(x.implied_speed_kmh)} km/h.`
+          + (x.count > 1 ? ` ${x.count} observations collapsed into this transition.` : "")));
+      }
+      if (contradictions.size > visibleContradictions.length) {
+        body.append(el("div", { class: "section-note", text:
+          `Showing ${visibleContradictions.length} of ${contradictions.size} distinct impossible transitions; the full set remains in the case API.` }));
       }
       if (!(res.candidates || []).length && !(res.contradictions || []).length) {
         body.append(el("div", { class: "notice neutral",
@@ -1133,7 +1249,8 @@ $("#btn-attach-traj").addEventListener("click", () => {
 });
 
 /* ─── maps ───────────────────────────────────────────────────────────────── */
-let map1 = null, map2 = null;
+let map1 = null, map2 = null, intelMap = null;
+let lastTrackCard = null;
 
 const PRECISION_LABEL = {
   LANDMARK: "±150 m · named junction",
@@ -1211,11 +1328,11 @@ function renderRegistryRail(located, unlocated) {
     const img = el("img", { alt: c.camera_id });
     card.append(
       el("div", { class: "registry-thumb" }, img),
-      el("div", { class: "name", text: c.camera_id }),
+      el("div", { class: "name", text: c.name || c.camera_id }),
       el("div", { class: "sub",
                   text: unlocatedCam
-                    ? "not on the map"
-                    : (c.district || "") }));
+                    ? `${c.camera_id} · not on the map`
+                    : `${c.camera_id} · ${c.district || "district unknown"}` }));
     card.addEventListener("click", () => {
       if (!unlocatedCam && map2 && c.lat != null && c.lon != null) {
         map2.centre = [c.lat, c.lon];
@@ -1230,17 +1347,41 @@ function renderRegistryRail(located, unlocated) {
   rail.append(row);
 }
 
-async function fillRegistryStill(img, id) {
-  try {
-    const res = await fetch(`/cameras/${encodeURIComponent(id)}/snapshot`,
-                            { headers: authHeaders() });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
-    const url = URL.createObjectURL(blob);
-    img.dataset.url = url;
-    img.src = url;
-  } catch { /* the chip still names the camera */ }
+/* The registry rail asks for a still per camera, in a loop. Unbounded and
+ * uncancellable, thirty of those captures - one to ten seconds each - held
+ * every connection the browser allows for minutes, and the request the Live
+ * wall makes on entry queued behind them and never returned. The rail is a
+ * row of thumbnails; it does not deserve the whole connection budget. Bound
+ * it, and let leaving the view take the connections back. */
+const REGISTRY_STILL_MAX = 3;
+const registryStillQueue = [];
+let registryStillInflight = 0;
+
+function pumpRegistryStills() {
+  while (registryStillInflight < REGISTRY_STILL_MAX && registryStillQueue.length) {
+    const job = registryStillQueue.shift();
+    registryStillInflight += 1;
+    job().finally(() => { registryStillInflight -= 1; pumpRegistryStills(); });
+  }
+}
+
+function fillRegistryStill(img, id) {
+  registryStillQueue.push(async () => {
+    const ctl = new AbortController();
+    snapshotAborts.add(ctl);
+    try {
+      const res = await fetch(`/cameras/${encodeURIComponent(id)}/snapshot`,
+                              { headers: authHeaders(), signal: ctl.signal });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+      const url = URL.createObjectURL(blob);
+      img.dataset.url = url;
+      img.src = url;
+    } catch { /* aborted, or the chip still names the camera */ }
+    finally { snapshotAborts.delete(ctl); }
+  });
+  pumpRegistryStills();
 }
 
 async function refreshMapLayers(map, bbox) {
@@ -1407,6 +1548,10 @@ $("#btn-fit2").addEventListener("click", async () => {
   const ext = await api("/gis/extent");
   if (ext.extent) map2.fit(ext.extent);
 });
+$("#btn-focus-target")?.addEventListener("click", () => {
+  if (lastTrackCard && map1) map1.focusTarget(lastTrackCard.hops || []);
+  else toast("Track a target first");
+});
 
 async function onMapSelect(hit, map) {
   if (!hit) return;
@@ -1415,6 +1560,15 @@ async function onMapSelect(hit, map) {
     map.zoom = Math.min(19, map.zoom + 2);
     map.draw();
     await refreshMapLayers(map, map.bbox());
+    return;
+  }
+  if (hit.kind === "alert") {
+    show("alerts");
+    toast(`${hit.data?.priority || "ALERT"} · ${hit.data?.plate || hit.id}`);
+    return;
+  }
+  if (hit.kind === "trajectory-node" && hit.data?.observation_id) {
+    jumpObservation(hit.data.observation_id, hit.id);
     return;
   }
   if (hit.kind !== "camera" && hit.kind !== "trajectory-node") return;
@@ -1473,6 +1627,65 @@ async function onMapSelect(hit, map) {
  * it is sound. The camera wall is not here — it is a thing you look at once
  * you know which camera you want.
  */
+/* A rank is not a permission set.  This small briefing block is deliberately
+ * driven by the authenticated product role: it gives an officer a useful next
+ * action without creating a UI switch that could imply access they do not
+ * hold.  The API remains the authority for every operation. */
+const ROLE_BRIEFS = {
+  SUPERVISOR: {
+    label: "State command brief",
+    scope: "Statewide posture · prioritise, authorise and review exceptions.",
+    next: "Review open watchlist alerts, then assess coverage and system health before directing a district response.",
+    actions: [["Open alerts", "alerts"], ["Estate map", "map"], ["System health", "system"]],
+  },
+  INVESTIGATOR: {
+    label: "Investigation brief",
+    scope: "Assigned jurisdiction · case-bound search, route and evidence.",
+    next: "Confirm the case and purpose, search the registration mark, then verify the evidence before acting on a lead.",
+    actions: [["Investigate", "investigate"], ["Open evidence", "evidence"], ["Case file", "cases"]],
+  },
+  OPERATOR: {
+    label: "Control-room brief",
+    scope: "Assigned jurisdiction · observe, acknowledge and hand over.",
+    next: "Work the alert queue, open the relevant camera, and record a clean handover to the investigating officer.",
+    actions: [["Open alerts", "alerts"], ["Live cameras", "live"], ["Estate map", "map"]],
+  },
+  ADMIN: {
+    label: "Estate administration brief",
+    scope: "Statewide estate · registry, integration and operational health.",
+    next: "Resolve degraded camera health, validate source metadata, and keep access policies separate from investigations.",
+    actions: [["System health", "system"], ["Camera capability", "cameras"], ["Estate map", "map"]],
+  },
+  AUDITOR: {
+    label: "Oversight brief",
+    scope: "Statewide oversight · audit integrity and policy review.",
+    next: "Review the audit chain and case handling history. Oversight does not become an investigation side door.",
+    actions: [["Audit log", "audit"], ["System health", "system"], ["Estate map", "map"]],
+  },
+};
+
+function dutyBrief() {
+  const role = String(state.principal?.role || "").toUpperCase();
+  const brief = ROLE_BRIEFS[role] || {
+    label: "Operational brief",
+    scope: "Permissions are determined by the signed-in identity.",
+    next: "Open the task that matches your authorised operational responsibility.",
+    actions: [["Open alerts", "alerts"], ["System health", "system"]],
+  };
+  return el("section", { class: "duty-brief", "aria-label": "Role-aware operational brief" },
+    el("div", { class: "duty-copy" },
+      el("div", { class: "duty-eyebrow", text: `${role || "SIGNED-IN"} · PERMISSION-AWARE` }),
+      el("h3", { text: brief.label }),
+      el("p", { class: "duty-scope", text: brief.scope }),
+      el("p", { class: "duty-next" }, el("strong", { text: "Next: " }), brief.next)),
+    el("div", { class: "duty-actions", "aria-label": "Role-appropriate workspace actions" },
+      ...brief.actions.map(([label, view]) => el("button", {
+        class: view === "alerts" ? "primary" : "ghost",
+        type: "button",
+        onclick: () => show(view),
+      }, label))));
+}
+
 /* ─── overview ───────────────────────────────────────────────────────────── */
 loaders.overview = async () => {
   const box = $("#overview");
@@ -1542,8 +1755,8 @@ loaders.overview = async () => {
         bar(o.alerts.open, "red")),
       cmd ? el("div", { class: "kpi" },
         el("h4", { text: "Persons / vehicles in store" }),
-        el("div", { class: "big", text: `${cmd.persons_detected || 0} / ${cmd.vehicles_tracked || 0}` }),
-        el("div", { class: "sub", text: `${cmd.anpr_reads_per_min || 0} ANPR / min · ${cmd.events_per_min || 0} events / min · ${cmd.label}` }),
+        el("div", { class: "big", text: `${cmd.kpis?.people?.display ?? cmd.persons_detected ?? 0} / ${cmd.kpis?.vehicles?.display ?? cmd.vehicles_tracked ?? 0}` }),
+        el("div", { class: "sub", text: `${cmd.kpis?.anpr_reads_per_min?.display ?? cmd.anpr_reads_per_min ?? 0} ANPR / min · ${cmd.kpis?.events_per_min?.display ?? cmd.events_per_min ?? 0} events / min · ${cmd.label}` }),
         bar(cmd.persons_detected || 0)) : null);
 
     const prove = el("div", { class: "ov-card" },
@@ -1573,6 +1786,18 @@ loaders.overview = async () => {
     const gallery = el("div", { class: "ov-card", style: "grid-column:1/-1" },
       el("h3", { text: "Marks, with location" }),
       el("p", { class: "lede", text: "Distinct registration marks as last published, with the camera and district that saw them. A still is the camera, not an enhanced plate." }),
+      /* A recording is not a report. The same marks, with their timestamps and
+       * cameras, as a file that can be attached to a submission or handed to a
+       * court — generated from this store at the moment it is asked for. */
+      el("div", { style: "margin:-4px 0 10px" },
+        /* Not a plain href: this deployment authenticates with a bearer token
+         * held in session storage, and a link the browser follows itself sends
+         * no Authorization header - the download would have 401'd. Fetch it
+         * with the same credentials every other request uses, then hand the
+         * operator the bytes. */
+        anprReportButton(),
+        el("span", { class: "sid", style: "margin-left:8px",
+                     text: "plate · timestamp · camera · district · department" })),
       marks.length
         ? el("div", { class: "plate-gallery" }, ...marks.map(plateCard))
         : el("div", { class: "cap-note", text: "No registration mark in this store yet." }));
@@ -1581,6 +1806,7 @@ loaders.overview = async () => {
       el("p", { class: "ov-kicker" },
         el("strong", { text: "Overview" }), "estate health, capability and open alerts"),
       kpis,
+      dutyBrief(),
       el("div", { class: "ov-split" }, prove, open),
       gallery));
 
@@ -1600,12 +1826,44 @@ function preferUsableStills(marks) {
   return good.length ? good.concat(rest) : rows;
 }
 
+function anprReportButton() {
+  const btn = el("button", { class: "btn small", type: "button",
+                             text: "Download ANPR report (CSV)" });
+  btn.addEventListener("click", async () => {
+    const was = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Preparing\u2026";
+    try {
+      const res = await fetch("/reports/anpr.csv?limit=1000",
+                              { headers: authHeaders() });
+      if (!res.ok) throw new Error(`report ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = el("a", { href: url,
+                          download: `saakshya-anpr-${Date.now()}.csv` });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      /* Revoke on the next turn of the loop: revoking synchronously can beat
+       * the download the click just started. */
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast("ANPR report downloaded");
+    } catch (err) {
+      toast(`Report unavailable: ${err.message || err}`, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = was;
+    }
+  });
+  return btn;
+}
+
 function plateRead(plate) {
   return el("div", { class: "plate-read", text: String(plate || "—").replace(/\s+/g, "").toUpperCase() });
 }
 
 function plateCard(m) {
-  const showStill = m.still_ok !== false;
+  const showStill = m.still_ok !== false && !directGovernmentOnDemand();
   const img = el("img", { alt: m.plate });
   const still = el("div", { class: "still" }, showStill ? img : plateRead(m.plate));
   const card = el("button", { class: "plate-card", type: "button" },
@@ -1952,10 +2210,43 @@ loaders.analytics = async () => {
 loaders.system = async () => {
   const box = $("#system");
   clear(box);
+  box.append(loadingNote("Checking subsystem health…"));
   try {
+    /* These two are independent, and awaiting them one after the other made
+     * the operator wait for the sum rather than the slower of the pair. */
+    const summaryPromise = api("/command/summary").catch(() => null);
     const h = await api("/system/health");
+    clear(box);
     const dot = $("#sys-dot");
     if (dot) { dot.dataset.state = h.overall; dot.title = `System: ${h.overall}`; }
+
+    try {
+      const cmd = await summaryPromise;
+      if (cmd?.rank_equivalence?.length) {
+        const table = el("table", { class: "data", id: "system-ranks" },
+          el("thead", {}, el("tr", {},
+            el("th", { text: "Gujarat rank" }),
+            el("th", { text: "Product role" }),
+            el("th", { text: "Scope" }),
+            el("th", { text: "May" }),
+            el("th", { text: "Must not" }))));
+        const tb = el("tbody");
+        for (const row of cmd.rank_equivalence) {
+          tb.append(el("tr", {},
+            el("td", { text: row.ranks }),
+            el("td", { class: "mono", text: row.role }),
+            el("td", { text: row.scope }),
+            el("td", { text: row.may }),
+            el("td", { text: row.must_not })));
+        }
+        table.append(tb);
+        box.append(el("div", { class: "panel ranks-first" },
+          el("div", { class: "panel-head" }, el("h3", { text: "Rank → role (existing RBAC)" })),
+          el("div", { class: "section-note",
+            text: cmd.rank_note || "Six product roles. Fourteen ranks are not fourteen permission sets." }),
+          table));
+      }
+    } catch { /* optional */ }
 
     box.append(el("div", { class: `notice ${
       h.overall === "HEALTHY" ? "ok" : h.overall === "FAILED" ? "bad" : "" }` },
@@ -1984,8 +2275,8 @@ loaders.system = async () => {
       }
       table.append(tb);
       box.append(el("div", { class: "panel", style: "margin-top:14px" },
-        el("div", { class: "panel-head" }, el("h3", { text: "Connected systems" })),
-        el("div", { class: "section-note", text: sys.provenance }),
+        el("div", { class: "panel-head" }, el("h3", { text: "Connected systems · DEMO / TEST" })),
+        el("div", { class: "section-note", text: `${sys.label || "DEMO / TEST"} · ${sys.provenance}` }),
         table));
     } catch { /* command systems optional */ }
 
@@ -2046,11 +2337,11 @@ function hybridArchitecture() {
     ["Model 1 — Registry & GIS (foundation)",
      "Central CCTV inventory, health and GIS. Positions that cannot be surveyed stay unlocated rather than invented. Map click opens camera detail → live video → events."],
     ["Model 2 — Unified viewing + metadata analytics",
-     "Native video (WHEP / stills) with a decoupled overlay. Operator modes: VIDEO / VEHICLES / PEOPLE / ANPR / FULL without restarting streams."],
+     "Native video with a decoupled overlay. Visible government tiles reuse at most twelve Direct WHEP sessions. CONTROL slots never open a government stream. Modes: VIDEO / VEHICLES / PEOPLE / ANPR / FULL."],
     ["Model 3 — Federation & event bus (kept)",
      "VMSAdapter contract (RTSP / ONVIF / Generic). DEMO/TEST connected-systems rows are not government VMS integrations. In-process bus with a Kafka-shaped publish/subscribe seam."],
-    ["Model 4 — Selective central analytics (not statewide recording)",
-     "Regional ingest + selective central ANPR / watchlist / route / alerts. PRIMARY/SECONDARY/PREVIEW/INACTIVE scheduler. Raw 80k video is not centralised — that remains MODELLED bandwidth arithmetic, not a deployment."],
+    ["Model 4 — Central intelligence command (own golden feeds)",
+     "Centralized analytics and command orchestration with regional media/AI pools for statewide deployment. Own Feed A + Own Feed B run FULL ANALYTICS (video, people, vehicles, tracking, ANPR, watchlist, alerts, evidence, GIS). This is not 80,000-camera central recording."],
     ["Model 5 — Adaptive regional media / AI",
      "Direct WHEP where the browser can decode; VideoToolbox H.264 bridge where required; RTSP/TCP stays the AI plane."],
   ];
@@ -2142,8 +2433,31 @@ function worldSystemsResearch() {
  * A wall of thirty peer connections is a bandwidth decision nobody made.
  */
 const LIVE_REFRESH_MS = 1500;
-/* File stills. Thirty parallel reads are still cheaper than one extra RTSP. */
-const LIVE_MAX_INFLIGHT = 30;
+const LIVE_MAX_INFLIGHT = 4;
+const LIVE_MAX_QUEUE = 12;
+function hubPlane() {
+  return state.liveConfig?.plane === "local_hub" || state.liveConfig?.hub;
+}
+function localRelay() {
+  return state.liveConfig?.plane === "local_relay" || state.liveConfig?.relay;
+}
+function directGovernmentOnDemand() {
+  return !localRelay() && !hubPlane() && state.liveConfig?.plane === "direct_whep";
+}
+function mediaPlane() {
+  return hubPlane() || localRelay();
+}
+function liveMaxInflight() {
+  return hubPlane() ? 12 : LIVE_MAX_INFLIGHT;
+}
+function liveMaxQueue() {
+  /* A queued preview is not an open source connection.  Keep enough bounded
+   * bookkeeping for the complete government wall so cameras 13-30 are not
+   * starved behind the first twelve; pumpStills still enforces four actual
+   * concurrent captures on the direct plane. */
+  if (directGovernmentOnDemand()) return 30;
+  return hubPlane() ? 36 : LIVE_MAX_QUEUE;
+}
 let liveInflight = 0;
 const liveQueue = [];
 let liveTimer = null;
@@ -2154,11 +2468,118 @@ let livePlayer = null;
  * stream capacity spent on pixels nobody is looking at. */
 let liveObserver = null;
 let liveCaptureEnabled = true;
-let liveLayout = "focus";
+let liveLayout = "grid";
 let liveDistrict = "all";
 let liveCamsAll = [];
-let liveWallMode = 12;
+let liveLoadGeneration = 0;
+/* All thirty cameras are on the wall, but the default Grid layout shows them
+ * as a scrolling column of large tiles rather than thirty thumbnails: only the
+ * handful on screen hold a stream, at full source quality, and the scheduler
+ * opens the next ones a screen ahead. Dense gives the 6x5 control-room wall. */
+let liveWallMode = 30;
 let livePriority = "all";
+let liveDomain = "government";
+/* A government catalogue wall is an operational index, not permission to open
+ * a burst of remote streams.  Direct Sentinel playback is opened only after
+ * an operator selects a camera into Focus; the loopback relay may fan out its
+ * separate, normalized rendition within its measured capacity. */
+/* Direct-grid budget. This was 0 because a catalogue wall must not open a
+ * burst of thirty remote streams - the integration contract is explicit that
+ * every client gets its own copy and asks callers to open only what they are
+ * actively using. That reasoning still holds; what changed is that the wall no
+ * longer tries to open everything. Streams follow the viewport, so this caps
+ * the few tiles actually on screen rather than the whole catalogue. */
+const TILE_WHEP_BUDGET = 12;
+const TILE_WHEP_STAGGER_MS = 400;
+function tileWhepBudget() {
+  /* Two policies, and which one is in force is stated on screen rather than
+   * inferred. CONTROL ROOM (the Dense 6x5 wall) holds a session per tile,
+   * because an operator watching a control-room wall is watching all of it.
+   * OPTIMIZED VIEW (the scrolling wall) keeps only what is near the viewport,
+   * honouring the integration contract's request to open only the cameras you
+   * are actively using. They are never swapped silently. */
+  if (liveLayout === "dense") return localRelay() ? 32 : 30;
+  return localRelay() ? 32 : TILE_WHEP_BUDGET;
+}
+function tileWhepStagger() {
+  /* MediaMTX is loopback-fast, but a 30-tile wall still has thirty ICE/SDP
+   * negotiations and decoder allocations.  Starting them 90ms apart creates
+   * a burst that can leave an otherwise healthy final tile without a track.
+   * Keep direct-grid behavior unchanged and pace only the local fan-out. */
+  return localRelay() ? 450 : TILE_WHEP_STAGGER_MS;
+}
+/* How far beyond the viewport a tile is still worth streaming, and how long
+ * a tile that has scrolled away keeps its session before it is released. */
+const WHEP_PREFETCH_PX = 600;
+const WHEP_KEEPALIVE_MS = 15000;
+const tileWhepIdleSince = new Map();
+let whepSyncTimer = null;
+let whepScrollBound = false;
+/* Scroll and resize change which tiles deserve a stream, so the wall has to
+ * re-evaluate on both. Debounced, because a scroll fires far more often than
+ * a peer connection should ever be opened. */
+function scheduleTileWhepSync() {
+  if (whepSyncTimer) return;
+  whepSyncTimer = setTimeout(() => { whepSyncTimer = null; syncTileWhep(); }, 180);
+}
+/* Command mode: chrome collapses so the wall owns the viewport. Pure layout -
+ * it must never start, stop or rebuild a media session, so nothing here
+ * touches tileWhep, and the class toggle alone drives the CSS. The wall is
+ * fully usable with the command bar hidden, which is the default. */
+let commandBarOpen = false;
+function applyCommandChrome() {
+  document.body.classList.toggle("wall-focus", !commandBarOpen);
+  const b = $("#btn-command-bar");
+  if (b) b.setAttribute("aria-pressed", commandBarOpen ? "true" : "false");
+}
+/* Which media policy is in force, stated rather than inferred. The 6x5 Dense
+ * wall holds a session per tile; the scrolling Grid wall follows the viewport.
+ * They are different contracts and the operator is told which one applies. */
+function applyMediaPolicy() {
+  const el = $("#media-policy");
+  if (!el) return;
+  const controlRoom = liveLayout === "dense";
+  el.dataset.policy = controlRoom ? "control-room" : "optimized";
+  el.textContent = controlRoom ? "CONTROL ROOM" : "OPTIMIZED VIEW";
+  el.title = controlRoom
+    ? "Control room: one live session per tile on the wall."
+    : "Optimized: sessions follow the viewport, ranked by distance from centre.";
+}
+function bindWhepScroll() {
+  if (whepScrollBound) return;
+  const grid = $("#live-grid");
+  if (!grid) return;
+  grid.addEventListener("scroll", scheduleTileWhepSync, { passive: true });
+  window.addEventListener("scroll", scheduleTileWhepSync, { passive: true });
+  window.addEventListener("resize", scheduleTileWhepSync, { passive: true });
+  whepScrollBound = true;
+}
+/* A paused <video> beside a healthy peer connection is recoverable, and is
+ * never the operator's intent. Retry, with a ceiling so a genuinely blocked
+ * element does not spin. */
+const tileWhep = new Map();
+/* The local relay produces browser-safe baseline H.264 renditions.  Its wall
+ * uses local WHEP rather than a packet-copy HLS muxer because the government
+ * sources can carry B-frames and non-monotonic timestamps. */
+const tileHls = new Map();
+const tileWhepTimers = new Set();
+/* A relay path can become WHEP-ready after its tile was first painted.  Keep
+ * exactly one bounded retry timer per camera so an early 503 does not leave a
+ * healthy, later-ready stream permanently dark.  This is deliberately not a
+ * busy loop: retries back off and are cancelled when a tile leaves the wall. */
+const tileWhepRetries = new Map();
+function scheduleTileWhep(fn, delay) {
+  const timer = setTimeout(() => {
+    tileWhepTimers.delete(timer);
+    fn();
+  }, delay);
+  tileWhepTimers.add(timer);
+}
+function clearTileWhepTimers() {
+  for (const timer of tileWhepTimers) clearTimeout(timer);
+  tileWhepTimers.clear();
+}
+const productState = { mode: "operations" };
 const intelState = {
   analytics: true,
   mode: "full",
@@ -2167,8 +2588,25 @@ const intelState = {
   anpr: true,
   tracking: true,
   compare: false,
+  cadence: "BALANCED",
+  overlayPollMs: 1000,
 };
 const snapshotInflight = new Map();
+/* Snapshot captures on this estate take one to ten seconds each, and the
+ * browser allows only six connections per origin. Leaving Live used to clear
+ * the pending queue but had no way to cancel the captures already in flight,
+ * so they kept their sockets. Navigating back to Live then issued the wall's
+ * camera-list request behind that backlog, where it waited indefinitely: the
+ * loader sat on its await, the grid was never painted, and the view stayed
+ * blank however long you waited. Track a controller per capture so leaving the
+ * view can actually release the connections it borrowed. */
+const snapshotAborts = new Set();
+function abortSnapshots() {
+  for (const ctl of snapshotAborts) { try { ctl.abort(); } catch { /* already settled */ } }
+  snapshotAborts.clear();
+  liveQueue.length = 0;
+  registryStillQueue.length = 0;
+}
 const snapshotCache = new Map();
 let telemetryTimer = null;
 
@@ -2178,27 +2616,86 @@ function telemetryValue(started, completed) {
   return `${Math.round(completed - started)} ms`;
 }
 
+/* The simulation wall opens one WHEP session per visible tile (syncTileWhep /
+ * negotiateTileWhep) and never touches the single-session t.whep/t.reconnect
+ * fields those were written for — those stay at their initial "not started" /
+ * "idle" values even while every tile is decoding frames. Report what the
+ * browser actually knows about that per-tile fleet instead of a single-session
+ * figure that was never wired up to it, and don't invent an aggregate startup
+ * latency across sessions that started at different times. */
+function simulationTileWhepStats() {
+  const sessions = [...tileWhep.values()];
+  // firstFrameAt only records that a frame was decoded at some point in the
+  // session; it is not re-checked against current playback, so it cannot
+  // prove the tile is decoding right now.
+  const everDecoded = sessions.filter((s) => s.firstFrameAt).length;
+  return { total: sessions.length, everDecoded };
+}
+
+function simulationWhepSummary() {
+  const { total, everDecoded } = simulationTileWhepStats();
+  const base = total
+    ? `${everDecoded} of ${total} per-tile WHEP sessions have received/observed at least one decoded frame (historical per-session state, not current-frame health)`
+    : "no per-tile WHEP sessions open";
+  return base + (state.telemetry.whep.error ? ` · last error: ${state.telemetry.whep.error}` : "");
+}
+
+function simulationPlaybackSummary() {
+  const { total, everDecoded } = simulationTileWhepStats();
+  const base = total
+    ? `WHEP REPLAY · ${everDecoded} of ${total} tiles have received/observed at least one decoded frame (historical, not current-frame health)`
+    : "WHEP REPLAY · idle — no tiles connected";
+  return base + (state.telemetry.playbackError ? ` · error: ${state.telemetry.playbackError}` : "");
+}
+
+/* "Browser playback" reports t.browser.state, which is written by the
+ * single-session live player's video element events and never touched by
+ * the simulation wall's per-tile WHEP sessions — so it sits at its initial
+ * "IDLE" forever while tiles are actually decoding. Reuse the same per-tile
+ * WHEP fleet used by the WHEP startup / Playback rows above instead of
+ * reporting that stale single-session field, and say plainly that this is a
+ * per-tile "ever decoded" count, not a per-video-element browser readout and
+ * not a live health signal. */
+function simulationBrowserPlaybackSummary() {
+  const { total, everDecoded } = simulationTileWhepStats();
+  return total
+    ? `${everDecoded} of ${total} tiles have received/observed at least one decoded frame (per-tile WHEP state, historical not current-frame health; not a browser video-element readout)`
+    : "no per-tile WHEP sessions open";
+}
+
 function updateTelemetry() {
   const t = state.telemetry;
   const videos = $$("video").filter((v) => !v.paused && v.readyState >= 2);
-  const tiles = $$("#live .live-tile").filter((tile) => {
+  /* The focus filmstrip duplicates wall tiles but is hidden outside focus
+   * mode. Operator telemetry must describe the wall itself, not those hidden
+   * navigation duplicates. */
+  const wallTiles = $$("#live .live-grid .live-tile");
+  const tiles = wallTiles.filter((tile) => {
     const r = tile.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0
       && r.top < innerHeight && r.left < innerWidth;
   });
   const set = (id, text) => { const n = $(`#${id}`); if (n) n.textContent = text; };
   set("telemetry-video", `${videos.length} active / ${$$("video").length} total`);
-  set("telemetry-visible", `${tiles.length} of ${$$("#live .live-tile").length}`);
-  set("telemetry-snapshot", telemetryValue(t.snapshot.started, t.snapshot.completed)
-    + (t.snapshot.error ? ` · error: ${t.snapshot.error}` : ""));
-  set("telemetry-whep", telemetryValue(t.whep.started, t.whep.completed)
-    + (t.whep.error ? ` · error: ${t.whep.error}` : ""));
-  set("telemetry-playback", `${t.reconnect}${t.playbackError ? ` · error: ${t.playbackError}` : ""}`);
+  set("telemetry-visible", `${tiles.length} of ${wallTiles.length}`);
+  set("telemetry-snapshot", liveDomain === "simulation"
+    ? "NOT APPLICABLE — WHEP-only replay"
+    : telemetryValue(t.snapshot.started, t.snapshot.completed)
+      + (t.snapshot.error ? ` · error: ${t.snapshot.error}` : ""));
+  set("telemetry-whep", liveDomain === "simulation"
+    ? simulationWhepSummary()
+    : telemetryValue(t.whep.started, t.whep.completed)
+      + (t.whep.error ? ` · error: ${t.whep.error}` : ""));
+  set("telemetry-playback", liveDomain === "simulation"
+    ? simulationPlaybackSummary()
+    : `${t.reconnect}${t.playbackError ? ` · error: ${t.playbackError}` : ""}`);
   const b = t.browser;
   const browserText = b.state === "LIVE"
     ? `LIVE · ${b.fps == null ? "FPS unavailable" : `${b.fps.toFixed(1)} FPS`}`
     : b.state;
-  set("telemetry-browser", browserText);
+  set("telemetry-browser", liveDomain === "simulation"
+    ? simulationBrowserPlaybackSummary()
+    : browserText);
   set("telemetry-frames", b.framesDecoded == null
     ? "UNAVAILABLE" : `${b.framesDecoded} decoded · ${b.framesDropped ?? 0} dropped`);
   set("telemetry-network", b.packetsReceived == null
@@ -2206,6 +2703,7 @@ function updateTelemetry() {
     : `${b.packetsReceived} received · ${b.packetsLost ?? 0} lost · `
       + `${b.jitterMs == null ? "jitter unavailable" : `${b.jitterMs.toFixed(1)} ms jitter`}`);
   set("telemetry-codec", b.codec || "not reported");
+  set("telemetry-resources", "CPU NOT_MEASURED · GPU NOT_MEASURED");
 }
 
 function startTelemetry() {
@@ -2226,21 +2724,82 @@ function streamPriority(cam) {
   return "PREVIEW";
 }
 
+function sourceDomain(cam) {
+  if (cam?.source_domain) return cam.source_domain;
+  const id = String(cam?.camera_id || "");
+  if (/^OWN-/i.test(id)) return "OWN_FEED";
+  if (/^cam\d+/i.test(id)) return "GOVERNMENT";
+  return "SYNTHETIC_CONTROL";
+}
+
+function domainBadge(cam) {
+  const d = sourceDomain(cam);
+  if (d === "GOVERNMENT") return "GOVERNMENT";
+  if (d === "OWN_FEED") return "OWN FEED";
+  if (d === "ARCHIVAL_REPLAY") return "ARCHIVAL REPLAY";
+  return "CONTROL";
+}
+
+function tileStatusLabel(cam) {
+  if (cam?.tile_status) return cam.tile_status;
+  const st = String(cam?.state || "").toUpperCase();
+  if (st === "RECONNECTING") return "RECONNECTING";
+  if (st === "DEGRADED") return "DEGRADED";
+  if (st === "STREAMING" && (cam.whep_capable || cam.local_replay)) return "LIVE";
+  if (st === "STREAMING" && cam.rtsp_capable) return "RTSP_ONLY_AI";
+  if (["DOWN", "FAILED", "OPEN_FAILED"].includes(st)) return "NO SIGNAL";
+  if (st === "STREAMING" || st === "OBSERVED" || st === "OK") return "PREVIEW";
+  if (cam?.local_replay) return "PREVIEW";
+  return "NO SIGNAL";
+}
+
+function padControlSlots(cams, size) {
+  const out = cams.slice();
+  let n = 1;
+  while (out.length < size) {
+    out.push({
+      camera_id: `CTL-SLOT-${String(n).padStart(2, "0")}`,
+      name: "logical control slot",
+      source_domain: "SYNTHETIC_CONTROL",
+      domain_badge: "CONTROL",
+      tile_status: "NO SIGNAL",
+      state: "UNKNOWN",
+      enabled: true,
+      synthetic_slot: true,
+    });
+    n += 1;
+  }
+  return out;
+}
+
 function wallCams(cams) {
   const filtered = livePriority === "all"
     ? cams
     : cams.filter((cam) => streamPriority(cam).toLowerCase() === livePriority);
-  return filtered.slice(0, liveWallMode);
+  /* The relay publishes only as many cameras as the host can actually encode,
+   * so the catalogue is routinely larger than the set with a local stream.
+   * Taking the first N of the catalogue filled the wall with tiles that could
+   * never play while published cameras sat unwatched off the end of the list.
+   * Put the published set first and keep catalogue order within each group, so
+   * the wall is stable between refreshes rather than reshuffling under the
+   * operator. */
+  const published = new Set(state.liveConfig?.relay_cameras || []);
+  const ordered = published.size
+    ? filtered.filter((c) => published.has(c.camera_id))
+        .concat(filtered.filter((c) => !published.has(c.camera_id)))
+    : filtered;
+  return ordered.slice(0, liveWallMode);
 }
 
 /* All visual representations of a camera share this request and blob URL.
  * The grid, filmstrip and table are intentionally separate accessible views,
  * but they must never become separate upstream consumers. */
 async function sharedSnapshot(id) {
-  const overlay = intelState.analytics ? intelState.mode : "off";
+  const overlay = hubPlane() ? "off" : (intelState.analytics ? intelState.mode : "off");
   const key = `${id}:${overlay}:${intelState.people}:${intelState.vehicles}:${intelState.anpr}`;
   const cached = snapshotCache.get(key);
-  if (cached && Date.now() - cached.fetchedAt < 1000) return cached;
+  const ttl = localRelay() ? 1500 : (hubPlane() ? 180 : 1000);
+  if (cached && Date.now() - cached.fetchedAt < ttl) return cached;
   const existing = snapshotInflight.get(key);
   if (existing) return existing;
   state.telemetry.snapshot.started = performance.now();
@@ -2251,8 +2810,10 @@ async function sharedSnapshot(id) {
     vehicles: String(intelState.vehicles),
     anpr: String(intelState.anpr),
   });
+  const ctl = new AbortController();
+  snapshotAborts.add(ctl);
   const request = fetch(`/cameras/${encodeURIComponent(id)}/snapshot?${qs}`,
-                         { headers: authHeaders() })
+                         { headers: authHeaders(), signal: ctl.signal })
     .then(async (res) => {
       if (!res.ok) {
         let why = "";
@@ -2269,6 +2830,10 @@ async function sharedSnapshot(id) {
         age: Number(res.headers.get("X-Frame-Age-Seconds")),
         kind: (res.headers.get("X-Frame-Kind") || "").toLowerCase(),
         source: res.headers.get("X-Frame-Source") || "",
+        video: (res.headers.get("X-Video-State") || "").toUpperCase(),
+        sourceState: (res.headers.get("X-Source-State") || "").toUpperCase(),
+        ai: (res.headers.get("X-Ai-State") || "").toUpperCase(),
+        fps: res.headers.get("X-Hub-Fps") || "",
         fetchedAt: Date.now(),
       };
       snapshotCache.set(key, value);
@@ -2276,10 +2841,15 @@ async function sharedSnapshot(id) {
       return value;
     })
     .catch((err) => {
-      state.telemetry.snapshot.error = err.message || "request failed";
+      /* An abort is this view releasing a connection it no longer needs, not
+       * the grid refusing a capture. Reporting it as a snapshot error made
+       * leaving Live look like an estate fault. */
+      if (err?.name !== "AbortError") {
+        state.telemetry.snapshot.error = err.message || "request failed";
+      }
       throw err;
     })
-    .finally(() => snapshotInflight.delete(key));
+    .finally(() => { snapshotInflight.delete(key); snapshotAborts.delete(ctl); });
   snapshotInflight.set(key, request);
   return request;
 }
@@ -2289,15 +2859,33 @@ async function sharedSnapshot(id) {
  * scrolled off, so the wall filled everywhere except where anyone was looking. */
 function queueStill(img, id, front = false) {
   if (!img || !id) return;
-  if (liveQueue.some(([im]) => im === img)) return;
+  if (/^CTL-SLOT-/i.test(id)) return;
+  const cam = cameraRecord(id);
+  if (cam?.synthetic_slot) return;
+  /* The local relay already owns a single upstream ingest for an eligible
+   * government tile.  Opening JPEG previews while WHEP is warming creates
+   * extra local RTSP readers and can starve a 30-camera wall.  Keep the tile
+   * explicitly CONNECTING and let the bounded WHEP retry establish video;
+   * JPEG remains available for non-WHEP and unavailable camera paths. */
+  if (localRelay() && tileWhepEligible(cam)) return;
+  /* Direct government cards may request a bounded still.  A preview capture
+   * closes immediately and is never labelled LIVE; only the selected camera
+   * may open a moving WHEP session. */
+  /* The isolated demo simulation plane has no per-camera still endpoint —
+   * CAM-001..030 never exist in the government store/GIS registry, so a
+   * snapshot fetch here would just be a 404 loop. Its tile state comes
+   * entirely from the WHEP session in syncTileWhep. */
+  if (sourceDomain(cam) === "ARCHIVAL_REPLAY") return;
+  if (liveQueue.some(([im, cid]) => im === img || cid === id)) return;
+  if (!front && liveQueue.length >= liveMaxQueue()) return;
   if (front) liveQueue.unshift([img, id]);
   else liveQueue.push([img, id]);
-  setTileState(id, "queued");
+  if (liveQueue.length > liveMaxQueue()) liveQueue.length = liveMaxQueue();
   pumpStills();
 }
 
 function pumpStills() {
-  while (liveInflight < LIVE_MAX_INFLIGHT && liveQueue.length) {
+  while (liveInflight < liveMaxInflight() && liveQueue.length) {
     const [img, id] = liveQueue.shift();
     liveInflight += 1;
     refreshTile(img, id).finally(() => {
@@ -2321,8 +2909,24 @@ function liveProgress() {
   const tiles = $$("#live-grid .live-tile");
   const n = (st) => tiles.filter((t) =>
     t.querySelector(".frame")?.dataset.state === st).length;
-  const live = n("live");
-  const parts = [`${live} of ${tiles.length || $$("#live .live-tile").length} showing a frame`];
+  /* Count what the browser is actually decoding, not what a dataset attribute
+   * claims. The tile state is set by the media lifecycle and does not always
+   * reach `live` on the direct plane, which had the wall reporting "0 live
+   * sessions" while eight tiles were visibly playing. A status line that
+   * disagrees with the screen is worse than no status line. */
+  const decoding = tiles.filter((t) => {
+    const v = t.querySelector("video");
+    return v && v.readyState >= 2 && v.videoWidth > 0;
+  }).length;
+  const live = Math.max(n("live") + n("replay"), decoding);
+  const total = tiles.length || $$("#live .live-tile").length;
+  const previews = n("preview");
+  /* Direct Sentinel cameras use cached, explicitly-labelled stills across the
+   * wall and reserve moving WHEP for the selected tile. */
+  const directOnDemand = directGovernmentOnDemand();
+  const parts = [directOnDemand
+    ? `${total} cameras · ${previews} preview frame${previews === 1 ? "" : "s"} · ${live} live session${live === 1 ? "" : "s"}`
+    : `${live} of ${total} showing a frame`];
   if (liveInflight) parts.push(`${liveInflight} capturing`);
   if (liveQueue.length) parts.push(`${liveQueue.length} queued`);
   const waiting = n("waiting");
@@ -2333,33 +2937,120 @@ function liveProgress() {
 }
 
 /* A tile's frame area always states where it actually is. It must never read
- * "connecting…" for a camera nothing has tried to connect to. */
+ * "connecting…" for a camera nothing has tried to connect to.
+ *
+ * On the direct government plane nothing *is* trying: the wall is a catalogue.
+ * Such a tile reads READY and says what would make it live, because an
+ * operator who reads CONNECTING on thirty tiles is being told thirty sessions
+ * are being negotiated, and none are. */
 function setTileState(id, state, text) {
+  const onDemand = directGovernmentOnDemand()
+    && sourceDomain(cameraRecord(id)) === "GOVERNMENT"
+    && livePlayer?.id !== id;
+  const readyOnly = onDemand && (state === "idle" || state === "ready");
   for (const tile of $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)) {
     const frame = tile.querySelector(".frame");
-    if (!frame || frame.dataset.state === "live") continue;
-    frame.dataset.state = state;
+    if (!frame) continue;
+    if (frame.querySelector("img.tile-pic, video.tile-whep, video.tile-hls")) continue;
+    frame.dataset.state = readyOnly ? "ready" : state;
     const known = frame.dataset.known || "";
-    clear(frame);
-    frame.append(el("div", { class: "placeholder" },
-      el("div", { text: text || {
-        idle: known || "still not requested",
-        queued: "waiting for a capture slot",
-        waiting: "waiting for ingest to publish a still",
-        capturing: "capturing…",
-      }[state] || state }),
-      known && state !== "idle"
-        ? el("div", { class: "known", text: known }) : null));
+    const ph = frame.querySelector(".placeholder") || el("div", { class: "placeholder" });
+    clear(ph);
+    ph.append(
+      el("div", { text: readyOnly ? "READY" : (text || {
+        idle: known || "CONNECTING",
+        queued: "CONNECTING",
+        waiting: "waiting for ingest",
+        capturing: "CONNECTING",
+      }[state] || state) }),
+      readyOnly
+        ? el("div", { class: "known", text: "preview queued · select for verified WHEP" })
+        : known && state !== "idle"
+          ? el("div", { class: "known", text: known }) : null);
+    if (!ph.isConnected) frame.append(ph);
   }
 }
 
+/* The mandatory replay disclosure must survive every #live-count rerender
+ * (wall size change, layout change, etc.), not just the initial paint —
+ * losing it on a wall-size click hides that the wall is ARCHIVAL_REPLAY. */
+function renderLiveCount(cams) {
+  const node = $("#live-count");
+  if (!node) return;
+  const isSimulation = liveDomain === "simulation"
+    || (cams || []).some((c) => sourceDomain(c) === "ARCHIVAL_REPLAY");
+  if (isSimulation) {
+    node.textContent =
+      `${Math.min(cams.length, liveWallMode)} of ${cams.length} cameras · wall ${liveWallMode} · `
+      + `LIVE SIMULATION / ARCHIVAL REPLAY · 12h virtual window · repeated 4-minute assets`;
+  } else if (directGovernmentOnDemand()
+             && cams.every((c) => sourceDomain(c) === "GOVERNMENT")) {
+    node.textContent =
+      `${cams.length} government cameras indexed · wall ${liveWallMode} · `
+      + "BOUNDED PREVIEWS — cached stills rotate across the wall; select one camera for verified WHEP";
+  } else {
+    node.textContent = `${cams.length} cameras · wall ${liveWallMode}`;
+  }
+}
+
+/* The isolated demo simulation catalog (CAM-001..CAM-030, ARCHIVAL_REPLAY)
+ * is its own plane: fetched only from /demo-simulation/cameras and never
+ * merged with GIS/store rows, so a government "NO SIGNAL" tile is never
+ * confused with a disabled demo feature. */
+async function loadSimulationWall(box) {
+  /* The wall is WHEP-only here (no /cameras/{id}/snapshot store endpoint on
+   * this plane), so any snapshot telemetry from a prior domain is stale and
+   * must not be shown alongside the replay tiles. */
+  state.telemetry.snapshot = { started: 0, completed: 0, error: "" };
+  let payload;
+  try {
+    payload = await api("/demo-simulation/cameras");
+  } catch (err) {
+    liveCamsAll = [];
+    $("#live-count").textContent =
+      "LIVE SIMULATION / ARCHIVAL REPLAY · 12h virtual window · repeated 4-minute assets · unavailable on this process";
+    $("#n-live").textContent = "0";
+    labelCount("#n-live", "cameras on the wall");
+    box.append(el("div", { class: "notice warn" },
+      el("strong", { text: "LIVE SIMULATION / ARCHIVAL REPLAY is not available here." }),
+      el("div", { text: err.message || "the isolated demo simulation plane is disabled on this process" })));
+    paintLiveFilters([]);
+    return;
+  }
+  const cams = (payload.cameras || []).filter((c) => c.enabled !== false);
+  liveCamsAll = cams;
+  renderLiveCount(cams);
+  $("#n-live").textContent = String(cams.length);
+  labelCount("#n-live", "cameras on the wall");
+
+  paintLiveFilters(cams);
+  paintLiveWorkspace(cams);
+  liveCaptureEnabled = true;
+  liveProgress();
+  startLiveRefresh();
+}
+
 loaders.live = async () => {
+  const generation = ++liveLoadGeneration;
+  /* Captures still running from a previous visit would otherwise hold every
+   * available connection while the request below waits for one. */
+  abortSnapshots();
   startTelemetry();
   const box = $("#live");
   clear(box);
-  liveLayout = liveLayout || "focus";
+  liveLayout = liveLayout || "grid";
   box.dataset.layout = liveLayout;
   box.dataset.wall = String(liveWallMode);
+  const liveView = $("#view-live");
+  if (liveView) {
+    liveView.dataset.wall = String(liveWallMode);
+    liveView.dataset.layout = liveLayout;
+  }
+
+  if (liveDomain === "simulation") {
+    await loadSimulationWall(box);
+    return;
+  }
 
   let cams = [];
   try {
@@ -2376,17 +3067,36 @@ loaders.live = async () => {
       return;
     }
   }
+  /* A prior navigation may still be awaiting GIS while a preset starts a
+   * newer load. Never allow that stale response to rebuild the wall and cancel
+   * the peer connections owned by the current request. */
+  if (generation !== liveLoadGeneration
+      || !$("#view-live")?.classList.contains("active")) return;
   cams.sort((a, b) => String(a.camera_id).localeCompare(String(b.camera_id)));
   cams = cams.filter((c) => c.enabled !== false);
   const demoWall = state.dataHolds === "DEMONSTRATION";
-  if (demoWall) {
+  if (liveDomain === "government") {
+    cams = cams.filter((c) => sourceDomain(c) === "GOVERNMENT");
+    cams.sort((a, b) => {
+      const score = (c) => (c.whep_capable ? 4 : 0) + (c.state === "STREAMING" ? 2 : 0)
+        + (Number(c.published_marks) || 0) * 0.01;
+      return score(b) - score(a);
+    });
+  } else if (liveDomain === "intelligence") {
+    const keep = ["OWN-PEOPLE", "OWN-TRAFFIC"];
+    const rank = new Map(keep.map((id, i) => [id, i]));
+    cams = cams.filter((c) => rank.has(c.camera_id));
+    cams.sort((a, b) => rank.get(a.camera_id) - rank.get(b.camera_id));
+    applyIntelMode("full");
+  } else if (demoWall && liveDomain === "all") {
     const keep = ["OWN-PEOPLE", "OWN-TRAFFIC", "C-014", "C-021"];
     const rank = new Map(keep.map((id, i) => [id, i]));
     cams = cams.filter((c) => rank.has(c.camera_id));
     cams.sort((a, b) => rank.get(a.camera_id) - rank.get(b.camera_id));
   }
+  if (liveWallMode === 50) cams = padControlSlots(cams, 50);
   liveCamsAll = cams;
-  $("#live-count").textContent = `${cams.length} cameras · wall ${liveWallMode}`;
+  renderLiveCount(cams);
   $("#n-live").textContent = String(cams.length);
   labelCount("#n-live", "cameras on the wall");
 
@@ -2397,11 +3107,17 @@ loaders.live = async () => {
   startLiveRefresh();
 
   if (livePlayer?.id) return;
-  const heroId = demoWall ? "OWN-PEOPLE" : (cams[0] && cams[0].camera_id);
-  if (heroId) {
-    const hero = $(`#live-strip .live-tile[data-camera="${CSS.escape(heroId)}"]`)
-      || $(`#live-grid .live-tile[data-camera="${CSS.escape(heroId)}"]`);
-    if (hero) setTimeout(() => openLive(hero, heroId), 400);
+  /* Auto-opening a hero tile is an automatic WHEP session. On the direct
+   * government plane the operator's selection is the only thing that may open
+   * one, so the focus stage stays empty until they choose a camera. */
+  if (directGovernmentOnDemand() && liveDomain === "government") return;
+  if (liveLayout === "focus" || liveLayout === "twoup") {
+    const heroId = demoWall ? "OWN-PEOPLE" : (cams[0] && cams[0].camera_id);
+    if (heroId) {
+      const hero = $(`#live-strip .live-tile[data-camera="${CSS.escape(heroId)}"]`)
+        || $(`#live-grid .live-tile[data-camera="${CSS.escape(heroId)}"]`);
+      if (hero) setTimeout(() => openLive(hero, heroId), 400);
+    }
   }
 };
 
@@ -2430,14 +3146,67 @@ function paintLiveFilters(cams) {
   }
 }
 
+/* A fixed row height cannot fit an arbitrary viewport: 784px of wall divided
+ * into 260px rows leaves 2.98 rows, so the bottom of every screen was a band of
+ * sliced tiles. Measure the wall and publish a row height that divides it into
+ * whole rows, keeping tiles as close to 16/9 as a whole number of rows allows.
+ * Layout only - it never touches a video element or a peer connection. */
+function fitWall() {
+  const grid = $("#live-grid");
+  if (!grid || !$("#view-live")?.classList.contains("active")) return;
+  const h = grid.clientHeight;
+  const w = grid.clientWidth;
+  /* A collapsed or not-yet-laid-out wall measures nothing useful; publishing a
+   * row height from it would pin every tile at a few pixels. */
+  if (h < 120 || w < 120 || !grid.children.length) return;
+  const cs = getComputedStyle(grid);
+  const gap = parseFloat(cs.rowGap) || 0;
+  const cols = cs.gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+  const colW = (w - gap * (cols - 1)) / cols;
+  const ideal = colW * 9 / 16;
+  const rows = Math.max(1, Math.round((h + gap) / (ideal + gap)));
+  const rowH = Math.floor((h - gap * (rows - 1)) / rows);
+  if (rowH > 40) grid.style.setProperty("--wall-row-h", `${rowH}px`);
+}
+
+let fitWallTimer = null;
+function scheduleFitWall() {
+  clearTimeout(fitWallTimer);
+  fitWallTimer = setTimeout(fitWall, 60);
+}
+window.addEventListener("resize", scheduleFitWall);
+
 function paintLiveWorkspace(all) {
   const box = $("#live");
   if (!box) return;
+  closeTileHlsAll();
+  /* The wall is being rebuilt; every camera starts again with a full budget. */
+  tileWhepReopens.clear();
+  /* A WebRTC track decodes into the element it was attached to. Rebuilding the
+   * wall - which changing the wall size does - used to destroy those elements
+   * and hand the same MediaStream to fresh ones, and a fresh element has no
+   * keyframe to start from: the sender will not resend one unasked, so twelve
+   * negotiated sessions sat at zero frames indefinitely. Measured: switching
+   * from the 30-wall to the 12-wall left 12 sessions open and 0 decoding, two
+   * minutes later still 0. Carry the elements across the rebuild instead. */
+  const survivors = new Map();
+  for (const v of $$("#live-grid video.tile-whep")) {
+    const cam = v.closest(".live-tile")?.dataset.camera;
+    if (cam && v.videoWidth > 16) { v.remove(); survivors.set(cam, v); }
+  }
   const keep = livePlayer?.id;
   const cams = wallCams(visibleLiveCams(all || liveCamsAll));
+  liveQueue.length = 0;
   clear(box);
   box.dataset.layout = liveLayout;
   box.dataset.wall = String(liveWallMode);
+  const liveView = $("#view-live");
+  if (liveView) {
+    liveView.dataset.wall = String(liveWallMode);
+    liveView.dataset.layout = liveLayout;
+    const shell = liveView.querySelector(".live-shell");
+    if (shell) shell.dataset.wall = String(liveWallMode);
+  }
 
   const focus = el("div", { class: "live-focus" });
   const stage = el("div", { class: "live-stage", id: "live-stage" });
@@ -2466,11 +3235,14 @@ function paintLiveWorkspace(all) {
     for (const e of entries) {
       if (!e.isIntersecting) continue;
       const tile = e.target;
-      if (tile.dataset.requested) continue;
       tile.dataset.requested = "1";
       queueStill(tile._img, tile.dataset.camera, true);
     }
-  }, { rootMargin: "200px" });
+  }, { rootMargin: "80px", threshold: 0.05 });
+
+  const captureGrid = liveLayout === "grid" || liveLayout === "dense"
+    || liveLayout === "twoup";
+  const captureStrip = liveLayout === "focus";
 
   for (const [index, c] of cams.entries()) {
     const tile = liveTile(c, { state: c.state, frames: c.frames, last_error: c.last_error });
@@ -2479,14 +3251,10 @@ function paintLiveWorkspace(all) {
     const mini = liveTile(c, { state: c.state, frames: c.frames, last_error: c.last_error });
     mini.dataset.wallIndex = String(index);
     strip.append(mini);
-    liveObserver.observe(tile);
-    liveObserver.observe(mini);
-    tile.dataset.requested = "1";
-    mini.dataset.requested = "1";
-    if (index < liveWallMode) queueStill(mini._img, c.camera_id);
+    if (captureGrid) liveObserver.observe(tile);
+    if (captureStrip) liveObserver.observe(mini);
 
     const thumb = el("img", { alt: c.camera_id, "data-camera": c.camera_id });
-    if (index < liveWallMode) queueStill(thumb, c.camera_id);
     const row = el("tr", {},
       el("td", {}, thumb),
       el("td", {}, el("div", { text: c.name || c.camera_id }),
@@ -2502,13 +3270,44 @@ function paintLiveWorkspace(all) {
     el("p", { class: "lede", text: "Latest distinct plates in this store, with the camera that published them." }),
     el("div", { class: "plate-gallery", id: "live-plate-gallery" }, loadingNote("Loading marks…")));
 
+  /* Re-home the preserved decoders before anything measures the wall. */
+  for (const [cam, video] of survivors) {
+    const frame = grid.querySelector(
+      `.live-tile[data-camera="${CSS.escape(cam)}"] .frame`);
+    if (!frame) continue;
+    frame.prepend(video);
+    const img = frame.querySelector("img");
+    if (img) img.style.display = "none";
+    const ph = frame.querySelector(".placeholder");
+    if (ph) ph.style.display = "none";
+    video.dataset.ready = "1";
+  }
+
   box.append(focus, grid, strip, tab, plates);
+  /* Two frames: the grid has no measurable height until it has been laid out. */
+  requestAnimationFrame(() => requestAnimationFrame(fitWall));
+  /* Populate the complete 30-camera control-room wall.  The queue contains
+   * only work descriptors; pumpStills opens at most four short-lived captures
+   * and SnapshotService reuses ingest/cache data wherever available. */
+  if (directGovernmentOnDemand() && liveDomain === "government"
+      && (liveLayout === "grid" || liveLayout === "dense")) {
+    for (const tile of $$("#live-grid .live-tile")) {
+      if (tile._img) queueStill(tile._img, tile.dataset.camera);
+    }
+  }
   fillLivePlates();
+  liveProgress();
   if (keep) {
     const tile = $(`#live-strip .live-tile[data-camera="${CSS.escape(keep)}"]`)
       || $(`#live-grid .live-tile[data-camera="${CSS.escape(keep)}"]`);
     if (tile) setTimeout(() => openLive(tile, keep), 80);
   }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bindWhepScroll();
+    applyCommandChrome();
+    applyMediaPolicy();
+    syncTileWhep();
+  }));
 }
 
 async function fillLivePlates() {
@@ -2602,7 +3401,7 @@ function herePlateCard(m) {
     el("div", { class: "meta", text: `${fmtClock(m.t)}${m.votes ? ` · ${m.votes} votes` : ""}` }));
   fetch(`/cameras/${encodeURIComponent(m.camera_id)}/plate.jpg?plate=${encodeURIComponent(m.plate)}`,
         { headers: authHeaders() })
-    .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.blob(); })
+    .then((r) => { if (r.status === 204 || !r.ok) throw new Error(String(r.status)); return r.blob(); })
     .then((blob) => {
       if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
       const url = URL.createObjectURL(blob);
@@ -2757,6 +3556,10 @@ function startDetectionOverlay(cameraId, canvas) {
   overlayState = {
     cameraId, canvas, tracks, raf: 0, poll: 0,
     lastMetaAt: 0, overlayLatencyMs: null,
+    /* Whether the store has actually answered for this camera, and whether it
+     * returned anything. "AI is running" is a claim about persisted data, not
+     * about the position of the analytics toggle. */
+    metaSeen: false, persisted: 0,
   };
   const poll = async () => {
     if (!overlayState || overlayState.cameraId !== cameraId) return;
@@ -2791,11 +3594,13 @@ function startDetectionOverlay(cameraId, canvas) {
         });
         n += 1;
       }
+      overlayState.metaSeen = true;
+      overlayState.persisted = overlayState.tracks.size;
       const counts = res.counts || res;
       const node = $("#live-counts");
       if (node) {
         node.textContent =
-          `People: ${Number(counts.people || 0)} · Vehicles: ${Number(counts.vehicles || 0)} · Tracked: ${Number(counts.tracked || 0)}`;
+          `People: ${Number(counts.people || 0)} · Vehicles: ${Number(counts.vehicles || 0)} · Tracked: ${Number(counts.tracked || 0)} · Plates: ${Number(counts.plates || 0)}`;
       }
       if (state.telemetry) {
         state.telemetry.overlayLatencyMs = overlayState.overlayLatencyMs;
@@ -2840,9 +3645,22 @@ function startDetectionOverlay(cameraId, canvas) {
       }
       overlayState.overlayLatencyMs = Math.round(now - t.ts);
     }
+    if (intelState.analytics && tracks.size === 0) {
+      const iso = state.isolation || {};
+      const chips = [];
+      if (iso.ai_worker?.state === "UNAVAILABLE") chips.push("AI DEGRADED");
+      if (iso.ocr?.state === "UNAVAILABLE") chips.push("OCR DEGRADED");
+      if (chips.length) {
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(8, 8, 12 * chips.join(" · ").length + 16, 22);
+        ctx.fillStyle = "#f5c542";
+        ctx.font = "600 12px ui-sans-serif, sans-serif";
+        ctx.fillText(chips.join(" · "), 16, 24);
+      }
+    }
     overlayState.raf = requestAnimationFrame(paint);
   };
-  overlayState.poll = setInterval(poll, 1000);
+  overlayState.poll = setInterval(poll, intelState.overlayPollMs || 1000);
   poll();
   overlayState.raf = requestAnimationFrame(paint);
 }
@@ -2862,12 +3680,16 @@ function fillLiveStage(id) {
   const stage = $("#live-stage");
   if (!stage) return;
   const cam = (liveCamsAll || []).find((c) => c.camera_id === id) || { camera_id: id };
+  const isSimulation = sourceDomain(cam) === "ARCHIVAL_REPLAY";
   clear(stage);
   const img = el("img", { alt: `Live ${id}` });
+  if (isSimulation) img.style.display = "none";
   const fps = cam.measured_fps ? `${Number(cam.measured_fps).toFixed(0)} fps` : "";
+  const simUnavailable = isSimulation && !state.simulationConfig?.available;
   const hud = el("div", { class: "hud" },
-    el("span", { class: "hud-chip live", text: "Opening" }),
-    (state.liveConfig?.whep && state.dataHolds !== "DEMONSTRATION")
+    el("span", { class: "hud-chip live", text: simUnavailable ? "Unavailable" : "Opening" }),
+    isSimulation ? el("span", { class: "hud-chip", text: "ARCHIVAL REPLAY" }) : null,
+    (state.liveConfig?.whep || (isSimulation && state.simulationConfig?.available))
       ? el("span", { class: "hud-chip", text: "WHEP" }) : null,
     el("span", { class: "hud-chip", text: cam.codec || "h264" }),
     el("span", { class: "hud-chip", text: cam.width && cam.height ? `${cam.width}×${cam.height}` : id }),
@@ -2876,7 +3698,9 @@ function fillLiveStage(id) {
   const caption = el("div", { class: "stage-cap",
     text: `${cam.name || id} · ${cam.camera_id || id}` });
   const note = el("div", { class: "stage-note",
-    text: "Timestamp is the camera's own burned-in clock." });
+    text: isSimulation
+      ? "LIVE SIMULATION / ARCHIVAL REPLAY — a looped archival asset over an isolated relay, not this camera's current view."
+      : "Timestamp is the camera's own burned-in clock." });
   stage.append(img, hud, caption, note);
   const overlay = el("canvas", { class: "live-overlay", id: "live-overlay" });
   stage.append(overlay);
@@ -2891,63 +3715,107 @@ function fillLiveStage(id) {
 
 function liveTile(cam, health) {
   const id = cam.camera_id;
-  /* Stated from the registry, not guessed from a failure. UNKNOWN means this
-   * camera has never been ingested. OBSERVED means the store already holds
-   * its observations but health has not been persisted this ingest. */
+  const isSimulation = sourceDomain(cam) === "ARCHIVAL_REPLAY";
+  const onDemand = !isSimulation && sourceDomain(cam) === "GOVERNMENT"
+    && directGovernmentOnDemand();
+  const initialVideo = onDemand ? "READY" : "CONNECTING";
   const st = health?.state || cam.state;
-  const known = !st || st === "UNKNOWN"
-    ? "never ingested"
-    : st === "OBSERVED"
-      ? "observed · health not yet persisted"
-      : st === "STREAMING"
-      ? `streaming · ${Number(health?.frames || cam.frames || 0).toLocaleString()} frames seen`
-      : `${String(st).toLowerCase()}${health?.last_error ? " · " + health.last_error : ""}`;
-  const frame = el("div", { class: "frame", "data-state": "idle" },
+  const known = isSimulation
+    ? (cam.ready ? "archival replay ready · not yet connected" : "archival replay connecting")
+    : !st || st === "UNKNOWN"
+      ? "never ingested"
+      : st === "OBSERVED"
+        ? "observed · health not yet persisted"
+        : st === "STREAMING"
+          ? `streaming · ${Number(health?.frames || cam.frames || 0).toLocaleString()} frames`
+          : `${String(st).toLowerCase()}${health?.last_error ? " · " + health.last_error : ""}`;
+  const img = el("img", { class: "tile-pic", alt: `Frame from ${id}` });
+  const frame = el("div", { class: "frame", "data-state": initialVideo.toLowerCase() },
+    onDemand ? null : el("div", { class: "connect-ring", "aria-hidden": "true" }),
     el("div", { class: "placeholder" },
-      el("div", { text: "still not requested" }),
-      el("div", { class: "known", text: known })));
+      el("div", { text: onDemand ? "READY" : "CONNECTING" }),
+      el("div", { class: "known", text: onDemand ? "select for verified WHEP live video" : known })));
   frame.dataset.known = known;
-  const priority = streamPriority(cam);
-  const uxLabel = (cam.ux_state || cam.ux || priority || "PREVIEW").toString().toUpperCase();
+  const loc = cam.located === false
+    ? "not on the map"
+    : (cam.district || cam.location || "district unknown");
   const codecLabel = (cam.codec || "h264").toString();
-  const latencyLabel = (cam.latency_ms != null)
-    ? `${Math.round(Number(cam.latency_ms))} ms`
-    : (cam.rtt_ms != null ? `${Math.round(Number(cam.rtt_ms))} ms rtt` : null);
-  const aiLabel = (cam.ai_state || cam.ai || "AI idle").toString();
+  const domain = domainBadge(cam);
+  const domainClass = sourceDomain(cam) === "GOVERNMENT" ? "gov"
+    : sourceDomain(cam) === "OWN_FEED" ? "own"
+      : isSimulation ? "sim" : "ctl";
+  /* A registry row may *declare* analytics for a camera. On the on-demand wall
+   * nothing is decoding that camera, so no detection can have been persisted
+   * for it — the tile reports OFF rather than repeating the declaration. The
+   * chip is corrected by applyPlane() from measured server state once the
+   * camera is actually connected. */
+  const aiDeclared = cam.ai_state || (isSimulation ? "NOT_MEASURED" : "OFF");
+  const aiLabel = onDemand ? "OFF" : aiDeclared;
   const tile = el("div", { class: "live-tile", "data-camera": id,
-    "data-priority": priority.toLowerCase() }, frame,
-    el("div", { class: "meta" },
-      el("div", { class: "name", text: `${id} · ${cam.name || "unnamed"}` }),
-      el("div", { class: "sub",
-                  text: [
-                    cam.located === false ? "not on the map" : (cam.district || cam.location || "district unknown"),
-                    codecLabel,
-                    latencyLabel]
-                    .filter(Boolean).join(" · ") }),
-      el("div", { class: "grades" },
-        gradeChip(cam.anpr || cam.anpr_grade || "UNKNOWN", "ANPR"),
-        gradeChip(cam.vehicle || cam.vehicle_reid_grade || "UNKNOWN",
-                  "appearance"),
-        el("div", { class: "stream-meta" },
-          el("span", {
-            class: `chip plain ${uxLabel === "LIVE" ? "ux-live" : "ux-preview"}`,
-            text: uxLabel === "LIVE" ? "LIVE" : (uxLabel === "PRIMARY" ? "LIVE" : "PREVIEW"),
-          }),
-          el("span", { class: "chip plain", text: codecLabel }),
-          latencyLabel
-            ? el("span", { class: "chip plain", text: latencyLabel })
-            : null,
-          el("span", { class: "chip plain", text: aiLabel })),
-        Number(cam.published_marks || 0)
-          ? el("span", { class: "chip confirmed",
-                         title: publishedMarksLabel(cam),
-                         text: `${cam.published_marks} plate${Number(cam.published_marks) === 1 ? "" : "s"} in store` })
-          : null)));
-
-  const img = el("img", { alt: `Still from ${id}` });
+    "data-priority": streamPriority(cam).toLowerCase(),
+    "data-domain": sourceDomain(cam) },
+    el("div", { class: "tile-head" },
+      el("span", { class: "vid-chip", "data-plane": "HEADVID",
+                   "data-state": initialVideo.toLowerCase(), text: initialVideo }),
+      el("span", { class: "name", text: cam.name || id }),
+      el("span", { class: "cid mono", text: id }),
+      el("span", { class: "ai-head", text: aiLabel === "ACTIVE" ? "AI" : "" }),
+      el("span", { class: `domain-badge ${domainClass}`, text: domain })),
+    frame,
+    el("div", { class: "tile-planes" },
+      el("span", { class: "plane-chip", "data-plane": "SRC", text: onDemand ? "SOURCE REGISTERED" : "SOURCE —" }),
+      el("span", { class: "plane-chip", "data-plane": "VID",
+                   "data-state": initialVideo.toLowerCase(),
+                   text: `VIDEO ${initialVideo}` }),
+      el("span", { class: "plane-chip", "data-plane": "AI", text: `AI ${aiLabel}` })),
+    el("div", { class: "tile-foot" },
+      el("span", { class: "loc", text: loc }),
+      el("span", { class: "mono res", text: codecLabel }),
+      el("span", { class: "fps", text: "" })));
   tile._img = img;
-  tile.addEventListener("click", () => openLive(tile, id));
+  tile.addEventListener("click", () => {
+    if (cam.synthetic_slot) {
+      toast("CONTROL slot — not a government camera");
+      return;
+    }
+    openLive(tile, id);
+  });
   return tile;
+}
+
+function applyPlane(tile, source, video, ai, ageS, fps, extra) {
+  if (!tile) return;
+  const set = (plane, text, cls) => {
+    const n = tile.querySelector(`.plane-chip[data-plane="${plane}"]`);
+    if (!n) return;
+    n.textContent = text;
+    n.dataset.state = (cls || "").toLowerCase().replace(/\s+/g, "-");
+  };
+  if (source) set("SRC", `SOURCE ${source}`, source);
+  if (video) set("VID", `VIDEO ${video}`, video);
+  if (ai) set("AI", `AI ${ai}`, ai);
+  const head = tile.querySelector(".vid-chip");
+  if (head && video) {
+    head.textContent = video;
+    head.dataset.state = String(video).toLowerCase().replace(/\s+/g, "-");
+  }
+  const frame = tile.querySelector(".frame");
+  if (frame && video) {
+    frame.dataset.state = String(video).toLowerCase().replace(/\s+/g, "-");
+    frame.classList.toggle("is-live", video === "LIVE");
+    frame.classList.toggle("is-preview", video === "PREVIEW" || video === "REPLAY");
+    frame.classList.toggle("is-reconnect", video === "RECONNECTING" || video === "DEGRADED");
+  }
+  const fpsN = tile.querySelector(".tile-foot .fps");
+  if (fpsN) {
+    fpsN.textContent = fps ? `${fps} fps` : (Number.isFinite(ageS) ? `${ageS.toFixed(1)}s` : "");
+  }
+  const resN = tile.querySelector(".tile-foot .res");
+  if (resN && extra?.width && extra?.height) {
+    resN.textContent = `${extra.codec || ""} ${extra.width}×${extra.height}`.trim();
+  }
+  const aiHead = tile.querySelector(".ai-head");
+  if (aiHead) aiHead.textContent = (ai || "").includes("ACTIVE") ? "AI" : "";
 }
 
 /* Fetched, not src-assigned.
@@ -2971,7 +3839,9 @@ async function refreshTile(img, id, attempt = 1) {
   const frame = tile?.querySelector(".frame");
   const inStage = !!(host && host.id === "live-stage");
     const pumping = tile?.classList.contains("selected");
-    if (!inStage && frame && frame.dataset.state !== "live" && !pumping) setTileState(id, "capturing");
+    if (!inStage && frame && !frame.querySelector("img.tile-pic") && !pumping) {
+      setTileState(id, "capturing");
+    }
   try {
     const snapshot = await sharedSnapshot(id);
     const url = snapshot.url;
@@ -2979,33 +3849,34 @@ async function refreshTile(img, id, attempt = 1) {
     const kind = snapshot.kind;
     const src = snapshot.source;
     img.dataset.url = url;
+    img.classList.add("tile-pic");
     img.src = url;
-    const moving = kind === "live-view" || kind === "file-view"
-      || /selected camera|own-feed recording|PTS-paced/i.test(src);
-    const fresh = moving || (Number.isFinite(ageS) && ageS < 2.5);
+    const videoState = (snapshot.video || "").toUpperCase();
+    const isLive = videoState === "LIVE";
+    const isPreview = videoState === "PREVIEW" || (!videoState && Number.isFinite(ageS));
     if (inStage) {
       const chip = host.querySelector(".hud-chip.live");
       if (chip) {
-        chip.textContent = moving ? "Live" : "Still";
-        chip.classList.toggle("live", moving);
+        chip.textContent = isLive ? "Live" : (kind === "file-view" ? "Replay" : "Preview");
+        chip.classList.toggle("live", isLive);
       }
       return;
     }
     if (frame && img === (tile._img || img)) {
-      frame.dataset.state = "live";
-      clear(frame);
-      frame.append(
-        img,
-        el("span", {
-          class: "badge" + (fresh ? " live" : ""),
-          text: fresh ? "LIVE" : "STILL",
-        }),
-        el("span", { class: "age",
-                     text: Number.isFinite(ageS)
-                       ? (fresh ? `${ageS.toFixed(1)}s` : `${Math.round(ageS)}s old`)
-                       : new Date().toLocaleTimeString() }));
+      const ph = frame.querySelector(".placeholder");
+      if (ph) ph.remove();
+      if (!img.isConnected) frame.prepend(img);
+      applyPlane(tile, snapshot.sourceState || snapshot.source,
+        videoState || (isPreview ? "PREVIEW" : "NO SIGNAL"),
+        snapshot.ai || "OFF", ageS, snapshot.fps);
+      let badge = frame.querySelector(".badge");
+      if (badge) badge.remove();
+      let ageEl = frame.querySelector(".age");
+      if (ageEl) ageEl.remove();
     }
   } catch (err) {
+    /* The view was left or repainted; this tile is going away. */
+    if (err?.name === "AbortError") return;
     /* A 503 here is the grid declining another consumer right now, not a dead
      * camera. Captures on this estate take one to ten seconds each, so under a
      * full wall that answer is common and temporary — retried with backoff
@@ -3036,23 +3907,74 @@ async function refreshTile(img, id, attempt = 1) {
 
 function startLiveRefresh() {
   stopLiveRefresh();
+  /* The simulation wall is WHEP-only: every tile is ARCHIVAL_REPLAY, so a
+   * still-capture loop or hub-plane poll here would just churn against
+   * endpoints the isolated demo plane never exposes. */
+  if (liveDomain === "simulation") return;
+  const hub = hubPlane();
+  const relay = localRelay();
+  const direct = !hub && !relay && state.liveConfig?.plane === "direct_whep";
+  const ms = hub ? 160 : (relay ? 1200 : (direct ? 20_000 : LIVE_REFRESH_MS));
   liveTimer = setInterval(() => {
     const box = $("#live-refresh");
     if (box && !box.checked) return;
-    if (!$("#view-live").classList.contains("active")) return;
+    if (!$("#view-live")?.classList.contains("active")) return;
     if (!liveCaptureEnabled) return;
-    /* File stills are cheap. Refresh the whole wall so a camera below the
-     * fold is not stale when the operator scrolls to it. Do not pile up if
-     * a previous tick is still in flight. */
-    if (liveQueue.length > 4 || liveInflight > 8) return;
-    for (const tile of $$("#live .live-tile")) {
+    if (liveQueue.length > liveMaxQueue() || liveInflight > liveMaxInflight()) return;
+    for (const tile of $$("#live-grid .live-tile")) {
+      const r = tile.getBoundingClientRect();
+      if (r.height < 8 || r.bottom < 0 || r.top > innerHeight) continue;
+      if (tileWhep.has(tile.dataset.camera) || tileHls.has(tile.dataset.camera)) continue;
+      if (tile.querySelector("video.tile-whep, video.tile-hls")) continue;
       if (tile._img) queueStill(tile._img, tile.dataset.camera);
     }
-  }, LIVE_REFRESH_MS);
+  }, ms);
+  if (mediaPlane()) startHubPlanePoll();
+}
+
+let hubPlaneTimer = null;
+function startHubPlanePoll() {
+  if (hubPlaneTimer) return;
+  const tick = async () => {
+    if (!mediaPlane() || !$("#view-live")?.classList.contains("active")) return;
+    try {
+      const snap = await api("/media/hub");
+      for (const row of snap.cameras || []) {
+        const tiles = $$(`#live .live-tile[data-camera="${CSS.escape(row.camera_id)}"]`);
+        for (const tile of tiles) {
+          let video = row.video;
+          if (localRelay()) {
+            const v = tile.querySelector("video.tile-whep, video.tile-hls");
+            const sess = tileWhep.get(row.camera_id) || tileHls.get(row.camera_id);
+            const renderedRecently = sess?.lastRenderedAt != null
+              && performance.now() - sess.lastRenderedAt <= 3000;
+            /* The relay health row describes the publisher, not Chromium's
+             * compositor. Once this exact tile is visibly receiving frames,
+             * browser evidence is authoritative for the VIDEO plane even if
+             * a concurrent publisher poll still says RECONNECTING. Conversely,
+             * a relay-ready path without a decoded frame is only CONNECTING. */
+            if (v && v.readyState >= 2 && v.videoWidth > 0 && renderedRecently) {
+              video = decodedPlaybackState(row.camera_id);
+            } else if (video === "LIVE" || video === "REPLAY") {
+              video = row.source === "CONNECTED" ? "CONNECTING" : video;
+            }
+          }
+          applyPlane(tile, row.source, video, row.ai, row.age_s, row.fps || row.jpeg_fps, row);
+        }
+      }
+      const n = $("#live-progress");
+      if (n && snap.government_live != null) {
+        n.textContent = `${snap.government_live}/${snap.government_connected || 0} government LIVE · ${snap.browser_replay || 0} replay`;
+      }
+    } catch { /* hub optional */ }
+  };
+  hubPlaneTimer = setInterval(tick, 400);
+  tick();
 }
 
 function stopLiveRefresh() {
   if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+  if (hubPlaneTimer) { clearInterval(hubPlaneTimer); hubPlaneTimer = null; }
 }
 
 let livePump = null;
@@ -3076,7 +3998,7 @@ function startStillPump(id) {
     const stageImg = $("#live-stage img");
     if (stageImg) imgs.push(stageImg);
     for (const img of imgs) {
-      if (img && liveInflight < LIVE_MAX_INFLIGHT + 4) {
+      if (img && liveInflight < liveMaxInflight() + 4) {
         refreshTile(img, id).catch(() => {});
       }
     }
@@ -3106,7 +4028,7 @@ function startBrowserWatchdog(video, pc, id) {
         b.state = "DEGRADED";
         state.telemetry.reconnect = "degraded: no decoded frame";
       } else if (b.state !== "NEGOTIATING") {
-        b.state = "LIVE";
+        b.state = decodedPlaybackState(id);
       }
     } else if (b.lastFrameAt && performance.now() - b.lastFrameAt > 3000) {
       b.freezes += 1;
@@ -3129,6 +4051,10 @@ function startBrowserWatchdog(video, pc, id) {
             ? null : 1000 * r.jitterBufferDelay / r.jitterBufferEmittedCount;
           b.width = r.frameWidth ?? null;
           b.height = r.frameHeight ?? null;
+          if ((delta ?? 0) > 0) {
+            b.lastFrameAt = performance.now();
+            b.state = decodedPlaybackState(id);
+          }
           previous = r;
         } else if (r.type === "codec" && r.mimeType?.startsWith("video/")) {
           b.codec = r.mimeType;
@@ -3147,111 +4073,486 @@ function startBrowserWatchdog(video, pc, id) {
   return setInterval(sample, 1000);
 }
 
-/* WHEP: the browser offers, the media server answers, and the video arrives on
- * the peer connection. Falls back to the selected-camera still pump if anything
- * in that exchange fails, rather than leaving a black rectangle. */
-async function openLive(tile, id) {
-  closeLive();
-  $$(`.live-tile[data-camera="${CSS.escape(id)}"]`).forEach((t) => t.classList.add("selected"));
-  livePlayer = { pc: null, tile, id, statsTimer: null };
-  fillLiveStage(id);
+function cameraRecord(id) {
+  return liveCamsAll.find((c) => c.camera_id === id) || { camera_id: id };
+}
 
-  let fileView = false;
-  try {
-    const vr = await fetch(`/cameras/${encodeURIComponent(id)}/view`, {
-      method: "POST", headers: authHeaders(),
-    });
-    if (vr.ok) {
-      const body = await vr.json().catch(() => ({}));
-      fileView = body.source === "file";
+function decodedPlaybackState(id) {
+  return sourceDomain(cameraRecord(id)) === "ARCHIVAL_REPLAY" ? "REPLAY" : "LIVE";
+}
+
+function tileWhepEligible(cam) {
+  if (hubPlane()) return false;
+  /* The isolated demo simulation plane is gated on config.simulation, not on
+   * the primary government WHEP flag — it runs its own dedicated relay and
+   * must stay eligible (or ineligible) independently of that toggle. */
+  if (cam && !cam.synthetic_slot && sourceDomain(cam) === "ARCHIVAL_REPLAY") {
+    return Boolean(state.simulationConfig?.available);
+  }
+  if (!state.liveConfig?.whep) return false;
+  if (!cam || cam.synthetic_slot) return false;
+  if (sourceDomain(cam) === "SYNTHETIC_CONTROL") return false;
+  if (localRelay()) {
+    const available = state.liveConfig?.relay_cameras;
+    if (Array.isArray(available)) return available.includes(cam.camera_id);
+    return sourceDomain(cam) === "GOVERNMENT" || sourceDomain(cam) === "OWN_FEED";
+  }
+  if (sourceDomain(cam) !== "GOVERNMENT") return false;
+  /* Direct WHEP is deliberately proxied by the application when it holds the
+   * organiser credential.  Registry/GIS responses omit stream URLs by design,
+   * so a public camera row may not carry `whep_url` even though the server has
+   * attached the documented endpoint internally.  `live.proxy` is the safe
+   * authority in that case: it means the server, not the browser, has already
+   * confirmed a credential and an eligible registry source. */
+  return Boolean(state.liveConfig?.proxy || cam.whep_capable || cam.whep_url);
+}
+
+function tileHlsEligible(cam) {
+  /* Local WHEP is the primary command-wall transport. HLS remains an explicit
+   * diagnostic fallback only (`?transport=hls`), never the default wall. The
+   * standalone 30-camera Chromium success used persistent WHEP peers; making
+   * the product use another transport recreated none of that proven lifecycle. */
+  const forcedFallback = new URLSearchParams(location.search).get("transport") === "hls";
+  return Boolean(forcedFallback && localRelay() && state.liveConfig?.hls && cam
+    && !cam.synthetic_slot && sourceDomain(cam) === "GOVERNMENT"
+    && (liveLayout === "grid" || liveLayout === "dense" || liveLayout === "twoup"));
+}
+
+function markTileLive(id, live, fps = null, extra = {}) {
+  if (!live) return;
+  const cam = cameraRecord(id);
+  const domain = sourceDomain(cam);
+  const video = (domain === "OWN_FEED" || domain === "ARCHIVAL_REPLAY") ? "REPLAY" : "LIVE";
+  for (const tile of $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)) {
+    applyPlane(tile, "CONNECTED", video, null, 0, fps, extra);
+    const frame = tile.querySelector(".frame");
+    if (frame) {
+      frame.dataset.state = video.toLowerCase();
+      frame.classList.add("is-settling");
+      setTimeout(() => frame.classList.remove("is-settling"), 480);
     }
-  } catch { /* stills still refresh */ }
-  startStillPump(id);
+  }
+  liveProgress();
+}
 
-  const live = state.liveConfig || {};
-  if (!live.whep || fileView) return;
+function markTileVideoState(id, state, fps = null, extra = {}) {
+  for (const tile of $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)) {
+    applyPlane(tile, "CONNECTED", state, null, null, fps, extra);
+  }
+  liveProgress();
+}
 
-  resetBrowserTelemetry();
-  state.telemetry.whep.started = performance.now();
-  state.telemetry.whep.completed = 0;
-  state.telemetry.whep.error = "";
-  state.telemetry.reconnect = "negotiating";
-  const video = el("video", { autoplay: true, muted: true, playsInline: true, class: "live-whep" });
-  video.setAttribute("playsinline", "");
-  const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  });
-  livePlayer.pc = pc;
-  pc.onconnectionstatechange = () => {
-    state.telemetry.reconnect = pc.connectionState;
-    updateTelemetry();
+/* A WHEP track event only proves that signaling produced a media track. It does
+ * not prove that Chromium decoded or rendered a frame. The decoded/rendered
+ * state is therefore set exclusively by requestVideoFrameCallback, which runs
+ * after a real frame is submitted to the compositor, and is source-provenance-
+ * aware (ARCHIVAL_REPLAY cameras report REPLAY, never LIVE). */
+function watchRenderedFrames(id, video, sess) {
+  if (!video || !sess || video._saakshyaFrameSession === sess) return;
+  video._saakshyaFrameSession = sess;
+  if (typeof video.requestVideoFrameCallback !== "function") {
+    const first = () => {
+      sess.firstFrameAt ||= performance.now();
+      sess.firstFrameMs ||= sess.firstFrameAt - sess.openedAt;
+      sess.lastRenderedAt = performance.now();
+      markTileLive(id, true, sess.metrics?.fps ?? null, sess.metrics || {});
+    };
+    video.addEventListener("loadeddata", first, { once: true });
+    return;
+  }
+  const rendered = (now, metadata) => {
+    if ((sess.stream && video.srcObject !== sess.stream) || !video.isConnected) return;
+    const first = !sess.firstFrameAt;
+    /* This camera decoded, so whatever reopen attempts it needed to get here
+     * are spent history. Without this the cap is permanent and global: a
+     * camera that used its two attempts early could never be reopened again
+     * for the life of the page, so any later repaint - changing the wall size
+     * does exactly that - left it dead for good. */
+    tileWhepReopens.delete(id);
+    sess.firstFrameAt ||= now;
+    sess.firstFrameMs ||= sess.firstFrameAt - sess.openedAt;
+    sess.lastRenderedAt = now;
+    sess.presentedFrames = metadata?.presentedFrames ?? sess.presentedFrames;
+    /* A layout change rebuilds the tile DOM but deliberately retains the
+     * healthy peer connection.  Reassert LIVE on the replacement card when
+     * it renders; otherwise the moving video survives while the counter
+     * incorrectly resets to zero. */
+    const expected = decodedPlaybackState(id).toLowerCase();
+    const marked = $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)
+      .some((tile) => tile.querySelector(".frame")?.dataset.state === expected);
+    if (first || !marked) {
+      markTileLive(id, true, sess.metrics?.fps ?? null, sess.metrics || {});
+    }
+    video._saakshyaVfc = video.requestVideoFrameCallback(rendered);
   };
-  video.addEventListener("error", () => {
-    state.telemetry.playbackError = video.error?.message || "media error";
-    state.telemetry.reconnect = "playback error";
-    updateTelemetry();
-  });
-  video.addEventListener("loadeddata", () => {
-    state.telemetry.browser.lastFrameAt = performance.now();
-    state.telemetry.browser.state = "LIVE";
-    updateTelemetry();
-  });
-  video.addEventListener("timeupdate", () => {
-    state.telemetry.browser.lastFrameAt = performance.now();
-    if (state.telemetry.browser.state !== "NEGOTIATING") {
-      state.telemetry.browser.state = "LIVE";
-    }
-  });
-  video.addEventListener("stalled", () => {
-    state.telemetry.browser.state = "DEGRADED";
-    state.telemetry.reconnect = "stalled";
-    updateTelemetry();
-  });
+  video._saakshyaVfc = video.requestVideoFrameCallback(rendered);
+}
 
+/* HLS may attach and decode its first frame before the media element is ready
+ * to honour play(). Calling play() only once, immediately after attachMedia(),
+ * left Chromium with a perfectly decoded but paused poster frame. That looked
+ * like a live wall while every camera was actually frozen. Retry playback at
+ * the media lifecycle points that prove the element can run, and retain the
+ * rejection so the UI can report PAUSED instead of claiming LIVE. */
+function ensureTilePlayback(id, video, sess) {
+  if (!video || !sess || !video.isConnected) return;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  const attempt = video.play();
+  if (attempt?.then) {
+    attempt.then(() => {
+      sess.playError = null;
+      sess.lastPlayAt = performance.now();
+    }).catch((err) => {
+      sess.playError = err?.name || "play rejected";
+      markTileVideoState(id, "PAUSED");
+    });
+  }
+}
+
+/* SDP success and even an ontrack callback are not evidence that Chromium has
+ * decoded a frame. Do not leave an operator with a permanent CONNECTING tile
+ * when a source joins mid-GOP or never sends usable video. The selected,
+ * explicit camera may fall back to a labelled still; the rest of the
+ * government catalogue remains strictly on-demand. */
+function waitForRenderedFrame(video, sess, timeoutMs = 10_000) {
+  return new Promise((resolve) => {
+    const deadline = performance.now() + timeoutMs;
+    const timer = setInterval(() => {
+      const rendered = Boolean(sess?.firstFrameAt)
+        && video?.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        && video.videoWidth > 0 && video.videoHeight > 0;
+      if (rendered || performance.now() >= deadline) {
+        clearInterval(timer);
+        resolve(rendered);
+      }
+    }, 125);
+  });
+}
+
+async function sampleTileWhep(id, sess) {
+  if (!sess?.pc?.getStats) return;
+  try {
+    const reports = await sess.pc.getStats();
+    let inbound = null;
+    let codec = "";
+    reports.forEach((r) => {
+      if (r.type === "inbound-rtp" && r.kind === "video") inbound = r;
+      if (r.type === "codec" && r.mimeType?.startsWith("video/")) codec = r.mimeType;
+    });
+    if (!inbound) return;
+    /* Frame rate from the decoder's own counter over wall time, not from
+     * `framesPerSecond`. That field reports 0 on a track the decoder is still
+     * servicing, which put "0.0s" under a tile that was visibly playing - a
+     * number the operator cannot act on and should not be shown. Fall back to
+     * the reported value only when there is no interval to measure over. */
+    const now = performance.now();
+    const decoded = inbound.framesDecoded ?? null;
+    let measuredFps = null;
+    if (decoded != null && sess.lastDecoded != null && sess.lastDecodedAt != null) {
+      const dt = (now - sess.lastDecodedAt) / 1000;
+      if (dt >= 0.5) measuredFps = Math.max(0, (decoded - sess.lastDecoded) / dt);
+    }
+    if (decoded != null && (sess.lastDecodedAt == null || now - sess.lastDecodedAt >= 500)) {
+      sess.lastDecoded = decoded;
+      sess.lastDecodedAt = now;
+    }
+    if (measuredFps != null) sess.fpsMeasured = Math.round(measuredFps * 10) / 10;
+
+    sess.metrics = {
+      framesDecoded: decoded,
+      framesDropped: inbound.framesDropped ?? null,
+      packetsLost: inbound.packetsLost ?? null,
+      /* Carried so the stall check can tell a connection that is alive and
+       * waiting for a keyframe from one that is receiving nothing at all. */
+      packetsReceived: inbound.packetsReceived ?? null,
+      fps: sess.fpsMeasured ?? inbound.framesPerSecond ?? null,
+      width: inbound.frameWidth ?? null,
+      height: inbound.frameHeight ?? null,
+      codec: codec.replace(/^video\//i, "").toLowerCase(),
+    };
+    const renderedAgo = sess.lastRenderedAt == null
+      ? null : now - sess.lastRenderedAt;
+    /* Decoding counts as alive even where the compositor is throttled and
+     * requestVideoFrameCallback is not firing: `framesDecoded` advancing is
+     * the authoritative signal that video is arriving. */
+    const decodingNow = measuredFps != null && measuredFps > 0.2;
+
+    if ((sess.firstFrameAt && renderedAgo <= 3000) || decodingNow) {
+      markTileLive(id, true, sess.metrics.fps, sess.metrics);
+      sess.lastProgressAt = now;
+    } else if (sess.firstFrameAt && renderedAgo > 3000) {
+      markTileVideoState(id, "RECONNECTING", sess.metrics.fps, sess.metrics);
+    } else {
+      markTileVideoState(id, "CONNECTING", null, sess.metrics);
+    }
+  } catch {
+    /* Per-tile metrics are best-effort; playback remains authoritative. */
+  }
+}
+
+/* Chrome reports a freshly negotiated WHEP track as 2x2 until the first IDR
+ * arrives. Treating "a <video> exists" as "this camera is live" blacked out
+ * the tile and threw away the one image we did have. A tile is only allowed to
+ * drop its still once the decoder reports a real frame size. */
+function markTileVideoReady(video) {
+  if (!video || video.dataset.ready === "1") return;
+  if (video.videoWidth > 16 && video.videoHeight > 16) {
+    video.dataset.ready = "1";
+    const frame = video.closest(".frame");
+    const img = frame?.querySelector("img");
+    if (img) img.style.display = "none";
+    const ph = frame?.querySelector(".placeholder");
+    if (ph) ph.style.display = "none";
+    const ring = frame?.querySelector(".connect-ring");
+    if (ring) ring.style.display = "none";
+  }
+}
+
+function watchTileVideoReady(video) {
+  const check = () => markTileVideoReady(video);
+  video.addEventListener("loadedmetadata", check);
+  video.addEventListener("resize", check);
+  video.addEventListener("playing", check);
+  /* Neither `resize` nor `loadedmetadata` is guaranteed to fire again once a
+   * track that opened at 2x2 finally receives its keyframe, so poll briefly
+   * rather than leave a live camera showing a stale still for ever. */
+  let n = 0;
+  const timer = setInterval(() => {
+    check();
+    if (++n > 60 || video.dataset.ready === "1") clearInterval(timer);
+  }, 500);
+}
+
+function attachStreamToTile(id, stream, sess = tileWhep.get(id)) {
+  /* Focus owns the single visible video element in its stage.  Attaching the
+   * same remote track to a hidden grid video as well can stall both Chromium
+   * consumers after the first rendered frame. */
+  if (liveLayout === "focus") return;
+  for (const tile of $$(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"]`)) {
+    const frame = tile.querySelector(".frame");
+    if (!frame) continue;
+    let video = frame.querySelector("video.tile-whep");
+    if (!video) {
+      video = el("video", { autoplay: true, muted: true, playsInline: true, class: "tile-whep" });
+      video.setAttribute("playsinline", "");
+      /* The still, the placeholder and the ring stay until this track actually
+       * decodes a frame - see markTileVideoReady. */
+      watchTileVideoReady(video);
+      frame.prepend(video);
+    }
+    if (video.srcObject !== stream) video.srcObject = stream;
+    if (!video._saakshyaPlaybackBound) {
+      video._saakshyaPlaybackBound = true;
+      video.addEventListener("loadedmetadata", () => ensureTilePlayback(id, video, sess));
+      video.addEventListener("canplay", () => ensureTilePlayback(id, video, sess));
+      video.addEventListener("playing", () => {
+        sess.playError = null;
+        sess.lastPlayAt = performance.now();
+      });
+    }
+    ensureTilePlayback(id, video, sess);
+    watchRenderedFrames(id, video, sess);
+  }
+}
+
+function closeTileWhep(id) {
+  const retry = tileWhepRetries.get(id);
+  if (retry) clearTimeout(retry);
+  tileWhepRetries.delete(id);
+  const sess = tileWhep.get(id);
+  if (!sess) return;
+  if (sess.statsTimer) clearInterval(sess.statsTimer);
+  try { sess.pc && sess.pc.close(); } catch { /* already closed */ }
+  tileWhep.delete(id);
+  for (const tile of $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)) {
+    const frame = tile.querySelector(".frame");
+    const video = frame?.querySelector("video.tile-whep");
+    if (video) {
+      if (video._saakshyaVfc && typeof video.cancelVideoFrameCallback === "function") {
+        video.cancelVideoFrameCallback(video._saakshyaVfc);
+      }
+      video.remove();
+    }
+    const img = frame?.querySelector("img") || tile._img;
+    if (img) img.style.display = "";
+  }
+}
+
+function closeTileWhepAll() {
+  clearTileWhepTimers();
+  tileWhepIdleSince.clear();
+  for (const timer of tileWhepRetries.values()) clearTimeout(timer);
+  tileWhepRetries.clear();
+  for (const id of [...tileWhep.keys()]) closeTileWhep(id);
+}
+
+function closeTileHls(id) {
+  const sess = tileHls.get(id);
+  if (!sess) return;
+  if (sess.retryTimer) clearTimeout(sess.retryTimer);
+  try { sess.hls?.destroy(); } catch { /* already disposed */ }
+  tileHls.delete(id);
+  const video = $(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"] video.tile-hls`);
+  if (video) {
+    if (video._saakshyaVfc && typeof video.cancelVideoFrameCallback === "function") {
+      video.cancelVideoFrameCallback(video._saakshyaVfc);
+    }
+    video.removeAttribute("src");
+    video.load();
+    video.remove();
+  }
+}
+
+function closeTileHlsAll() {
+  for (const id of [...tileHls.keys()]) closeTileHls(id);
+}
+
+function openTileHls(id) {
+  if (tileHls.has(id) || !tileHlsEligible(cameraRecord(id))) return;
+  const tile = $(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"]`);
+  const frame = tile?.querySelector(".frame");
+  if (!frame || !HlsEngine) return;
+  const video = el("video", { autoplay: true, muted: true, playsInline: true, class: "tile-hls" });
+  video.setAttribute("playsinline", "");
+  frame.querySelector("img")?.style && (frame.querySelector("img").style.display = "none");
+  frame.querySelector(".placeholder")?.remove();
+  frame.prepend(video);
+  const sess = { hls: null, stream: null, openedAt: performance.now(),
+    firstFrameAt: null, firstFrameMs: null, lastRenderedAt: null,
+    presentedFrames: 0, metrics: {}, playError: null, lastPlayAt: null };
+  const hlsBase = String(state.liveConfig.hls_base || "").replace(/\/$/, "");
+  const url = /^https?:\/\//i.test(hlsBase)
+    ? `${hlsBase}/${encodeURIComponent(id)}/index.m3u8`
+    : `${hlsBase}/${encodeURIComponent(id)}/hls/index.m3u8`;
+  try {
+    if (HlsEngine.isSupported()) {
+      sess.hls = new HlsEngine({ liveSyncDurationCount: 2, backBufferLength: 4,
+        maxBufferLength: 8, enableWorker: true,
+        /* HLS.js owns playlist and segment requests, so the normal api()
+         * wrapper cannot attach the officer credential. Apply the same
+         * in-memory bearer header to every media request; never put it in the
+         * URL where it would leak through history, logs or a recording. */
+        xhrSetup: (xhr, requestUrl) => {
+          // API-proxied media requires the officer bearer token. The direct
+          // loopback HLS data plane deliberately receives no application
+          // credential and exposes no Sentinel secret or control endpoint.
+          if (String(requestUrl || "").startsWith(location.origin)) {
+            for (const [key, value] of Object.entries(authHeaders())) {
+              xhr.setRequestHeader(key, value);
+            }
+          }
+        },
+      });
+      tileHls.set(id, sess);
+      sess.hls.on(HlsEngine.Events.MEDIA_ATTACHED, () =>
+        ensureTilePlayback(id, video, sess));
+      sess.hls.on(HlsEngine.Events.MANIFEST_PARSED, () =>
+        ensureTilePlayback(id, video, sess));
+      sess.hls.loadSource(url);
+      sess.hls.attachMedia(video);
+      sess.hls.on(HlsEngine.Events.ERROR, (_event, data) => {
+        if (!data?.fatal) return;
+        markTileVideoState(id, "RECONNECTING");
+        // A path that was not ready during the paced wall start can become
+        // healthy seconds later. Hls.js stops after a fatal manifest error;
+        // without an application retry that tile stays dark forever even
+        // though MediaMTX is now publishing it.
+        if (!sess.retryTimer) {
+          sess.retryTimer = setTimeout(() => {
+            sess.retryTimer = null;
+            closeTileHls(id);
+            if (tileHlsEligible(cameraRecord(id))) openTileHls(id);
+          }, 5000);
+        }
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      tileHls.set(id, sess);
+      video.src = url;
+    } else {
+      throw new Error("HLS unsupported by this browser");
+    }
+    video.addEventListener("loadeddata", () => ensureTilePlayback(id, video, sess));
+    video.addEventListener("canplay", () => ensureTilePlayback(id, video, sess));
+    video.addEventListener("playing", () => {
+      sess.playError = null;
+      sess.lastPlayAt = performance.now();
+    });
+    ensureTilePlayback(id, video, sess);
+    watchRenderedFrames(id, video, sess);
+  } catch {
+    closeTileHls(id);
+    markTileVideoState(id, "NO SIGNAL");
+  }
+}
+
+function tileWhepStillEligible(id) {
+  const tile = $(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"]`);
+  if (!tile || !tile.isConnected) return false;
+  const r = tile.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return false;
+  return tileWhepEligible(cameraRecord(id));
+}
+
+function scheduleTileWhepRetry(id, attempt = 0, delay = 0) {
+  if (tileWhep.has(id) || tileWhepRetries.has(id) || !tileWhepStillEligible(id)) return;
+  const ceiling = localRelay() ? 8000 : 15000;
+  const wait = delay || Math.min(ceiling, 350 * (1.65 ** attempt));
+  const timer = setTimeout(() => {
+    tileWhepRetries.delete(id);
+    if (!tileWhepStillEligible(id) || tileWhep.has(id)) return;
+    negotiateTileWhep(id).then((sess) => {
+      if (sess) {
+        attachStreamToTile(id, sess.stream, sess);
+        return;
+      }
+      /* A local relay returns 503 while its upstream publisher is warming.
+       * Keep trying at a modest cadence; the current DOM and eligibility gate
+       * prevent off-wall or closed tiles from consuming a connection. */
+      scheduleTileWhepRetry(id, attempt + 1);
+    });
+  }, wait);
+  tileWhepRetries.set(id, timer);
+}
+
+async function negotiateTileWhep(id) {
+  if (tileWhep.has(id)) return tileWhep.get(id);
+  /* The isolated demo simulation plane signals only against its own
+   * same-origin, isolated endpoint — never the government relay's WHEP path
+   * and never a locally-constructed port. Everything below this branch is
+   * the unmodified primary Sentinel/relay WHEP path. */
+  const isSimulation = sourceDomain(cameraRecord(id)) === "ARCHIVAL_REPLAY";
+  const live = state.liveConfig || {};
+  const sim = state.simulationConfig || {};
+  if (isSimulation) {
+    if (!sim.available) return null;
+  } else if (!live.whep) {
+    return null;
+  }
+  const url = isSimulation
+    ? `/demo-simulation/cameras/${encodeURIComponent(id)}/whep`
+    : (live.proxy
+      ? `/cameras/${encodeURIComponent(id)}/whep`
+      : `${live.base}/${encodeURIComponent(id)}/whep`);
+  const headers = { "Content-Type": "application/sdp", "Accept": "application/sdp" };
+  if (isSimulation || live.proxy) Object.assign(headers, authHeaders());
+  const pc = new RTCPeerConnection({
+    iceServers: localRelay() ? [] : [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+  const stream = new MediaStream();
+  const sess = {
+    pc, stream, openedAt: performance.now(), ownsPc: true,
+    firstFrameAt: null, firstFrameMs: null, lastRenderedAt: null,
+    presentedFrames: 0, metrics: {}, statsTimer: null,
+    playError: null, lastPlayAt: null,
+  };
   pc.addTransceiver("video", { direction: "recvonly" });
   pc.addTransceiver("audio", { direction: "recvonly" });
   pc.ontrack = (e) => {
-    if (!livePlayer || livePlayer.id !== id) return;
-    // Attach the remote track directly. Relying only on e.streams[0] left the
-    // video element without a live track in some MediaMTX/WHEP answers.
-    const stream = video.srcObject instanceof MediaStream
-      ? video.srcObject
-      : new MediaStream();
     if (!stream.getTracks().includes(e.track)) stream.addTrack(e.track);
-    video.srcObject = stream;
-    video.play().catch(() => {
-      state.telemetry.playbackError = "autoplay blocked";
-      updateTelemetry();
-    });
-    const stage = $("#live-stage");
-    if (!stage) return;
-    stopStillPump();
-    const img = stage.querySelector("img");
-    if (img) img.style.display = "none";
-    if (!stage.querySelector("video.live-whep")) {
-      stage.insertBefore(video, stage.firstChild);
-    }
-    if (intelState.compare) {
-      stage.querySelector(".live-compare")?.remove();
-      mountCompare(stage, video);
-    }
-    const chip = stage.querySelector(".hud-chip.live");
-    if (chip) {
-      chip.textContent = "Live";
-      chip.classList.add("live");
-    }
-    state.telemetry.whep.completed = performance.now();
-    state.telemetry.reconnect = "connected";
-    livePlayer.statsTimer = startBrowserWatchdog(video, pc, id);
-    updateTelemetry();
+    attachStreamToTile(id, stream, sess);
   };
-
-  const url = live.proxy
-    ? `/cameras/${encodeURIComponent(id)}/whep`
-    : `${live.base}/${encodeURIComponent(id)}/whep`;
-  const headers = { "Content-Type": "application/sdp", "Accept": "application/sdp" };
-  if (live.proxy) Object.assign(headers, authHeaders());
-
   try {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -3264,24 +4565,369 @@ async function openLive(tile, id) {
         }
       };
       pc.addEventListener("icegatheringstatechange", done);
-      setTimeout(resolve, 3500);
+      setTimeout(resolve, localRelay() ? 400 : 2500);
     });
     const sdp = pc.localDescription?.sdp || offer.sdp;
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: sdp,
-    });
+    const res = await fetch(url, { method: "POST", headers, body: sdp });
     if (!res.ok) throw new Error(`WHEP ${res.status}`);
-    const answer = await res.text();
-    await pc.setRemoteDescription({ type: "answer", sdp: answer });
+    await pc.setRemoteDescription({ type: "answer", sdp: await res.text() });
   } catch (err) {
-    state.telemetry.whep.error = err.message || "negotiation failed";
-    state.telemetry.reconnect = "fallback to snapshot";
-    updateTelemetry();
     try { pc.close(); } catch { /* already closed */ }
-    if (livePlayer) livePlayer.pc = null;
+    state.telemetry.whep.error = err.message || "negotiation failed";
+    return null;
   }
+  tileWhep.set(id, sess);
+  sess.statsTimer = setInterval(() => sampleTileWhep(id, sess), 1000);
+  sampleTileWhep(id, sess);
+  return sess;
+}
+
+/* An IntersectionObserver delivers its first callback for tiles that are
+ * already on screen, once, very soon after observe(). That callback was landing
+ * while `liveCaptureEnabled` was still false - it is set immediately after the
+ * painter returns - so it was dropped, and because a tile that never left the
+ * viewport never intersects again, those tiles were never asked for a still at
+ * all. Measured on a fresh wall: 0 of 30 tiles requested, 3 with an image; one
+ * scroll (which finally produces intersection *changes*) took it to 15 and 14.
+ * The operator should not have to scroll to make the wall fill in. */
+const STILL_RETRY_MS = 9000;
+
+function primeVisibleStills() {
+  const grid = $("#live-grid");
+  if (!grid || !liveCaptureEnabled) return;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 900;
+  const now = Date.now();
+  for (const tile of grid.children) {
+    const r = tile.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (r.bottom < -80 || r.top > vh + 80) continue;
+    if (!tile._img) continue;
+    /* A tile showing live video, or holding a frame, needs nothing. */
+    const video = tile.querySelector("video");
+    if (video && video.dataset.ready === "1") continue;
+    const shown = tile.querySelector(".frame img");
+    if (shown && shown.getAttribute("src")) continue;
+    /* Nothing to show yet. A capture that failed is not a camera that has
+     * nothing to give: 503 from this grid means it is declining another
+     * consumer at this moment, which the tile's own retry treats as fatal
+     * after four attempts. For a tile the operator is looking at, keep
+     * asking - on a slow cooldown so a declining grid is not hammered. */
+    const last = Number(tile.dataset.stillTry || 0);
+    if (last && now - last < STILL_RETRY_MS) continue;
+    tile.dataset.stillTry = String(now);
+    tile.dataset.requested = "1";
+    queueStill(tile._img, tile.dataset.camera, true);
+  }
+}
+
+/* A WHEP session can negotiate cleanly and then never decode a frame: the
+ * answer arrives, ICE connects, and no keyframe follows. The tile sits on
+ * "CONNECTING · 0 frames" for as long as the operator leaves it there, because
+ * nothing in the scheduler distinguishes a session that is starting from one
+ * that has silently failed. Give it a deadline and renegotiate - a fresh offer
+ * asks the grid for a new keyframe, which is the thing that was missing. */
+/* 14s was too aggressive. A government camera with a long GOP can take longer
+ * than that to emit a keyframe, and a renegotiation discards the wait and
+ * starts it over - so a deadline shorter than the keyframe interval turns a
+ * slow camera into one that never decodes at all. Measured: a full recording
+ * made with a 14s deadline carried nine covered tiles and *no moving video*,
+ * where the run before it had five live tiles. Give the grid time, and give
+ * up after a couple of attempts rather than looping on a camera that is not
+ * going to answer. */
+const WHEP_FIRST_FRAME_MS = 30000;
+const WHEP_MAX_REOPENS = 2;
+const tileWhepReopens = new Map();
+/* The entry retries stop after four seconds, and the still loop runs every
+ * twenty on this plane and returns early whenever its queue is busy. Neither
+ * is a health check for the wall itself, so a session that stalled at second
+ * fifteen stayed stalled. This heartbeat is that check. syncTileWhep is
+ * idempotent - it reattaches what it holds and negotiates only what is
+ * missing - so running it on a timer costs nothing when all is well. */
+const WALL_HEARTBEAT_MS = 5000;
+let wallTimer = null;
+
+function startWallHeartbeat() {
+  stopWallHeartbeat();
+  wallTimer = setInterval(() => {
+    if (!$("#view-live")?.classList.contains("active")) return;
+    syncTileWhep();
+  }, WALL_HEARTBEAT_MS);
+}
+
+function stopWallHeartbeat() {
+  if (wallTimer) { clearInterval(wallTimer); wallTimer = null; }
+}
+
+function reopenStalledTileWhep() {
+  const now = performance.now();
+  for (const [id, sess] of [...tileWhep.entries()]) {
+    if (!sess || sess.firstFrameAt) continue;
+    if (now - (sess.openedAt || now) < WHEP_FIRST_FRAME_MS) continue;
+    const video = $(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"] video`);
+    /* Decoding already? Then it is healthy and simply had no firstFrameAt
+     * recorded; never tear down a session that is delivering pictures. */
+    if (video && video.videoWidth > 16) continue;
+    /* Packets arriving means the connection is alive and we are waiting on a
+     * keyframe, not on the network. Restarting that throws the wait away and
+     * begins it again, which is how a slow camera becomes a dead one. */
+    if ((sess.metrics?.packetsReceived || 0) > 0) continue;
+    const tries = tileWhepReopens.get(id) || 0;
+    if (tries >= WHEP_MAX_REOPENS) continue;
+    tileWhepReopens.set(id, tries + 1);
+    closeTileWhep(id);
+    markTileVideoState(id, "RECONNECTING");
+  }
+}
+
+function syncTileWhep() {
+  clearTileWhepTimers();
+  reopenStalledTileWhep();
+  primeVisibleStills();
+  const layout = $("#live")?.dataset.layout || liveLayout;
+  /* Stream what the operator can actually see, plus a screen either side, and
+   * let the rest of the wall wait. Thirty simultaneous full-resolution decodes
+   * is more than a laptop will hold smoothly, but the ten or so on screen are
+   * comfortable - so the visible tiles get real video at full quality instead
+   * of every tile getting a degraded one. The prefetch margin means a tile is
+   * already playing by the time a scroll brings it into view. */
+  const vh = window.innerHeight || document.documentElement.clientHeight || 900;
+  /* CONTROL ROOM shows the whole wall at once and every tile is meant to be
+   * live, so the prefetch window covers it rather than the screen. */
+  const margin = liveLayout === "dense"
+    ? Number.POSITIVE_INFINITY
+    : Math.max(WHEP_PREFETCH_PX, vh);
+  const candidates = $$("#live-grid .live-tile").filter((t) => {
+    if (layout === "focus" || layout === "tab") return false;
+    const r = t.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return false;
+    if (r.bottom < -margin || r.top > vh + margin) return false;
+    const cam = cameraRecord(t.dataset.camera);
+    return tileWhepEligible(cam) && !tileHlsEligible(cam);
+  });
+  /* Rank by distance from the middle of the screen before applying the budget.
+   * Taking the first N in DOM order instead looks correct until you scroll:
+   * the prefetch margin keeps far more tiles eligible than the budget allows,
+   * so the earliest tiles in the document win every time and the selection
+   * never changes no matter where the operator is looking. Sorting by
+   * proximity is what makes the streams actually follow the viewport. */
+  const centre = vh / 2;
+  const distance = (t) => {
+    const r = t.getBoundingClientRect();
+    return Math.abs((r.top + r.bottom) / 2 - centre);
+  };
+  const visible = candidates
+    .map((t) => [t, distance(t)])
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, tileWhepBudget())
+    .map(([t]) => t);
+  const keep = new Set(visible.map((t) => t.dataset.camera));
+  if (livePlayer?.id && tileWhepEligible(cameraRecord(livePlayer.id))) keep.add(livePlayer.id);
+  /* Scrolling a tile just past the margin must not tear its session down at
+   * once: a scroll that overshoots and comes back would otherwise close and
+   * renegotiate the same camera, which is the flicker this wall is meant to be
+   * free of. Give a departed tile a grace period and close it only if the
+   * operator has genuinely moved on. */
+  const now = Date.now();
+  for (const id of [...tileWhep.keys()]) {
+    if (keep.has(id)) { tileWhepIdleSince.delete(id); continue; }
+    const since = tileWhepIdleSince.get(id);
+    if (since === undefined) { tileWhepIdleSince.set(id, now); continue; }
+    if (now - since >= WHEP_KEEPALIVE_MS) {
+      tileWhepIdleSince.delete(id);
+      closeTileWhep(id);
+    }
+  }
+  let delay = 0;
+  for (const tile of visible) {
+    const id = tile.dataset.camera;
+    if (tileWhep.has(id)) {
+      const sess = tileWhep.get(id);
+      attachStreamToTile(id, sess.stream, sess);
+      continue;
+    }
+    const wait = delay;
+    delay += tileWhepStagger();
+    scheduleTileWhep(() => {
+      negotiateTileWhep(id).then((sess) => {
+        if (sess) { attachStreamToTile(id, sess.stream, sess); return; }
+        markTileVideoState(id, "RECONNECTING");
+        scheduleTileWhepRetry(id);
+      });
+    }, wait);
+  }
+  const hlsVisible = $$("#live-grid .live-tile").filter((t) => {
+    if (layout === "focus" || layout === "tab") return false;
+    const r = t.getBoundingClientRect();
+    return r.width >= 8 && r.height >= 8 && tileHlsEligible(cameraRecord(t.dataset.camera));
+  });
+  const hlsKeep = new Set(hlsVisible.map((t) => t.dataset.camera));
+  for (const id of [...tileHls.keys()]) if (!hlsKeep.has(id)) closeTileHls(id);
+  // MediaMTX creates an HLS muxer on the first playlist request. Starting
+  // thirty muxers in one browser task floods the same-origin proxy and makes
+  // every request appear broken. Pace starts across a few seconds; existing
+  // sessions remain attached immediately on subsequent wall renders.
+  let hlsDelay = 0;
+  for (const tile of hlsVisible) {
+    const id = tile.dataset.camera;
+    if (tileHls.has(id)) continue;
+    scheduleTileWhep(() => openTileHls(id), hlsDelay);
+    hlsDelay += 250;
+  }
+}
+
+/* WHEP: the browser offers, the media server answers, and the video arrives on
+ * the peer connection. Falls back to the selected-camera still pump if anything
+ * in that exchange fails, rather than leaving a black rectangle. */
+async function openLive(tile, id) {
+  closeLive();
+  $$(`.live-tile[data-camera="${CSS.escape(id)}"]`).forEach((t) => t.classList.add("selected"));
+  livePlayer = { pc: null, tile, id, statsTimer: null, ownsPc: false };
+  fillLiveStage(id);
+
+  const camRec = cameraRecord(id);
+  const isSimulation = sourceDomain(camRec) === "ARCHIVAL_REPLAY";
+
+  /* The isolated demo simulation catalog has no still/registry endpoint —
+   * CAM-001..030 never exist in the government store — so the still pump
+   * would just 404-loop. Its stage relies entirely on the WHEP path below. */
+  let fileView = false;
+  /* On the direct government plane WHEP itself is the selected-camera view.
+   * Calling /view first opens a second RTSP decoder for the same source and
+   * can leave the subsequent browser session negotiated but starved of an
+   * IDR/frame.  /view remains necessary for own/local file feeds. */
+  if (!isSimulation && !directGovernmentOnDemand()) {
+    try {
+      const vr = await fetch(`/cameras/${encodeURIComponent(id)}/view`, {
+        method: "POST", headers: authHeaders(),
+      });
+      if (vr.ok) {
+        const body = await vr.json().catch(() => ({}));
+        fileView = body.source === "file";
+      }
+    } catch { /* stills still refresh */ }
+  }
+
+  /* A still is an explicit *degraded fallback*. It is started only once the
+   * WHEP path for this camera is known to be unavailable or to have failed —
+   * never racing a negotiation that is still in flight, because a capture that
+   * lands first would relabel live video as Preview. The stage says which of
+   * the two it is showing and why. */
+  const fallbackToSnapshot = (reason) => {
+    state.telemetry.reconnect = `fallback to snapshot: ${reason}`;
+    const stage = $("#live-stage");
+    const chip = stage?.querySelector(".hud-chip.live");
+    if (chip) {
+      chip.textContent = "Preview";
+      chip.classList.remove("live");
+    }
+    const note = stage?.querySelector(".stage-note");
+    if (note) {
+      note.textContent = `No verified WHEP session — ${reason}. `
+        + "Anything shown here is a cached PREVIEW, not live video.";
+    }
+    /* A tile must carry the same provenance as the focus stage. Without this
+     * explicit state, a successful still fetch can make a rejected WHEP
+     * request look like a normal preview, hiding an upstream admission error
+     * from the operator who selected it. */
+    for (const candidate of $$(`#live .live-tile[data-camera="${CSS.escape(id)}"]`)) {
+      applyPlane(candidate, "DEGRADED", "PREVIEW", "OFF");
+      candidate.title = `WHEP unavailable: ${reason}. Cached preview only.`;
+      let warning = candidate.querySelector(".tile-whep-warning");
+      if (!warning) {
+        warning = el("span", { class: "tile-whep-warning" });
+        candidate.querySelector(".tile-planes")?.append(warning);
+      }
+      warning.textContent = `WHEP unavailable — ${reason}`;
+    }
+    if (!localRelay() && !isSimulation) startStillPump(id);
+  };
+
+  if (!isSimulation) {
+    const live = state.liveConfig || {};
+    if (!live.whep) {
+      fallbackToSnapshot("WHEP is not enabled on this process");
+      return;
+    }
+    if (fileView && !localRelay()) {
+      fallbackToSnapshot("this camera resolves to a stored file view");
+      return;
+    }
+  }
+  if (!tileWhepEligible(camRec) && sourceDomain(camRec) !== "OWN_FEED") {
+    fallbackToSnapshot("this camera is not WHEP-capable on this plane");
+    return;
+  }
+
+  resetBrowserTelemetry();
+  state.telemetry.whep.started = performance.now();
+  state.telemetry.whep.completed = 0;
+  state.telemetry.whep.error = "";
+  state.telemetry.reconnect = "negotiating";
+  let video = el("video", { autoplay: true, muted: true, playsInline: true, class: "live-whep" });
+  video.setAttribute("playsinline", "");
+
+  const sess = tileWhep.get(id) || await negotiateTileWhep(id);
+  if (!livePlayer || livePlayer.id !== id) return;
+  if (!sess) {
+    const message = String(state.telemetry.whep.error || "");
+    const status = message.match(/\bWHEP\s+(\d{3})\b/i)?.[1];
+    const reason = status === "401"
+      ? "source authorization rejected the WHEP request (HTTP 401)"
+      : status
+        ? `source rejected the WHEP request (HTTP ${status})`
+        : "WHEP negotiation did not produce a session";
+    fallbackToSnapshot(reason);
+    return;
+  }
+  livePlayer.pc = sess.pc;
+  livePlayer.ownsPc = false;
+  const stageOwnsVideo = liveLayout === "focus";
+  if (!stageOwnsVideo) {
+    const tileVideo = $(`#live-grid .live-tile[data-camera="${CSS.escape(id)}"] video.tile-whep`);
+    if (tileVideo) video = tileVideo;
+  }
+  video.srcObject = sess.stream;
+  video.play().catch(() => {
+    state.telemetry.playbackError = "autoplay blocked";
+    updateTelemetry();
+  });
+  const stage = $("#live-stage");
+  if (!stage) return;
+  stopStillPump();
+  if (stageOwnsVideo) {
+    const img = stage.querySelector("img");
+    if (img) img.style.display = "none";
+    if (!stage.querySelector("video.live-whep")) {
+      stage.insertBefore(video, stage.firstChild);
+    }
+  }
+  watchRenderedFrames(id, video, sess);
+  const rendered = await waitForRenderedFrame(video, sess);
+  if (!livePlayer || livePlayer.id !== id) return;
+  if (!rendered) {
+    state.telemetry.browser.state = "NO_FRAME";
+    state.telemetry.whep.error = "WHEP negotiated but no browser-decoded frame within 10 s";
+    markTileVideoState(id, "DEGRADED", null, sess.metrics || {});
+    video.srcObject = null;
+    video.remove();
+    if (tileWhep.get(id) === sess) closeTileWhep(id);
+    fallbackToSnapshot("WHEP negotiated but no decoded frame arrived within 10 s");
+    updateTelemetry();
+    return;
+  }
+  if (stageOwnsVideo && intelState.compare) {
+    stage.querySelector(".live-compare")?.remove();
+    mountCompare(stage, video);
+  }
+  const chip = stage.querySelector(".hud-chip.live");
+  if (chip) {
+    chip.textContent = isSimulation ? "Replay" : "Live";
+    chip.classList.add("live");
+  }
+  state.telemetry.whep.completed = performance.now();
+  state.telemetry.reconnect = "connected";
+  livePlayer.statsTimer = startBrowserWatchdog(video, sess.pc, id);
+  updateTelemetry();
 }
 
 function closeLive() {
@@ -3290,18 +4936,22 @@ function closeLive() {
   stopDetectionOverlay();
   if (!livePlayer) return;
   if (livePlayer.statsTimer) clearInterval(livePlayer.statsTimer);
-  try { livePlayer.pc && livePlayer.pc.close(); } catch { /* already closed */ }
+  /* Shared tile sessions stay open so returning to the wall does not open a
+   * second WHEP. Only a privately owned hero PC is closed here. */
+  if (livePlayer.ownsPc) {
+    try { livePlayer.pc && livePlayer.pc.close(); } catch { /* already closed */ }
+  }
+  const stageVideo = $("#live-stage")?.querySelector("video.live-whep");
+  if (stageVideo) {
+    if (stageVideo._saakshyaVfc && typeof stageVideo.cancelVideoFrameCallback === "function") {
+      stageVideo.cancelVideoFrameCallback(stageVideo._saakshyaVfc);
+    }
+    stageVideo.srcObject = null;
+    stageVideo.remove();
+  }
   state.telemetry.browser.state = "IDLE";
   const id = livePlayer.id || livePlayer.tile?.dataset.camera;
   $$(`.live-tile[data-camera="${CSS.escape(id || "")}"]`).forEach((t) => t.classList.remove("selected"));
-  const frame = livePlayer.tile?.querySelector(".frame");
-  if (frame && id) {
-    clear(frame);
-    const img = el("img", { alt: `Still from ${id}` });
-    livePlayer.tile._img = img;
-    frame.append(img, el("span", { class: "badge live", text: "LIVE" }));
-    refreshTile(img, id);
-  }
   livePlayer = null;
 }
 
@@ -3313,11 +4963,28 @@ $("#live-reload")?.addEventListener("click", () => {
   }
 });
 
+$("#btn-command-bar")?.addEventListener("click", () => {
+  commandBarOpen = !commandBarOpen;
+  applyCommandChrome();
+  /* The wall just changed size, so which tiles are near the viewport centre
+   * changed with it. Re-rank; this opens or releases sessions by the same
+   * rules as a scroll and rebuilds nothing. */
+  scheduleTileWhepSync();
+});
+
 $$("[data-live-layout]").forEach((b) => b.addEventListener("click", () => {
-  liveLayout = b.dataset.liveLayout || "focus";
+  liveLayout = b.dataset.liveLayout || "grid";
   $$("[data-live-layout]").forEach((x) => x.classList.toggle("on", x === b));
   const box = $("#live");
   if (box) box.dataset.layout = liveLayout;
+  /* #view-live carries the layout too: the wall's geometry rules key off it,
+   * and without this a Grid<->Dense switch changed nothing visually. */
+  const liveView = $("#view-live");
+  if (liveView) liveView.dataset.layout = liveLayout;
+  applyMediaPolicy();
+  /* Reuse existing sessions across the switch. A layout change is not a
+   * reason to renegotiate a stream that is already playing. */
+  scheduleTileWhepSync();
   const root = (liveLayout === "tab")
     ? $$("#live-tab img[data-camera]")
     : (liveLayout === "focus")
@@ -3343,15 +5010,36 @@ $("#btn-telemetry")?.addEventListener("click", () => {
   }
 });
 
+/* A wall-size or priority change repaints the grid, which destroys the tiles
+ * the media scheduler was tracking. The layout buttons already re-sync after
+ * their repaint; these two did not, so changing the wall size left a grid of
+ * cached stills reading "0 live sessions" until something else happened to
+ * trigger a sync. Same reason, same fix, and the repaint is async so the sync
+ * has to be retried rather than fired once. */
+function resyncAfterRepaint() {
+  for (const delay of [0, 300, 900, 2000]) {
+    setTimeout(() => {
+      if (!$("#view-live")?.classList.contains("active")) return;
+      bindWhepScroll();
+      applyCommandChrome();
+      applyMediaPolicy();
+      syncTileWhep();
+    }, delay);
+  }
+}
+
 $$("[data-live-wall]").forEach((b) => b.addEventListener("click", () => {
   liveWallMode = Number(b.dataset.liveWall) || 9;
-  if ($("#live-count")) $("#live-count").textContent = `${liveCamsAll.length} cameras · wall ${liveWallMode}`;
+  renderLiveCount(liveCamsAll);
   $$("[data-live-wall]").forEach((x) => {
     const active = x === b;
     x.classList.toggle("on", active);
     x.setAttribute("aria-pressed", active ? "true" : "false");
   });
-  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+  if ($("#view-live")?.classList.contains("active")) {
+    paintLiveWorkspace(liveCamsAll);
+    resyncAfterRepaint();
+  }
 }));
 
 $$("[data-live-priority]").forEach((b) => b.addEventListener("click", () => {
@@ -3361,7 +5049,10 @@ $$("[data-live-priority]").forEach((b) => b.addEventListener("click", () => {
     x.classList.toggle("on", active);
     x.setAttribute("aria-pressed", active ? "true" : "false");
   });
-  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+  if ($("#view-live")?.classList.contains("active")) {
+    paintLiveWorkspace(liveCamsAll);
+    resyncAfterRepaint();
+  }
 }));
 
 $("#masthead-search")?.addEventListener("submit", (e) => {
@@ -3405,7 +5096,7 @@ loaders.alerts = async () => {
             `${fmtAlertClock(a)} · confidence ${a.confidence != null ? (Number(a.confidence) * 100).toFixed(1) + "%" : "—"}` }),
           el("div", { class: "actions" },
             el("button", { class: "ghost", onclick: () => jumpAlert(a) }, "VIEW VIDEO"),
-            el("button", { class: "ghost", onclick: () => trackEntity(a.plate, a) }, "TRACK"),
+            el("button", { class: "ghost", onclick: () => trackEntity(a.plate, a) }, "TRACK VEHICLE"),
             el("button", { class: "ghost", onclick: () => routeAlert(a) }, "ROUTE"),
             el("button", { class: "ghost", onclick: () => { show("map"); toast("GIS: camera " + (a.camera_id || "")); } }, "OPEN GIS"),
             a.status === "OPEN" ? el("button", { class: "ghost", onclick: async (e) => {
@@ -3414,7 +5105,11 @@ loaders.alerts = async () => {
                 await api(`/alerts/${encodeURIComponent(a.alert_id)}/acknowledge`, { method: "POST" });
                 toast("Acknowledged"); loaders.alerts();
               } catch (err) { toast(`${err.code}: ${err.message}`, true); }
-            } }, "ACKNOWLEDGE") : el("span", { class: "chip", text: a.status })))))));
+            } }, "ACKNOWLEDGE") : el("span", { class: "chip", text: a.status })
+          )
+        )
+      ))
+    );
     box.append(cards, alertTable(res.alerts, true));
   } catch (err) {
     clear(box);
@@ -3461,7 +5156,7 @@ async function loadOverviewMap(body) {
   holder.append(canvas);
   body.append(holder);
   try {
-    const { MapView } = await import("/ui/map.js?v=cr087");
+    const { MapView } = await import("/ui/map.js?v=cr100");
     map3 = new MapView(canvas,
       { ...(state.mapOpts || {}), onSelect: () => {} });
     const ext = await api("/gis/extent");
@@ -3535,6 +5230,55 @@ loaders.cameras = async () => {
       `ANPR: ${Object.entries(g.anpr).map(([k, v]) => `${v} ${k}`).join(" · ")}`
       + ` · ${published} camera${published === 1 ? "" : "s"} published a mark in the store`;
 
+    /* Model 1 asks the registry to report its own gaps. A registry that lists
+     * only what it holds hides the fields that actually block onboarding a
+     * department, so the missing ones are named here, above the inventory. */
+    try {
+      const gaps = await api("/gis/gaps");
+      const card = el("div", { class: "ov-card", style: "margin:12px" },
+        el("h3", { text: "Registry gap analysis" }),
+        el("p", { class: "lede", text:
+          `${gaps.cameras} cameras onboarded, ${gaps.capacity_slots} capacity `
+          + "slots. What no department has supplied yet:" }));
+      const absent = gaps.departments_absent || [];
+      if (absent.length) {
+        card.append(el("div", { class: "notice warn" },
+          el("strong", { text: `${absent.length} expected department`
+            + `${absent.length === 1 ? "" : "s"} with no camera onboarded` }),
+          el("div", { text: absent.join(" · ") })));
+      }
+      const present = Object.entries(gaps.departments_present || {});
+      if (present.length) {
+        card.append(el("div", { class: "sid", style: "margin:8px 0",
+          text: "Onboarded by department — "
+            + present.map(([d, n]) => `${d}: ${n}`).join(" · ") }));
+      }
+      const tbl = el("table", { class: "data" },
+        el("thead", {}, el("tr", {},
+          el("th", { text: "Field" }), el("th", { text: "Missing" }),
+          el("th", { text: "Of" }), el("th", { text: "Share" }))));
+      const tb = el("tbody");
+      for (const g of (gaps.field_gaps || [])) {
+        if (!g.missing) continue;
+        tb.append(el("tr", {},
+          el("td", { class: "mono", text: g.field }),
+          el("td", { class: "num", text: String(g.missing) }),
+          el("td", { class: "num", text: String(g.of) }),
+          el("td", { class: "num", text: `${g.pct}%` })));
+      }
+      if (!tb.children.length) {
+        tb.append(el("tr", {}, el("td", { colspan: "4" },
+          el("span", { class: "sid", text: "No missing registry fields." }))));
+      }
+      tbl.append(tb);
+      card.append(tbl);
+      if (gaps.note) card.append(el("div", { class: "sid", text: gaps.note }));
+      box.append(card);
+    } catch (err) {
+      box.append(el("div", { class: "notice", style: "margin:12px" },
+        `Gap analysis unavailable: ${err.message || err}`));
+    }
+
     if (res.note) {
       box.append(el("div", { class: "notice", style: "margin:12px" },
         el("strong", { text: "Some cameras cannot be placed on the map" }),
@@ -3551,7 +5295,28 @@ loaders.cameras = async () => {
         el("th", { text: "Marks in store" }),
         el("th", { text: "Bands" }))));
     const tb = el("tbody");
-    for (const f of res.features) {
+    /* Eighteen of the fifty rows in this estate are capacity slots, not
+     * cameras: no stream, no samples, coordinates in open water. Grading them
+     * produced three UNKNOWN chips apiece and eighteen rows of apparent
+     * breakage above the real estate. A slot with nothing to measure is not a
+     * camera awaiting a grade, and the table should say which it is. Real
+     * cameras first, and a slot states what it is instead of pretending to be
+     * ungraded. */
+    const isSlot = (f) => f.source_domain === "SYNTHETIC_CONTROL"
+      || /^CTL-/.test(String(f.camera_id || ""));
+    const ordered = [...res.features].sort((a, b) => Number(isSlot(a)) - Number(isSlot(b)));
+    for (const f of ordered) {
+      if (isSlot(f)) {
+        tb.append(el("tr", { class: "slot-row" },
+          el("td", { class: "mono", text: f.camera_id }),
+          el("td", { class: "mono", text: f.resolution || "—" }),
+          el("td", { text: f.codec || "—" }),
+          el("td", { colspan: "9" },
+            el("span", { class: "chip unknown", text: "CAPACITY SLOT" }),
+            el("span", { class: "sid", style: "margin-left:8px",
+                         text: "reserved headroom — no stream, nothing to grade" }))));
+        continue;
+      }
       tb.append(el("tr", {},
         el("td", { class: "mono", text: f.camera_id }),
         el("td", { class: "mono", text: f.resolution || "—" }),
@@ -3959,33 +5724,123 @@ $("#chat-form").addEventListener("submit", async (e) => {
   log.scrollTop = log.scrollHeight;
 });
 
+function kpiCell(title, item) {
+  const display = item?.display ?? item?.value ?? "NOT_MEASURED";
+  const src = item?.source || item?.label || "";
+  const meta = [item?.scope, item?.timestamp].filter(Boolean).join(" · ");
+  return el("div", { class: "kpi kpi-sourced" },
+    el("h4", { text: title }),
+    el("div", { class: "big", text: String(display) }),
+    src ? el("div", { class: "sub", text: src }) : null,
+    meta ? el("div", { class: "sub kpi-meta", text: meta }) : null);
+}
+
+function paintIntelCommand(cmd) {
+  if (cmd?.isolation) state.isolation = cmd.isolation;
+  const health = $("#intel-health");
+  if (health) {
+    clear(health);
+    health.append(
+      el("div", { class: "chip", text: `Online ${cmd?.kpis?.cameras_online?.display ?? cmd?.healthy ?? "—"}` }),
+      el("div", { class: "chip", text: `Alerts ${cmd?.kpis?.active_alerts?.display ?? cmd?.active_alerts ?? "—"}` }),
+      el("div", { class: "chip", text: `AI P50 ${cmd?.kpis?.ai_latency_p50?.display ?? "NOT_MEASURED"}` }),
+    );
+    for (const row of Object.values(cmd?.isolation || {})) {
+      if (row?.chip) health.append(el("div", { class: "chip verify", text: row.chip }));
+    }
+  }
+  const kpiBox = $("#intel-kpis");
+  if (kpiBox && cmd?.kpis) {
+    clear(kpiBox);
+    const order = [
+      ["Cameras online", "cameras_online"],
+      ["Cameras degraded", "cameras_degraded"],
+      ["Active WHEP", "active_whep"],
+      ["Preview", "preview"],
+      ["AI streams", "ai_streams"],
+      ["Active alerts", "active_alerts"],
+      ["ANPR reads/min", "anpr_reads_per_min"],
+      ["Vehicles", "vehicles"],
+      ["People", "people"],
+      ["Events/min", "events_per_min"],
+      ["AI latency P50", "ai_latency_p50"],
+      ["AI latency P95", "ai_latency_p95"],
+      ["Watchlist alert latency", "watchlist_alert_latency"],
+    ];
+    for (const [title, key] of order) kpiBox.append(kpiCell(title, cmd.kpis[key]));
+  }
+  const resBox = $("#intel-resources");
+  if (resBox && cmd?.resources) {
+    clear(resBox);
+    resBox.append(el("div", { class: "sid", text: "AI RESOURCE PANEL" }));
+    const order = [
+      ["AI workers", "ai_workers"],
+      ["Detector FPS", "detector_fps"],
+      ["OCR FPS", "ocr_fps"],
+      ["Inference P50", "inference_p50"],
+      ["Inference P95", "inference_p95"],
+      ["Queue depth", "queue_depth"],
+      ["CPU", "cpu"],
+      ["GPU", "gpu"],
+      ["RAM", "ram"],
+    ];
+    for (const [title, key] of order) resBox.append(kpiCell(title, cmd.resources[key]));
+  }
+}
+
 function paintCommandStatus(cmd, o) {
   const health = $("#cc-health");
   const alerts = $("#cc-alerts");
   const ai = $("#cc-ai");
   if (health) {
-    health.textContent = `Healthy ${cmd?.healthy ?? "—"} · down ${cmd?.down ?? "—"}`;
+    const online = cmd?.kpis?.cameras_online?.display ?? cmd?.healthy ?? "—";
+    const deg = cmd?.kpis?.cameras_degraded?.display ?? cmd?.degraded ?? "—";
+    health.textContent = `Online ${online} · degraded ${deg} (store)`;
   }
-  if (alerts) alerts.textContent = `Alerts ${o?.alerts?.open ?? cmd?.active_alerts ?? "—"}`;
-  if (ai) ai.textContent = `AI store ${cmd?.observations ?? "—"} obs`;
+  if (alerts) {
+    alerts.textContent = `Alerts ${o?.alerts?.open ?? cmd?.kpis?.active_alerts?.display ?? cmd?.active_alerts ?? "—"}`;
+  }
+  if (ai) {
+    const chips = Object.values(cmd?.isolation || {})
+      .map((row) => row?.chip).filter(Boolean);
+    const p50 = cmd?.kpis?.ai_latency_p50?.display ?? "NOT_MEASURED";
+    ai.textContent = chips.length ? chips.join(" · ") : `AI P50 ${p50}`;
+    ai.classList.toggle("verify", chips.length > 0);
+  }
 }
 
-function applyIntelMode(mode) {
+function applyIntelMode(mode, repaint = true) {
   intelState.mode = mode;
   intelState.analytics = mode !== "video" && mode !== "off";
   if (mode === "video") intelState.analytics = false;
   if (mode === "vehicles") { intelState.vehicles = true; intelState.people = false; intelState.anpr = false; }
   if (mode === "people") { intelState.vehicles = false; intelState.people = true; intelState.anpr = false; }
   if (mode === "anpr") { intelState.vehicles = true; intelState.people = false; intelState.anpr = true; }
-  if (mode === "full" || mode === "incident" || mode === "both") {
+  if (mode === "both") {
+    intelState.vehicles = true; intelState.people = true; intelState.anpr = false;
+  }
+  if (mode === "full" || mode === "incident") {
     intelState.vehicles = true; intelState.people = true; intelState.anpr = true;
   }
   snapshotCache.clear();
-  if (overlayState) overlayState.poll && overlayState.poll._noop;
   const cam = livePlayer?.id;
   const canvas = $("#live-overlay");
   if (cam && canvas) startDetectionOverlay(cam, canvas);
-  if ($("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+  if (repaint && $("#view-live")?.classList.contains("active")) paintLiveWorkspace(liveCamsAll);
+}
+
+function applyCadence(id) {
+  const map = { FAST: 400, BALANCED: 1000, DEEP: 1000 };
+  intelState.cadence = id;
+  intelState.overlayPollMs = map[id] || 1000;
+  $$("[data-cadence]").forEach((x) => {
+    const on = x.dataset.cadence === id;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
+  const cam = livePlayer?.id;
+  const canvas = $("#live-overlay");
+  if (cam && canvas) startDetectionOverlay(cam, canvas);
 }
 
 $$("[data-intel]").forEach((b) => b.addEventListener("click", () => {
@@ -4000,6 +5855,8 @@ $$("[data-viewmode]").forEach((b) => b.addEventListener("click", () => {
   b.classList.add("on"); b.setAttribute("aria-pressed", "true");
   applyIntelMode(b.dataset.viewmode);
 }));
+
+$$("[data-cadence]").forEach((b) => b.addEventListener("click", () => applyCadence(b.dataset.cadence)));
 
 $$("[data-class]").forEach((b) => b.addEventListener("click", () => {
   const key = b.dataset.class;
@@ -4021,7 +5878,10 @@ $$("[data-preset]").forEach((b) => b.addEventListener("click", () => {
   const id = b.dataset.preset;
   const spec = {
     "control-room": { wall: 12, mode: "video", view: "live" },
-    "overview-30": { wall: 30, mode: "video", view: "live" },
+    "overview-30": { wall: 30, mode: "video", view: "live", domain: "government" },
+    "overview-50": { wall: 50, mode: "video", view: "live", domain: "fifty" },
+    "government": { wall: 30, mode: "video", view: "live", domain: "government" },
+    "intelligence-demo": { wall: 2, mode: "full", view: "intelligence", domain: "intelligence" },
     "traffic": { wall: 12, mode: "anpr", view: "live" },
     "person-search": { wall: 9, mode: "people", view: "live" },
     "watchlist-incident": { wall: 4, mode: "full", view: "alerts" },
@@ -4034,18 +5894,34 @@ $$("[data-preset]").forEach((b) => b.addEventListener("click", () => {
     x.classList.toggle("on", on);
     x.setAttribute("aria-pressed", String(on));
   });
-  applyIntelMode(spec.mode);
+  /* The destination loader paints once after wall/domain/mode are all set.
+   * Repainting here used the previous domain, scheduled a first WHEP fleet,
+   * and then let show() rebuild the DOM underneath it. */
+  applyIntelMode(spec.mode, false);
+  if (spec.domain) liveDomain = spec.domain;
+  $$("[data-live-domain]").forEach((x) => {
+    const on = x.dataset.liveDomain === liveDomain;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
   show(spec.view);
-  if (spec.view === "live") loaders.live?.();
+  /* show() already invokes the destination loader. Starting the live loader a
+   * second time races two async GIS requests: each rebuilds the wall and
+   * closes the other's peer connections, leaving decoded last frames labelled
+   * CONNECTING and a misleading 0/30 counter. */
 }));
 
 async function trackEntity(plate, alert) {
   if (!plate) { toast("No plate on this alert", true); return; }
-  show("investigate");
-  if ($("#q-plate")) $("#q-plate").value = plate;
   try {
     const card = await api(`/command/track/${encodeURIComponent(plate)}`);
+    lastTrackCard = card;
     paintTrackPanel(card, alert);
+    paintIntelHops(card, alert);
+    if (intelMap) intelMap.focusTarget(card.hops || []);
+    if (map1) map1.focusTarget(card.hops || []);
+    show("investigate");
+    if ($("#q-plate")) $("#q-plate").value = plate;
     await loadTrajectory(plate);
     await followVehicle(plate);
   } catch (err) {
@@ -4062,31 +5938,153 @@ function paintTrackPanel(card, alert) {
   body.append(el("div", { class: "sid", text:
     `${card.subject || card.target} · ${card.identifier || ""}` }));
   for (const hop of card.hops || []) {
-    body.append(el("div", { class: "track-hop" },
-      el("div", { class: "role", text: hop.role }),
+    body.append(el("div", { class: "track-hop hero-hop",
+      onclick: () => hop.observation_id && jumpObservation(hop.observation_id, hop.camera_id) },
+      el("div", { class: "rail" }),
       el("div", {},
+        el("div", { class: "role", text: hop.role }),
         el("div", { class: "mono", text: hop.camera_id || "—" }),
-        el("div", { class: "muted", text: `${hop.signal || ""} · ${hop.t || ""}` })),
-      hop.observation_id ? el("button", { class: "ghost", onclick: () => jumpObservation(hop.observation_id, hop.camera_id) },
-        "JUMP TO EVENT") : null));
+        el("div", { class: "muted", text: `${hop.signal || ""} · ${hop.t || ""}` }),
+        hop.observation_id ? el("button", { class: "ghost", onclick: (e) => {
+          e.stopPropagation();
+          jumpObservation(hop.observation_id, hop.camera_id);
+        } }, "JUMP TO EVENT") : null)));
   }
-  for (const t of card.transitions || []) {
-    body.append(el("div", { class: "notice " + (t.result === "CONTRADICTION" ? "bad" : "neutral") },
-      `${t.from_camera} → ${t.to_camera} · ${t.distance_km ?? "?"} km · `
-      + `${t.elapsed_s ?? "?"}s elapsed · min ${t.expected_minimum_s ?? "—"}s · ${t.result}`));
+  const summary = trackingTransitionSummary(card.transitions || []);
+  for (const t of summary.visible) {
+    const verdict = t.verdict || t.result;
+    body.append(el("div", { class: "notice " + (verdict === "CONTRADICTION" ? "bad" : "neutral") },
+      el("strong", { class: `verdict-${verdict}`, text: verdict }),
+      `  ${t.from_camera} → ${t.to_camera}`,
+      el("div", { class: "muted", text:
+        transitionMetrics(t) }),
+      t.operator_reason || t.reason
+        ? el("div", { text: t.operator_reason || t.reason }) : null));
   }
+  if (summary.hidden) body.append(el("div", { class: "section-note", text:
+    `Showing ${summary.visible.length} distinct transition decisions; ${summary.hidden} more remain in the case API.` }));
   if (alert?.camera_id) {
     body.append(el("div", { class: "live-actions", style: "display:flex" },
       el("button", { class: "primary", onclick: () => jumpAlert(alert) }, "VIEW VIDEO")));
   }
 }
 
+function paintIntelHops(card, alert) {
+  const box = $("#intel-hops");
+  const ev = $("#intel-evidence");
+  if (!box) return;
+  clear(box);
+  box.append(el("div", { class: "sid", text:
+    `ALERT · ${card.identifier || ""} · ${card.subject || card.target}` }));
+  for (const hop of card.hops || []) {
+    const gap = hop.elapsed_label
+      ? el("div", { class: "hop-gap", text: `↓ ${hop.elapsed_label}` })
+      : null;
+    if (gap) box.append(gap);
+    box.append(el("div", { class: "hero-hop",
+      onclick: () => hop.observation_id && jumpObservation(hop.observation_id, hop.camera_id) },
+      el("div", { class: "rail" }),
+      el("div", {},
+        el("div", { class: "role", text: hop.role }),
+        el("div", { class: "mono", text: hop.t || "—" }),
+        el("div", { class: "mono", text: hop.camera_id || "—" }),
+        el("div", { text: hop.signal || hop.location || "" }),
+        hop.confidence != null
+          ? el("div", { class: "muted", text: `confidence ${hop.confidence}` }) : null,
+        hop.distance_km != null
+          ? el("div", { class: "muted", text: `${hop.distance_km} km` }) : null)));
+  }
+  const summary = trackingTransitionSummary(card.transitions || []);
+  for (const t of summary.visible) {
+    box.append(el("div", { class: "notice " + ((t.verdict || t.result) === "CONTRADICTION" ? "bad" : "neutral") },
+      `${t.verdict || t.result}: ${t.from_camera} → ${t.to_camera} · ${transitionMetrics(t)}`));
+  }
+  if (summary.hidden) box.append(el("div", { class: "section-note", text:
+    `Showing ${summary.visible.length} distinct transition decisions; ${summary.hidden} more remain in the case API.` }));
+  if (ev) {
+    clear(ev);
+    ev.append(el("div", { class: "sid", text: "EVIDENCE" }),
+      el("div", { text: alert?.plate || card.identifier || "—" }),
+      el("div", { class: "muted", text: alert?.match_reason || card.label || "" }));
+    if (alert?.observation_id) {
+      ev.append(el("button", { class: "ghost", onclick: () => jumpObservation(alert.observation_id, alert.camera_id) },
+        "OPEN EVIDENCE"));
+    } else {
+      ev.append(el("div", { class: "section-note", text:
+        "Manual tracking query — select a stored observation before opening evidence." }));
+    }
+  }
+}
+
+function transitionMetrics(t) {
+  const km = Number(t.distance_km);
+  const measuredMinimum = Number(t.expected_minimum_s);
+  const minimum = Number.isFinite(measuredMinimum) && measuredMinimum > 0
+    ? measuredMinimum
+    : (Number.isFinite(km) && km > 0 ? Math.round(km / 200 * 3600 * 10) / 10 : null);
+  return `distance ${Number.isFinite(km) ? km : "?"} km · `
+    + `elapsed ${t.elapsed_s ?? "?"}s · minimum plausible travel `
+    + `${minimum ?? "not calibrated"}${minimum == null ? "" : "s"}`;
+}
+
+function trackingTransitionSummary(transitions) {
+  /* One busy camera can emit many observations for the same next camera.
+   * Keep the complete list in the API, but turn the command surface into a
+   * decision aid: one representative per verdict/camera pair, with impossible
+   * transitions first and the strongest remaining leads after them. */
+  const distinct = new Map();
+  for (const t of transitions || []) {
+    const verdict = t.verdict || t.result || "CANDIDATE";
+    const key = `${verdict}:${t.from_camera || "?"}->${t.to_camera || "?"}`;
+    const old = distinct.get(key);
+    if (!old || Number(t.confidence || 0) > Number(old.confidence || 0)
+        || Number(t.implied_speed_kmh || 0) > Number(old.implied_speed_kmh || 0)) {
+      distinct.set(key, t);
+    }
+  }
+  const ranked = [...distinct.values()].sort((a, b) => {
+    const ac = (a.verdict || a.result) === "CONTRADICTION" ? 0 : 1;
+    const bc = (b.verdict || b.result) === "CONTRADICTION" ? 0 : 1;
+    return ac - bc || Number(b.confidence || 0) - Number(a.confidence || 0);
+  });
+  const visible = ranked.slice(0, 6);
+  return { visible, hidden: Math.max(0, ranked.length - visible.length) };
+}
+
 async function jumpObservation(oid, cameraId) {
   try {
     const j = await api(`/command/jump/${encodeURIComponent(oid)}`);
-    toast(`Event ${j.event_time || ""} · ${j.camera_id} · ${j.signal || ""}`);
-    show("live");
-    openLive($(`.live-tile[data-camera="${CSS.escape(j.camera_id)}"]`) || el("div"), j.camera_id);
+    const dlg = $("#jump-dialog");
+    const eventEl = $("#jump-event-time");
+    const liveEl = $("#jump-live-pos");
+    const noteEl = $("#jump-note");
+    if (eventEl) eventEl.textContent = `EVENT TIMESTAMP: ${j.event_timestamp || j.event_time || "—"}`;
+    if (liveEl) {
+      liveEl.textContent = j.playback?.seekable
+        ? `REPLAY POSITION: seek to ${j.pts_s ?? "—"}s on own-feed recording`
+        : `CURRENT LIVE POSITION: live WHEP cannot seek to this event`;
+    }
+    if (noteEl) noteEl.textContent = j.note || j.playback?.note || "";
+    const openCam = async () => {
+      show("live");
+      openLive($(`.live-tile[data-camera="${CSS.escape(j.camera_id)}"]`) || el("div"), j.camera_id);
+      if (j.seekable && j.pts_s != null) {
+        try {
+          await api(`/command/cameras/${encodeURIComponent(j.camera_id)}/seek?pts_s=${encodeURIComponent(j.pts_s)}`,
+            { method: "POST" });
+        } catch { /* view may not be started yet */ }
+      }
+    };
+    if (dlg?.showModal) {
+      dlg.returnValue = "";
+      dlg.showModal();
+      dlg.addEventListener("close", () => {
+        if (dlg.returnValue === "open") openCam();
+      }, { once: true });
+    } else {
+      toast(`EVENT ${j.event_time || ""} · live is not this timestamp`);
+      await openCam();
+    }
   } catch (err) {
     if (cameraId) {
       show("live");
@@ -4126,8 +6124,9 @@ function mountCompare(stage, videoOrImg) {
     el("div", { class: "pane-label", text: "ORIGINAL" }));
   const right = el("div", { class: "pane" },
     el("div", { class: "pane-label", text: "AI ANNOTATED (store metadata)" }));
-  const canvas = el("canvas");
-  right.append(canvas);
+  const hud = el("div", { class: "ai-hud", id: "compare-hud",
+    text: "AI NOT MEASURED · no persisted detection read yet · overlay 1 Hz" });
+  right.append(canvas, hud);
   wrap.append(left, right);
   stage.append(wrap);
   const src = videoOrImg;
@@ -4137,14 +6136,303 @@ function mountCompare(stage, videoOrImg) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     try { ctx.drawImage(src, 0, 0, w, h); } catch { /* not ready */ }
+    const n = overlayState?.tracks?.size || 0;
+    /* The analytics switch being on is not evidence that anything is being
+     * analysed. This pane is only allowed to call AI active when the store has
+     * actually returned persisted detections for this camera. */
+    const ai = !intelState.analytics
+      ? "AI OFF"
+      : n > 0
+        ? "AI ACTIVE · persisted detections"
+        : overlayState?.metaSeen
+          ? "AI REQUESTED · no persisted detection for this camera"
+          : "AI REQUESTED · no metadata read yet";
+    hud.textContent = `${ai} · cadence ${intelState.cadence} · detector FPS NOT_MEASURED · `
+      + `overlay ${intelState.overlayPollMs} ms · objects ${n} · tracks ${n}`;
     requestAnimationFrame(paint);
   };
   requestAnimationFrame(paint);
 }
 
+$$("[data-product]").forEach((b) => b.addEventListener("click", () => {
+  const id = b.dataset.product;
+  const dest = {
+    operations: "live",
+    intelligence: "intelligence",
+    investigation: "investigate",
+    system: "system",
+  }[id];
+  if (id === "operations") liveDomain = liveDomain || "government";
+  if (id === "intelligence") {
+    liveDomain = "intelligence";
+    applyIntelMode("full");
+  }
+  show(dest);
+}));
+
+$$("[data-live-domain]").forEach((b) => b.addEventListener("click", () => {
+  liveDomain = b.dataset.liveDomain;
+  $$("[data-live-domain]").forEach((x) => {
+    const on = x.dataset.liveDomain === liveDomain;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
+  if (liveDomain === "intelligence") {
+    show("intelligence");
+    return;
+  }
+  if (liveDomain === "fifty") liveWallMode = 50;
+  /* The government catalogue is exactly thirty indexed cameras. Carrying a
+   * larger wall size over from the 50-slot overview would pad it with CONTROL
+   * slots and misreport how many government cameras this process holds. */
+  if (liveDomain === "government") liveWallMode = 30;
+  $$("[data-live-wall]").forEach((x) => {
+    const on = Number(x.dataset.liveWall) === liveWallMode;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
+  show("live");
+}));
+
+$$("[data-scene-filter]").forEach((b) => b.addEventListener("click", () => {
+  $$("[data-scene-filter]").forEach((x) => {
+    x.classList.remove("on"); x.setAttribute("aria-pressed", "false");
+  });
+  b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+  const f = b.dataset.sceneFilter;
+  if (f === "vehicles") applyIntelMode("vehicles");
+  else if (f === "people") applyIntelMode("people");
+  else applyIntelMode(intelState.mode === "video" ? "full" : intelState.mode);
+}));
+
+let intelWlCat = "";
+$$("[data-wl-cat]").forEach((b) => b.addEventListener("click", () => {
+  intelWlCat = b.dataset.wlCat || "";
+  $$("[data-wl-cat]").forEach((x) => x.classList.toggle("on", x === b));
+  loaders.intelligence?.();
+}));
+
+$("#intel-open-a")?.addEventListener("click", () => {
+  show("live");
+  liveDomain = "intelligence";
+  openLive($(`.live-tile[data-camera="OWN-PEOPLE"]`) || el("div"), "OWN-PEOPLE");
+});
+$("#intel-open-b")?.addEventListener("click", () => {
+  show("live");
+  liveDomain = "intelligence";
+  openLive($(`.live-tile[data-camera="OWN-TRAFFIC"]`) || el("div"), "OWN-TRAFFIC");
+});
+$("#intel-plate-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const plate = $("#intel-plate")?.value.trim();
+  if (!plate) return;
+  show("investigate");
+  if ($("#q-plate")) $("#q-plate").value = plate;
+  $("#search-form")?.requestSubmit?.();
+});
+$("#intel-track-form")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const plate = $("#intel-track-q")?.value.trim();
+  if (plate) trackEntity(plate, { plate });
+});
+$("#intel-focus")?.addEventListener("click", () => {
+  if (lastTrackCard && intelMap) intelMap.focusTarget(lastTrackCard.hops || []);
+  else toast("Track a target first");
+});
+
+async function paintIntelStage(id, host) {
+  if (!host) return;
+  if (host._intelTimer) { clearInterval(host._intelTimer); host._intelTimer = null; }
+  clear(host);
+  const img = el("img", { alt: id });
+  const canvas = el("canvas", { class: "live-overlay" });
+  const badge = el("div", { class: "pane-label",
+    text: `${id} · OWN FEED · FILE REPLAY · not a live camera` });
+  host.append(img, canvas, badge);
+  const tick = async () => {
+    try {
+      const snap = await sharedSnapshot(id);
+      if (snap?.url) img.src = snap.url;
+    } catch { /* waiting for first file frame */ }
+    try {
+      const res = await api(`/command/cameras/${encodeURIComponent(id)}/boxes?overlay=full&people=true&vehicles=true&anpr=true`);
+      const draw = () => {
+        canvas.width = host.clientWidth || 480;
+        canvas.height = host.clientHeight || 220;
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const ts = res.boxes?.[0]?.pts_s;
+        for (const m of res.boxes || []) {
+          const bbox = m.bbox || m.box;
+          if (!bbox || bbox.length < 4) continue;
+          const [x1, y1, x2, y2] = bbox;
+          const norm = Math.max(x1, y1, x2, y2) <= 1.5;
+          const rx1 = norm ? x1 * canvas.width : x1;
+          const ry1 = norm ? y1 * canvas.height : y1;
+          const rx2 = norm ? x2 * canvas.width : x2;
+          const ry2 = norm ? y2 * canvas.height : y2;
+          ctx.strokeStyle = (m.object_type || "") === "person" ? "#3ec8dc" : "#f1c40f";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(rx1, ry1, Math.max(1, rx2 - rx1), Math.max(1, ry2 - ry1));
+          const label = [m.track_id, m.object_type,
+                         m.confidence != null ? Number(m.confidence).toFixed(2) : "",
+                         m.plate].filter(Boolean).join(" · ");
+          if (label) {
+            ctx.fillStyle = "rgba(0,0,0,0.55)";
+            ctx.fillRect(rx1, Math.max(0, ry1 - 16), 8 * label.length + 8, 14);
+            ctx.fillStyle = "#fff";
+            ctx.font = "11px ui-monospace, monospace";
+            ctx.fillText(label, rx1 + 4, Math.max(12, ry1 - 4));
+          }
+        }
+        if (ts != null) {
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          ctx.fillRect(8, canvas.height - 22, 120, 16);
+          ctx.fillStyle = "#ddd";
+          ctx.font = "11px ui-monospace, monospace";
+          ctx.fillText(`pts ${Number(ts).toFixed(2)}s`, 12, canvas.height - 10);
+        }
+      };
+      if (img.complete) draw();
+      else img.addEventListener("load", draw, { once: true });
+    } catch { /* no stored detections — never invented */ }
+  };
+  await tick();
+  host._intelTimer = setInterval(tick, 450);
+}
+
+loaders.intelligence = async () => {
+  applyIntelMode("full");
+  try {
+    const cmd = await api("/command/summary");
+    paintIntelCommand(cmd);
+    paintCommandStatus(cmd, null);
+  } catch { /* KPIs stay NOT_MEASURED */ }
+  if (!intelMap && $("#intel-map")) {
+    intelMap = new MapView($("#intel-map"), {
+      ...(state.mapOpts || {}),
+      onSelect: (hit) => {
+        if (hit?.data?.observation_id) jumpObservation(hit.data.observation_id, hit.id);
+        else if (hit?.id) {
+          show("live");
+          openLive($(`.live-tile[data-camera="${CSS.escape(hit.id)}"]`) || el("div"), hit.id);
+        }
+      },
+    });
+  }
+  // Start the two participant feed previews together. Serial first-frame
+  // capture made the second panel look broken for several seconds even though
+  // its relay was healthy; each preview is already isolated per camera.
+  await Promise.all([
+    paintIntelStage("OWN-PEOPLE", $("#intel-stage-a")),
+    paintIntelStage("OWN-TRAFFIC", $("#intel-stage-b")),
+  ]);
+  const scene = $("#intel-scene");
+  if (scene) {
+    clear(scene);
+    let a = {}, b = {};
+    try { a = await api("/command/cameras/OWN-PEOPLE/scene"); } catch { a = {}; }
+    try { b = await api("/command/cameras/OWN-TRAFFIC/scene"); } catch { b = {}; }
+    const sum = (k) => Number(a[k] || 0) + Number(b[k] || 0);
+    const cls = (k) => Number((a.classes || {})[k] || 0) + Number((b.classes || {})[k] || 0);
+    const kpis = [
+      ["People", sum("people")],
+      ["Vehicles", sum("vehicles")],
+      ["Tracked", sum("tracked")],
+      ["Plates", sum("plates")],
+      ["Watchlist", sum("watchlist")],
+      ["Alerts", sum("alerts")],
+      ["Cars", cls("cars")],
+      ["Buses", cls("buses")],
+      ["Trucks", cls("trucks")],
+      ["Motorcycles", cls("motorcycles")],
+      ["Persons", cls("persons")],
+    ];
+    for (const [lab, n] of kpis) {
+      scene.append(el("div", { class: "kpi" },
+        el("b", { text: String(n) }), el("span", { text: lab })));
+    }
+  }
+  const platesBox = $("#intel-plates");
+  if (platesBox) {
+    clear(platesBox);
+    try {
+      const res = await api("/command/plates?limit=24");
+      if (!(res.plates || []).length) {
+        platesBox.append(el("div", { class: "empty", text: "No plate reads in this store." }));
+      }
+      for (const p of res.plates || []) {
+        platesBox.append(el("div", { class: "alert-card" },
+          el("div", { class: "pl", text: p.plate || "—" }),
+          el("div", { class: "meta", text:
+            `${p.camera_id || "—"} · ${p.t_norm || p.t || ""} · ${p.location || ""} · ${p.vehicle_class || ""} · ${p.confidence ?? ""}` }),
+          el("div", { class: "actions" },
+            el("button", { class: "ghost", onclick: () => {
+              show("live");
+              openLive($(`.live-tile[data-camera="${CSS.escape(p.camera_id)}"]`) || el("div"), p.camera_id);
+            } }, "OPEN VIDEO"),
+            el("button", { class: "ghost", onclick: () => trackEntity(p.plate, p) }, "TRACK VEHICLE"),
+            el("button", { class: "ghost", onclick: () => { show("map"); trackEntity(p.plate, p); } }, "SHOW GIS"),
+            p.observation_id
+              ? el("button", { class: "ghost", onclick: () => jumpObservation(p.observation_id, p.camera_id) },
+                  "OPEN EVIDENCE") : null,
+            el("button", { class: "ghost", onclick: () => trackEntity(p.plate, p) }, "SHOW HISTORY"))));
+      }
+    } catch (err) {
+      platesBox.append(el("div", { class: "notice bad", text: `${err.code}: ${err.message}` }));
+    }
+  }
+  const wlBox = $("#intel-watchlist");
+  if (wlBox) {
+    clear(wlBox);
+    try {
+      const res = await api(`/alerts?status=&limit=50`);
+      let rows = res.alerts || [];
+      if (intelWlCat) rows = rows.filter((a) => a.category === intelWlCat);
+      if (!rows.length) wlBox.append(el("div", { class: "empty", text: "No watchlist matches in this filter." }));
+      for (const a of rows.slice(0, 16)) {
+        wlBox.append(el("div", { class: "alert-card" },
+          el("div", { class: "pl", text: "WATCHLIST MATCH" }),
+          el("div", { class: "meta", text:
+            `${a.plate || a.entity || "—"} · ${String(a.category || "").replaceAll("_", " ")} · ${a.camera_id || "—"}` }),
+          el("div", { class: "tm", text:
+            `${fmtAlertClock(a)} · ${a.priority || ""} · ${a.status || ""} · ${a.confidence != null ? (Number(a.confidence) * 100).toFixed(1) + "%" : ""}` }),
+          el("div", { class: "actions" },
+            el("button", { class: "ghost", onclick: () => jumpAlert(a) }, "VIEW VIDEO"),
+            el("button", { class: "ghost", onclick: () => trackEntity(a.plate, a) }, "TRACK VEHICLE"),
+            el("button", { class: "ghost", onclick: () => routeAlert(a) }, "ROUTE"),
+            el("button", { class: "ghost", onclick: () => { show("map"); } }, "GIS"),
+            a.status === "OPEN" ? el("button", { class: "ghost", onclick: async () => {
+              await api(`/alerts/${encodeURIComponent(a.alert_id)}/acknowledge`, { method: "POST" });
+              loaders.intelligence();
+            } }, "ACKNOWLEDGE") : null,
+            el("button", { class: "ghost", onclick: async () => {
+              await api(`/alerts/${encodeURIComponent(a.alert_id)}/investigate`, { method: "POST" });
+              show("investigate");
+            } }, "INVESTIGATE"))));
+      }
+    } catch (err) {
+      wlBox.append(el("div", { class: "notice bad", text: `${err.code}: ${err.message}` }));
+    }
+  }
+};
+
 /* ─── start ──────────────────────────────────────────────────────────────── */
 (async function start() {
   await identify();
+  // The operational default is the full government wall. Keep the controls
+  // and ARIA state aligned with the actual initial variables so a reload does
+  // not visually claim 12/ALL while rendering 30/GOVERNMENT.
+  $$('[data-live-wall]').forEach((button) => {
+    const active = Number(button.dataset.liveWall) === liveWallMode;
+    button.classList.toggle('on', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  $$('[data-live-domain]').forEach((button) => {
+    const active = button.dataset.liveDomain === liveDomain;
+    button.classList.toggle('on', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
   /* Maps and the first view share the store. Waiting for GIS extent before
    * painting Overview left the shift picture blank for tens of seconds.
    * The overview map still waits on this promise so it gets the same

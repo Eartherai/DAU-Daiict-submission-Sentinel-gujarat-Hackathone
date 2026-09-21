@@ -1,0 +1,41 @@
+{
+  "timestamp_utc": "2026-09-17T00:10:00+00:00",
+  "label": "MEASURED",
+  "headless": false,
+  "video": "reports/final_live_qa/demo/final_demo.mp4",
+  "video_spec": {"width": 1920, "height": 1080, "fps": 12, "frames": 1602, "duration_s": 133.5, "size_mb": 20.6},
+  "appendix": "reports/final_live_qa/demo/final_demo_system_idle.mp4",
+  "inspected_frames": {
+    "00_login.png": "PASS — login, no real token visible",
+    "03_gov_grid_12.png": "PASS — 12/12 frames, GOVERNMENT badges, LIVE/STILL/NO SIGNAL mixed, real CSITMS timestamps",
+    "05_wall_30.png": "KNOWN LIMITATION — tiles queued/NO SIGNAL after 12→16→25→30 cycling; not 30 LIVE",
+    "07_wall_50.png": "PASS — GOVERNMENT labels on cam*; 0 of 50 showing a frame yet; not 50 gov LIVE",
+    "09_intelligence.png": "PASS — Model 4 chrome visible; OWN FEED DEMO/CONTROLLED TEST; AI FPS NOT_MEASURED; own-people dark; traffic overlay box",
+    "12_track.png": "PARTIAL — stayed on Alerts (TRACK did not navigate in this take); GJ01TA0001 OWN-TRAFFIC 83.3%",
+    "13_search.png": "PASS — CONFIRMED BY PLATE, FIRST SEEN OWN-TRAFFIC, LIKELY 0.73, timebase RESTRICTED, SEAL EVIDENCE",
+    "15_gis.png": "PASS — Google Maps Gujarat, registry strip, CTL-* distinct from cam*",
+    "19_system.png": "FAIL then FIXED idle — health spinner while store busy from wall",
+    "24_system_idle.png": "PASS — System DEGRADED honest, 12-session WHEP budget, DEMO/TEST adapters stated",
+    "26_audit_idle.png": "PASS — chain verified, 66 entries, GJ01TA0001 attributed",
+    "27_evidence_idle.png": "PASS — chain verified, no sealed records (honest)",
+    "22_refresh.png": "PASS — session restored, government tiles returning"
+  },
+  "secrets_in_frames": false,
+  "devtools_visible": false,
+  "terminal_visible": false,
+  "honesty": {
+    "thirty_government_live": false,
+    "fifty_government_live": false,
+    "own_feed_is_live_camera": false,
+    "gj01ta0001_is_government_anpr": false
+  },
+  "gpu": {
+    "chrome": "153.0.8010.47",
+    "renderer": "ANGLE Metal Apple M5",
+    "swiftshader_active": false,
+    "h264": true,
+    "hevc": true,
+    "video_decode": "Hardware accelerated"
+  },
+  "recommendation": "Hand the 12-grid + designated-vehicle search as the committee film. Do not present the 30-wall cycle as 30 LIVE."
+}

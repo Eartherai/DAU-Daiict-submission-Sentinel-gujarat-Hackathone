@@ -1,13 +1,16 @@
-"""The catalogue is the contract. The integrator guide's JSON shape must parse.
-
-The documented endpoint is `GET /api/ingest`. On this sandbox that path is not
-currently served from the RTSP host (MEASURED 404) and the CDN catalogue still
-redirects to a login page. The parser still has to accept the documented record
-shape, so a session that unblocks the catalogue is a mapping, not a rewrite.
-"""
+"""The catalogue is the contract and the integrator-guide shape must parse."""
 from __future__ import annotations
 
-from saakshya.live.grid import GridConfig, parse_catalogue
+from saakshya.live.grid import (
+    DEFAULT_CATALOGUE_URL,
+    GridConfig,
+    _credential,
+    parse_catalogue,
+)
+
+
+def test_default_catalogue_is_the_verified_live_portal_contract():
+    assert DEFAULT_CATALOGUE_URL.endswith("/cameras.json")
 
 
 def test_official_ingest_record_shape():
@@ -54,3 +57,13 @@ def test_cameras_wrapper_and_numeric_ids_do_not_invent_urls_over_supplied_ones()
     }, cfg)
     assert cams[0].camera_id == "cam06"
     assert cams[0].rtsp_url == "rtsp://grid.example:8554/stream/cam06"
+
+
+def test_catalogue_reserves_the_approved_grid_pair_for_form_login(monkeypatch):
+    monkeypatch.delenv("SENTINEL_GRID_COOKIE", raising=False)
+    monkeypatch.delenv("SENTINEL_GRID_TOKEN", raising=False)
+    monkeypatch.delenv("SENTINEL_GRID_BASIC", raising=False)
+    monkeypatch.setenv("SENTINEL_GRID_EMAIL", "operator@example.gov.in")
+    monkeypatch.setenv("SENTINEL_GRID_PASSWORD", "test-access-key")
+
+    assert _credential() == {}

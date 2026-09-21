@@ -22,6 +22,18 @@ MEDIA = ROOT / "var" / "media"
 T0 = datetime(2026, 9, 1, 8, 0, 0, tzinfo=UTC)
 
 
+@pytest.fixture(autouse=True)
+def _no_production_maps_key(monkeypatch):
+    """Keep real Maps keys out of the test process.
+
+    AppState may otherwise read gitignored .env.local. A failing
+    ``assert not state.google_maps_key`` would print the secret.
+    """
+    monkeypatch.setenv("SAAKSHYA_GOOGLE_MAPS_DISABLE", "1")
+    monkeypatch.delenv("GOOGLE_MAPS_API_KEY", raising=False)
+    monkeypatch.delenv("SAAKSHYA_GOOGLE_MAPS_KEY", raising=False)
+
+
 def _catalogue() -> list[dict]:
     p = MEDIA / "catalogue.json"
     if not p.is_file():

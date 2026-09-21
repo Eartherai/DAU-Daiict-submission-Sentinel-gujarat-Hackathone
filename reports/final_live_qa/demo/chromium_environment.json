@@ -1,0 +1,56 @@
+{
+  "timestamp_utc": "2026-09-17T00:00:48.810138+00:00",
+  "browser": "Google Chrome (Playwright channel=chrome)",
+  "headless": false,
+  "args": [
+    "--use-angle=metal",
+    "--ignore-gpu-blocklist",
+    "--enable-gpu-rasterization",
+    "--enable-zero-copy",
+    "--autoplay-policy=no-user-gesture-required",
+    "--disable-background-timer-throttling",
+    "--window-size=1920,1080",
+    "--window-position=80,40"
+  ],
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+  "gpu_feature_sample": {
+    "title": "GPU Internals",
+    "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)"
+  },
+  "renderer_unmasked": "ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Unspecified Version)",
+  "webrtc": {
+    "rtcPeerConnection": true,
+    "codecs": [
+      "video/VP8",
+      "video/rtx",
+      "video/VP9",
+      "video/VP9",
+      "video/VP9",
+      "video/VP9",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/H264",
+      "video/AV1",
+      "video/AV1",
+      "video/H264",
+      "video/H264",
+      "video/H265",
+      "video/H265",
+      "video/red",
+      "video/ulpfec",
+      "video/flexfec-03"
+    ],
+    "hardware": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
+  },
+  "h264": true,
+  "hevc": true,
+  "angle_backend": "metal (requested --use-angle=metal)",
+  "display": "1920x1080 context on Apple M5 + HP 524sa",
+  "label": "MEASURED",
+  "note": "Hardware decode status is also in chromium_gpu.txt. SwiftShader was not requested."
+}

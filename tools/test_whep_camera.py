@@ -168,7 +168,8 @@ def measure(endpoint: str, *, seconds: float, screenshot: Path | None) -> dict[s
                   await video.play().catch(error => state.events.push({
                     type: "play-error", message: error.name}));
                   const deadline = performance.now() + seconds * 1000;
-                  let lastTime = 0, stallMs = 0, freezes = 0, inStall = false;
+                  let lastTime = 0, hasProgressed = false, stallMs = 0,
+                    freezes = 0, inStall = false;
                   let lastIce = pc.iceConnectionState, reconnects = 0;
                   while (performance.now() < deadline) {
                     if (state.first === null && video.readyState >= 2 &&
@@ -182,11 +183,14 @@ def measure(endpoint: str, *, seconds: float, screenshot: Path | None) -> dict[s
                     }
                     const t = video.currentTime || 0;
                     if (state.first !== null) {
-                      if (t <= lastTime + 0.01) {
+                      if (t > lastTime + 0.01) {
+                        // A frame can be decoded before media time starts
+                        // advancing.  That is normal startup, not a freeze.
+                        hasProgressed = true;
+                        stallMs = 0; inStall = false; lastTime = t;
+                      } else if (hasProgressed) {
                         stallMs += 500;
                         if (!inStall && stallMs >= 1500) { freezes += 1; inStall = true; }
-                      } else {
-                        stallMs = 0; inStall = false; lastTime = t;
                       }
                     }
                     const reports = [];

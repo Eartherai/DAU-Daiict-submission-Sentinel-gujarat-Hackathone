@@ -7,11 +7,13 @@ surfaces apart in the code makes the separation reviewable instead of implicit.
 """
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from saakshya.api.deps import (
@@ -25,7 +27,12 @@ from saakshya.common.clock import iso
 from saakshya.obs import METRICS
 from saakshya.security import AccessError, Permission
 from saakshya.store.provenance import refuses_live_writes, store_name
-from saakshya.watchlist import AlertStatus, Category, Priority, VehicleOfInterest, parse_alert_status
+from saakshya.watchlist import (
+    Category,
+    Priority,
+    VehicleOfInterest,
+    parse_alert_status,
+)
 
 router = APIRouter(tags=["operations"])
 
@@ -116,19 +123,24 @@ def _with_iso_times(row: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+_GMAPS_CALLBACK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_MAPS_LOADER = "/maps/google-api"
+
+
 def _map_public_config(state: Any) -> dict[str, Any]:
     """What the workspace may load as a basemap. Never a stream credential.
 
-    A Google Maps browser key has to reach the page — the JS API runs in the
-    browser. It is still not a secret of the same class as the grid password:
-    it is referrer-restricted in Cloud Console, and it is absent unless set.
+    The Google Maps browser key is not published here. The page loads the JS
+    API through a same-origin loader so /config JSON, HTML, and operator logs
+    do not carry the key.
     """
     gkey = getattr(state, "google_maps_key", "") or ""
-    tiles = bool(state.tile_template) and not gkey
+    tiles_configured = bool(getattr(state, "tile_template", "") or "")
     if gkey:
-        note = ("Google Maps is the basemap. Camera markers, uncertainty and "
-                "trajectories are still drawn by this workspace.")
-    elif tiles:
+        note = ("Google Maps is the basemap. Camera markers, clustering, "
+                "alerts and trajectories are still drawn by this workspace. "
+                "Raster tiles are the fallback if Maps does not load.")
+    elif tiles_configured:
         note = ("Raster street map enabled. Tiles are an enhancement; the map "
                 "works without them.")
     else:
@@ -136,13 +148,39 @@ def _map_public_config(state: Any) -> dict[str, Any]:
                 "and scale instead, and every marker is still where it belongs "
                 "— this deployment can run with no route to the internet.")
     return {
-        "tiles": tiles,
-        "template": state.tile_template if tiles else None,
-        "attribution": (state.tile_attribution if tiles else
+        "tiles": tiles_configured,
+        "template": state.tile_template if tiles_configured else None,
+        "attribution": (state.tile_attribution if tiles_configured else
                         ("© Google" if gkey else None)),
-        "google": {"enabled": bool(gkey), "key": gkey or None},
+        "google": {
+            "enabled": bool(gkey),
+            "key": None,
+            "loader": _MAPS_LOADER if gkey else None,
+        },
         "note": note,
     }
+
+
+@router.get("/maps/google-api", include_in_schema=False)
+async def google_maps_js(
+        request: Request, state: StateDep,
+        callback: str = Query("initMap")) -> RedirectResponse:
+    """Same-origin Maps loader. The key is not returned in JSON."""
+    key = (getattr(state, "google_maps_key", "") or "").strip()
+    if not key:
+        raise HTTPException(status_code=404, detail="maps unavailable")
+    if not _GMAPS_CALLBACK.fullmatch(callback):
+        raise HTTPException(status_code=400, detail="maps unavailable")
+    host = (request.headers.get("host") or "").split(":")[0]
+    referer = request.headers.get("referer") or ""
+    if referer:
+        ref_host = urlparse(referer).hostname or ""
+        if ref_host and ref_host != host and ref_host not in {
+                "127.0.0.1", "localhost"}:
+            raise HTTPException(status_code=403, detail="maps unavailable")
+    dest = ("https://maps.googleapis.com/maps/api/js"
+            f"?v=weekly&callback={callback}&key={key}")
+    return RedirectResponse(url=dest, status_code=302)
 
 
 def _whep_proxy_ready(state: Any) -> bool:
@@ -155,15 +193,39 @@ def _whep_proxy_ready(state: Any) -> bool:
 
 
 def _live_note(state: Any) -> str:
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        try:
+            from saakshya.live.relay import get_relay
+            relay = get_relay()
+        except Exception:
+            relay = None
+    if relay is not None:
+        return ("Local video relay: one Sentinel RTSP/TCP ingest per camera, "
+                "MediaMTX local WHEP wall and focused WHEP on loopback. Browser tiles "
+                "consume local relay media, not Sentinel WHEP. JPEG is PREVIEW fallback only. "
+                "CONTROL never opens a government stream.")
+    hub = getattr(state, "hub", None)
+    if hub is None:
+        try:
+            from saakshya.live.hub import get_hub
+            hub = get_hub()
+        except Exception:
+            hub = None
+    if hub is not None:
+        return ("Local media hub: one RTSP/TCP ingest per government camera. "
+                "The wall fans out from in-process JPEG, not per-tile Sentinel "
+                "WHEP. LIVE means a hub frame younger than 4s. CONTROL never "
+                "opens a government stream.")
     if state.whep_base:
         return ("Live video over WebRTC (WHEP). The browser negotiates "
                 "directly with the media server; this platform does not "
                 "proxy or transcode video.")
     if _whep_proxy_ready(state):
         return ("Live video over WebRTC. Signaling is proxied so the grid "
-                "password never reaches the browser. Click one camera. "
-                "The wall itself stays as ingest stills — thirty extra "
-                "stream copies would be thirty extra clients on the grid.")
+                "password never reaches the browser. The government catalogue "
+                "is on-demand: selecting one camera opens one verified WHEP "
+                "session; it never starts a stream for every wall tile.")
     return ("Click one camera for a live view (one extra stream copy, "
             "RTSP over TCP, paced from PTS). The wall itself stays as "
             "ingest stills. WebRTC is used when the grid answers WHEP.")
@@ -440,6 +502,51 @@ async def marks(state: StateDep, ctx: AuthDep,
     return {"marks": state.store.recent_marks(48)}
 
 
+@router.get("/reports/anpr.csv", summary="ANPR output report (plates + timestamps)",
+            response_class=PlainTextResponse)
+async def anpr_report(state: StateDep, ctx: AuthDep,
+                      limit: Annotated[int, Query(ge=1, le=5000)] = 1000
+                      ) -> PlainTextResponse:
+    """The submission artifact: every mark read, with when and where.
+
+    The demonstration has to be accompanied by a report of detected vehicles
+    or number plates with corresponding timestamps, and a screen recording is
+    not a report. This is generated from the live store at request time — it
+    contains what was actually read, so an empty estate produces a header and
+    no rows rather than an invented one.
+    """
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    rows = state.store.recent_marks(limit)
+    cams: dict[str, dict[str, Any]] = {}
+
+    def _cam(cid: str) -> dict[str, Any]:
+        if cid not in cams:
+            cams[cid] = state.store.get_camera(cid) or {}
+        return cams[cid]
+
+    def _q(v: Any) -> str:
+        t = "" if v is None else str(v)
+        return '"' + t.replace('"', '""') + '"' if any(
+            c in t for c in ',"\n') else t
+
+    out = ["plate,timestamp_utc,camera_id,camera_name,district,department,"
+           "object_type,votes"]
+    for r in rows:
+        cam = _cam(str(r.get("camera_id") or ""))
+        out.append(",".join(_q(x) for x in (
+            r.get("plate"), r.get("t"), r.get("camera_id"), r.get("name"),
+            r.get("district"), cam.get("department"),
+            r.get("object_type"), r.get("votes"))))
+    body = "\n".join(out) + "\n"
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return PlainTextResponse(body, media_type="text/csv", headers={
+        "Content-Disposition":
+            f'attachment; filename="saakshya-anpr-{stamp}.csv"'})
+
+
 @router.get("/config", summary="What this deployment has been configured with")
 async def config(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
     """Deployment configuration the interface needs, and nothing sensitive.
@@ -448,16 +555,60 @@ async def config(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
     capabilities are switched on, so the interface can render honestly instead
     of showing a feature that will not work.
     """
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        try:
+            from saakshya.live.relay import get_relay
+            relay = get_relay()
+        except Exception:
+            relay = None
+    hub = getattr(state, "hub", None)
+    if hub is None:
+        try:
+            from saakshya.live.hub import get_hub
+            hub = get_hub()
+        except Exception:
+            hub = None
+    relay_on = relay is not None
+    hub_on = (not relay_on) and hub is not None
+    relay_rows = relay.capability_table() if relay_on else []
+    relay_camera_ids = [str(row.get("camera")) for row in relay_rows if row.get("camera")]
+    relay_government = sum(1 for row in relay_rows if row.get("domain") == "GOVERNMENT")
+    plane = ("local_relay" if relay_on else "local_hub" if hub_on else "direct_whep")
+    whep_on = relay_on or ((not hub_on) and (bool(state.whep_base) or _whep_proxy_ready(state)))
     return {
         "live": {
-            # Live viewing is optional. When the grid credential is in this
-            # process, the browser can open one WHEP session through a
-            # signaling proxy so the password never reaches the page.
-            "whep": bool(state.whep_base) or _whep_proxy_ready(state),
+            "whep": whep_on,
             "view": True,
-            "base": state.whep_base or None,
-            "proxy": (not state.whep_base) and _whep_proxy_ready(state),
+            "base": None if relay_on else (state.whep_base or None),
+            "proxy": relay_on or (
+                (not hub_on) and (not state.whep_base) and _whep_proxy_ready(state)),
+            "plane": plane,
+            "hub": hub_on,
+            "relay": relay_on,
+            "hls": relay_on,
+            # HLS media is intentionally served by the loopback-only relay.
+            # Sending thirty LL-HLS playlists and fragments through blocking
+            # API handlers starves the authenticated control plane. The
+            # browser is on this host for the operational wall, and MediaMTX
+            # exposes no control API or Sentinel credential on this port.
+            "hls_base": "http://127.0.0.1:18888" if relay_on else None,
+            "relay_cameras": relay_camera_ids,
             "note": (_live_note(state)),
+            "government_feed": (
+                "one RTSP/TCP ingest per camera; browser-safe local WHEP wall"
+                if relay_on and relay_government else
+                "government relay unavailable: Sentinel credential not configured"
+                if relay_on else
+                "one RTSP/TCP ingest per camera; browser fans out from the local hub"
+                if hub_on else (
+                    "Direct Sentinel WHEP (browser) + RTSP/TCP (AI)"
+                    if (bool(state.whep_base) or _whep_proxy_ready(state))
+                    else "not configured on this process")),
+            "own_feed": "OWN-PEOPLE + OWN-TRAFFIC file replay — FULL ANALYTICS",
+            "central_analytics_mode": (
+                "command orchestration with regional media/AI pools — "
+                "not 80k central decode"),
         },
         "map": _map_public_config(state),
         # Which store is open, and whether it holds live capture or
@@ -472,7 +623,97 @@ async def config(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
         },
         "copilot": _copilot_public_config(),
         "auth_required": state.require_auth,
+        "simulation": _simulation_public_config(state),
     }
+
+
+def _simulation_public_config(state: Any) -> dict[str, Any]:
+    """Non-sensitive summary of the isolated demo simulation plane.
+
+    No local port or credential appears here — only whether the feature is
+    switched on, currently running, and its catalog/readiness counts.
+    """
+    from saakshya.live.simulation import simulation_enabled
+
+    enabled = simulation_enabled()
+    sim = getattr(state, "simulation", None)
+    if sim is None:
+        try:
+            from saakshya.live.simulation import get_simulation
+            sim = get_simulation()
+        except Exception:
+            sim = None
+    running = sim is not None
+    snap = sim.snapshot() if running else None
+    return {
+        "enabled": enabled,
+        "available": running,
+        "proxy": running,
+        "catalog_count": snap["catalog_count"] if snap else 30,
+        "ready_count": snap["ready_count"] if snap else 0,
+        "label": "LIVE SIMULATION / ARCHIVAL REPLAY",
+    }
+
+
+@router.get("/demo-simulation/cameras",
+           summary="Isolated 30-channel archival replay catalog")
+async def demo_simulation_cameras(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+    """The 30-camera demo catalog, merged with local readiness/fps.
+
+    This is a dedicated, isolated archival replay plane — a 12-hour virtual
+    replay window over a repeated four-minute asset, never the government
+    relay and never browser-confirmed live video.
+    """
+    from saakshya.live.simulation import DEMO_LABEL, SOURCE_DOMAIN, catalog, get_simulation
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    sim = getattr(state, "simulation", None) or get_simulation()
+    if sim is None:
+        raise HTTPException(status_code=503, detail={
+            "code": "SIMULATION_DISABLED",
+            "message": "the demo simulation plane is not enabled on this process"})
+
+    snap = sim.snapshot()
+    by_id = {c["camera_id"]: c for c in snap["cameras"]}
+    cameras = []
+    for row in catalog():
+        cid = row["camera_id"]
+        live = by_id.get(cid, {})
+        cameras.append({
+            **row,
+            "ready": live.get("ready", False),
+            "current_fps": live.get("current_fps"),
+            "browser_live": None,
+        })
+    return {
+        "source_domain": SOURCE_DOMAIN,
+        "label": DEMO_LABEL,
+        "catalog_count": len(cameras),
+        "ready_count": snap["ready_count"],
+        "cameras": cameras,
+    }
+
+
+@router.get("/demo-simulation/status",
+           summary="Isolated demo simulation plane status")
+async def demo_simulation_status(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+    from saakshya.live.simulation import get_simulation, simulation_enabled
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    enabled = simulation_enabled()
+    sim = getattr(state, "simulation", None) or get_simulation()
+    if sim is None:
+        return {"enabled": enabled, "started": False, "catalog_count": 30,
+                "ready_count": 0, "cameras": []}
+    return {"enabled": enabled, **sim.snapshot()}
 
 
 @router.get("/me", summary="Who am I, and what may I do")

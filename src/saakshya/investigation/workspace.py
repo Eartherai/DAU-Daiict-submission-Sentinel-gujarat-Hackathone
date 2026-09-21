@@ -703,7 +703,14 @@ class InvestigationService:
         alerts = [a for a in alerts if a.get("camera_id") in allowed]
         caps = self._capability_map()
         cap_tally: Counter[str] = Counter()
+        # Capacity slots carry no stream, so there is nothing to grade and
+        # nothing an operator can act on. Counting them as UNKNOWN reported
+        # "21 not graded" for an estate with three ungraded cameras, which
+        # reads as eighteen broken cameras rather than reserved headroom.
+        slots = sum(1 for cid in allowed if str(cid).startswith("CTL-"))
         for cid in allowed:
+            if str(cid).startswith("CTL-"):
+                continue
             cap_tally[(caps.get(cid, {}) or {}).get("anpr_grade") or "UNKNOWN"] += 1
         st = self.store.stats()
         try:
@@ -717,6 +724,8 @@ class InvestigationService:
                              else list(ctx.principal.districts)),
             "cameras": {
                 "total": len(allowed),
+                "capacity_slots": slots,
+                "real": len(allowed) - slots,
                 "by_state": dict(states),
                 "with_still": n_still,
                 "published_marks": st.get("cameras_with_plate", 0),

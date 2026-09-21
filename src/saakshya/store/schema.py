@@ -79,6 +79,8 @@ cameras = Table(
     Column("integration_model", String(40)),
     Column("maintenance_status", String(40)),
     Column("access_state", String(40)),
+    #: GOVERNMENT | OWN_FEED | SYNTHETIC_CONTROL — never implied by silence.
+    Column("source_domain", String(32)),
     Column("created_at_us", Integer), Column("updated_at_us", Integer),
 )
 
@@ -248,6 +250,8 @@ observations = Table(
 Index("ix_obs_plate_time", observations.c.plate, observations.c.t_norm_us)
 Index("ix_obs_camera_time", observations.c.camera_id, observations.c.t_norm_us)
 Index("ix_obs_time", observations.c.t_norm_us)
+Index("ix_obs_ingest_time", observations.c.t_ingest_us)
+Index("ix_obs_object_type", observations.c.object_type)
 Index("ix_obs_district_time", observations.c.district, observations.c.t_norm_us)
 Index("ix_obs_track", observations.c.camera_id, observations.c.track_id)
 

@@ -1,0 +1,15 @@
+Chrome/153.0.8010.47
+Mac OS X 26.6.2
+GPU0 ACTIVE: ANGLE (Apple, ANGLE Metal Renderer: Apple M5, Version 26.6.2 (Build 25G83)), DRIVER_VENDOR=Apple
+Skia Backend: GraphiteDawnMetal
+Canvas: Hardware accelerated
+Compositing: Hardware accelerated
+Rasterization: Hardware accelerated on all pages
+Video Decode: Hardware accelerated
+Video Encode: Hardware accelerated
+WebGL / WebGL2 / WebGPU: Hardware accelerated
+SwiftShader: not the active renderer (GPU0 is ANGLE Metal)
+WebRTC H264: true
+WebRTC H265/HEVC: true
+Requested: --use-angle=metal --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy
+Note: Playwright also injects --enable-unsafe-swiftshader as a fallback flag. chrome://gpu shows Metal as GPU0 ACTIVE, not SwiftShader.

@@ -12,14 +12,23 @@ from saakshya.api.deps import (
     access_error,
     parse_time,
 )
+from saakshya.command.domain import (
+    AI_CADENCE,
+    ARCHITECTURE_CLAIM,
+    GOLDEN_IDS,
+    architecture_diagram,
+    product_modes,
+    wall_composition,
+)
 from saakshya.command.investigate import (
+    enrich_tracking,
     entity_tracking,
     event_search,
     jump_payload,
     recent_plates,
     subject_label,
 )
-from saakshya.command.summary import command_summary, live_object_counts
+from saakshya.command.summary import command_summary, live_object_counts, scene_dashboard
 from saakshya.federation.adapters import demo_connected_systems
 from saakshya.live.annotate import live_boxes
 from saakshya.security import AccessError, Permission
@@ -45,7 +54,12 @@ VIEW_MODES = (
 
 PRESETS = (
     {"id": "control-room", "label": "CONTROL ROOM", "wall": 12, "mode": "video"},
-    {"id": "overview-30", "label": "30-CAMERA OVERVIEW", "wall": 30, "mode": "video"},
+    {"id": "overview-50", "label": "50-CAMERA WALL", "wall": 50, "mode": "video",
+     "domain": "all"},
+    {"id": "government", "label": "GOVERNMENT MODE", "wall": 30, "mode": "video",
+     "domain": "GOVERNMENT"},
+    {"id": "intelligence-demo", "label": "INTELLIGENCE DEMO", "wall": 2,
+     "mode": "full", "domain": "OWN_FEED", "opens": "intelligence"},
     {"id": "traffic", "label": "TRAFFIC INTELLIGENCE", "wall": 12, "mode": "anpr"},
     {"id": "person-search", "label": "PERSON SEARCH", "wall": 9, "mode": "people"},
     {"id": "watchlist-incident", "label": "WATCHLIST INCIDENT",
@@ -68,8 +82,15 @@ async def summary(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
         ctx.principal.require(Permission.CAMERA_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
-    kpis = command_summary(state.store)
-    ops = state.investigation.operational_summary(ctx)
+    # SQLite aggregation must not block health, media signaling, or alert APIs.
+    # The summary functions carry their own short-lived caches; the worker
+    # thread keeps a cold refresh off the FastAPI event loop.
+    from fastapi.concurrency import run_in_threadpool
+
+    def _read_summary() -> tuple[dict[str, Any], dict[str, Any]]:
+        return command_summary(state.store), state.investigation.operational_summary(ctx)
+
+    kpis, ops = await run_in_threadpool(_read_summary)
     kpis["operational"] = {
         "cameras": ops.get("cameras"),
         "alerts_open": (ops.get("alerts") or {}).get("open"),
@@ -107,6 +128,7 @@ async def systems(ctx: AuthDep) -> dict[str, Any]:
         raise access_error(exc) from exc
     return {
         "systems": demo_connected_systems(),
+        "label": "DEMO / TEST",
         "provenance": "DEMO/TEST adapter rows — not government VMS integrations",
         "contract": ["discover_cameras", "get_camera_status", "get_stream_url",
                      "get_metadata", "subscribe_events", "health_check"],
@@ -133,14 +155,20 @@ async def evaluation_mode(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
     except AccessError as exc:
         raise access_error(exc) from exc
     n = len(state.store.list_cameras())
+    wall = wall_composition(state.store)
     return {
         "target": 50,
         "real_evaluation_feeds_available": 30,
-        "synthetic_control": 20,
+        "government": wall["government"],
+        "own_feeds": 2,
+        "golden_own_feeds": list(GOLDEN_IDS),
+        "synthetic_control": wall["synthetic_control"],
         "onboarded_in_this_store": n,
-        "note": ("50-camera evaluation mode = 30 real Sentinel probe IDs + "
-                 "20 labelled synthetic/control. Do not claim 50 government streams."),
-        "label": "DESIGNED composition; real count is MEASURED_REAL = 30 probe IDs",
+        "wall": wall,
+        "note": ("50-camera evaluation = 30 government probe IDs + 2 own feeds "
+                 "+ labelled SYNTHETIC_CONTROL fill. Not 50 government streams."),
+        "label": "DESIGNED composition; government count is MEASURED_REAL probe IDs",
+        "architecture": ARCHITECTURE_CLAIM,
     }
 
 
@@ -160,7 +188,39 @@ async def boxes(state: StateDep, ctx: AuthDep, camera_id: str,
         raise access_error(exc) from exc
     payload = live_boxes(state.store, camera_id, overlay=overlay,
                          people=people, vehicles=vehicles, anpr=anpr)
+    try:
+        from saakshya.analytics.worker import read_boxes
+        from saakshya.live.hub import get_hub
+        from saakshya.live.relay import get_relay
+        live: list[dict[str, Any]] = []
+        source = ""
+        relay = get_relay()
+        if relay is not None:
+            live = relay.boxes(camera_id)
+            source = "ai_worker"
+        if not live:
+            live = read_boxes(camera_id)
+            if live:
+                source = "ai_worker"
+        hub = get_hub()
+        if not live and hub is not None:
+            live = hub.boxes(camera_id)
+            source = "hub_live"
+        if live:
+            payload["boxes"] = live
+            payload["people"] = sum(1 for b in live
+                                    if (b.get("object_type") or "").lower() == "person")
+            payload["vehicles"] = sum(1 for b in live
+                                      if (b.get("object_type") or "").lower() != "person")
+            payload["tracked"] = len({b.get("track_id") for b in live if b.get("track_id")})
+            payload["source"] = source or "live"
+            payload["note"] = ("Boxes from the isolated AI worker on the "
+                                "current frame. Not invented.")
+            payload["label"] = "MEASURED"
+    except Exception:
+        pass
     payload["counts"] = live_object_counts(state.store, camera_id)
+    payload["scene"] = scene_dashboard(state.store, camera_id)
     return payload
 
 
@@ -177,6 +237,21 @@ async def counts(state: StateDep, ctx: AuthDep, camera_id: str
     except AccessError as exc:
         raise access_error(exc) from exc
     return live_object_counts(state.store, camera_id)
+
+
+@router.get("/cameras/{camera_id}/scene", summary="CURRENT SCENE dashboard")
+async def scene(state: StateDep, ctx: AuthDep, camera_id: str
+                ) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    return scene_dashboard(state.store, camera_id)
 
 
 @router.get("/events", summary="Searchable events")
@@ -258,4 +333,69 @@ async def track(state: StateDep, ctx: AuthDep, plate: str,
         category = None
     card = entity_tracking(follow, category=category)
     card["subject"] = subject_label(plate=plate, object_type=None, category=category)
-    return card
+    return enrich_tracking(state.store, card)
+
+
+@router.get("/product", summary="Final product modes, domains, M4 architecture")
+async def product(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    wall = wall_composition(state.store)
+    return {
+        "modes": product_modes(),
+        "domains": ["GOVERNMENT", "OWN_FEED", "SYNTHETIC_CONTROL"],
+        "golden_own_feeds": [
+            {"camera_id": "OWN-PEOPLE", "name": "Own Feed A", "analytics": "FULL"},
+            {"camera_id": "OWN-TRAFFIC", "name": "Own Feed B", "analytics": "FULL"},
+        ],
+        "wall": wall,
+        "architecture": architecture_diagram(),
+        "analytics_modes": [
+            {"id": "off", "label": "OFF"},
+            {"id": "vehicles", "label": "VEHICLES"},
+            {"id": "people", "label": "PEOPLE"},
+            {"id": "both", "label": "VEHICLES + PEOPLE"},
+            {"id": "anpr", "label": "ANPR"},
+            {"id": "full", "label": "FULL INTELLIGENCE"},
+            {"id": "incident", "label": "INCIDENT"},
+        ],
+        "ai_cadence": AI_CADENCE,
+        "claim": ARCHITECTURE_CLAIM,
+    }
+
+
+@router.post("/cameras/{camera_id}/seek", summary="Seek own-feed replay to event PTS")
+async def seek_replay(state: StateDep, ctx: AuthDep, camera_id: str,
+                      pts_s: Annotated[float, Query(ge=0)]) -> dict[str, Any]:
+    from saakshya.live.snapshot import local_media_url
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    if not local_media_url(camera_id):
+        return {
+            "ok": False,
+            "seekable": False,
+            "camera_id": camera_id,
+            "note": ("Live WHEP cannot seek. EVENT TIMESTAMP is distinct from "
+                     "CURRENT LIVE POSITION."),
+        }
+    selected = getattr(state.snapshots, "selected", None) if state.snapshots else None
+    if selected is None or selected.camera_id != camera_id:
+        return {
+            "ok": False,
+            "seekable": True,
+            "camera_id": camera_id,
+            "pts_s": pts_s,
+            "note": "Open the own-feed live view first, then jump again to seek.",
+        }
+    ok = selected.seek_file(pts_s)
+    return {"ok": ok, "seekable": True, "camera_id": camera_id, "pts_s": pts_s}

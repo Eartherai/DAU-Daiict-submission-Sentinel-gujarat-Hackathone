@@ -289,7 +289,9 @@ class TransformersBackend(InferenceBackend):
         self._record = record
         if self.ctx.is_gpu and torch.cuda.is_available():
             self._device = "cuda"
-        elif self.ctx.hardware.has_mps:
+        elif (self.ctx.hardware.has_mps
+              and os.environ.get("SAAKSHYA_FORCE_CPU", "").strip().lower()
+              not in {"1", "true", "yes", "on"}):
             # Measured 3.5x over CPU for RT-DETRv2-R18 on this hardware.
             self._device = "mps"
         else:

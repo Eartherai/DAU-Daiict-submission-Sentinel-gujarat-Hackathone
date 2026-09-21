@@ -167,7 +167,7 @@ a { color: var(--accent); }
   /* The chrome bands are 54 and 22 at desktop, but grow rather than overlap
      when the masthead wraps at a narrow width — a fixed row height there laps
      the band below it. On a control-room display these stay exactly 54/22. */
-  grid-template-rows: minmax(54px, auto) minmax(22px, auto) 1fr;
+  grid-template-rows: minmax(54px, auto) minmax(22px, auto) auto 1fr;
   height: 100vh;
 }
 
@@ -239,19 +239,24 @@ a { color: var(--accent); }
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 0 18px;
+  flex-wrap: wrap;
+  gap: 8px 11px;
+  padding: 6px 18px;
   background: var(--navy-2);
   border-bottom: 1px solid var(--navy-line);
-  font: 400 12px/1 var(--sans);
+  font: 400 12px/1.3 var(--sans);
   letter-spacing: 0;
   text-transform: none;
   color: var(--navy-ink-2);
   min-height: 28px;
+  height: auto;
 }
 .handling .mark { color: var(--seal); font-weight: 500; }
-.handling .rule { flex: 1; height: 1px; background: var(--navy-line); }
-.handling .src { font-family: var(--mono); letter-spacing: .04em; text-transform: none; }
+.handling .rule { flex: 1; height: 1px; min-width: 12px; background: var(--navy-line); }
+.handling .src {
+  font-family: var(--mono); letter-spacing: .04em; text-transform: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 36ch;
+}
 /* Demonstration state is called out in the seal colour. It is not an error —
    it is the one fact a viewer must not carry away wrong. */
 .handling .src.demo { color: var(--seal); font-weight: 600; }
@@ -370,6 +375,26 @@ main { overflow: hidden; position: relative; }
 .view { display: none; height: 100%; }
 .view.active { display: block; }
 
+#view-system.view.active,
+#view-cameras.view.active,
+#view-alerts.view.active,
+#view-analytics.view.active,
+#view-intelligence.view.active,
+#view-overview.view.active,
+#view-evidence.view.active,
+#view-audit.view.active {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+#view-live.view.active {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 #view-map.view.active {
   display: flex;
   flex-direction: column;
@@ -546,7 +571,7 @@ button.ghost.on { background: var(--accent-soft); border-color: var(--accent); }
 .map-wrap {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-height: 420px;
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -1020,12 +1045,23 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; font-
   border-bottom: 1px solid var(--line-soft, var(--line));
 }
 .stat-row:last-child { border-bottom: 0; }
+/* `min-width` overrides the automatic min-content floor a flex item normally
+ * gets, so this box was free to shrink to 46px while its text needed 124px.
+ * "204,815" then printed straight over the label beside it and swallowed the
+ * word it began with - the estate's own figures were unreadable. The number is
+ * the one thing here that must never be clipped: let it size to its digits. */
 .stat-row .n {
   font: 600 21px/1 var(--sans);
   font-variant-numeric: tabular-nums;
   min-width: 46px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
-.stat-row .lbl { font-size: 12.5px; color: var(--ink-2); }
+/* The label is what should give way when a row runs out of room. */
+.stat-row .lbl {
+  font-size: 12.5px; color: var(--ink-2);
+  min-width: 0; flex: 1 1 auto;
+}
 .stat-row .sub { margin-left: auto; font: 400 11px/1.4 var(--mono); color: var(--ink-faint); text-align: right; }
 
 /* Health rows carry their state in form as well as colour, so the screen is
@@ -1127,7 +1163,14 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; font-
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 10px;
   padding: 12px;
+  min-height: 360px;
 }
+/* The live workspace lives inside an already height-constrained command pane.
+ * A 70vh minimum here overflowed that pane on compact operator displays,
+ * collapsing #live to zero height.  The media scheduler then correctly saw no
+ * visible tiles and never opened WHEP.  Let this flex child fill the pane and
+ * allow its grid (rather than the whole workspace) to scroll. */
+.live-shell { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 .live-grid-focus {
   grid-template-columns: 2fr 1fr;
   grid-auto-rows: minmax(280px, 1fr);
@@ -1141,19 +1184,53 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; font-
   display: flex;
   flex-direction: column;
 }
+/* The wall is a flex child carrying `min-height: 0`, which an #id rule sets
+ * and which beats `.live-grid`'s 360px floor. Whenever the panels above it
+ * were tall the whole grid collapsed to a couple of dozen pixels and every
+ * tile became about 2px high. The WHEP scheduler then behaved exactly as
+ * designed - it refuses to open a session for a tile smaller than 8px - so
+ * the wall opened *no* streams at all and reported "0 of 12 showing a frame".
+ * A tile floor makes that collapse impossible; the 25- and 30-walls override
+ * it below, because those size themselves to the viewport instead. */
+.live-grid .live-tile { min-height: 172px; }
 .live-tile .frame {
   position: relative;
   aspect-ratio: 16 / 9;
-  background: #1a1816;
+  background: #0d0c0b;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1;
+  min-height: 0;
 }
-.live-tile .frame img,
+.live-tile .frame.is-settling::after {
+  content: "";
+  position: absolute; inset: 0;
+  box-shadow: inset 0 0 0 2px rgba(217,196,160,.7);
+  pointer-events: none;
+  animation: tile-settle .45s ease-out forwards;
+}
+@keyframes tile-settle { to { opacity: 0; } }
+.live-tile .frame img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  background: #0d0c0b;
+  display: block;
+}
+/* Moving video fills its tile. `contain` letterboxed every source that is not
+ * exactly 16:9 — the 4:3 and 5:3 cameras lost roughly a third of the tile to
+ * grey bars, which is what made the wall read as a thumbnail gallery rather
+ * than a control room. Stills keep `contain`: a cropped evidence frame is
+ * misleading in a way a cropped live tile is not. */
 .live-tile .frame video {
   width: 100%; height: 100%;
   object-fit: cover;
+  background: #0d0c0b;
   display: block;
+}
+.live-tile .frame video.tile-whep,
+.live-tile .frame video.tile-hls {
+  background: #0b0f14;
 }
 .live-tile .frame .placeholder {
   font: 400 11px/1.5 var(--sans);
@@ -1192,6 +1269,176 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; font-
 .live-tile .meta .name { font: 600 12px/1.3 var(--sans); }
 .live-tile .meta .sub { font: 400 10.5px/1.4 var(--mono); color: var(--ink-faint); }
 .live-tile .meta .grades { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.live-tile .tile-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 0;
+}
+.live-tile .tile-head .name {
+  font: 600 12px/1.2 var(--sans); flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.live-tile .tile-head .cid { font: 500 10px/1.2 var(--mono); color: var(--ink-faint); }
+.live-tile .ai-head {
+  font: 700 8px/1 var(--sans); letter-spacing: .08em;
+  color: #7ad0a0;
+  min-width: 1.2em;
+}
+.live-tile .tile-planes {
+  display: flex; gap: 4px; padding: 3px 8px 0; flex-wrap: wrap;
+}
+.plane-chip {
+  font: 600 8.5px/1 var(--sans); letter-spacing: .04em;
+  padding: 2px 5px; border-radius: 2px;
+  background: var(--surface-2); color: var(--ink-3);
+}
+.plane-chip[data-state="connected"],
+.plane-chip[data-state="live"],
+.plane-chip[data-state="active"] { background: #1f6b3a; color: #fff; }
+.plane-chip[data-state="preview"],
+.plane-chip[data-state="connecting"],
+.plane-chip[data-state="reconnecting"] { background: #8a5a1e; color: #fff; }
+.plane-chip[data-state="upstream-error"],
+.plane-chip[data-state="no_signal"],
+.plane-chip[data-state="off"] { background: #5c5650; color: #f3efe8; }
+.tile-whep-warning {
+  flex-basis: 100%;
+  color: #a02d22;
+  font: 600 8.5px/1.2 var(--sans);
+  letter-spacing: .02em;
+}
+.live-tile .tile-foot {
+  display: flex; gap: 8px; justify-content: space-between;
+  padding: 4px 8px 6px;
+  font: 400 10px/1.3 var(--mono); color: var(--ink-faint);
+}
+.vid-chip {
+  font: 700 9px/1 var(--sans); letter-spacing: .06em;
+  padding: 3px 6px; border-radius: 2px; flex: none;
+  background: #5c5650; color: #f3efe8;
+}
+.vid-chip[data-state="live"] { background: #1f6b3a; color: #fff; }
+.vid-chip[data-state="replay"] { background: #3d5a80; color: #fff; }
+.vid-chip[data-state="preview"],
+.vid-chip[data-state="connecting"] { background: #8a5a1e; color: #fff; }
+.vid-chip[data-state="reconnecting"],
+.vid-chip[data-state="degraded"] { background: #a36b16; color: #fff; animation: tile-pulse 1.2s ease-in-out infinite; }
+.vid-chip[data-state="no_signal"],
+.vid-chip[data-state="upstream-error"] { background: #5a2a2a; color: #fff; }
+.live-tile .connect-ring {
+  position: absolute; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.18);
+  border-top-color: #d9c4a0;
+  animation: tile-spin .8s linear infinite;
+}
+.live-tile .frame[data-state="live"] .connect-ring,
+.live-tile .frame[data-state="preview"] .connect-ring,
+.live-tile .frame[data-state="replay"] .connect-ring,
+.live-tile .frame.is-live .connect-ring,
+.live-tile .frame.is-preview .connect-ring { display: none; }
+.live-tile .frame[data-state="reconnecting"] .connect-ring,
+.live-tile .frame[data-state="degraded"] .connect-ring {
+  display: block; border-top-color: #e0b56a;
+}
+@keyframes tile-spin { to { transform: rotate(360deg); } }
+@keyframes tile-pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) {
+  .live-tile .connect-ring { animation: none; border-top-color: rgba(255,255,255,.4); }
+  .vid-chip[data-state="reconnecting"],
+  .vid-chip[data-state="degraded"] { animation: none; }
+  .live-tile .frame.is-settling::after { animation: none; opacity: 0; }
+}
+#live.col-body { display: flex; flex-direction: column; min-height: 0; }
+/* `flex: 1` only distributes *spare* space, and the marks panel above the
+ * wall leaves none, so the grid was allotted 24px and the wall rendered as a
+ * sliver you had to scroll inside. The wall is the point of this view: give it
+ * a floor and let the panel above it scroll instead. The 25- and 30-walls
+ * size themselves to the viewport and opt out below. */
+#live-grid { flex: 1; min-height: 540px; overflow: auto; }
+#live[data-wall="30"][data-layout="dense"] #live-grid,
+#live[data-wall="25"] #live-grid { min-height: 0; }
+#view-live[data-wall="30"][data-layout="dense"] .live-intel,
+#view-live[data-wall="30"][data-layout="dense"] .live-presets {
+  display: none;
+}
+#view-live[data-wall="30"][data-layout="dense"] #live-plates,
+#view-live[data-wall="25"] #live-plates,
+#view-live[data-wall="30"][data-layout="dense"] .filmstrip,
+#view-live[data-wall="25"] .filmstrip {
+  display: none !important;
+}
+#view-live[data-wall="30"][data-layout="dense"] .live-head { padding: 4px 8px; }
+#view-live[data-wall="30"][data-layout="dense"] .live-layouts,
+#view-live[data-wall="30"][data-layout="dense"] .live-filters {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+#view-live[data-wall="30"][data-layout="dense"] .live-layouts { justify-content: flex-start; }
+#view-live[data-wall="30"][data-layout="dense"] .live-filters { padding: 4px 8px; }
+#view-live[data-wall="30"][data-layout="dense"] .live-filters { display: none; }
+#live[data-wall="30"][data-layout="dense"] .live-grid,
+#live[data-wall="25"] .live-grid {
+  gap: 4px; padding: 4px;
+  height: 100%;
+  overflow: hidden;
+  grid-auto-rows: minmax(0, 1fr);
+}
+#live[data-wall="30"][data-layout="dense"] .live-tile,
+#live[data-wall="25"] .live-tile { min-height: 0; }
+#live[data-wall="30"][data-layout="dense"] .live-tile { position: relative; overflow: hidden; }
+#live[data-wall="30"][data-layout="dense"] .live-tile .frame,
+#live[data-wall="25"] .live-tile .frame {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+#live[data-wall="30"][data-layout="dense"] .live-tile .frame {
+  position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto;
+}
+#live[data-wall="30"] .live-tile .tile-head,
+#live[data-wall="30"] .live-tile .tile-foot {
+  position: absolute; left: 0; right: 0; z-index: 4; color: #fff;
+  background: linear-gradient(180deg, rgba(0,0,0,.82), rgba(0,0,0,.28));
+}
+#live[data-wall="30"] .live-tile .tile-head { top: 0; padding: 5px 6px 12px; }
+#live[data-wall="30"] .live-tile .tile-foot {
+  bottom: 0; padding: 12px 6px 4px;
+  background: linear-gradient(0deg, rgba(0,0,0,.82), rgba(0,0,0,.2));
+}
+#live[data-wall="30"] .live-tile .domain-badge { display: none; }
+#live[data-wall="30"] .tile-planes,
+#live[data-wall="25"] .tile-planes { display: none; }
+#live[data-wall="30"] .tile-head { padding: 2px 6px 0; }
+#live[data-wall="30"] .tile-foot { padding: 2px 6px 3px; font-size: 9px; }
+
+/* 30-camera control-room wall: the video is the workspace. The full product
+ * navigation remains available when the operator leaves the 30-wall. */
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) .shell {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) .topbar,
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) .handling,
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) .product-modes,
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) .nav { display: none; }
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) main {
+  grid-column: 1; grid-row: 1; min-width: 0; min-height: 0;
+}
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) #view-live { height: 100vh; }
+body:has(#view-live.active[data-wall="30"][data-layout="dense"]) #live[data-wall="30"] .live-grid {
+  height: 100%; grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+/* Explicit geometry. The wall must show exactly the cameras it claims to
+ * show at any pane width; auto-fill columns against fixed rows hid the
+ * overflow instead of reflowing it. */
+#live[data-wall="30"][data-layout="dense"] .live-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+#live[data-wall="25"] .live-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#live[data-wall="16"] .live-grid {
+  gap: 6px; padding: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+#live[data-wall="12"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#live[data-wall="9"]  .live-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#live[data-wall="4"]  .live-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .live-grid .live-tile.selected {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1238,6 +1485,16 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; font-
 .live-tile .frame[data-state="failed"] .placeholder > div:first-child {
   color: #e89a9a;
 }
+/* READY is the resting state of the on-demand government wall: indexed, not
+ * connected. It is deliberately calm — no pulse, no amber — because an amber
+ * "working on it" tint on thirty tiles would imply thirty sessions are being
+ * negotiated when none are. */
+.live-tile .frame[data-state="ready"] .placeholder > div:first-child {
+  color: #cfd8c4;
+  letter-spacing: 0.08em;
+}
+.vid-chip[data-state="ready"],
+.plane-chip[data-state="ready"] { background: #34506b; color: #eef3f8; }
 #live-progress { margin-left: 14px; letter-spacing: 0; text-transform: none; }
 
 
@@ -1448,6 +1705,10 @@ main .result .plate { font-size: calc(13px * var(--content)); }
   font: 500 15px/1 var(--sans);
 }
 .gate-note { font: 400 13px/1.6 var(--sans); color: var(--ink-3); margin: 18px 0 0; }
+.gate-roles { font: 400 13px/1.6 var(--sans); color: var(--ink-3); margin: 14px 0 0; }
+.gate-roles summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.gate-roles ul { margin: 8px 0 0; padding-left: 18px; }
+.gate-roles li { margin: 3px 0; }
 .gate-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .gate-actions .primary { width: auto; margin-top: 0; padding: 10px 18px; }
 #token-dialog {
@@ -1476,7 +1737,7 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 .officer { text-align: right; flex: none; line-height: 1.25; }
 .officer strong { display: block; font: 600 12.5px/1.2 var(--sans); }
 .officer small { display: block; font: 400 10.5px/1.2 var(--sans); color: var(--navy-ink-2); }
-.purpose-bar { max-width: 520px; }
+.purpose-bar { max-width: min(720px, 42vw); }
 .nav { display: flex; flex-direction: column; }
 .nav-foot {
   margin-top: auto; padding: 12px 14px 8px;
@@ -1508,6 +1769,19 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 .kpi .bar i { display: block; height: 100%; background: var(--accent); }
 .kpi .bar.green i { background: var(--confirmed); }
 .kpi .bar.red i { background: var(--conflict); }
+.duty-brief {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px;
+  align-items: center; margin: 0 0 14px; padding: 16px 18px;
+  background: linear-gradient(110deg, var(--surface), var(--surface-2));
+  border: 1px solid var(--line-strong); border-left: 4px solid var(--accent);
+  border-radius: 12px;
+}
+.duty-eyebrow { font: 650 10px/1.2 var(--mono); letter-spacing: .12em; color: var(--accent); }
+.duty-brief h3 { margin: 5px 0 3px; font: 650 16px/1.2 var(--sans); }
+.duty-scope, .duty-next { margin: 0; font: 400 12px/1.45 var(--sans); color: var(--ink-3); }
+.duty-next { margin-top: 8px; color: var(--ink-2); max-width: 760px; }
+.duty-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: 325px; }
+.duty-actions button { white-space: nowrap; }
 .ov-split { display: grid; grid-template-columns: 1.35fr 0.9fr; gap: 12px; }
 .ov-card {
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
@@ -1547,6 +1821,27 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 .plate-card:hover { border-color: var(--line-strong); }
 .plate-card .still { aspect-ratio: 16/9; background: #1a1816; overflow: hidden; }
 .plate-card .still img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* On the direct plane the Overview does not fire a snapshot per mark - twelve
+ * captures to decorate a gallery would take connections the live wall needs -
+ * so the still box carries the mark itself instead. It inherited the card's
+ * dark ink onto a near-black box, which rendered every card as an empty black
+ * rectangle: the estate looked broken when it was merely being frugal. Say
+ * what the box holds, legibly. */
+.plate-card .still > .plate-read {
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  color: #f4f0e7;
+  font-size: 19px; letter-spacing: .12em;
+  text-align: center;
+}
+.plate-card .still > .plate-read::after {
+  content: "mark read here · no still captured";
+  font: 400 10px/1.3 var(--sans);
+  letter-spacing: .02em;
+  color: #8f8878;
+  text-transform: none;
+}
 .plate-card .read {
   font: 650 15px/1.2 var(--mono); letter-spacing: .08em; padding: 10px 12px 2px;
 }
@@ -1580,16 +1875,18 @@ main .result .plate { font-size: calc(13px * var(--content)); }
   gap: 12px; padding: 16px 16px 8px;
 }
 .alert-card {
-  display: grid; grid-template-columns: auto 1fr auto;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px; align-items: center;
   background: var(--surface); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px 14px;
+  min-width: 0; overflow: hidden;
 }
-.alert-card .pl { font: 650 16px/1.2 var(--mono); letter-spacing: .06em; }
+.alert-card .pl { font: 650 16px/1.2 var(--mono); letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; }
+.alert-card .body { min-width: 0; overflow: hidden; }
 .alert-card .meta, .alert-card .tm { font: 400 12px/1.35 var(--sans); color: var(--ink-3); }
 .alert-cards + table.data { margin: 8px 16px 16px; width: calc(100% - 32px); }
 
-.live-shell { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.live-shell { display: flex; flex-direction: column; height: 100%; min-height: 70vh; }
 .live-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 10px 16px 6px; border-bottom: 1px solid var(--line);
@@ -1806,9 +2103,7 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 #live[data-wall="30"][data-layout="dense"] .live-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1100px) {
   #live[data-wall="25"][data-layout="grid"] .live-grid,
-  #live[data-wall="25"][data-layout="dense"] .live-grid,
-  #live[data-wall="30"][data-layout="grid"] .live-grid,
-  #live[data-wall="30"][data-layout="dense"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #live[data-wall="25"][data-layout="dense"] .live-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 #live[data-wall="4"] .live-grid .live-tile:nth-child(n+5),
 #live[data-wall="9"] .live-grid .live-tile:nth-child(n+10),
@@ -1837,7 +2132,348 @@ main .result .plate { font-size: calc(13px * var(--content)); }
 #live[data-layout="grid"] .live-tab,
 #live[data-layout="dense"] .live-tab { display: none; }
 
+.product-modes {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 16px; background: var(--navy-2); border-bottom: 1px solid var(--line);
+}
+.product-modes button {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border-radius: 999px; padding: 7px 14px; font: 650 12px/1 var(--sans);
+  letter-spacing: .06em; cursor: pointer;
+}
+.product-modes button.on {
+  background: var(--seal); color: #fff; border-color: var(--seal);
+}
+.product-claim {
+  margin-left: auto; font: 500 11px/1.35 var(--sans); color: var(--ink-3);
+  max-width: 46em;
+}
+.live-tile .domain-badge {
+  font: 700 9px/1 var(--sans); letter-spacing: .08em;
+  padding: 3px 6px; border-radius: 4px; border: 1px solid var(--line);
+}
+.live-tile .domain-badge.gov { background: var(--confirmed-bg); color: var(--confirmed); }
+.live-tile .domain-badge.own { background: var(--accent-soft); color: var(--seal); }
+.live-tile .domain-badge.ctl { background: var(--unknown-bg); color: var(--unknown); }
+.live-tile .domain-badge.sim { background: var(--verify-bg); color: var(--verify); }
+.live-tile .status-badge { font: 650 9px/1 var(--mono); }
+#live[data-wall="50"][data-layout="grid"] .live-grid,
+#live[data-wall="50"][data-layout="dense"] .live-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+@media (max-width: 1400px) {
+  #live[data-wall="50"][data-layout="grid"] .live-grid,
+  #live[data-wall="50"][data-layout="dense"] .live-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+#live[data-wall="30"] .live-grid .live-tile:nth-child(n+31),
+#live[data-wall="30"] .filmstrip .live-tile:nth-child(n+31),
+#live[data-wall="50"] .live-grid .live-tile:nth-child(n+51),
+#live[data-wall="50"] .filmstrip .live-tile:nth-child(n+51) { display: none; }
+
+.intel-shell { display: flex; flex-direction: column; min-height: 70vh; overflow: visible; }
+.intel-hero {
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 16px 20px 8px; border-bottom: 1px solid var(--line);
+}
+.intel-health { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.intel-kpis, .intel-resources {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px; padding: 8px 16px 12px;
+}
+.intel-resources { border-top: 1px solid var(--line); }
+.kpi-sourced h4 { margin: 0 0 4px; font: 650 10px/1 var(--sans); letter-spacing: .08em; color: var(--ink-3); }
+.kpi-sourced .big { font: 700 18px/1 var(--mono); }
+.kpi-sourced .sub { margin-top: 4px; font: 400 11px/1.3 var(--sans); color: var(--ink-3); }
+.kpi-sourced .kpi-meta { margin-top: 2px; min-height: 0; font-size: 10px; color: var(--ink-faint); }
+.live-tile .stream-meta { max-width: 100%; overflow: hidden; }
+.live-tile .meta { overflow: hidden; }
+.live-tile .meta .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-chip.verify { color: var(--verify); }
+.hop-gap { padding: 6px 8px; color: var(--ink-3); font: 650 12px/1 var(--sans); }
+.intel-kicker { font: 700 11px/1 var(--sans); letter-spacing: .14em; color: var(--seal); margin: 0 0 6px; }
+.intel-hero h2 { margin: 0 0 6px; font: 650 22px/1.2 var(--sans); }
+.intel-claim { margin: 0; max-width: 46em; color: var(--ink-2); font: 400 13px/1.45 var(--sans); }
+.intel-feeds-badge { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.intel-feeds-badge span {
+  font: 650 11px/1 var(--sans); letter-spacing: .08em;
+  background: var(--accent-soft); color: var(--seal); padding: 6px 10px; border-radius: 999px;
+}
+.intel-feeds-badge .demo-flag { background: var(--verify-bg); color: var(--verify); }
+.m4-arch {
+  display: grid; gap: 6px; padding: 10px 20px;
+  font: 650 11px/1.3 var(--sans); letter-spacing: .06em; color: var(--ink-2);
+}
+.m4-arch > div, .m4-split span {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; text-align: center;
+}
+.m4-split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0; background: none; border: 0; }
+.intel-grid, .intel-work {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 16px;
+}
+.intel-stage {
+  min-height: 220px; background: #111; border-radius: 8px; overflow: hidden; position: relative;
+}
+/* The stage grows with its column, but the media inside it was pinned to
+ * 220px. On a full-height pane that left the feed filling the top half and
+ * roughly 240px of dead black beneath it - the Model 4 feeds looked broken.
+ * The frame and its detection overlay must both track the stage exactly, or
+ * the boxes drift off the objects they mark. */
+/* Both are positioned identically rather than one in flow and one absolute:
+ * a 19px difference between the frame and its overlay drifts every detection
+ * box off the object it marks, which is worse than no box at all. */
+.intel-stage img, .intel-stage canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.intel-scene {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px; padding: 8px 16px 16px;
+}
+.intel-scene .kpi {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.intel-scene .kpi b { display: block; font: 700 22px/1 var(--mono); }
+.intel-scene .kpi span { font: 650 10px/1 var(--sans); letter-spacing: .08em; color: var(--ink-3); }
+.intel-search { display: flex; gap: 6px; margin-left: auto; }
+.intel-search input { min-width: 140px; }
+.intel-wl-cats { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.intel-wl-cats button, .intel-search button {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 4px 8px; font: 600 10px/1 var(--sans); cursor: pointer;
+}
+.intel-wl-cats button.on { background: var(--accent-soft); color: var(--seal); }
+.intel-track { padding: 0 16px 24px; }
+.intel-track-body { display: grid; grid-template-columns: 1.1fr 1fr .8fr; gap: 12px; min-height: 280px; }
+.intel-map-wrap {
+  position: relative;
+  min-height: 260px; height: 280px; max-height: 320px;
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  isolation: isolate;
+}
+.intel-map-wrap .gmap-host,
+.intel-map-wrap canvas.map {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+}
+.hero-hop {
+  display: grid; grid-template-columns: 8px 1fr; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--line); cursor: pointer;
+}
+.hero-hop .rail { background: var(--seal); border-radius: 99px; }
+.hero-hop .role { font: 700 11px/1 var(--sans); letter-spacing: .1em; color: var(--seal); }
+.verdict-MATCH { color: var(--confirmed); }
+.verdict-LIKELY { color: var(--verify); }
+.verdict-CONTRADICTION { color: var(--conflict); }
+.jump-form { padding: 16px 18px; min-width: 320px; }
+.jump-form h3 { margin: 0 0 10px; }
+.jump-form p { margin: 6px 0; font: 500 13px/1.4 var(--sans); }
+.live-compare .ai-hud {
+  position: absolute; right: 8px; top: 8px; z-index: 4;
+  background: rgba(0,0,0,.7); color: #fff; font: 600 11px/1.35 var(--mono);
+  padding: 6px 8px; border-radius: 6px;
+}
+@media (max-width: 1100px) {
+  .intel-grid, .intel-work, .intel-track-body, .m4-split { grid-template-columns: 1fr; }
+  .product-claim { margin-left: 0; }
+}
+
 @media (max-width: 1100px) {
   .kpi-row { grid-template-columns: 1fr 1fr; }
+  .duty-brief { grid-template-columns: 1fr; }
+  .duty-actions { justify-content: flex-start; max-width: none; }
   .ov-split, .live-focus { grid-template-columns: 1fr; }
+}
+
+
+/* ---- wall 30, Grid layout: a scrolling wall of large tiles --------------
+ * Thirty tiles on one screen is thirty tiles too small to read, and thirty
+ * simultaneous full-resolution decodes is more than a laptop holds smoothly.
+ * So the default 30-wall is a scrolling column of large tiles: only the few
+ * on screen carry a stream, at full source quality, and the media scheduler
+ * opens the next ones a screen ahead so scrolling always lands on live video.
+ * The 6x5 control-room wall is still one click away as the Dense layout. */
+#live[data-wall="30"][data-layout="grid"] .live-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  gap: 12px;
+  padding: 12px;
+  height: auto;
+  overflow: visible;
+}
+#live[data-wall="30"][data-layout="grid"] #live-grid {
+  min-height: 600px;
+  overflow: auto;
+}
+#live[data-wall="30"][data-layout="grid"] .live-tile { min-height: 260px; }
+#live[data-wall="30"][data-layout="grid"] .live-tile .frame {
+  position: relative;
+  inset: auto;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: auto;
+}
+@media (max-width: 1200px) {
+  #live[data-wall="30"][data-layout="grid"] .live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* ── COMMAND MODE ────────────────────────────────────────────────────────
+ * The wall is the instrument; the chrome is secondary. Command mode collapses
+ * navigation to an icon rail, drops the two chrome bands and folds the
+ * analytics / preset / filter toolbars behind the Command Bar toggle, so video
+ * owns the viewport instead of a third of it.
+ *
+ * This is layout only. It adds no nodes, no animation and no filters, and it
+ * never touches a video element or a peer connection - a prettier wall that
+ * costs media stability would be a worse wall. */
+body.wall-focus .shell {
+  grid-template-columns: 52px 1fr;
+  grid-template-rows: 44px 0 0 1fr;
+}
+/* 34px was shorter than the band's own contents, so the status chips and the
+ * clock were drawn over each other and over the search field. Command mode
+ * should give the wall the viewport, not render the masthead illegible. */
+body.wall-focus .topbar {
+  min-height: 44px; height: 44px; padding: 0 12px; overflow: hidden;
+  gap: 10px; align-items: center;
+}
+body.wall-focus .topbar > * { min-width: 0; }
+/* Collapsed, not removed. `display: none` takes them out of the grid as
+ * items, which re-flows auto-placement and drops the nav and the main content
+ * into the zero-height rows meant for these bands - the whole workspace then
+ * renders at zero height. Keep them as grid items and give them no size. */
+body.wall-focus .handling,
+body.wall-focus .product-modes {
+  height: 0; min-height: 0; padding: 0; margin: 0;
+  overflow: hidden; visibility: hidden; border: 0;
+}
+body.wall-focus .nav { padding: 8px 4px; overflow-x: hidden; }
+body.wall-focus .nav .primary-nav {
+  font-size: 0; justify-content: center; padding: 9px 0; gap: 0;
+}
+body.wall-focus .nav .primary-nav .ico { font-size: 13px; }
+body.wall-focus .nav .primary-nav .count,
+body.wall-focus .nav-group,
+body.wall-focus .nav-foot { display: none; }
+
+body.wall-focus #live-intel,
+body.wall-focus #live-presets,
+body.wall-focus #live-filters,
+body.wall-focus #live-plates,
+body.wall-focus .filmstrip { display: none !important; }
+body.wall-focus .live-head { padding: 3px 10px; gap: 8px; }
+body.wall-focus .live-head h2 { display: none; }
+
+/* The wall fills what the chrome gave back. */
+body.wall-focus #live[data-wall="30"][data-layout="grid"] #live-grid,
+body.wall-focus #live-grid { min-height: 0; height: 100%; }
+/* A fixed 260px row meant the last visible row was always sliced by the fold:
+ * 784px of wall divided into 260px rows leaves 2.98 rows, and the operator saw
+ * a band of half-tiles across the bottom of every screen. `fitWall()` measures
+ * the wall and publishes a row height that divides it into whole rows, so the
+ * grid always ends on a tile boundary at any viewport. */
+body.wall-focus #live[data-layout="grid"] #live-grid {
+  grid-auto-rows: var(--wall-row-h, 260px);
+}
+body.wall-focus #live[data-layout="grid"] #live-grid > .live-tile,
+body.wall-focus #live[data-wall="30"][data-layout="grid"] .live-tile {
+  min-height: 0;
+}
+/* `.frame` is already `flex: 1; min-height: 0` inside a flex-column tile, so
+ * it fills whatever the row leaves after the name and state bars. It only has
+ * to stop forcing its own 16/9 height, which fought the row height and pushed
+ * the state bar out of the tile. */
+body.wall-focus #live[data-layout="grid"] #live-grid > .live-tile .frame {
+  aspect-ratio: auto;
+  height: auto;
+}
+body.wall-focus #live[data-wall="30"][data-layout="grid"] .live-grid {
+  height: 100%; gap: 3px; padding: 3px;
+}
+
+/* Media policy, stated rather than inferred (never switched silently). */
+.media-policy {
+  font: 600 10px/1 var(--mono, ui-monospace, Menlo, monospace);
+  letter-spacing: .06em;
+  padding: 4px 7px; border-radius: 3px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.media-policy[data-policy="control-room"] { color: #0a7f3f; border-color: #0a7f3f; }
+.media-policy[data-policy="optimized"]    { color: #8a6a1f; border-color: #8a6a1f; }
+#btn-command-bar[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+
+/* ── TILE MEDIA: the video owns the frame ────────────────────────────────
+ * The frame is a flex row and holds two children - the JPEG preview and, once
+ * WHEP negotiates, the <video>. As flex siblings they shared the row: the
+ * video was squeezed to about 300px of a 480px tile and the still overflowed
+ * past the left edge, which is why tiles rendered half-filled with dead space
+ * beside them. `width: 100%` cannot win that argument, because flex shrink
+ * applies afterwards.
+ *
+ * Take the video out of flow entirely and let it cover the frame, and hide the
+ * still whenever a video is present. Declarative, so it cannot desynchronise
+ * from the media lifecycle the way a JS show/hide can: if there is a video
+ * element, the still is not shown, whatever order things happened in. */
+.live-tile .frame { position: relative; }
+.live-tile .frame video.tile-whep,
+.live-tile .frame video.tile-hls,
+.live-tile .frame video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+/* A WHEP track exists long before its first keyframe: Chrome reports the
+ * decoder as 2x2 until an IDR arrives, which on a long-GOP government camera
+ * can take many seconds. Hiding the cached still the moment a <video> was
+ * attached therefore replaced real imagery with a black box, and a wall of
+ * black boxes is exactly what "nothing is live" looks like. Keep the still
+ * until the decoder reports a real frame size; `data-video="live"` is set by
+ * markTileVideoReady(). */
+.live-tile .frame:has(video[data-ready="1"]) img { display: none; }
+.live-tile .frame video:not([data-ready="1"]) { opacity: 0; }
+/* Overlays must stay above the video now that it is a positioned layer. */
+.live-tile .badge,
+.live-tile .tile-head,
+.live-tile .tile-foot,
+.live-tile .connect-ring,
+.live-tile .placeholder { z-index: 3; }
+
+
+/* Command mode gives the masthead a 34px band; the brand block is 61px and was
+ * overflowing upward into negative space, which is what made the header read
+ * as overlapping text. Fit it to the band instead of letting it spill. */
+body.wall-focus .topbar { align-items: center; }
+body.wall-focus .brand { height: 34px; align-items: center; overflow: hidden; }
+body.wall-focus .brand small { display: none; }
+body.wall-focus .brand .crest { width: 22px; height: 22px; }
+body.wall-focus .brand h1.word { font-size: 13px; line-height: 1; }
+body.wall-focus .masthead-search { max-height: 26px; }
+/* `.live-head` is a nowrap row with the status on the left and the control
+ * strip on the right. That holds at 1920, but below roughly 1400 the status
+ * text takes the space it wants, starves the control strip to ~108px, and its
+ * buttons stack into a 640px-tall column down the side of the screen with the
+ * wall squeezed to nothing underneath.
+ *
+ * Let the head wrap, give the control strip its own full-width row, and cap
+ * the status text so it can never starve anything again. */
+body.wall-focus .live-head { flex-wrap: wrap; row-gap: 4px; }
+body.wall-focus .live-head > :first-child {
+  flex: 1 1 auto; min-width: 0;
+}
+body.wall-focus .live-layouts {
+  flex: 1 1 100%;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+body.wall-focus #live-count,
+body.wall-focus #live-progress {
+  display: inline-block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 46ch; vertical-align: bottom;
 }

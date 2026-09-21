@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from sqlalchemy import insert, select, func
+from sqlalchemy import func, insert, select
 
 from saakshya.federation.adapters import GenericVMSAdapter, ONVIFAdapter, RTSPAdapter
 from saakshya.federation.bus import EventBus, FederatedEvent
@@ -36,6 +36,7 @@ def bulk_synthetic_cameras(store: Store, n: int, *, prefix: str = "SYN"
             "tier": "C",
             "enabled": True,
             "integration_model": "SYNTHETIC",
+            "source_domain": "SYNTHETIC_CONTROL",
             "maintenance_status": "demo",
             "access_state": "labelled-synthetic",
             "created_at_us": ts, "updated_at_us": ts,
@@ -85,11 +86,20 @@ def measure_registry(store: Store) -> dict[str, Any]:
 
 
 def seed_50_evaluation(store: Store) -> dict[str, Any]:
-    """30 real probe IDs (empty URLs) + 20 labelled synthetic/control."""
+    """30 government probe IDs + 2 own feeds + 18 labelled control slots."""
+    from saakshya.command.domain import (
+        OWN_FEED,
+        ensure_golden_feeds,
+        government_grid_urls,
+        wall_composition,
+    )
+
     ts = now_us()
     for i in range(1, 31):
+        cid = f"cam{i:02d}"
+        urls = government_grid_urls(cid)
         store.upsert_camera({
-            "camera_id": f"cam{i:02d}",
+            "camera_id": cid,
             "name": f"probe {i}",
             "department": "Home (Police)",
             "district": "Ahmedabad",
@@ -97,16 +107,30 @@ def seed_50_evaluation(store: Store) -> dict[str, Any]:
             "lat": 23.0 + i * 0.002, "lon": 72.5 + i * 0.002,
             "codec": "h264", "enabled": True,
             "integration_model": "REAL_PROBE_ID",
+            "source_domain": "GOVERNMENT",
             "access_state": "NOT_AUTHORITATIVE",
             "created_at_us": ts, "updated_at_us": ts,
+            **urls,
         })
         store.upsert_health(f"cam{i:02d}", {"state": "UNKNOWN", "reachable": False})
-    syn = bulk_synthetic_cameras(store, 20, prefix="CTL")
+    ensure_golden_feeds(store)
+    syn = bulk_synthetic_cameras(store, 18, prefix="CTL")
+    for cam in store.list_cameras():
+        hid = cam["camera_id"]
+        if hid.startswith("CTL-"):
+            store.upsert_health(hid, {"state": "UNKNOWN", "reachable": False})
+    comp = wall_composition(store)
     return {
         "real_probe_ids": 30,
+        "government": 30,
+        "own_feeds": 2,
+        "golden_own_feeds": ["OWN-PEOPLE", "OWN-TRAFFIC"],
         "synthetic_control": syn["n"],
-        "onboarded": 50,
-        "label": "30 REAL_PROBE_ID + 20 SYNTHETIC/control — not 50 government streams",
+        "onboarded": comp["onboarded"],
+        "label": ("30 GOVERNMENT probe IDs + 2 OWN_FEED + 18 SYNTHETIC_CONTROL "
+                  "— not 50 government streams"),
+        "composition": comp,
+        "own_feed_domain": OWN_FEED,
     }
 
 
@@ -127,7 +151,7 @@ def adapter_load(n_systems: int) -> dict[str, Any]:
     bus = EventBus()
     for i in range(n_systems * 10):
         bus.publish("cctv.events", FederatedEvent(
-            event_id=f"E{i}", camera_id=f"S0-C0", department="DEMO/TEST",
+            event_id=f"E{i}", camera_id="S0-C0", department="DEMO/TEST",
             timestamp="2026-09-17T00:00:00+00:00", location=None,
             entity_id=None, event_type="camera.health", confidence=None,
             evidence_ref=None, source_system="DEMO/TEST"))

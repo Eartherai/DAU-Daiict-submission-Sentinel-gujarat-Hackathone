@@ -1,0 +1,58 @@
+{
+  "/healthz": {
+    "http": 200,
+    "p50_ms": 2.0,
+    "p95_ms": 3.8,
+    "max_ms": 31.2,
+    "ok": true,
+    "label": "MEASURED_REAL"
+  },
+  "/readyz": {
+    "http": 200,
+    "p50_ms": 3.3,
+    "p95_ms": 3.4,
+    "max_ms": 2898.3,
+    "ok": true,
+    "label": "MEASURED_REAL"
+  },
+  "/system/health": {
+    "http": 200,
+    "p50_ms": 22.5,
+    "p95_ms": 23.9,
+    "max_ms": 3462.2,
+    "ok": true,
+    "label": "MEASURED_REAL"
+  },
+  "/audit?limit=20": {
+    "http": 200,
+    "p50_ms": 9.3,
+    "p95_ms": 10.1,
+    "max_ms": 16.0,
+    "ok": true,
+    "label": "MEASURED_REAL"
+  },
+  "/search?plate=GJ01TA0001": {
+    "http": 403,
+    "p50_ms": 3.2,
+    "p95_ms": 3.3,
+    "max_ms": 4.4,
+    "ok": false,
+    "label": "MEASURED_REAL"
+  },
+  "/alerts?limit=20": {
+    "http": 403,
+    "p50_ms": 2.9,
+    "p95_ms": 3.2,
+    "max_ms": 4.3,
+    "ok": false,
+    "label": "MEASURED_REAL"
+  },
+  "/command/summary": {
+    "http": 200,
+    "p50_ms": 5073.4,
+    "p95_ms": 5450.8,
+    "max_ms": 5669.1,
+    "ok": true,
+    "label": "MEASURED_REAL"
+  }
+}

@@ -51,6 +51,16 @@ def _districts(ctx: AuthDep, raw: str | None) -> tuple[str, ...] | None:
     return ctx.principal.scope_filter()
 
 
+@router.get("/gaps", summary="Registry gap analysis (Model 1)")
+async def registry_gaps(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+    """What the registry does not yet know about its own estate."""
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        return state.maps.registry_gaps()
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+
 @router.get("/cameras", summary="Camera locations, health and capability")
 async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
                   zoom: ZoomQuery = 11.0, district: str | None = None,
@@ -62,6 +72,7 @@ async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
                   camera_type: str | None = None,
                   ai_status: str | None = None,
                   q: str | None = None,
+                  source_domain: str | None = None,
                   limit: Annotated[int, Query(ge=1, le=20000)] = 1500
                   ) -> dict[str, Any]:
     try:
@@ -73,7 +84,8 @@ async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
             capability_grades=csv_list(grade), max_features=limit,
             codecs=csv_list(codec), regions=csv_list(region),
             camera_types=csv_list(camera_type),
-            ai_statuses=csv_list(ai_status), q=q)
+            ai_statuses=csv_list(ai_status), q=q,
+            source_domains=csv_list(source_domain))
     except AccessError as exc:
         raise access_error(exc) from exc
 

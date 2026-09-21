@@ -478,7 +478,7 @@ def write_report(payload: dict, md_path: Path) -> None:
         payload.get("decision_note", ""),
         "",
     ]
-    for key in ("cam01_30s", "cam01_60s", "compare", "wall_n4", "wall_n8"):
+    for key in ("cam01_30s", "cam01_60s", "compare_direct", "wall_n4", "wall_n8"):
         row = payload.get(key)
         if not row:
             continue
@@ -493,14 +493,25 @@ def write_report(payload: dict, md_path: Path) -> None:
             f"- negotiation p50: {ws.get('negotiation_ms_p50')} ms",
             "",
         ]
+    comparison = payload.get("compare") or {}
+    local = payload.get("compare_local_relay") or {}
+    if comparison:
+        lines += [
+            "## Direct WHEP versus local relay",
+            "",
+            f"- Direct Sentinel WHEP: **{comparison.get('direct_overall')}** · "
+            f"first frame p50 {comparison.get('direct_first_frame_p50_ms')} ms",
+            f"- Local relay WHEP fallback: **{comparison.get('local_overall')}** · "
+            f"first frame p50 {comparison.get('local_first_frame_p50_ms')} ms",
+            "",
+        ]
     lines += [
         "## Security",
         "",
         "Credentials: Authorization Basic header only. Never in URL/stdout/JSON.",
         "",
-        "Catalogue: `/api/ingest` still EXTERNAL session dependency "
-        "(see SENTINEL_CONTRACT_PROBE).",
-        "",
+        "Catalogue: authenticated `/cameras.json` is used; `/api/ingest` is not "
+        "the current portal contract (see SENTINEL_CONTRACT_PROBE).",
     ]
     md = "\n".join(lines) + "\n"
     refuse_secrets(md)
@@ -558,9 +569,11 @@ def main() -> int:
         return row
 
     if args.mode in {"soak", "all"}:
-        r30 = soak(["cam01"], args.seconds, "cam01_30s")
+        soak_cameras = list(dict.fromkeys(args.cameras))
+        label = "_".join(soak_cameras)
+        r30 = soak(soak_cameras, args.seconds, f"{label}_30s")
         if args.also_60 or (args.mode == "all" and r30.get("overall") == "PASS"):
-            soak(["cam01"], 60.0, "cam01_60s")
+            soak(soak_cameras, 60.0, f"{label}_60s")
 
     if args.mode in {"compare", "all"}:
         print("=== COMPARE direct vs local relay (cam01) ===", flush=True)
@@ -610,7 +623,8 @@ def main() -> int:
         }), flush=True)
 
     # Recommendation
-    d30 = payload.get("cam01_30s") or payload.get("compare_direct")
+    requested_soak = "_".join(dict.fromkeys(args.cameras))
+    d30 = payload.get(f"{requested_soak}_30s") or payload.get("compare_direct")
     local = payload.get("compare_local_relay")
     wall4 = payload.get("wall_n4") or payload.get(f"wall_n{args.n}")
     if d30 and d30.get("overall") == "PASS":
@@ -630,6 +644,12 @@ def main() -> int:
     elif d30 and d30.get("overall") in {"PASS", "AMBER"} and local and local.get("overall") == "PASS":
         rec = "KEEP_LOCAL_RELAY_FALLBACK"
         note = "Direct partial; local relay still viable fallback."
+    elif wall4 and wall4.get("overall") == "PASS":
+        rec = "DIRECT_SENTINEL_WHEP_WALL_MEASURED"
+        note = (
+            "The requested direct WHEP wall passed. Run a per-camera soak before "
+            "declaring every camera individually verified."
+        )
     else:
         rec = "DIAGNOSE"
         note = "Direct WHEP did not clear cam01 soak — inspect HTTP/ICE layer."

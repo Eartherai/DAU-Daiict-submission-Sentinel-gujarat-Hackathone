@@ -6,7 +6,7 @@
         rebuild rebuild-check models-validate judge-score live-profile live-profile-anpr \
         live-ingest live-watch benchmark-30 benchmark-50 \
         profile-pipeline benchmark-detectors benchmark-trackers benchmark-ocr \
-        live-serve clean
+        live-serve clean final-evaluation
 
 PY := .venv/bin/python
 ROOT := $(shell pwd)
@@ -272,6 +272,7 @@ demo-reset: media
 	$(PY) tools/demo/seed.py --db "$(DEMO_DB)" --reset
 
 serve:
+	set -a; [ -f .env.local ] && . ./.env.local; set +a; \
 	SAAKSHYA_DB="$(DEMO_DB)" SAAKSHYA_EVIDENCE="$(DEMO_EVID)" \
 	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}" \
 	SAAKSHYA_MAP_ATTRIBUTION="© OpenStreetMap contributors" \
@@ -309,6 +310,7 @@ live-watch:
 	$(PY) -u tools/live/ingest.py --db "$(LIVE_DB)" --from-registry --cameras 30 --minutes 0
 
 live-serve:
+	set -a; [ -f .env.local ] && . ./.env.local; set +a; \
 	SAAKSHYA_DB="$(LIVE_DB)" SAAKSHYA_EVIDENCE=var/live_evidence \
 	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}" \
 	$(PY) -m uvicorn saakshya.api.app:build --factory \
@@ -360,3 +362,7 @@ rebuild:
 	       .pytest_cache .ruff_cache
 	$(MAKE) install
 	$(MAKE) verify
+
+final-evaluation:
+	$(PY) tools/verify/final_certification.py
+	$(PY) tools/verify/secret_scan.py

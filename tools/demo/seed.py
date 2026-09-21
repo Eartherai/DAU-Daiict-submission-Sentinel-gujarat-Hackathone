@@ -122,9 +122,13 @@ def main() -> int:
             "width": c["properties"]["width"], "height": c["properties"]["height"],
             "declared_fps": c["properties"]["declared_fps"],
             "quality_note": c.get("quality_note"),
+            "source_domain": "SYNTHETIC_CONTROL",
+            "integration_model": "LOCAL_CORPUS",
             # Capability is measured below, never declared here.
             "tier": "UNASSIGNED", "enabled": True})
-    print(f"cameras      : {len(catalogue)}")
+    from saakshya.command.domain import ensure_golden_feeds
+    ensure_golden_feeds(store)
+    print(f"cameras      : {len(catalogue)} corpus + 2 own feeds")
 
     # ---- ingest through the production pipeline --------------------------- #
     written = 0

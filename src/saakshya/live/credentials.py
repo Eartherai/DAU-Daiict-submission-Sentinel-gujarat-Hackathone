@@ -33,7 +33,10 @@ import re
 from urllib.parse import quote
 
 #: Anything that looks like a credential in an authority, however it got there.
-_AUTHORITY = re.compile(r"(?<=//)[^/@\s]*:[^/@\s]*@")
+#: The username may be an unescaped email address, so it can itself contain
+#: ``@``. Redact the entire authority through its final ``@`` rather than
+#: assuming the first ``@`` ends the username.
+_AUTHORITY = re.compile(r"(?<=//)[^/\s]*@")
 
 #: Schemes whose authority the grid authenticates. HLS is served by the CDN
 #: behind a session cookie instead, so it is deliberately absent: putting a

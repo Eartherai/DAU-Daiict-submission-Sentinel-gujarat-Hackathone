@@ -1,0 +1,135 @@
+{
+  "mode": "direct15_simultaneous",
+  "n": 15,
+  "seconds": 20.0,
+  "negotiate_concurrency": 4,
+  "elapsed_s": 22.82,
+  "visible": 14,
+  "classes": {
+    "LIVE": 14,
+    "WHEP_UNAVAILABLE": 1
+  },
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "class": "LIVE",
+      "first_frame_ms": 1958.2000000029802,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam02",
+      "class": "LIVE",
+      "first_frame_ms": 1958.7999999970198,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam03",
+      "class": "LIVE",
+      "first_frame_ms": 2475.1000000089407,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam04",
+      "class": "LIVE",
+      "first_frame_ms": 6064.70000000298,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam05",
+      "class": "LIVE",
+      "first_frame_ms": 2985.0999999940395,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam06",
+      "class": "LIVE",
+      "first_frame_ms": 4018.3999999910593,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam12",
+      "class": "LIVE",
+      "first_frame_ms": 3501.199999988079,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam13",
+      "class": "LIVE",
+      "first_frame_ms": 5038.199999988079,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam14",
+      "class": "LIVE",
+      "first_frame_ms": 5038.399999991059,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam16",
+      "class": "LIVE",
+      "first_frame_ms": 7611.199999988079,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam18",
+      "class": "WHEP_UNAVAILABLE",
+      "first_frame_ms": null,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam19",
+      "class": "LIVE",
+      "first_frame_ms": 8121.899999991059,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam20",
+      "class": "LIVE",
+      "first_frame_ms": 8122.0999999940395,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam23",
+      "class": "LIVE",
+      "first_frame_ms": 9149.199999988079,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    },
+    {
+      "camera_id": "cam26",
+      "class": "LIVE",
+      "first_frame_ms": 11205.699999988079,
+      "httpStatus": 201,
+      "ice": "connected",
+      "error": null
+    }
+  ],
+  "label": "MEASURED_REAL"
+}

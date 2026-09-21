@@ -189,13 +189,27 @@ async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
         from saakshya.live.snapshot import local_media_url
         url = local_media_url(camera_id)
 
-    if state.snapshots is None:
-        from saakshya.live import SnapshotService
-        state.snapshots = SnapshotService()
+    # A local relay already owns one ingest for each active own-feed camera.
+    # Opening another RTSP reader here races that publisher and intermittently
+    # leaves the second Intelligence panel blank. Reuse the relay preview when
+    # available; it is explicitly labelled as a preview, never as evidence or
+    # browser-live video.
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        try:
+            from saakshya.live.relay import get_relay
+            relay = get_relay()
+        except Exception:
+            relay = None
 
-    import anyio
-    snap = await anyio.to_thread.run_sync(
-        lambda: state.snapshots.get(camera_id, url, force=force))
+    snap = relay.grab_jpeg(camera_id) if relay is not None else None
+    if snap is None:
+        if state.snapshots is None:
+            from saakshya.live import SnapshotService
+            state.snapshots = SnapshotService()
+        import anyio
+        snap = await anyio.to_thread.run_sync(
+            lambda: state.snapshots.get(camera_id, url, force=force))
     if snap is None:
         # Say which of the three it was. An upstream refusal is a 502 — the
         # failure is between us and the grid, and retrying will not fix it —
@@ -220,14 +234,24 @@ async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
         "ingest-stale": "ingest preview, older than the refresh window",
         "live-view": "selected camera, one extra stream copy, PTS-paced",
         "file-view": "selected own-feed recording, PTS-paced",
+        "relay-preview": "local relay preview, not live video",
     }.get(snap.source, "shared cached capture, not live video")
     jpeg = snap.jpeg
+    media = {}
+    try:
+        from saakshya.live.hub import get_hub
+        hub = get_hub()
+        if hub is not None:
+            media = hub.media_state(camera_id)
+    except Exception:
+        media = {}
     try:
         from saakshya.live.annotate import annotate_jpeg
         # RTSP live-view is PTS from the grid, not store time — overlaying
         # store boxes would ghost detections. Own-feed file-view PTS matches
         # the observations written at ingest, so boxes belong on that frame.
-        if snap.source == "live-view":
+        if snap.source == "live-view" or snap.source in {
+                "ingest", "ingest-stale", "relay-preview"}:
             jpeg = snap.jpeg
         else:
             jpeg = annotate_jpeg(
@@ -243,6 +267,10 @@ async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
         headers={"X-Frame-Age-Seconds": f"{snap.age_s:.1f}",
                  "X-Frame-Source": src,
                  "X-Frame-Kind": snap.source,
+                 "X-Source-State": str(media.get("source") or ""),
+                 "X-Video-State": str(media.get("video") or ""),
+                 "X-Ai-State": str(media.get("ai") or ""),
+                 "X-Hub-Fps": str(media.get("jpeg_fps") or media.get("fps") or ""),
                  "Cache-Control": "no-store"})
 
 
@@ -275,12 +303,18 @@ async def plate_crop(state: StateDep, ctx: AuthDep, camera_id: str,
     rows = state.store.marks_for_camera(camera_id, 48)
     hit = next((m for m in rows if (m.get("plate") or "").upper() == mark), None)
     if not hit or not hit.get("bbox"):
-        raise HTTPException(status_code=404, detail={
-            "code": "NO_CROP",
-            "message": "this camera has no stored box for that mark"})
+        return Response(status_code=204, headers={"X-Plate-Crop": "NO_CROP"})
 
     jpeg = None
-    if state.snapshots is not None:
+    try:
+        from saakshya.live.hub import get_hub
+        hub = get_hub()
+        hs = hub.as_snapshot(camera_id) if hub is not None else None
+        if hs is not None:
+            jpeg = hs.jpeg
+    except Exception:
+        jpeg = None
+    if jpeg is None and state.snapshots is not None:
         live = state.snapshots.selected.latest(camera_id)
         if live is not None:
             jpeg = live.jpeg
@@ -290,18 +324,14 @@ async def plate_crop(state: StateDep, ctx: AuthDep, camera_id: str,
         if got is not None:
             jpeg = got[0]
     if not jpeg:
-        raise HTTPException(status_code=404, detail={
-            "code": "NO_FRAME",
-            "message": "no still to crop from"})
+        return Response(status_code=204, headers={"X-Plate-Crop": "NO_FRAME"})
 
     from saakshya.live.annotate import crop_plate_jpeg
     crop = crop_plate_jpeg(
         jpeg, hit["bbox"],
         camera_wh=(cam.get("width"), cam.get("height")))
     if not crop:
-        raise HTTPException(status_code=404, detail={
-            "code": "NO_CROP",
-            "message": "the stored box does not fall on this still"})
+        return Response(status_code=204, headers={"X-Plate-Crop": "NO_CROP"})
     return Response(
         content=crop, media_type="image/jpeg",
         headers={"Cache-Control": "no-store",
@@ -341,12 +371,123 @@ async def camera_view(state: StateDep, ctx: AuthDep, camera_id: str):
             "code": "NO_SOURCE",
             "message": "this camera has no live source and no local recording"})
 
+    from saakshya.live.relay import get_relay
+    relay = getattr(state, "relay", None) or get_relay()
+    if relay is not None:
+        return {"camera_id": camera_id, "mode": "local-relay",
+                "source": "local_whep", "ready": relay.ready(camera_id)}
+
     if state.snapshots is None:
         from saakshya.live import SnapshotService
         state.snapshots = SnapshotService()
     state.snapshots.selected.start(camera_id, url)
     source = "file" if local and url == local else "rtsp"
     return {"camera_id": camera_id, "mode": "selected-stream", "source": source}
+
+
+@router.get("/cameras/{camera_id}/media-state", include_in_schema=False)
+async def camera_media_state(state: StateDep, ctx: AuthDep, camera_id: str
+                             ) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        from saakshya.live.relay import get_relay
+        relay = get_relay()
+    if relay is not None:
+        return relay.media_state(camera_id)
+    hub = getattr(state, "hub", None)
+    if hub is None:
+        from saakshya.live.hub import get_hub
+        hub = get_hub()
+    if hub is None:
+        return {"camera_id": camera_id, "source": "NO_SIGNAL", "video": "NO_SIGNAL",
+                "ai": "OFF", "label": "NOT_MEASURED", "plane": "none"}
+    row = hub.media_state(camera_id)
+    row["plane"] = "local_hub"
+    return row
+
+
+@router.get("/media/hub", include_in_schema=False)
+async def media_hub(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+    try:
+        ctx.principal.require(Permission.HEALTH_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    relay = getattr(state, "relay", None)
+    if relay is None:
+        from saakshya.live.relay import get_relay
+        relay = get_relay()
+    if relay is not None:
+        return relay.snapshot()
+    hub = getattr(state, "hub", None)
+    if hub is None:
+        from saakshya.live.hub import get_hub
+        hub = get_hub()
+    if hub is None:
+        return {"plane": "none", "upstream_sessions": 0, "label": "NOT_MEASURED"}
+    return hub.snapshot()
+
+
+@router.get("/cameras/{camera_id}/hls/{asset_path:path}", include_in_schema=False)
+def local_relay_hls(state: StateDep, ctx: AuthDep, camera_id: str,
+                    asset_path: str, request: Request):
+    """Same-origin, read-only proxy for a local MediaMTX HLS asset.
+
+    The browser must not contact the local relay port directly: its CSP permits
+    only this application origin.  This route never contacts Sentinel and never
+    receives a grid credential; it forwards playlist and segment bytes from the
+    loopback-only relay after normal camera authorization.  This deliberately
+    remains a synchronous FastAPI handler: ``urlopen`` and segment reads are
+    blocking I/O, and declaring it ``async`` pins the event loop behind a
+    slow HLS client.  FastAPI dispatches regular handlers to its worker pool,
+    allowing a 30-camera wall to progress concurrently.
+    """
+    from fastapi.responses import Response
+    from urllib.parse import quote
+    from urllib.request import urlopen
+
+    from saakshya.live.relay import get_relay, local_hls
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    if not asset_path or asset_path.startswith("/") or ".." in asset_path.split("/"):
+        raise HTTPException(status_code=400, detail={
+            "code": "INVALID_REQUEST", "message": "invalid HLS asset path"})
+    relay = getattr(state, "relay", None) or get_relay()
+    if relay is None or not relay.ready(camera_id):
+        raise HTTPException(status_code=503, detail={
+            "code": "RELAY_NOT_READY", "message": "local video relay is still connecting this camera"})
+    base = local_hls(camera_id).rsplit("/", 1)[0]
+    upstream = f"{base}/{quote(asset_path, safe='/')}"
+    if request.url.query:
+        upstream += f"?{request.url.query}"
+    elif asset_path == "index.m3u8":
+        # MediaMTX protects the first HLS playlist request with a browser
+        # cookie check.  This same-origin proxy deliberately does not forward
+        # browser cookies to the loopback media process, so ask for the
+        # documented post-check URL directly.  Child playlists carry their
+        # own session query and must remain untouched.
+        upstream += "?cookieCheck=1"
+    try:
+        with urlopen(upstream, timeout=8) as resp:
+            body = resp.read()
+            content_type = resp.headers.get_content_type()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={
+            "code": "HLS_RELAY_UNAVAILABLE",
+            "message": f"local HLS relay unavailable ({type(exc).__name__})"}) from exc
+    return Response(content=body, media_type=content_type,
+                    headers={"Cache-Control": "no-store"})
 
 
 @router.post("/cameras/{camera_id}/whep", include_in_schema=False)
@@ -373,6 +514,42 @@ async def camera_whep(state: StateDep, ctx: AuthDep, camera_id: str,
     except AccessError as exc:
         raise access_error(exc) from exc
 
+    from saakshya.live.relay import get_relay, local_whep
+
+    offer = (await request.body()).decode("utf-8", errors="replace")
+    if not offer.strip():
+        raise HTTPException(status_code=400, detail={
+            "code": "INVALID_REQUEST", "message": "empty SDP offer"})
+
+    import urllib.error
+    import urllib.request
+
+    relay = getattr(state, "relay", None) or get_relay()
+    if relay is not None:
+        # Browser → local MediaMTX. Never Sentinel. No grid password on this hop.
+        if not relay.ready(camera_id):
+            raise HTTPException(status_code=503, detail={
+                "code": "RELAY_NOT_READY",
+                "message": "local video relay is still connecting this camera"})
+        whep = local_whep(camera_id)
+        req = urllib.request.Request(
+            whep, data=offer.encode("utf-8"), method="POST",
+            headers={"Content-Type": "application/sdp", "Accept": "application/sdp"})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                answer = resp.read().decode("utf-8", errors="replace")
+                status = getattr(resp, "status", 200)
+        except urllib.error.HTTPError as exc:
+            raise HTTPException(status_code=502, detail={
+                "code": "WHEP_RELAY",
+                "message": f"local WHEP refused ({exc.code})"}) from exc
+        except Exception:
+            raise HTTPException(status_code=503, detail={
+                "code": "WHEP_RELAY_UNREACHABLE",
+                "message": f"local WHEP unreachable at {redact(whep)}"})
+        return PlainTextResponse(answer, status_code=201 if status == 201 else 200,
+                                 media_type="application/sdp")
+
     whep = cam.get("whep_url")
     if not whep:
         raise HTTPException(status_code=404, detail={
@@ -388,18 +565,11 @@ async def camera_whep(state: StateDep, ctx: AuthDep, camera_id: str,
             "message": "live video needs the grid credential in this process "
                        "environment. Stills still refresh."})
 
-    offer = (await request.body()).decode("utf-8", errors="replace")
-    if not offer.strip():
-        raise HTTPException(status_code=400, detail={
-            "code": "INVALID_REQUEST", "message": "empty SDP offer"})
-
     import base64
     import os
-    import urllib.error
-    import urllib.request
 
-    # Basic auth on the clean URL — never put the password into the request
-    # URL, where urllib would echo it from an exception.
+    # Direct Sentinel WHEP is the legacy path. The local relay is the product
+    # plane; this branch must not run when the relay is on.
     email = os.environ.get("SENTINEL_GRID_EMAIL", "")
     password = os.environ.get("SENTINEL_GRID_PASSWORD", "")
     token = base64.b64encode(f"{email}:{password}".encode("utf-8")).decode("ascii")
@@ -424,6 +594,68 @@ async def camera_whep(state: StateDep, ctx: AuthDep, camera_id: str,
             "code": "WHEP_UNREACHABLE",
             "message": f"grid WHEP unreachable at {redact(whep)}. "
                        "The still is still refreshing."})
+    return PlainTextResponse(answer, status_code=201 if status == 201 else 200,
+                             media_type="application/sdp")
+
+
+@router.post("/demo-simulation/cameras/{camera_id}/whep", include_in_schema=False)
+async def demo_simulation_whep(state: StateDep, ctx: AuthDep, camera_id: str,
+                               request: Request):
+    """WebRTC signaling for the isolated 30-channel archival replay plane.
+
+    Never touches Sentinel or the government relay: the SDP offer is
+    forwarded only to the local SimulationRelay's own MediaMTX WHEP endpoint,
+    on its own dedicated ports.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    from saakshya.live.simulation import catalog, get_simulation
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    known_ids = {row["camera_id"] for row in catalog()}
+    if camera_id not in known_ids:
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_FOUND",
+            "message": f"no such demo simulation camera: {camera_id}"})
+
+    sim = getattr(state, "simulation", None) or get_simulation()
+    if sim is None:
+        raise HTTPException(status_code=503, detail={
+            "code": "SIMULATION_DISABLED",
+            "message": "the demo simulation plane is not enabled on this process"})
+    if not sim.ready(camera_id):
+        raise HTTPException(status_code=503, detail={
+            "code": "SIMULATION_NOT_READY",
+            "message": "the demo simulation is still connecting this camera"})
+
+    offer = (await request.body()).decode("utf-8", errors="replace")
+    if not offer.strip():
+        raise HTTPException(status_code=400, detail={
+            "code": "INVALID_REQUEST", "message": "empty SDP offer"})
+
+    import urllib.error
+    import urllib.request
+
+    whep = sim.local_whep(camera_id)
+    req = urllib.request.Request(
+        whep, data=offer.encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/sdp", "Accept": "application/sdp"})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            answer = resp.read().decode("utf-8", errors="replace")
+            status = getattr(resp, "status", 200)
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=502, detail={
+            "code": "WHEP_RELAY",
+            "message": f"demo simulation WHEP refused ({exc.code})"}) from exc
+    except Exception:
+        raise HTTPException(status_code=503, detail={
+            "code": "WHEP_RELAY_UNREACHABLE",
+            "message": "demo simulation WHEP unreachable"})
     return PlainTextResponse(answer, status_code=201 if status == 201 else 200,
                              media_type="application/sdp")
 

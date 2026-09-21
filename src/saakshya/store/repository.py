@@ -247,7 +247,7 @@ class Store:
             # Per-connection wait. The one-shot PRAGMA below only touches the
             # first connection; ingest and the API open many. 5 s was losing
             # readers while 30 workers wrote.
-            engine_kw["connect_args"] = {"timeout": 60.0}
+            engine_kw["connect_args"] = {"timeout": 4.0, "check_same_thread": False}
         self.engine: Engine = create_engine(url, **engine_kw)
         self.is_sqlite = url.startswith("sqlite")
         #: camera_id -> (district, department, lat, lon). Observations are
@@ -259,8 +259,17 @@ class Store:
         #: against a growing live store. A few seconds of staleness is honest
         #: on a wall that already says the store is growing; a 10 s home
         #: screen is not.
+        #:
+        #: The TTL was 3 s while the computation itself took ~3.9 s against
+        #: 798k observations, so the entry had always expired by the time the
+        #: next caller asked for it: the cache never once returned a hit and
+        #: every page load paid the full eighteen-query bill. A TTL has to be
+        #: longer than the work it is caching. These are estate-wide totals
+        #: that move slowly; half a minute of staleness on "798,129
+        #: observations" costs an operator nothing, and it is the difference
+        #: between a home screen that appears and one that arrives.
         self._stats_cache: tuple[float, dict[str, Any]] | None = None
-        self._stats_ttl_s = 3.0
+        self._stats_ttl_s = 30.0
         self._chroma_cache: tuple[float, dict[str, float]] | None = None
         self._pub_cache: tuple[float, dict[str, dict[str, int]]] | None = None
         if self.is_sqlite:
@@ -269,7 +278,8 @@ class Store:
                 # concurrently, which the demo needs.
                 c.exec_driver_sql("PRAGMA journal_mode=WAL")
                 c.exec_driver_sql("PRAGMA synchronous=NORMAL")
-                c.exec_driver_sql("PRAGMA busy_timeout=60000")
+                # 4s, not 60s: command APIs must not wait out a media writer.
+                c.exec_driver_sql("PRAGMA busy_timeout=4000")
 
     def create_all(self) -> None:
         """Create missing tables, then add missing nullable columns.
@@ -361,7 +371,7 @@ class Store:
         "name", "site", "district", "department", "lat", "lon",
         "location_precision", "location_basis", "location_note",
         "owner", "region", "road", "integration_model",
-        "maintenance_status", "access_state",
+        "maintenance_status", "access_state", "source_domain",
     })
 
     def upsert_camera(self, cam: dict[str, Any], *,
@@ -413,6 +423,19 @@ class Store:
                                       S.cameras.c.department, S.cameras.c.lat,
                                       S.cameras.c.lon)):
                 self._cam_cache[r[0]] = (r[1], r[2], r[3], r[4])
+
+    def delete_camera(self, camera_id: str) -> bool:
+        """Remove a registry row. Health goes with it. Observations stay."""
+        with self.engine.begin() as c:
+            c.execute(delete(S.camera_health).where(
+                S.camera_health.c.camera_id == camera_id))
+            c.execute(delete(S.camera_capability).where(
+                S.camera_capability.c.camera_id == camera_id))
+            result = c.execute(delete(S.cameras).where(
+                S.cameras.c.camera_id == camera_id))
+        self._cam_cache.pop(camera_id, None)
+        self._stats_cache = None
+        return bool(getattr(result, "rowcount", 0))
 
     def get_camera(self, camera_id: str) -> dict[str, Any] | None:
         with self.engine.connect() as c:

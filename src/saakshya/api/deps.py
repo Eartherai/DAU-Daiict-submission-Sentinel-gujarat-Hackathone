@@ -42,6 +42,53 @@ from saakshya.security import (
 )
 from saakshya.store import Store
 
+# Repo root: src/saakshya/api/deps.py → parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _parse_env_file(path: Path) -> dict[str, str]:
+    """Read KEY=VALUE lines. Never logs values. Sentinel passwords are not
+    loaded from files — only Google Maps, via _load_google_maps_key."""
+    out: dict[str, str] = {}
+    try:
+        text = path.read_text()
+    except OSError:
+        return out
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        out[key.strip()] = val.strip().strip("'").strip('"')
+    return out
+
+
+def _load_google_maps_key() -> str:
+    """Maps key from env, then gitignored .env.local. Never logs the value.
+
+    Tests set SAAKSHYA_GOOGLE_MAPS_DISABLE=1 (see tests/conftest.py) so a
+    developer .env.local cannot leak into assertions. Pytest also skips the
+    file fallback even if that flag is missing.
+    """
+    if os.environ.get("SAAKSHYA_GOOGLE_MAPS_DISABLE", "").strip().lower() in {
+            "1", "true", "yes"}:
+        return ""
+    for name in ("GOOGLE_MAPS_API_KEY", "SAAKSHYA_GOOGLE_MAPS_KEY"):
+        val = (os.environ.get(name) or "").strip()
+        if val:
+            return val
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return ""
+    for candidate in (Path(".env.local"), _REPO_ROOT / ".env.local"):
+        if not candidate.is_file():
+            continue
+        parsed = _parse_env_file(candidate)
+        for name in ("GOOGLE_MAPS_API_KEY", "SAAKSHYA_GOOGLE_MAPS_KEY"):
+            val = (parsed.get(name) or "").strip()
+            if val:
+                return val
+    return ""
+
 
 @dataclass
 class Limits:
@@ -93,10 +140,11 @@ class AppState:
         #: for exactly that host and nothing else.
         self.tile_template = os.environ.get("SAAKSHYA_MAP_TILES", "").strip()
         #: Official Google Maps JavaScript API. Off unless a key is in the
-        #: process environment — never a file in the repository. When set it
-        #: is the basemap; raster tiles are the air-gapped / no-key fallback.
-        self.google_maps_key = os.environ.get(
-            "SAAKSHYA_GOOGLE_MAPS_KEY", "").strip()
+        #: process environment (GOOGLE_MAPS_API_KEY, or the older alias
+        #: SAAKSHYA_GOOGLE_MAPS_KEY). A gitignored .env.local may supply it
+        #: when the process was not launched through the Makefile. The key
+        #: never belongs in the repository, in /config JSON, or in reports.
+        self.google_maps_key = _load_google_maps_key()
         #: Optional WebRTC (WHEP) base for live viewing, e.g.
         #: http://host:8889/stream — the camera id and `/whep` are appended.
         #: Off unless configured: live video is a viewing convenience, and the
@@ -109,6 +157,29 @@ class AppState:
         #: other way (a service mesh, an authenticating proxy). Never a way to
         #: skip authorisation — the principal is still required downstream.
         self.require_auth = os.environ.get("SAAKSHYA_REQUIRE_AUTH", "1") != "0"
+        #: A demo run tunnelled onto the public internet (ngrok and similar)
+        #: with authentication switched off would hand every visitor a
+        #: SUPERVISOR-equivalent principal — see `auth_context` below. This is
+        #: a boot-time refusal, not a runtime check: the operator sets this
+        #: flag when starting a tunnelled process, and a misconfigured pair of
+        #: env vars must never reach the point of accepting a connection.
+        if (os.environ.get("SAAKSHYA_PUBLIC_TUNNEL", "0") == "1"
+                and not self.require_auth):
+            raise RuntimeError(
+                "refusing to start: SAAKSHYA_PUBLIC_TUNNEL=1 with "
+                "SAAKSHYA_REQUIRE_AUTH=0 would expose an unauthenticated API "
+                "to the public internet. Set SAAKSHYA_REQUIRE_AUTH=1 (the "
+                "default) before tunnelling this process, or unset "
+                "SAAKSHYA_PUBLIC_TUNNEL for a local-only run.")
+        #: Local one-upstream media plane. Started in app lifespan, never in
+        #: pytest. None until boot_hub / boot_relay runs.
+        self.hub: Any = None
+        self.relay: Any = None
+        self.ai_worker: Any = None
+        #: Opt-in isolated 30-channel archival replay plane, never the
+        #: government relay. Started in app lifespan only when
+        #: SAAKSHYA_DEMO_SIMULATION is set, never in pytest.
+        self.simulation: Any = None
 
     def refresh(self) -> None:
         self.graph = self.graph.load()

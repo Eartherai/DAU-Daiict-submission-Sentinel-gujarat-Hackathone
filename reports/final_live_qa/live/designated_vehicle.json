@@ -1,0 +1,215 @@
+{
+  "timestamp_utc": "2026-09-16T22:31:52.847948+00:00",
+  "plate": "GJ01TA0001",
+  "label": "MEASURED",
+  "calls": [
+    {
+      "path": "/config",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "auth_required",
+        "copilot",
+        "data",
+        "live",
+        "map"
+      ],
+      "summary": {
+        "whep": true,
+        "proxy": true,
+        "government_feed": "Direct Sentinel WHEP (browser) + RTSP/TCP (AI)",
+        "own_feed": "OWN-PEOPLE + OWN-TRAFFIC file replay \u2014 FULL ANALYTICS",
+        "maps_enabled": true,
+        "maps_key_published": false
+      }
+    },
+    {
+      "path": "/command/summary",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "active_alerts",
+        "anpr_reads_per_min",
+        "degraded",
+        "down",
+        "events_per_min",
+        "healthy",
+        "isolation",
+        "kpis",
+        "label",
+        "last_observation",
+        "live_cameras",
+        "observations",
+        "operational",
+        "persons_detected",
+        "plates_total",
+        "rank_equivalence",
+        "rank_note",
+        "resources",
+        "vehicles_tracked",
+        "watchlist_matches"
+      ],
+      "summary": {
+        "onboarded": null,
+        "rank_rows": 5,
+        "cameras_online": 0,
+        "cameras_degraded": 51
+      }
+    },
+    {
+      "path": "/system/health",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "components",
+        "generated_at",
+        "note",
+        "overall"
+      ],
+      "summary": {
+        "overall": "DEGRADED",
+        "components": [
+          "feed",
+          "grid_access",
+          "inference",
+          "database",
+          "search",
+          "evidence",
+          "jobs",
+          "ai_providers"
+        ]
+      }
+    },
+    {
+      "path": "/watchlist",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "count",
+        "entries",
+        "provenance"
+      ],
+      "summary": {
+        "n": 6
+      }
+    },
+    {
+      "path": "/search?plate=GJ01TA0001",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "anomalies",
+        "cameras_considered",
+        "cameras_pruned",
+        "candidates",
+        "prune_reason",
+        "query",
+        "result_count",
+        "search_strategy",
+        "sighting",
+        "stage_counts"
+      ],
+      "summary": {
+        "result_count": 1,
+        "has_sighting": false,
+        "candidates": 1
+      }
+    },
+    {
+      "path": "/alerts?status=OPEN",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "alerts",
+        "count",
+        "stats"
+      ],
+      "summary": {
+        "n": 1
+      }
+    },
+    {
+      "path": "/follow/GJ01TA0001",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "candidates",
+        "contradictions",
+        "evidence_refs",
+        "note",
+        "query",
+        "route",
+        "route_confidence",
+        "timeline"
+      ],
+      "summary": {
+        "timeline_n": 3,
+        "route_keys": null,
+        "route_confidence": {
+          "confirmed_sightings": 1,
+          "ranked_follow_ups": 2,
+          "contradictions": 1,
+          "meaning": "engineering ordering score; candidates require operator verification, and are not identity claims"
+        },
+        "contradictions": 1
+      }
+    },
+    {
+      "path": "/trajectory/GJ01TA0001",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "anomalies",
+        "gap_candidates",
+        "hypotheses",
+        "observations",
+        "score_semantics",
+        "target",
+        "timebase"
+      ],
+      "summary": {
+        "n": 1
+      }
+    },
+    {
+      "path": "/audit?limit=8",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "chain_error",
+        "chain_verified",
+        "count",
+        "entries"
+      ],
+      "summary": {
+        "n": 8
+      }
+    },
+    {
+      "path": "/command/systems",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "contract",
+        "label",
+        "provenance",
+        "systems"
+      ],
+      "summary": {
+        "n_keys": 4
+      }
+    },
+    {
+      "path": "/gis/extent",
+      "http": 200,
+      "ok": true,
+      "keys": [
+        "cameras_without_location",
+        "extent"
+      ],
+      "summary": {
+        "n_keys": 2
+      }
+    }
+  ]
+}

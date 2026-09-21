@@ -1,0 +1,54 @@
+{
+  "timestamp_utc": "2026-09-16T22:17:28.833630+00:00",
+  "direct_whep_historical": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam12",
+    "cam13",
+    "cam14",
+    "cam16",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam23",
+    "cam26"
+  ],
+  "passes": [
+    {
+      "name": "sequential_30",
+      "visible": 0,
+      "classes": {
+        "WHEP_UNAVAILABLE": 30
+      },
+      "elapsed_s": 33.75
+    },
+    {
+      "name": "groups_of_10",
+      "visible": [
+        6,
+        3,
+        2
+      ]
+    },
+    {
+      "name": "direct15",
+      "visible": 14,
+      "classes": {
+        "LIVE": 14,
+        "WHEP_UNAVAILABLE": 1
+      }
+    },
+    {
+      "name": "direct15_stagger",
+      "visible": 9,
+      "classes": {
+        "LIVE": 9,
+        "WHEP_UNAVAILABLE": 6
+      }
+    }
+  ]
+}

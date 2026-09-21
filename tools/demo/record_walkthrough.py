@@ -137,10 +137,15 @@ def steps(page, plate: str, case_id: str) -> list[Step]:
 
     def nav_overview():
         page.click('button[data-view="overview"]')
+        # Wait on what the Overview actually renders. The previous conditions
+        # looked for "shift picture", an "N observations" count and a
+        # `.health-row` element - copy and markup this screen no longer has, so
+        # the step timed out after 45s and the recording lost its opening
+        # frame while the page underneath was rendering perfectly.
         page.wait_for_function(
-            "() => /shift picture/i.test(document.body.innerText)"
-            + " && /[\\d,]+\\s+observations/.test(document.body.innerText)"
-            + " && document.querySelectorAll('.health-row').length >= 1",
+            "() => /cameras onboarded/i.test(document.body.innerText)"
+            + " && /alerts unacknowledged/i.test(document.body.innerText)"
+            + " && /marks read/i.test(document.body.innerText)",
             timeout=45000)
         page.wait_for_timeout(800)
 
@@ -177,19 +182,41 @@ def steps(page, plate: str, case_id: str) -> list[Step]:
         page.wait_for_timeout(800)
 
     def open_live_and_wait():
+        # Reaching Live by clicking the nav after Overview, Cameras, Analytics
+        # and the map used to leave the grid permanently empty. The loader was
+        # not abandoning the paint: its camera-list request was queued behind
+        # ~30 uncancellable multi-second snapshot captures issued by the map's
+        # registry rail, against a six-connection-per-origin budget, so the
+        # await never returned. Snapshot captures are now bounded and aborted
+        # when the view is left (see reports/CLAUDE_LIVE_WALL_STARVATION.md),
+        # and this path paints. The reload retry below is kept as a safety net.
         page.click('button[data-view="live"]')
-        # Isolated Live paints 30 tiles in <20 s. After Overview+Analytics+Map
-        # the same call can wait on SQLite. Wait for tiles only; chips travel
-        # with them. Stills may badge later.
-        page.wait_for_selector("#live .live-tile", timeout=90000)
         try:
-            page.wait_for_function(
-                "() => document.querySelectorAll('#live .live-tile .badge').length >= 4"
-                + " && /plates in store/i.test(document.body.innerText)",
-                timeout=20000)
+            page.wait_for_selector("#live .live-tile", timeout=12000)
+        except Exception:
+            page.goto(page.url.split("#")[0] + "#live", wait_until="domcontentloaded")
+            page.wait_for_timeout(1500)
+            page.click('button[data-view="live"]')
+            page.wait_for_selector("#live .live-tile", timeout=60000)
+        decoding = ("() => [...document.querySelectorAll('#live-grid video')]"
+                    + ".filter(v => v.readyState >= 2 && v.videoWidth > 0).length >= 6")
+        # Wait for video that is genuinely decoding, not merely present.
+        try:
+            page.wait_for_function(decoding, timeout=60000)
         except Exception:
             pass
-        page.wait_for_timeout(1500)
+        # Only now narrow the wall. The session budget is twelve, so twelve
+        # tiles is the size at which the wall is actually full rather than two
+        # thirds black. Switching before the first sessions exist loses the
+        # race against the repaint and lands on cached stills reading
+        # "0 live sessions" - which is what happened when this was attempted
+        # earlier, and is why the wait above comes first.
+        page.click('[data-live-wall="12"]')
+        try:
+            page.wait_for_function(decoding, timeout=45000)
+        except Exception:
+            pass
+        page.wait_for_timeout(2500)
 
     def open_map():
         page.click('button[data-view="map"]')
@@ -307,7 +334,20 @@ def record(base: str, token: str, plate: str, case_id: str,
             except Exception as exc:
                 ok, err = False, f"{type(exc).__name__}: {exc}"[:120]
             page.wait_for_timeout(700)
-            page.screenshot(path=str(png))
+            # Playwright waits for webfonts before every screenshot, and on a
+            # page holding a dozen live WebRTC decoders that wait has timed out
+            # and aborted an entire recording after twelve good steps. The
+            # fonts are already loaded by this point in the walkthrough; a
+            # missed glyph would cost one frame, a raised exception costs the
+            # take. Give it room, then fall back rather than lose the run.
+            try:
+                page.screenshot(path=str(png), timeout=90000)
+            except Exception as exc:
+                try:
+                    page.screenshot(path=str(png), timeout=90000,
+                                    animations="disabled", caret="initial")
+                except Exception:
+                    ok, err = False, f"screenshot: {type(exc).__name__}"[:120]
             rec.shots.append(Shot(png=png, step=st, ok=ok, error=err))
             print(f"  {i:02d}  {st.title[:46]:<48} {'ok' if ok else err}")
         browser.close()

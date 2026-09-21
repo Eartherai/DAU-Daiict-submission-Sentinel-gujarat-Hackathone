@@ -1,4 +1,4 @@
-"""Record the designated-vehicle path on the LOCAL SYNTHETIC store.
+"""Record the designated-vehicle path on the own controlled corpus.
 
 The government grid has 0 cross-camera plate repeats. Expected outputs 1–3
 (identify, timestamped route, watchlist alert) exist together on `var/demo.db`.
@@ -28,7 +28,7 @@ from saakshya.common.paths import display
 W, H = 1920, 1080
 CASE = "FIR-214/2026"
 PURPOSE = "designated vehicle on own CCTV"
-PLATE = "GJ05AB1234"
+PLATE = "GJ18JX7786"
 PLATE2 = "GJ35BV6925"
 ALERT = "GJ15NT6564"
 
@@ -65,8 +65,8 @@ CHAPTERS = [
      "Then a plate camera from the local corpus. Watchlist matching runs in ingest."),
     ("find",
      "Identify",
-     "G J 0 5 A B 1 2 3 4 — found on two cameras.",
-     "Find G J zero five A B one two three four. Two observations: Naroda Circle and the depot gate. "
+     "G J 1 8 J X 7 7 8 6 — found on two cameras.",
+     "Find G J one eight J X seven seven eight six. Two observations: Naroda Circle and the depot gate. "
      "Each row carries the basis of the match."),
     ("route",
      "Route",
@@ -76,12 +76,17 @@ CHAPTERS = [
     ("alerts",
      "Watchlist",
      "Representative list. Automated alert on a match.",
-     "A representative watchlist — ours. G J zero five A B one two three four is stolen-vehicle, open, "
+     "A representative watchlist — ours. G J one eight J X seven seven eight six is stolen-vehicle, open, "
      "and a second mark is high. Continuous cross-reference is ingest."),
     ("map",
      "Estate map",
      "OpenStreetMap streets. Nothing invented onto the map.",
      "The estate map uses OpenStreetMap streets. Cameras sit where a name was enough to place them."),
+    ("federation",
+     "Federation",
+     "M3 · adapters, event fabric, unchanged source systems.",
+     "The federation layer keeps source systems independent. Adapters normalize access and events, "
+     "then route only the metadata and authorised viewing sessions that the command centre needs."),
     ("copilot",
      "Copilot",
      "A real question against this store.",
@@ -122,7 +127,7 @@ SLATE_SHOW = """({title, dek, kicker}) => {
   const a = document.createElement('span');
   a.textContent = 'Gujarat Police Innovation Challenge 2026';
   const b = document.createElement('span');
-  b.textContent = 'LOCAL SYNTHETIC  ·  not government data';
+  b.textContent = 'OWN CONTROLLED CORPUS  ·  not government data';
   foot.append(a, b);
   s.replaceChildren(k, h, p, foot);
 }"""
@@ -192,7 +197,7 @@ class Tour:
         sel = (
             f'button.primary-nav[data-view="{view}"]'
             if view in {
-                "overview", "investigate", "alerts", "evidence",
+                "overview", "investigate", "alerts", "evidence", "intelligence",
                 "live", "cameras", "analytics", "system"}
             else f'button.sub-nav[data-view="{view}"]')
         self.page.locator(sel).scroll_into_view_if_needed()
@@ -280,51 +285,16 @@ class Tour:
         self.finish("signin", 800)
 
         self.chapter("live")
-        self.nav("live", 1400)
+        # The current product's own-feed presentation is the Intelligence
+        # workspace: two labelled participant replays with stored analytics.
+        # The old Focus-stage selector belonged to a retired layout and made a
+        # recording wait on a node that no longer exists.
+        self.nav("intelligence", 1400)
         self.wait_text(
-            "() => document.querySelectorAll('#live .live-tile').length >= 2",
-            45000, "own live tiles")
-        self.wait_text(
-            "() => { const s = document.querySelector('#live-stage img'); "
-            "return !!(s && s.naturalWidth > 40); }",
-            60000, "own focus stage")
-        self.wait_text(
-            "() => /Live/.test(document.querySelector('#live-stage .hud-chip.live')?.textContent || '')",
-            25000, "own live chip")
-        self.wait_text(
-            "() => [...document.querySelectorAll('#live-strip .live-tile .frame img')]"
+            "() => [...document.querySelectorAll('#view-intelligence img[alt^=\"OWN-\"]')]"
             ".filter(i => i.naturalWidth > 40).length >= 2",
-            45000, "strip stills")
-        self.hold(2000)
-        for cam, hold_ms in (("OWN-PEOPLE", 24000), ("OWN-TRAFFIC", 24000), ("C-014", 4500)):
-            sel = f'#live-strip .live-tile[data-camera="{cam}"]'
-            loc = p.locator(sel).first
-            self.wait_text(
-                f"() => !!document.querySelector('#live .live-tile[data-camera=\"{cam}\"]')",
-                20000, f"{cam} tile")
-            try:
-                loc.scroll_into_view_if_needed()
-                loc.click(force=True)
-            except Exception as exc:
-                print(f"    click {cam}: {type(exc).__name__}", flush=True)
-            self.wait_text(
-                "() => { const s = document.querySelector('#live-stage img'); "
-                "return !!(s && s.naturalWidth > 40); }",
-                20000, f"{cam} playing")
-            self.wait_text(
-                "() => /Live/.test(document.querySelector('#live-stage .hud-chip.live')?.textContent || '')",
-                20000, f"{cam} live")
-            self.hold(hold_ms)
-            try:
-                p.locator("#here-plates").scroll_into_view_if_needed()
-                self.hold(1600)
-            except Exception:
-                pass
-        try:
-            p.locator('#live-strip .live-tile[data-camera="OWN-PEOPLE"]').click(force=True)
-            self.hold(1200)
-        except Exception:
-            pass
+            45000, "own-feed Intelligence previews")
+        self.hold(22000)
         self.finish("live", 800)
 
         self.chapter("find")
@@ -373,10 +343,18 @@ class Tour:
         self.hold(3200)
         self.finish("map", 800)
 
+        self.chapter("federation")
+        self.nav("system", 1400)
+        self.wait_text(
+            "() => /Hybrid architecture|systems|federat/i.test(document.getElementById('system')?.innerText || '')",
+            30000, "federation system view")
+        self.hold(3600)
+        self.finish("federation", 800)
+
         self.chapter("copilot")
         self.nav("copilot", 1400)
         self.hold(2200)
-        self.ask("Where was GJ05AB1234 seen, and is it on the watchlist?")
+        self.ask("Where was GJ18JX7786 seen, and is it on the watchlist?")
         self.hold(5000)
         self.finish("copilot", 800)
 

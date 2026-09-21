@@ -1,8 +1,6 @@
 """Phase 18 command-center, federation, overlay and investigation helpers."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from saakshya.command.investigate import entity_tracking, event_search, subject_label
 from saakshya.command.scale import (
     adapter_load,
@@ -17,7 +15,7 @@ from saakshya.federation.bus import EventBus, FederatedEvent
 from saakshya.intelligence import CameraGraph, VehicleSearch
 from saakshya.live.annotate import overlay_allows
 from saakshya.store import Store
-from saakshya.watchlist.alerts import parse_alert_status, AlertStatus
+from saakshya.watchlist.alerts import AlertStatus, parse_alert_status
 from tests.conftest import make_observation
 
 
@@ -34,7 +32,6 @@ def test_people_count_is_zero_when_store_has_only_vehicles(tmp_path):
     store = Store(f"sqlite:///{tmp_path / 'c.db'}")
     store.create_all()
     store.upsert_camera({"camera_id": "CAM-001", "district": "Ahmedabad"})
-    t = datetime(2026, 9, 17, tzinfo=UTC)
     store.add_observations([
         make_observation("CAM-001", plate="GJ01AA1111", offset_s=0),
     ])
@@ -99,7 +96,7 @@ def test_event_search_and_contradiction_card(tmp_path):
     card = entity_tracking(follow, category="stolen_vehicle")
     assert card["target"] == "WATCHLIST MATCH"
     assert any(t["result"] == "CONTRADICTION" for t in card["transitions"])
-    assert card["hops"][0]["role"] == "FIRST DETECTION"
+    assert card["hops"][0]["role"] == "FIRST SEEN"
 
 
 def test_synthetic_registry_and_50_eval(tmp_path):
@@ -114,6 +111,8 @@ def test_synthetic_registry_and_50_eval(tmp_path):
     spec = seed_50_evaluation(fifty)
     assert spec["onboarded"] == 50
     assert spec["real_probe_ids"] == 30
+    assert spec["own_feeds"] == 2
+    assert spec["synthetic_control"] == 18
     assert "not 50 government" in spec["label"]
 
 

@@ -496,6 +496,7 @@ tests/              unit · integration · e2e · security
 | [SCALE_MODEL.md](docs/SCALE_MODEL.md) | Where it breaks first |
 | [MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md) | Quote sheet |
 | [SENTINEL_SANDBOX.md](docs/SENTINEL_SANDBOX.md) | Live grid |
+| [DEMO_SIMULATION.md](docs/DEMO_SIMULATION.md) | Isolated 30-channel archival replay demo |
 | [JUDGE_QA.md](docs/JUDGE_QA.md) | Hard questions |
 | [FINAL_RED_TEAM.md](docs/FINAL_RED_TEAM.md) | Attacks we ran on ourselves |
 | [PORTAL_UPLOAD.md](docs/PORTAL_UPLOAD.md) | Submit checklist |

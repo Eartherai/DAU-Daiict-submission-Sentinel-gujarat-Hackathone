@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr087">
+<link rel="stylesheet" href="/ui/style.css?v=cr108">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -74,6 +74,14 @@
     <span class="feed-indicator" id="feed-central">CENTRAL ANALYTICS MODE: not reported</span>
   </div>
 
+  <nav class="product-modes" id="product-modes" aria-label="Command modes">
+    <button type="button" class="on" data-product="operations" aria-pressed="true">OPERATIONS</button>
+    <button type="button" data-product="intelligence" aria-pressed="false">INTELLIGENCE</button>
+    <button type="button" data-product="investigation" aria-pressed="false">INVESTIGATION</button>
+    <button type="button" data-product="system" aria-pressed="false">SYSTEM</button>
+    <span class="product-claim" id="product-claim">Centralized analytics and command orchestration with regional media/AI pools for statewide deployment.</span>
+  </nav>
+
   <!-- Seven places, named for what an officer is trying to do rather than for
        the subsystem behind them. Overview is where the shift starts; Investigate
        is where the work happens. The camera wall is deliberately not the front
@@ -92,8 +100,11 @@
             title="Hash-chained case file. Integrity and wording are reported apart.">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M8 12h8"/></svg></span>Evidence</button>
     <button class="primary-nav" data-view="live"
-            title="Every onboarded camera. Stills from ingest; click one for moving video.">
+            title="Select an onboarded camera for moving video. Cached images are labelled PREVIEW.">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l5-2.5-5-2.5z"/></svg></span>Live<span class="count" id="n-live"></span></button>
+    <button class="primary-nav" data-view="intelligence"
+            title="Model 4 central intelligence on the two own golden feeds.">
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg></span>Intelligence</button>
     <button class="primary-nav" data-view="cameras"
             title="Measured ANPR and appearance grade per camera, not a catalogue claim.">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>Cameras<span class="count" id="n-cameras"></span></button>
@@ -101,7 +112,7 @@
             title="What this estate can actually do: marks, persons, timebase clusters.">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M8 17V9"/><path d="M12 17V5"/><path d="M16 17v-6"/></svg></span>Analytics</button>
     <button class="primary-nav" data-view="system"
-            title="Hybrid architecture, health, Sentinel checklist. Model 4 was not built.">
+            title="Hybrid architecture, federation, scheduler. Selective Model 4 analytics; not 80k central recording.">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></span>System<span class="dot" id="sys-dot"></span></button>
 
     <div class="nav-group">Within investigate</div>
@@ -179,6 +190,7 @@
                 <input type="text" id="q-severity" placeholder="HIGH, CRITICAL" autocomplete="off">
               </div>
             </div>
+        <button class="primary" type="submit">Search</button>
       </form>
 
       <div class="workspace">
@@ -203,6 +215,7 @@
             <span class="n" id="traj-target"></span>
             <div style="margin-left:auto;display:flex;gap:4px">
               <button class="ghost" id="btn-fit">Fit</button>
+              <button class="ghost" id="btn-focus-target">FOCUS TARGET</button>
               <button class="ghost" id="btn-attach-traj">Attach to case</button>
             </div>
           </div>
@@ -291,13 +304,25 @@
             <span class="n" id="live-progress" role="status" aria-live="polite"></span>
           </div>
           <div class="live-layouts" role="tablist" aria-label="Live layout">
+            <button type="button" id="btn-command-bar" aria-pressed="false"
+                    title="Show or hide filters, presets and analytics. The wall is usable with them hidden.">COMMAND BAR</button>
+            <span class="media-policy" id="media-policy" data-policy="optimized"
+                  title="Which media policy is in force. Never switched silently.">OPTIMIZED VIEW</span>
             <span class="live-control-label">Wall</span>
             <button type="button" class="on" data-live-wall="12" aria-pressed="true">12</button>
             <button type="button" data-live-wall="16" aria-pressed="false" title="4×4">16</button>
             <button type="button" data-live-wall="25" aria-pressed="false" title="5×5">25</button>
             <button type="button" data-live-wall="30" aria-pressed="false" title="6×5">30</button>
+            <button type="button" data-live-wall="50" aria-pressed="false" title="10×5 logical wall">50</button>
             <button type="button" data-live-wall="9" aria-pressed="false">9</button>
             <button type="button" data-live-wall="4" aria-pressed="false">4</button>
+            <span class="live-control-label">Domain</span>
+            <button type="button" data-live-domain="government" aria-pressed="false">GOVERNMENT MODE</button>
+            <button type="button" data-live-domain="intelligence" aria-pressed="false">INTELLIGENCE DEMO</button>
+            <button type="button" data-live-domain="fifty" aria-pressed="false">50-CAMERA</button>
+            <button type="button" data-live-domain="simulation" aria-pressed="false"
+                    title="Isolated 30-channel archival replay demo — never the government relay">LIVE SIMULATION</button>
+            <button type="button" class="on" data-live-domain="all" aria-pressed="true">ALL</button>
             <span class="live-control-label live-priority-label">Priority</span>
             <button type="button" class="on" data-live-priority="all" aria-pressed="true">All</button>
             <button type="button" data-live-priority="primary" aria-pressed="false">Primary</button>
@@ -305,9 +330,9 @@
             <button type="button" data-live-priority="preview" aria-pressed="false">Preview</button>
             <button type="button" data-live-priority="inactive" aria-pressed="false">Inactive</button>
             <span class="live-control-label live-focus-label">View</span>
-            <button type="button" class="on" data-live-layout="focus">Focus</button>
+            <button type="button" data-live-layout="focus">Focus</button>
             <button type="button" data-live-layout="twoup">Two up</button>
-            <button type="button" data-live-layout="grid">Grid</button>
+            <button type="button" class="on" data-live-layout="grid">Grid</button>
             <button type="button" data-live-layout="dense">Dense</button>
             <button type="button" data-live-layout="tab">Tab</button>
             <button type="button" class="telemetry-toggle" id="btn-telemetry"
@@ -316,20 +341,26 @@
         </div>
         <div class="live-intel" id="live-intel" role="toolbar" aria-label="Analytics overlay">
           <span class="live-control-label">Analytics</span>
-          <button type="button" data-intel="off">ANALYTICS OFF</button>
-          <button type="button" class="on" data-intel="on" aria-pressed="true">ANALYTICS ON</button>
-          <span class="live-control-label">Mode</span>
-          <button type="button" data-viewmode="video">VIDEO</button>
+          <button type="button" data-viewmode="video">OFF</button>
           <button type="button" data-viewmode="vehicles">VEHICLES</button>
           <button type="button" data-viewmode="people">PEOPLE</button>
+          <button type="button" data-viewmode="both">VEHICLES + PEOPLE</button>
           <button type="button" data-viewmode="anpr">ANPR</button>
           <button type="button" class="on" data-viewmode="full" aria-pressed="true">FULL</button>
           <button type="button" data-viewmode="incident">INCIDENT</button>
+          <span class="live-control-label">AI cadence</span>
+          <button type="button" data-cadence="FAST">FAST</button>
+          <button type="button" class="on" data-cadence="BALANCED" aria-pressed="true">BALANCED</button>
+          <button type="button" data-cadence="DEEP">DEEP</button>
+          <span class="live-control-label">Filter</span>
+          <button type="button" class="on" data-scene-filter="all" aria-pressed="true">ALL</button>
+          <button type="button" data-scene-filter="vehicles">VEHICLES</button>
+          <button type="button" data-scene-filter="people">PEOPLE</button>
           <span class="live-control-label">Show</span>
           <button type="button" class="on" data-class="people" aria-pressed="true">PEOPLE</button>
           <button type="button" class="on" data-class="vehicles" aria-pressed="true">VEHICLES</button>
           <button type="button" class="on" data-class="anpr" aria-pressed="true">ANPR</button>
-          <button type="button" class="on" data-class="tracking" aria-pressed="true">TRACKING</button>
+          <button type="button" class="on" data-class="tracking" aria-pressed="true">SHOW TRACKS</button>
           <button type="button" id="btn-compare" aria-pressed="false">COMPARE</button>
           <span class="live-counts" id="live-counts">People: 0 · Vehicles: 0 · Tracked: 0</span>
         </div>
@@ -337,6 +368,9 @@
           <span class="live-control-label">Preset</span>
           <button type="button" data-preset="control-room">CONTROL ROOM</button>
           <button type="button" data-preset="overview-30">30-CAMERA OVERVIEW</button>
+          <button type="button" data-preset="overview-50">50-CAMERA WALL</button>
+          <button type="button" data-preset="government">GOVERNMENT MODE</button>
+          <button type="button" data-preset="intelligence-demo">INTELLIGENCE DEMO</button>
           <button type="button" data-preset="traffic">TRAFFIC INTELLIGENCE</button>
           <button type="button" data-preset="person-search">PERSON SEARCH</button>
           <button type="button" data-preset="watchlist-incident">WATCHLIST INCIDENT</button>
@@ -354,7 +388,7 @@
             <div><dt>Decoded / dropped</dt><dd id="telemetry-frames">UNAVAILABLE</dd></div>
             <div><dt>Packets / jitter</dt><dd id="telemetry-network">UNAVAILABLE</dd></div>
             <div><dt>Codec</dt><dd id="telemetry-codec">not reported</dd></div>
-            <div><dt>CPU / GPU</dt><dd id="telemetry-resources">UNAVAILABLE — browser APIs do not reliably expose these values.</dd></div>
+            <div><dt>CPU / GPU</dt><dd id="telemetry-resources">CPU UNAVAILABLE · GPU NOT_MEASURED</dd></div>
           </dl>
         </section>
         <div class="live-filters" id="live-filters"></div>
@@ -363,6 +397,96 @@
           <div class="col-head">Entity tracking</div>
           <div class="col-body pad" id="track-body"></div>
         </aside>
+      </div>
+    </section>
+
+    <!-- ══ INTELLIGENCE (Model 4 hero) ══════════════════════════════════ -->
+    <section class="view" id="view-intelligence">
+      <div class="intel-shell">
+        <header class="intel-hero">
+          <div>
+            <p class="intel-kicker">MODEL 4 — CENTRAL INTELLIGENCE COMMAND</p>
+            <h2>Own golden feeds · full analytics</h2>
+            <p class="intel-claim">Centralized analytics and command orchestration with regional media/AI pools for statewide deployment. Not a claim that 80,000 cameras are processed centrally.</p>
+          </div>
+          <div class="intel-health" id="intel-health"></div>
+          <div class="intel-feeds-badge">
+            <span>OWN FEED A · PEOPLE</span>
+            <span>OWN FEED B · TRAFFIC</span>
+            <span class="demo-flag">DEMO / CONTROLLED TEST when a fixture is used</span>
+          </div>
+        </header>
+        <div class="m4-arch" aria-label="Architecture">
+          <div>CAMERA SOURCES</div>
+          <div>REGIONAL INGEST</div>
+          <div>MEDIA / EVENT FABRIC</div>
+          <div class="m4-split">
+            <span>VIDEO PLANE · WHEP/HLS</span>
+            <span>AI PLANE · Detection / ANPR / Track / Watchlist / Alerts</span>
+          </div>
+          <div>COMMAND CENTER · VIDEO · GIS · INVESTIGATION</div>
+        </div>
+        <div class="intel-grid">
+          <div class="intel-col">
+            <div class="col-head">Own Feed A · OWN-PEOPLE
+              <button class="ghost" type="button" id="intel-open-a">Open video</button>
+            </div>
+            <div class="intel-stage" id="intel-stage-a" data-camera="OWN-PEOPLE"></div>
+          </div>
+          <div class="intel-col">
+            <div class="col-head">Own Feed B · OWN-TRAFFIC
+              <button class="ghost" type="button" id="intel-open-b">Open video</button>
+            </div>
+            <div class="intel-stage" id="intel-stage-b" data-camera="OWN-TRAFFIC"></div>
+          </div>
+        </div>
+        <div class="intel-resources" id="intel-resources" aria-label="Model 4 resource panel"></div>
+        <div class="intel-kpis" id="intel-kpis" aria-label="Command KPIs"></div>
+        <div class="intel-scene" id="intel-scene"></div>
+        <div class="intel-work">
+          <div class="intel-col">
+            <div class="col-head">ANPR LIVE
+              <form id="intel-plate-form" class="intel-search">
+                <label class="sr-only" for="intel-plate">Search plate</label>
+                <input id="intel-plate" class="mono" placeholder="SEARCH PLATE" autocomplete="off">
+                <button class="primary" type="submit">Search</button>
+              </form>
+            </div>
+            <div class="col-body" id="intel-plates"></div>
+          </div>
+          <div class="intel-col">
+            <div class="col-head">WATCHLIST
+              <div class="intel-wl-cats" id="intel-wl-cats">
+                <button type="button" class="on" data-wl-cat="">ALL</button>
+                <button type="button" data-wl-cat="stolen_vehicle">STOLEN VEHICLE</button>
+                <button type="button" data-wl-cat="wanted_vehicle">WANTED VEHICLE</button>
+                <button type="button" data-wl-cat="wanted_person">WANTED PERSON</button>
+                <button type="button" data-wl-cat="missing_person">MISSING PERSON</button>
+                <button type="button" data-wl-cat="blacklisted_vehicle">BLACKLIST</button>
+                <button type="button" data-wl-cat="custom">CUSTOM</button>
+              </div>
+            </div>
+            <div class="col-body" id="intel-watchlist"></div>
+          </div>
+        </div>
+        <div class="intel-track">
+          <div class="col-head">WHERE DID THE TARGET GO?
+            <form id="intel-track-form" class="intel-search">
+              <label class="sr-only" for="intel-track-q">Track target</label>
+              <input id="intel-track-q" class="mono" placeholder="Plate · TRACK TARGET" autocomplete="off">
+              <button class="primary" type="submit">TRACK TARGET</button>
+              <button class="ghost" type="button" id="intel-focus">FOCUS TARGET</button>
+            </form>
+          </div>
+          <div class="intel-track-body">
+            <div id="intel-hops"></div>
+            <div class="intel-map-wrap">
+              <div class="gmap-host" aria-hidden="true"></div>
+              <canvas id="intel-map" class="map"></canvas>
+            </div>
+            <div id="intel-evidence" class="col-body pad"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -459,7 +583,7 @@
             <b>Investigate</b> — type a registration mark. Results, route and evidence open from the same search.<br>
             <b>Alerts</b> — watchlist hits raised by ingest, not by refreshing this page. Stolen / wanted / missing lists are ours, not a government feed.<br>
             <b>Evidence</b> — hash-chained records. A still is never enhanced.<br>
-            <b>Live</b> — every onboarded camera. Each tile is a decoded still with detector boxes. Click one camera for moving video (one extra stream, RTSP over TCP, timed from PTS).<br>
+            <b>Live</b> — select a camera for moving video. Government playback uses same-origin Direct WHEP signaling, with a measured 12-session ceiling; a tile is called LIVE only after its browser player starts. Any cached image is explicitly labelled PREVIEW, never live video.<br>
             <b>Cameras</b> — ANPR / appearance grades measured from the stream, not claimed by the catalogue.<br>
             <b>Analytics</b> — distinct marks, person observations, which clocks may share a timeline.<br>
             <b>System</b> — hybrid Models 1+2+3+4 (selective central analytics) + 5 (adaptive media). Departmental VMS systems are not replaced.<br>
@@ -530,16 +654,22 @@
       <p>A CCTV intelligence and evidence fabric for the state camera estate.
          Every camera is graded by what it can actually prove, every query is
          attributed, and nothing is asserted that the store cannot substantiate.
-         Proposed for the Gujarat Police Innovation Challenge 2026 — Hybrid models 1+2+3.</p>
+         Proposed for the Gujarat Police Innovation Challenge 2026 — Hybrid models 1+2+3+4.</p>
     </div>
   </div>
   <div class="gate-panel">
     <h2>Sign in</h2>
-    <p>Paste the bearer token issued to you. It is held in this browser tab only, for this session, and never written to disk.</p>
+    <p>Enter your Officer ID and the bearer token issued to you. The token is
+       held in this browser tab only, for this session, and never written to
+       disk. Both are checked against the server before the workspace opens.</p>
     <form id="gate-form">
       <div class="field">
-        <label for="gate-token">Bearer token</label>
-        <input id="gate-token" class="mono" type="password" autocomplete="off" placeholder="skv_…">
+        <label for="gate-officer">Officer ID</label>
+        <input id="gate-officer" class="mono" placeholder="e.g. inv.patel" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="gate-token">Access token</label>
+        <input id="gate-token" class="mono" type="password" autocomplete="off" placeholder="skv_…" required>
       </div>
       <div class="field">
         <label for="gate-case">Case</label>
@@ -551,10 +681,36 @@
       </div>
       <button class="primary" type="submit">Enter the workspace</button>
     </form>
-    <p class="gate-note">Case and purpose are written with every query into a hash-chained audit log. A search without a stated purpose is refused.</p>
+    <p class="gate-note">The token authenticates you; the Officer ID confirms
+       it is your token — a mismatch is refused before entry. Case and purpose
+       are written with every query into a hash-chained audit log. A search
+       without a stated purpose is refused.</p>
+    <details class="gate-roles">
+      <summary>What each role can do</summary>
+      <ul>
+        <li><b>ADMIN</b> — registry, users, policy. Never search or read vehicle movement.</li>
+        <li><b>SUPERVISOR</b> — statewide investigation and watchlist authority.</li>
+        <li><b>INVESTIGATOR</b> — district-scoped investigation.</li>
+        <li><b>OPERATOR</b> — control room: alerts and health, no search.</li>
+        <li><b>AUDITOR</b> — reads the audit log and camera identity, never observations or evidence.</li>
+        <li><b>SERVICE</b> — edge node sync; machine-to-machine, not an officer sign-in.</li>
+      </ul>
+    </details>
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr087"></script>
+<script type="module" src="/ui/app.js?v=cr135"></script>
+<dialog id="jump-dialog">
+  <form method="dialog" class="jump-form">
+    <h3>JUMP TO EVENT</h3>
+    <p id="jump-event-time">EVENT TIMESTAMP: —</p>
+    <p id="jump-live-pos">CURRENT LIVE POSITION: —</p>
+    <p class="section-note" id="jump-note"></p>
+    <menu>
+      <button class="ghost" value="cancel">Close</button>
+      <button class="primary" value="open">Open camera</button>
+    </menu>
+  </form>
+</dialog>
 </body>
 </html>

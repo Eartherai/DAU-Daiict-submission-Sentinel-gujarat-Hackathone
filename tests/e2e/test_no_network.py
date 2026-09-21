@@ -167,8 +167,8 @@ def test_the_api_serves_with_no_basemap_and_no_network(no_network, chain,
 
     state = AppState()
     assert not state.tile_template, "a tile host was configured under test"
-    assert not getattr(state, "google_maps_key", ""), (
-        "a Google Maps key was configured under test")
+    if getattr(state, "google_maps_key", ""):
+        pytest.fail("a Google Maps key was configured under test")
     assert not no_network, f"reached out to {no_network}"
 
 

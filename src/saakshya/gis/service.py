@@ -25,6 +25,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import and_, func, not_, or_, select
+
+from saakshya.command.domain import annotate_camera
 from saakshya.intelligence.graph import CameraGraph, haversine_m
 from saakshya.store import Store
 
@@ -223,6 +226,7 @@ class MapService:
                 regions: tuple[str, ...] | None = None,
                 camera_types: tuple[str, ...] | None = None,
                 ai_statuses: tuple[str, ...] | None = None,
+                source_domains: tuple[str, ...] | None = None,
                 q: str | None = None,
                 max_features: int = MAX_FEATURES) -> dict[str, Any]:
         """Camera layer, filtered server-side and clustered when dense.
@@ -266,6 +270,8 @@ class MapService:
             if camera_types and (feat.get("camera_type") or "") not in camera_types:
                 continue
             if ai_statuses and (feat.get("ai_status") or "") not in ai_statuses:
+                continue
+            if source_domains and (feat.get("source_domain") or "") not in source_domains:
                 continue
             if q:
                 needle = q.lower()
@@ -311,7 +317,7 @@ class MapService:
         cap = caps.get(r["camera_id"], {})
         seen = observed if observed is not None else set()
         marks = _publication(pub or {}, r["camera_id"])
-        return {
+        feat = {
             "camera_id": r["camera_id"], "name": r["name"],
             "lat": r["lat"], "lon": r["lon"],
             "located": r.get("lat") is not None and r.get("lon") is not None,
@@ -325,6 +331,7 @@ class MapService:
             "vendor": r.get("vendor"), "camera_type": r.get("camera_type"),
             "vms": r.get("vms"),
             "integration_model": r.get("integration_model"),
+            "source_domain": r.get("source_domain") or None,
             "maintenance_status": r.get("maintenance_status"),
             "access_state": r.get("access_state"),
             "tier": r["tier"], "enabled": bool(r["enabled"]),
@@ -346,6 +353,7 @@ class MapService:
             "plate_reads": cap.get("plate_reads"),
             **marks,
         }
+        return annotate_camera(feat)
 
     def _capability_by_camera(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         """Collapse per-time-band capability to one row per camera.
@@ -405,6 +413,94 @@ class MapService:
         }
 
     # -- capability -------------------------------------------------------- #
+    #: The five departments the hackathon dataset is drawn from. A department
+    #: with no camera is a coverage gap worth naming, so the expected set is
+    #: declared rather than inferred from whatever happens to be onboarded.
+    EXPECTED_DEPARTMENTS = (
+        "Health", "Home (Police)", "GSRTC", "Panchayat",
+        "Municipal Corporation",
+    )
+
+    def registry_gaps(self) -> dict[str, Any]:
+        """What the registry does not know about its own estate.
+
+        Model 1 asks for gap analysis, and a registry that reports only what it
+        holds is the least useful kind: the fields nobody filled in are exactly
+        the ones that block onboarding a department.
+
+        Counted in SQL rather than by loading the estate. The first version of
+        this walked `cameras_in_bbox`, which caps at 20,000 rows because it
+        exists to fill a map viewport — on an 80,000-camera estate it reported
+        gaps for a quarter of the cameras and said nothing about the rest. A
+        report that silently drops 60,000 rows is worse than no report.
+        """
+        from saakshya.store import schema as S
+
+        cams = S.cameras
+        real = not_(cams.c.camera_id.like("CTL-%"))
+        fields = ("department", "vms", "storage_location", "retention_days",
+                  "vendor", "camera_type")
+
+        with self.store.engine.connect() as c:
+            total = c.execute(select(func.count()).select_from(cams)
+                              .where(real)).scalar_one()
+            slots = c.execute(select(func.count()).select_from(cams)
+                              .where(cams.c.camera_id.like("CTL-%"))).scalar_one()
+
+            counts: dict[str, int] = {}
+            samples: dict[str, list[str]] = {}
+            for f in fields:
+                col = cams.c[f]
+                missing = col.is_(None)
+                if f != "retention_days":
+                    missing = or_(col.is_(None), func.trim(col) == "")
+                counts[f] = c.execute(select(func.count()).select_from(cams)
+                                      .where(and_(real, missing))).scalar_one()
+                samples[f] = [r[0] for r in c.execute(
+                    select(cams.c.camera_id).where(and_(real, missing))
+                    .order_by(cams.c.camera_id).limit(40))]
+
+            no_coords = and_(real, or_(cams.c.lat.is_(None), cams.c.lon.is_(None)))
+            counts["coordinates"] = c.execute(
+                select(func.count()).select_from(cams).where(no_coords)).scalar_one()
+            samples["coordinates"] = [r[0] for r in c.execute(
+                select(cams.c.camera_id).where(no_coords)
+                .order_by(cams.c.camera_id).limit(40))]
+
+            present = {(d or "(unrecorded)"): int(n) for d, n in c.execute(
+                select(cams.c.department, func.count()).where(real)
+                .group_by(cams.c.department).order_by(func.count().desc()))}
+
+            graded = select(S.camera_capability.c.camera_id).distinct().scalar_subquery()
+            ungraded_n = c.execute(
+                select(func.count()).select_from(cams)
+                .where(and_(real, cams.c.camera_id.notin_(graded)))).scalar_one()
+            ungraded = [r[0] for r in c.execute(
+                select(cams.c.camera_id)
+                .where(and_(real, cams.c.camera_id.notin_(graded)))
+                .order_by(cams.c.camera_id).limit(40))]
+
+        absent = [d for d in self.EXPECTED_DEPARTMENTS if d not in present]
+        gaps = [
+            {"field": f, "missing": counts[f], "of": total,
+             "pct": (round(100.0 * counts[f] / total, 1) if total else 0.0),
+             "cameras": samples[f],
+             "truncated": max(0, counts[f] - len(samples[f]))}
+            for f in sorted(counts, key=lambda k: -counts[k])
+        ]
+        return {
+            "cameras": total,
+            "capacity_slots": slots,
+            "departments_present": present,
+            "departments_expected": list(self.EXPECTED_DEPARTMENTS),
+            "departments_absent": absent,
+            "ungraded": {"count": ungraded_n, "cameras": ungraded},
+            "field_gaps": gaps,
+            "note": ("Counted across the whole registry in SQL. A field listed "
+                     "here is one no department has supplied yet, not one the "
+                     "platform cannot hold — the column exists in the schema."),
+        }
+
     def capability(self, *, bbox: BBox | None = None,
                    districts: tuple[str, ...] | None = None,
                    time_band: str | None = None,
@@ -432,6 +528,7 @@ class MapService:
         feats: list[dict[str, Any]] = []
         tally: dict[str, dict[str, int]] = {"anpr": {}, "vehicle": {},
                                             "presence": {}}
+        slots = 0
         for r in rows:
             bands = by_cam.get(r["camera_id"], [])
             best = max(bands, key=lambda b: b.get("samples") or 0, default=None)
@@ -440,9 +537,19 @@ class MapService:
                 "vehicle": (best or {}).get("vehicle_reid_grade") or "UNKNOWN",
                 "presence": (best or {}).get("presence_grade") or "UNKNOWN",
             }
-            for k, v in grades.items():
-                tally[k][v] = tally[k].get(v, 0) + 1
+            # A capacity slot has no stream, so it has nothing to grade. Counting
+            # it as UNKNOWN put eighteen reserved slots into the estate's
+            # capability figures and reported "21 not graded" for an estate with
+            # three ungraded cameras - measuring the padding, not the estate.
+            is_slot = str(r["camera_id"]).startswith("CTL-")
+            if is_slot:
+                slots += 1
+            else:
+                for k, v in grades.items():
+                    tally[k][v] = tally[k].get(v, 0) + 1
             feats.append({
+                "synthetic_slot": is_slot,
+                "source_domain": "SYNTHETIC_CONTROL" if is_slot else "GOVERNMENT",
                 "camera_id": r["camera_id"], "name": r.get("name"),
                 "lat": r["lat"], "lon": r["lon"],
                 "located": r["lat"] is not None and r["lon"] is not None,
@@ -465,6 +572,7 @@ class MapService:
                 **_publication(pub, r["camera_id"]),
             })
         return {"bbox": bb.to_dict(), "total": len(feats),
+                "cameras": len(feats) - slots, "capacity_slots": slots,
                 "unlocated": len(unlocated),
                 "grade_summary": tally, "features": feats,
                 "note": (f"{len(unlocated)} camera(s) have no coordinates and "

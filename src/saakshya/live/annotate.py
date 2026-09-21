@@ -148,12 +148,22 @@ def live_boxes(store: Store, camera_id: str, *,
     people_n = vehicles_n = plated = 0
     tracks: set[str] = set()
     boxes: list[dict[str, Any]] = []
+    classes = {"cars": 0, "buses": 0, "trucks": 0, "motorcycles": 0, "persons": 0}
     for rec in rows:
         otype = (rec.get("object_type") or "").lower()
         if otype == "person":
             people_n += 1
+            classes["persons"] += 1
         else:
             vehicles_n += 1
+            if otype == "bus":
+                classes["buses"] += 1
+            elif otype in {"truck", "truck_bus"}:
+                classes["trucks"] += 1
+            elif otype in {"motorcycle", "bicycle"}:
+                classes["motorcycles"] += 1
+            else:
+                classes["cars"] += 1
         if rec.get("track_id"):
             tracks.add(str(rec["track_id"]))
         if rec.get("plate"):
@@ -171,6 +181,7 @@ def live_boxes(store: Store, camera_id: str, *,
         "vehicles": vehicles_n,
         "tracked": len(tracks),
         "plates": plated,
+        "classes": classes,
         "note": ("Counts and boxes are recent store observations. "
                  "Zero means none stored — detections are never invented."),
     }

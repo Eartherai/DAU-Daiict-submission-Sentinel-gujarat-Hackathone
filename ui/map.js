@@ -122,9 +122,28 @@ class TileLayer {
 
 let _googleMaps = null;
 
-function loadGoogleMaps(key) {
+function hopsToTrajectory(hops) {
+  const nodes = (hops || []).filter((h) => h.lat != null && h.lon != null);
+  const legs = [];
+  for (let i = 1; i < nodes.length; i++) {
+    const a = nodes[i - 1], b = nodes[i];
+    const kind = (b.verdict === "CONTRADICTION" || b.kind === "CONTRADICTION")
+      ? "CONTRADICTION" : "OBSERVED";
+    legs.push({
+      from_lat: a.lat, from_lon: a.lon,
+      to_lat: b.lat, to_lon: b.lon,
+      kind,
+      elapsed: b.elapsed_label || b.elapsed,
+      distance_km: b.distance_km,
+    });
+  }
+  return { nodes, legs };
+}
+
+function loadGoogleMaps(loaderUrl) {
   if (window.google?.maps?.Map) return Promise.resolve(window.google.maps);
   if (_googleMaps) return _googleMaps;
+  const base = loaderUrl || "/maps/google-api";
   _googleMaps = new Promise((resolve, reject) => {
     const cb = "__saakshyaGmapsReady";
     window[cb] = () => {
@@ -132,8 +151,8 @@ function loadGoogleMaps(key) {
       resolve(window.google.maps);
     };
     const s = document.createElement("script");
-    s.src = "https://maps.googleapis.com/maps/api/js?key="
-      + encodeURIComponent(key) + "&callback=" + cb + "&v=weekly";
+    const join = base.includes("?") ? "&" : "?";
+    s.src = `${base}${join}callback=${cb}`;
     s.async = true;
     s.onerror = () => reject(new Error("Google Maps script failed to load"));
     document.head.appendChild(s);
@@ -145,8 +164,13 @@ export class MapView {
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
-    this.googleKey = opts.googleKey || "";
-    this.tiles = (!this.googleKey && opts.tileTemplate)
+    this.googleLoader = opts.googleLoader || "";
+    this.googleEnabled = Boolean(this.googleLoader);
+    this._tileFallback = {
+      template: opts.tileTemplate || "",
+      attribution: opts.attribution || "",
+    };
+    this.tiles = (!this.googleEnabled && opts.tileTemplate)
       ? new TileLayer(opts.tileTemplate, { attribution: opts.attribution })
       : null;
     if (this.tiles) this.tiles.onLoad = () => this._scheduleDraw();
@@ -168,11 +192,11 @@ export class MapView {
     this._hit = [];
     this._bind();
     this.resize();
-    if (this.googleKey) this._initGoogle();
+    if (this.googleEnabled) this._initGoogle();
   }
 
   setRasterBasemap(template, attribution) {
-    if (!template || this.googleKey) return;
+    if (!template || this._googleReady) return;
     this.tiles = new TileLayer(template, { attribution: attribution || "" });
     this.tiles.onLoad = () => this._scheduleDraw();
     this._scheduleDraw();
@@ -223,9 +247,9 @@ export class MapView {
     c.addEventListener("wheel", (e) => {
       e.preventDefault();
       const before = this._screenToLatLon(e.offsetX, e.offsetY);
-      const step = this.googleKey ? 1 : 0.4;
+      const step = this._googleReady || this.googleEnabled ? 1 : 0.4;
       this.zoom = Math.max(4, Math.min(19, this.zoom - Math.sign(e.deltaY) * step));
-      if (this.googleKey) this.zoom = Math.round(this.zoom);
+      if (this._googleReady || this.googleEnabled) this.zoom = Math.round(this.zoom);
       const after = this._screenToLatLon(e.offsetX, e.offsetY);
       // Keep the point under the cursor fixed while zooming.
       this.centre = [this.centre[0] + (before[0] - after[0]),
@@ -337,12 +361,28 @@ export class MapView {
     const zx = Math.log2((this.w / TILE) * (360 / lonSpan));
     const zy = Math.log2(this.h / TILE / ySpan);
     this.zoom = Math.max(3, Math.min(18, Math.min(zx, zy)));
-    if (this.googleKey) this.zoom = Math.round(this.zoom);
+    if (this._googleReady || this.googleEnabled) this.zoom = Math.round(this.zoom);
     this.draw();
     this.onViewport(this.bbox());
   }
 
   set(layer, data) { this.layers[layer] = data; this.draw(); }
+
+  focusTarget(hops) {
+    const pts = (hops || []).filter((h) => h.lat != null && h.lon != null);
+    this.layers.trajectory = hopsToTrajectory(hops);
+    if (!pts.length) { this.draw(); return; }
+    const lats = pts.map((h) => Number(h.lat));
+    const lons = pts.map((h) => Number(h.lon));
+    this.fit({
+      south: Math.min(...lats), north: Math.max(...lats),
+      west: Math.min(...lons), east: Math.max(...lons),
+    }, 0.45);
+    const last = pts[pts.length - 1];
+    this.centre = [Number(last.lat), Number(last.lon)];
+    this.selected = last.camera_id;
+    this.draw();
+  }
 
   /* ── drawing ────────────────────────────────────────────────────────── */
   _css(token) {
@@ -391,7 +431,7 @@ export class MapView {
     const host = this._ensureGoogleHost();
     if (!host) return;
     try {
-      const maps = await loadGoogleMaps(this.googleKey);
+      const maps = await loadGoogleMaps(this.googleLoader || "/maps/google-api");
       this.gmap = new maps.Map(host, {
         center: { lat: this.centre[0], lng: this.centre[1] },
         zoom: Math.round(this.zoom),
@@ -408,6 +448,14 @@ export class MapView {
       this.draw();
     } catch {
       this._googleReady = false;
+      this.googleEnabled = false;
+      if (this._tileFallback.template && !this.tiles) {
+        this.tiles = new TileLayer(this._tileFallback.template, {
+          attribution: this._tileFallback.attribution,
+        });
+        this.tiles.onLoad = () => this._scheduleDraw();
+      }
+      this.draw();
     }
   }
 
@@ -591,9 +639,14 @@ export class MapView {
 
   _trajectory() {
     const t = this.layers.trajectory;
-    if (!t || !t.legs) return;
+    if (!t) return;
+    const nodes = t.nodes || [];
+    let legs = t.legs || [];
+    if (!legs.length && nodes.length > 1) {
+      legs = hopsToTrajectory(nodes).legs;
+    }
     const ctx = this.ctx;
-    for (const leg of t.legs) {
+    for (const leg of legs) {
       if (leg.from_lat == null || leg.to_lat == null) continue;
       const [x1, y1] = this._toScreen(leg.from_lat, leg.from_lon);
       const [x2, y2] = this._toScreen(leg.to_lat, leg.to_lon);
@@ -604,10 +657,20 @@ export class MapView {
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
       ctx.setLineDash([]);
       this._arrow(x1, y1, x2, y2, this._css(st.token));
+      const bits = [
+        leg.elapsed,
+        leg.distance_km != null && Number.isFinite(Number(leg.distance_km))
+          ? `${Number(leg.distance_km).toFixed(1)} km` : null,
+      ].filter(Boolean);
+      if (bits.length) {
+        ctx.font = "600 9px ui-sans-serif, sans-serif";
+        ctx.fillStyle = this._css("--ink");
+        ctx.textAlign = "center";
+        ctx.fillText(bits.join(" · "), (x1 + x2) / 2, (y1 + y2) / 2 - 8);
+        ctx.textAlign = "left";
+      }
     }
-    // Sequence numbers on the nodes: the order is the finding, and a line
-    // alone does not say which end came first.
-    t.nodes.forEach((n, i) => {
+    nodes.forEach((n, i) => {
       if (n.lat == null) return;
       const [x, y] = this._toScreen(n.lat, n.lon);
       ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2);
@@ -617,6 +680,11 @@ export class MapView {
       ctx.font = "600 11px ui-monospace, monospace";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(String(i + 1), x, y);
+      const role = n.role || (i === 0 ? "FIRST SEEN"
+        : (i === nodes.length - 1 ? "LAST SEEN" : "NEXT"));
+      ctx.font = "600 9px ui-sans-serif, sans-serif";
+      ctx.fillStyle = this._css("--seal");
+      ctx.fillText(role, x, y + 18);
       ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
       this._hit.push({ x, y, r: 11, id: n.camera_id, kind: "trajectory-node", data: n });
     });
@@ -721,13 +789,15 @@ export class MapView {
     if (h.kind === "alert") return [`ALERT ${d.plate || ""}`, `${d.priority} · ${d.status}`];
     if (h.kind === "coverage") return [`${d.kind} GAP`, d.camera_id];
     if (h.kind === "trajectory-node") {
-      return [d.camera_id, (d.t_norm || "").replace("T", " ").slice(0, 19)];
+      return [d.role || d.camera_id, d.camera_id,
+              (d.t_norm || d.t || "").replace("T", " ").slice(0, 19)];
     }
     const lines = [
       `${d.camera_id}${d.name ? "  " + d.name : ""}`,
-      `state ${d.state}`,
+      d.source_domain ? String(d.source_domain).replaceAll("_", " ") : null,
+      d.tile_status || `state ${d.state}`,
       `anpr ${d.anpr} · appearance ${d.vehicle}`,
-    ];
+    ].filter(Boolean);
     if (d.location_basis === "DERIVED_FROM_NAME") {
       const m = PRECISION_METRES[d.location_precision];
       lines.push(m ? `position from name, +/-${m >= 1000 ? m / 1000 + " km" : m + " m"}`

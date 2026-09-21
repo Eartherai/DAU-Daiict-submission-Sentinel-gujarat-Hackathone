@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 PATTERNS: dict[str, re.Pattern[str]] = {
+    "google_maps_browser_key": re.compile(r"\bAIzaSy[A-Za-z0-9_-]{20,}"),
     "huggingface_token": re.compile(r"\bhf_[A-Za-z0-9]{20,}"),
     "openai_key": re.compile(r"\bsk-[A-Za-z0-9]{20,}"),
     "aws_access_key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),

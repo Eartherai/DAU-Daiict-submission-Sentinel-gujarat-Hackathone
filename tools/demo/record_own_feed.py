@@ -25,13 +25,22 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-VIEW_W, VIEW_H = 1920, 1080
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hq_screencast import Screencast, probe  # noqa: E402
+
+#: 1440p. Measured against Playwright's own recorder on the same
+#: content: that path stretched a 20.3s interaction into 27.3s of
+#: video and capped at 25fps, which makes the product look slower
+#: than it is. The CDP screencast came back timing-accurate to
+#: 0.1s at 30fps and half the size, with equivalent sharpness.
+VIEW_W, VIEW_H = 2560, 1440
 #: The challenge says 2-3 minutes. Aim under three and fail loudly if over.
 HARD_LIMIT_S = 180.0
 
@@ -46,7 +55,8 @@ class Beat:
     at: float = field(default=0.0)
 
 
-def build(page, plate: str) -> list[Beat]:
+def build(page, plate: str, case_id: str = "FIR-000/2026",
+          purpose: str = "tracing a designated vehicle") -> list[Beat]:
     def nav(view: str, settle: float = 1.5):
         def go():
             page.click(f'button[data-view="{view}"]')
@@ -84,9 +94,27 @@ def build(page, plate: str) -> list[Beat]:
         page.click('button[data-view="intelligence"]')
         page.wait_for_timeout(6000)
 
+    def bind_purpose():
+        """Purpose binding is a gate, not decoration.
+
+        A vehicle search is refused outright without a case identifier and a
+        stated reason, both of which are written into the audit record. The
+        first take of this recording typed a plate, pressed Enter, and filmed
+        `PURPOSE_REQUIRED` in red with an empty trajectory — the control
+        working exactly as designed, and the demonstration failing because of
+        it. Fill them the way an officer must.
+        """
+        for sel, value in (("#case-id", case_id), ("#purpose", purpose)):
+            try:
+                page.fill(sel, value, timeout=4000)
+            except Exception:
+                continue
+        page.wait_for_timeout(600)
+
     def search_plate():
         page.click('button[data-view="investigate"]')
         page.wait_for_timeout(1800)
+        bind_purpose()
         for sel in ('#q-plate', '#q', 'input[name="q"]', '.search input'):
             try:
                 page.fill(sel, plate, timeout=2500)
@@ -120,10 +148,7 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
         except Exception:
             browser = p.chromium.launch(headless=True)
         ctx = browser.new_context(
-            viewport={"width": VIEW_W, "height": VIEW_H},
-            record_video_dir=str(out_dir),
-            record_video_size={"width": VIEW_W, "height": VIEW_H},
-        )
+            viewport={"width": VIEW_W, "height": VIEW_H})
         page = ctx.new_page()
         page.goto(f"{base}/ui/", wait_until="domcontentloaded")
         page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
@@ -141,41 +166,30 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
                 "--db sqlite:///var/live.db token --user supervisor.live --days 7")
 
         beats = build(page, plate)
-        t0 = time.time()
-        for b in beats:
-            b.at = time.time() - t0
-            print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}", flush=True)
-            try:
-                b.action()
-            except Exception as exc:
-                b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
-            page.wait_for_timeout(int(b.dwell_s * 1000))
+        mp4 = Path(str(out_dir) + ".mp4")
+        with Screencast(page, out_dir / "frames",
+                        width=VIEW_W, height=VIEW_H) as cast:
+            t0 = time.time()
+            for b in beats:
+                b.at = time.time() - t0
+                print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}",
+                      flush=True)
+                try:
+                    b.action()
+                except Exception as exc:
+                    b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
+                page.wait_for_timeout(int(b.dwell_s * 1000))
+        res = cast.write(mp4, crf=18, fps=30)
+        cast.cleanup()
+        if not res.get("ok"):
+            print(f"  capture FAILED: {res.get('why')}")
+        else:
+            print(f"  captured {res['frames']} frames at "
+                  f"{res['captured_fps']} fps -> {res['mb']} MB")
 
-        video = page.video
         ctx.close()
         browser.close()
-        if video:
-            try:
-                Path(video.path()).rename(out_dir / "own_feed.webm")
-            except Exception:
-                pass
         return beats
-
-
-def to_mp4(out_dir: Path, mp4: Path) -> bool:
-    src = out_dir / "own_feed.webm"
-    if not src.exists():
-        webms = sorted(out_dir.glob("*.webm"))
-        if not webms:
-            return False
-        src = webms[0]
-    if not shutil.which("ffmpeg"):
-        return False
-    mp4.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["ffmpeg", "-y", "-i", str(src), "-c:v", "libx264", "-preset",
-           "medium", "-crf", "21", "-pix_fmt", "yuv420p",
-           "-movflags", "+faststart", str(mp4)]
-    return subprocess.run(cmd, capture_output=True).returncode == 0
 
 
 def duration_s(mp4: Path) -> float | None:
@@ -211,7 +225,7 @@ def main() -> None:
     mp4 = Path(str(out_dir) + ".mp4")
     print(f"recording the own-feed demonstration -> {mp4}")
     beats = record(a.base, token, a.plate, out_dir)
-    ok = to_mp4(out_dir, mp4)
+    ok = mp4.exists()
 
     print()
     failed = [b for b in beats if not b.ok]

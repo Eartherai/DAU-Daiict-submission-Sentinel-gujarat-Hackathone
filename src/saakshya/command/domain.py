@@ -302,6 +302,23 @@ def wall_composition(store: Store, *, target: int = 50) -> dict[str, Any]:
     }
 
 
+def _is_evaluation_fixture(camera_id: str, cam: dict[str, Any]) -> bool:
+    """Was this row created by the evaluation seeder rather than onboarded?
+
+    The seeder makes three shapes: `camNN` government fixtures, the named
+    golden own-feeds, and synthetic control slots. Anything else reached the
+    registry some other way — most likely a real onboarding — and is not this
+    function's to remove.
+    """
+    if camera_id.startswith("CTL-") or camera_id == "FAR":
+        return True
+    if camera_id in GOLDEN_IDS:
+        return True
+    if camera_id.startswith("cam") and camera_id[3:].isdigit():
+        return True
+    return (cam.get("source_domain") or "").upper() == SYNTHETIC_CONTROL
+
+
 def enforce_evaluation_50(store: Store) -> dict[str, Any]:
     """Keep exactly 30 GOVERNMENT + 2 OWN_FEED + 18 SYNTHETIC_CONTROL.
 
@@ -325,10 +342,21 @@ def enforce_evaluation_50(store: Store) -> dict[str, Any]:
     wanted.update(syn_ids[:18])
     removed: list[str] = []
     for cam in store.list_cameras():
-        cid = cam["camera_id"]
-        if cid not in wanted:
-            store.delete_camera(cid)
-            removed.append(cid)
+        cid = str(cam["camera_id"])
+        if cid in wanted:
+            continue
+        # Prune this function's own fixtures, and nothing else.
+        #
+        # This used to delete every camera it did not recognise, which made the
+        # registry's onboarding endpoints pointless: a department could import
+        # a spreadsheet, see the cameras appear, and find them gone after the
+        # next restart, with no error anywhere. A fixture guard is entitled to
+        # tidy up its own fixtures; it is not entitled to delete an operator's
+        # data because it does not recognise the name.
+        if not _is_evaluation_fixture(cid, cam):
+            continue
+        store.delete_camera(cid)
+        removed.append(cid)
     comp = wall_composition(store, target=50)
     return {"removed": removed, "composition": comp, "onboarded": comp["onboarded"]}
 

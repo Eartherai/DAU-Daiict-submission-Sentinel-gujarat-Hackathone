@@ -37,11 +37,34 @@ def _migrates(tree: ast.AST) -> bool:
                and n.func.attr == "create_all" for n in ast.walk(tree))
 
 
-@pytest.mark.parametrize("path", TOOLS, ids=lambda p: str(p.relative_to(ROOT)))
+def _parses(path: Path) -> ast.AST | None:
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"))
+    except (SyntaxError, UnicodeDecodeError):
+        return None
+
+
+#: Only the tools this guard is actually about. Deciding that inside the test
+#: body meant a skip for every tool that does not open a store — eighty-two of
+#: them — and a run that reports eighty-two skips invites the habit of reading
+#: "skipped" as "fine". The set is the same; it is now chosen at collection.
+STORE_TOOLS = sorted(
+    p for p in TOOLS
+    if (tree := _parses(p)) is not None and _opens_a_store(tree)
+)
+
+
+def test_the_guard_covers_something(one=None):
+    """A guard over an empty set passes for the wrong reason."""
+    assert STORE_TOOLS, (
+        "no tool under tools/ constructs a Store. Either the tree moved or "
+        "the detector broke; either way this guard is no longer guarding.")
+
+
+@pytest.mark.parametrize("path", STORE_TOOLS,
+                         ids=lambda p: str(p.relative_to(ROOT)))
 def test_a_tool_that_opens_a_store_migrates_it(path: Path):
-    tree = ast.parse(path.read_text())
-    if not _opens_a_store(tree):
-        pytest.skip("does not open a store")
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     assert _migrates(tree), (
         f"{path.relative_to(ROOT)} constructs a Store but never calls "
         "create_all(). It will work against a current database and fail with "

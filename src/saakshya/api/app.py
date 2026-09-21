@@ -295,7 +295,9 @@ def create_app(state: AppState | None = None, *,
     app.include_router(routes_system.router)
     app.include_router(routes_command.router)
 
-    from saakshya.api import routes_admin, routes_copilot, routes_edge
+    from saakshya.api import (routes_admin, routes_copilot, routes_edge,
+                              routes_registry)
+    app.include_router(routes_registry.router)
     app.include_router(routes_edge.router)
     app.include_router(routes_copilot.router)
     app.include_router(routes_admin.router)

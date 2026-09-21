@@ -976,6 +976,11 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     png_dir = out.with_suffix("")
     png_dir.mkdir(exist_ok=True)
+    # A shorter deck used to leave the extra slides of a longer one behind, so
+    # the directory held pages that were not in the PDF and looked just as
+    # current. Clear our own output before writing it.
+    for stale in png_dir.glob("slide_*.png"):
+        stale.unlink()
     pngs: list[Path] = []
     for i, p in enumerate(pages):
         dest = png_dir / f"slide_{i:02d}.png"

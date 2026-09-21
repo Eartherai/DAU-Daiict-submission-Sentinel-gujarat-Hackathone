@@ -249,9 +249,9 @@ the same discipline as the rest of the proposal.
 | Bandwidth | Do not copy video to the centre. Ingest stills ~1 Hz for the wall. Metadata ~90–180 GB/day statewide with T0 gating. Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** offline tests |
 | Hot / warm / cold storage | Video stays at the camera/NVR. Hot: 30 days of metadata + sealed evidence at the node. Warm/cold: partition observations by month. Retention is a policy decision | **DESIGNED**, **UNTESTED** at 80k |
 | Load balancing / health | Horizontal processes per node; `/system/health`; hash-chained audit | **MEASURED** on 30 cameras; **UNTESTED** as a cluster scheduler |
-| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (18 e2e tests). Central HA, backup and DR: **UNTESTED** | **MEASURED** offline; **UNTESTED** multi-node |
+| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (18 e2e tests). Central HA, backup and DR designed in §15; still **UNTESTED** multi-node | **MEASURED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
 | Cybersecurity | Four gates (auth, role, jurisdiction, purpose). ADMIN cannot search. Tokens not in query strings. No secrets in the repository | **MEASURED** on the API; statewide SOC integration **UNTESTED** |
-| Cost | Not estimated in rupees. Hardware is driven by GPU-per-district from the measured 11.4 fps, not by a 52 PB video farm | **NOT ESTIMATED** |
+| Cost | Not estimated in rupees. §17 gives the model and its one measured input (11.4 fps); the GPU speed-up factor **S** must be benchmarked before any figure is quoted | **MODELLED** §17; unit prices **NOT ESTIMATED** |
 
 Nothing in this table is quoted as “tested at 80,000”.
 
@@ -285,7 +285,98 @@ This is a plan, not a claim of work already done.
 | Face recognition | Not on this roadmap. Deliberate abstention. | — |
 | VAHAN / CCTNS / AFIS | Adapters exist as `NotImplementedError`. No integration is claimed. | — |
 
-## 15. What this proposal will not say
+## 15. Disaster recovery and redundancy design
+
+A named Model 4 deliverable. Section 12 records DR as **UNTESTED** at the
+centre; this is the design that would be tested, not a claim that it has been.
+
+**What must survive what.** The estate is federated by construction: video
+stays at the camera or NVR and district nodes hold their own store, queue and
+watchlist. That is a resilience property, not only a bandwidth one — losing the
+centre does not stop a district detecting, matching or sealing evidence.
+
+| Failure | Blast radius | Behaviour | Label |
+|---|---|---|---|
+| Centre unreachable | Statewide search, cross-district correlation | Districts continue: detection, watchlist, alerts and evidence all local. Metadata queues and replays on reconnect. | **MEASURED** — 18 offline e2e tests |
+| District node lost | That district's live analytics | Cameras keep recording to their own NVR. No central video was being written, so no footage is lost — only analysis is paused. | **DESIGNED** |
+| Store corruption at a node | That node's metadata | Restore from the last snapshot; replay the queue from the centre's copy of that district's metadata. | **DESIGNED**, **UNTESTED** |
+| Evidence tampering | One record | Hash chain detects it. 5 of 5 tamper tests detected. | **MEASURED** |
+| Upstream grid refuses sessions | Live wall only | Tiles fall back to their last still and say so; the AI plane and the store are unaffected. | **MEASURED** — observed repeatedly |
+
+**Objectives to be agreed, not asserted.** RPO and RTO are procurement
+decisions with cost attached, so this proposal states the shape and leaves the
+numbers to the department that will fund them:
+
+- **Metadata RPO** is bounded by the queue flush interval at the district.
+- **Evidence RPO is zero by design** — a manifest is sealed before it is
+  acknowledged, and the chain makes a gap detectable rather than silent.
+- **RTO for a district node** is a restore-and-replay, not a rebuild: the node
+  is stateless apart from its store and queue.
+
+**Redundancy that is deliberately absent.** There is no central video farm to
+replicate, because no video is centralised. Removing that requirement is the
+single largest availability and cost decision in this design.
+
+## 16. Statewide rollout plan
+
+Section 14 gives the roadmap by capability. This is the same progression by
+phase, with the gate that must pass before the next phase begins — the point
+being that no phase starts because the previous one finished on a calendar.
+
+| Phase | Scope | Exit gate | Label |
+|---|---|---|---|
+| 0 — PoC | The 30-camera evaluation grid, one node | Designated-vehicle search, watchlist alert, sealed evidence, audit chain verified | **MEASURED** |
+| 1 — First district | One district, 2,000–3,000 cameras, `TARGET_GPU` | Detector throughput sustained at the district's camera count; gap report shows department metadata supplied, not inferred | **DESIGNED** |
+| 2 — Region | 3–5 adjacent districts, centre aggregating metadata only | Cross-district search over metadata; queue replay proven under a deliberate uplink cut | **DESIGNED** |
+| 3 — Statewide | ~33 district nodes | Per-district onboarding without central redesign; centre holds no video | **MODELLED** |
+
+**What paces this is not software.** Phase 1's gate is a *departmental data*
+gate as much as a technical one: 94% of the evaluation estate has no `vms`,
+`storage_location` or `retention_days`, and those are facts only the owning
+department can supply. The registry reports that shortfall precisely so a
+rollout plan can be scheduled against it rather than around it.
+
+## 17. Indicative cost model
+
+Section 12 recorded cost as **NOT ESTIMATED**. That was the honest status, but
+the challenge asks for estimated implementation and operational costs, so this
+is a model with its assumptions exposed — every input below is a placeholder to
+be replaced by procurement, and the figures are structure rather than price.
+
+**The one measured input.** One CPU analytics process sustains **11.4 frames/s**
+— roughly 11 cameras at 1 Hz. Everything else follows from that and from unit
+prices this proposal does not know.
+
+```
+cameras_per_district        = 2,500          (design assumption)
+sample_rate_hz              = 1              (policy choice, not a limit)
+frames_per_second_needed    = 2,500
+cpu_process_throughput_fps  = 11.4           MEASURED
+gpu_speedup_factor          = S              UNKNOWN — must be benchmarked
+inference_nodes_per_district= 2,500 / (11.4 × S)
+districts                   = 33
+```
+
+With no GPU (S = 1) a district needs ~220 CPU processes, which is the argument
+for GPU at the district rather than a rewrite. The sensitivity to **S** is the
+whole cost model, and quoting a rupee figure without benchmarking **S** on the
+target accelerator would be inventing a number.
+
+**What is genuinely cheap here, and why.** The costs this design does *not*
+incur are as material as the ones it does:
+
+| Avoided | Because |
+|---|---|
+| Central video storage (~52 PB modelled) | Video stays at the camera/NVR |
+| Central video bandwidth (~160 Gbps modelled) | Only metadata and ~1 Hz stills traverse the uplink |
+| Per-camera VMS licensing at the centre | Departmental VMS platforms are integrated, not replaced |
+| Registry sharding | 80,000 camera rows occupy **58.01 MB**; onboarding runs at **61,305 cameras/s**, gap analysis over all 80,000 in **171 ms** — all **MEASURED** |
+
+**Operational cost is dominated by inference, not by storage or transport.**
+That is the finding worth carrying into procurement, and it is the opposite of
+the assumption a central-VMS design would start from.
+
+## 18. What this proposal will not say
 
 - Not production ready.
 - Not legally admissible. BSA s.63 stays `DRAFT_PENDING_SIGNATURE`.

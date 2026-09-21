@@ -214,11 +214,18 @@ a { color: var(--accent); }
   border: 1px solid color-mix(in srgb, var(--seal) 38%, transparent);
   border-radius: 50%;
 }
+/* The masthead is a flex row, and the product's own name was the item that
+ * gave way when it ran out of room: it rendered as "Saaksl" on every screen,
+ * cut mid-word by the search field beside it. A name is not a field that can
+ * be abbreviated to taste - hold its width and let the flexible items flex. */
 .brand .word {
   font: 600 18px/1.1 var(--sans);
   letter-spacing: -.015em;
   text-transform: none;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
+.brand { flex: 0 0 auto; }
 .brand small {
   display: block;
   font: 400 11px/1.2 var(--sans);

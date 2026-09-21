@@ -2433,7 +2433,17 @@ function worldSystemsResearch() {
  * A wall of thirty peer connections is a bandwidth decision nobody made.
  */
 const LIVE_REFRESH_MS = 1500;
-const LIVE_MAX_INFLIGHT = 4;
+/* Four was chosen when a capture could hold a slot for ever; with a deadline
+ * on every request the risk of a wider pipe is bounded, and the browser allows
+ * six connections per origin. The wall's own camera-list request is issued
+ * before any capture, so widening this cannot starve the paint. */
+const LIVE_MAX_INFLIGHT = 6;
+/* Warm captures answer in 0.03-0.16s and cold ones in a couple of seconds,
+ * but a genuinely cold camera behind a busy grid can take far longer and
+ * still succeed. Eight seconds cut those off and turned twelve requests with
+ * eight answers into twenty-four requests with four. The deadline exists to
+ * release a slot that will never come back, not to race a slow camera. */
+const SNAPSHOT_TIMEOUT_MS = 20000;
 const LIVE_MAX_QUEUE = 12;
 function hubPlane() {
   return state.liveConfig?.plane === "local_hub" || state.liveConfig?.hub;
@@ -2812,6 +2822,15 @@ async function sharedSnapshot(id) {
   });
   const ctl = new AbortController();
   snapshotAborts.add(ctl);
+  /* A capture with no deadline holds one of four in-flight slots for as long
+   * as the grid cares to think about it. Measured on a cold wall: twelve
+   * requests issued, eight answered, and the four that never returned pinned
+   * every slot - the wall froze at 4 of 9 tiles from t+7s to t+34s, twenty-
+   * seven seconds in which nothing could be fetched for anybody. A slot is a
+   * shared resource, so holding one is a promise to give it back. */
+  const deadline = setTimeout(() => {
+    try { ctl.abort(); } catch { /* already settled */ }
+  }, SNAPSHOT_TIMEOUT_MS);
   const request = fetch(`/cameras/${encodeURIComponent(id)}/snapshot?${qs}`,
                          { headers: authHeaders(), signal: ctl.signal })
     .then(async (res) => {
@@ -2849,7 +2868,11 @@ async function sharedSnapshot(id) {
       }
       throw err;
     })
-    .finally(() => { snapshotInflight.delete(key); snapshotAborts.delete(ctl); });
+    .finally(() => {
+      clearTimeout(deadline);
+      snapshotInflight.delete(key);
+      snapshotAborts.delete(ctl);
+    });
   snapshotInflight.set(key, request);
   return request;
 }
@@ -3169,6 +3192,46 @@ function fitWall() {
   if (rowH > 40) grid.style.setProperty("--wall-row-h", `${rowH}px`);
 }
 
+/* A <video> can decode without ever painting: an occluded or throttled
+ * surface drops frames at the compositor, so `videoWidth` reports 1920 while
+ * nothing reaches the screen. Measured on an unfocused pane: eight ready
+ * tiles, 99.6% of frames dropped, zero rendered in five seconds - and because
+ * the tile had already hidden its still, the operator saw nine black squares
+ * on a wall that believed it was live. Having a frame and showing black is
+ * the one state this wall must never be in. Demote such a tile back to its
+ * still, and promote it again the moment it starts painting. */
+function reviewRenderedFrames() {
+  const grid = $("#live-grid");
+  if (!grid) return;
+  for (const tile of grid.children) {
+    const video = tile.querySelector("video.tile-whep");
+    if (!video || typeof video.getVideoPlaybackQuality !== "function") continue;
+    const q = video.getVideoPlaybackQuality();
+    const painted = (q.totalVideoFrames || 0) - (q.droppedVideoFrames || 0);
+    const last = Number(tile.dataset.painted || -1);
+    tile.dataset.painted = String(painted);
+    if (last < 0) continue;                       // first sample, no delta yet
+    const moving = painted - last > 1;
+    const frame = tile.querySelector(".frame");
+    const img = frame?.querySelector("img");
+    if (moving) {
+      tile.dataset.stalledPaints = "0";
+      if (video.dataset.ready !== "1" && video.videoWidth > 16) {
+        markTileVideoReady(video);
+      }
+      continue;
+    }
+    if (video.dataset.ready !== "1") continue;    // already showing the still
+    const n = Number(tile.dataset.stalledPaints || 0) + 1;
+    tile.dataset.stalledPaints = String(n);
+    /* Two consecutive quiet samples, so a single slow beat does not flicker
+     * a healthy tile back to a still. */
+    if (n < 2) continue;
+    delete video.dataset.ready;
+    if (img && img.getAttribute("src")) img.style.display = "";
+  }
+}
+
 let fitWallTimer = null;
 function scheduleFitWall() {
   clearTimeout(fitWallTimer);
@@ -3182,6 +3245,7 @@ function paintLiveWorkspace(all) {
   closeTileHlsAll();
   /* The wall is being rebuilt; every camera starts again with a full budget. */
   tileWhepReopens.clear();
+  primeVisibleStills.done = false;
   /* A WebRTC track decodes into the element it was attached to. Rebuilding the
    * wall - which changing the wall size does - used to destroy those elements
    * and hand the same MediaStream to fresh ones, and a fresh element has no
@@ -4597,6 +4661,7 @@ function primeVisibleStills() {
   if (!grid || !liveCaptureEnabled) return;
   const vh = window.innerHeight || document.documentElement.clientHeight || 900;
   const now = Date.now();
+  const wanted = [];
   for (const tile of grid.children) {
     const r = tile.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) continue;
@@ -4616,6 +4681,27 @@ function primeVisibleStills() {
     if (last && now - last < STILL_RETRY_MS) continue;
     tile.dataset.stillTry = String(now);
     tile.dataset.requested = "1";
+    wanted.push(tile);
+  }
+  if (!wanted.length) return;
+  /* The first paint of the visible tiles does not go through the pump.
+   *
+   * The pump exists to stop a thirty-tile wall opening thirty captures at
+   * once, and for the wall at large that is right. But it also meant the nine
+   * tiles an operator is actually looking at filled a few at a time: measured,
+   * the wall sat at five of nine from t+7s to past t+19s. Asked directly, the
+   * grid answers all nine concurrently in 1.6-7.4s - it was never the
+   * bottleneck. So the visible tiles are fetched together once, and everything
+   * else keeps queueing.
+   */
+  if (!primeVisibleStills.done) {
+    primeVisibleStills.done = true;
+    for (const tile of wanted) {
+      refreshTile(tile._img, tile.dataset.camera).catch(() => { /* retried */ });
+    }
+    return;
+  }
+  for (const tile of wanted) {
     queueStill(tile._img, tile.dataset.camera, true);
   }
 }
@@ -4650,6 +4736,7 @@ function startWallHeartbeat() {
   stopWallHeartbeat();
   wallTimer = setInterval(() => {
     if (!$("#view-live")?.classList.contains("active")) return;
+    reviewRenderedFrames();
     syncTileWhep();
   }, WALL_HEARTBEAT_MS);
 }

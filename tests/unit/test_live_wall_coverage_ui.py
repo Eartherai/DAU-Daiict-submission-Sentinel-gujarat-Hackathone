@@ -85,3 +85,58 @@ def test_decoders_survive_a_wall_rebuild(app: str) -> None:
     rehome = app.split("for (const [cam, video] of survivors)", 1)[1][:400]
     assert "frame.prepend(video)" in rehome
     assert 'video.dataset.ready = "1"' in rehome
+
+
+def test_a_video_that_decodes_but_never_paints_falls_back_to_its_still(app: str) -> None:
+    """Having a frame and showing black is the one state to avoid.
+
+    A <video> can decode without painting: an occluded or throttled surface
+    drops frames at the compositor, so videoWidth reports 1920 while nothing
+    reaches the screen. Measured on an unfocused pane: eight "ready" tiles,
+    99.6% of frames dropped, zero rendered in five seconds — and because each
+    tile had already hidden its still, the wall showed black squares while
+    believing itself live.
+    """
+    assert "function reviewRenderedFrames()" in app
+    body = app.split("function reviewRenderedFrames()", 1)[1].split("\n}\n", 1)[0]
+    # Painted frames are total minus dropped — decoding alone is not painting.
+    assert "droppedVideoFrames" in body
+    assert "totalVideoFrames" in body
+    # A stalled tile gives its still back rather than staying black...
+    assert "delete video.dataset.ready" in body
+    # ...and a tile that resumes painting is promoted again.
+    assert "markTileVideoReady(video)" in body
+    # One quiet sample must not flicker a healthy tile.
+    assert "n < 2" in body
+    # It has to run on the heartbeat, not only on entry.
+    assert "reviewRenderedFrames();" in app.split("wallTimer = setInterval", 1)[1][:300]
+
+
+def test_the_visible_tiles_are_fetched_together_on_first_paint(app: str) -> None:
+    """The pump protects the wall; it should not ration the visible screen.
+
+    The bounded pump exists so a thirty-tile wall does not open thirty
+    captures at once, which is right for the wall at large. But it also filled
+    the nine tiles an operator is looking at a few at a time: measured, five of
+    nine at t+7s and still five past t+19s. Asked directly, the grid answered
+    all nine concurrently in 1.6-7.4s — it was never the bottleneck. After the
+    change: nine of nine by t+10s.
+    """
+    body = app.split("function primeVisibleStills()", 1)[1].split("\n}\n", 1)[0]
+    # The first pass goes straight to the fetch, once.
+    assert "primeVisibleStills.done" in body
+    assert "refreshTile(tile._img" in body
+    # Every later pass goes back through the bounded queue.
+    assert "queueStill(tile._img" in body
+    # A rebuilt wall is allowed to burst again.
+    assert "primeVisibleStills.done = false;" in app
+
+
+def test_a_capture_cannot_hold_a_slot_for_ever(app: str) -> None:
+    """A slot is shared, so holding one is a promise to give it back."""
+    assert "SNAPSHOT_TIMEOUT_MS" in app
+    ms = int(app.split("const SNAPSHOT_TIMEOUT_MS = ", 1)[1].split(";", 1)[0])
+    # Long enough that a genuinely cold camera still succeeds — an 8s deadline
+    # turned 12 requests with 8 answers into 24 requests with 4.
+    assert 15000 <= ms <= 45000
+    assert "clearTimeout(deadline)" in app

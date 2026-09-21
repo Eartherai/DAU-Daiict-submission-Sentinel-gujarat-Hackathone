@@ -345,6 +345,35 @@ class Worker:
             })
 
 
+def _default_ai_cameras(db_url: str, limit: int = 4) -> list[str]:
+    """Cameras that actually have a stream to analyse.
+
+    The default was the literal "OWN-TRAFFIC", which on this estate has no
+    source at all: the worker started, logged `ai worker has no source for
+    OWN-TRAFFIC`, and sat there. Every figure on the Model 4 panel read
+    NOT_MEASURED and the masthead said AI DEGRADED — not because anything had
+    failed, but because nothing had been asked to run. A default that cannot
+    work is worse than no default, because it looks configured.
+
+    Pick real cameras with a URL to open instead, preferring those the
+    registry has already graded as worth reading.
+    """
+    try:
+        from saakshya.store.repository import Store
+
+        store = Store(db_url)
+        store.create_all()
+        rows = [c for c in store.list_cameras()
+                if (c.get("rtsp_url") or "").strip()
+                and not str(c.get("camera_id", "")).startswith("CTL-")
+                and c.get("enabled") is not False]
+        rows.sort(key=lambda c: str(c.get("camera_id")))
+        return [str(c["camera_id"]) for c in rows[:limit]]
+    except Exception:
+        log.exception("could not choose default AI cameras")
+        return []
+
+
 def boot_ai_worker(db_url: str, cameras: list[str] | None = None
                    ) -> Any:
     """Spawn the worker as a subprocess from the API process."""
@@ -357,7 +386,9 @@ def boot_ai_worker(db_url: str, cameras: list[str] | None = None
         return None
     raw = os.environ.get("SAAKSHYA_AI_CAMERAS", "").strip()
     if cameras is None:
-        cameras = [c.strip() for c in raw.split(",") if c.strip()] or ["OWN-TRAFFIC"]
+        cameras = [c.strip() for c in raw.split(",") if c.strip()]
+    if not cameras:
+        cameras = _default_ai_cameras(db_url)
     if not cameras:
         return None
     RUN.mkdir(parents=True, exist_ok=True)

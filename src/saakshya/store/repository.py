@@ -255,6 +255,15 @@ class Store:
         #: hit an index instead of a join — district scoping is an access-control
         #: path, not an analytics convenience.
         self._cam_cache: dict[str, tuple] = {}
+        #: Whether the bulk warm has run. Emptiness is not the same question:
+        #: the cache stays non-empty while holding stale misses, and testing
+        #: `if self._cam_cache` for "already warmed" is what let a camera
+        #: onboarded after the warm stay invisible for the process's lifetime.
+        self._cam_cache_warmed = False
+        #: Camera ids confirmed absent from the registry. Observations arrive
+        #: from unregistered cameras routinely, and without this a miss would
+        #: issue a SELECT on every batch, for every such camera, forever.
+        self._cam_cache_absent: set[str] = set()
         #: Overview used to take ~10 s because it issued a dozen COUNT scans
         #: against a growing live store. A few seconds of staleness is honest
         #: on a wall that already says the store is growing; a 10 s home
@@ -414,15 +423,49 @@ class Store:
             else:
                 c.execute(insert(S.cameras).values(**cam))
         self._cam_cache.pop(cam["camera_id"], None)   # reread; cam may be merged
+        self._cam_cache_absent.discard(cam["camera_id"])
+
+    _CAM_CTX_COLS = ("district", "department", "lat", "lon")
 
     def _ensure_cam_cache(self) -> None:
-        if self._cam_cache:
+        if self._cam_cache_warmed:
             return
         with self.engine.connect() as c:
             for r in c.execute(select(S.cameras.c.camera_id, S.cameras.c.district,
                                       S.cameras.c.department, S.cameras.c.lat,
                                       S.cameras.c.lon)):
                 self._cam_cache[r[0]] = (r[1], r[2], r[3], r[4])
+        self._cam_cache_warmed = True
+
+    def _cam_ctx(self, camera_id: str) -> tuple | None:
+        """Registry context for one camera, correct after a late onboarding.
+
+        The warm pass runs once. A camera onboarded afterwards — which is
+        exactly what the evaluation asks for, and what the own-feed recording
+        does on camera — would otherwise never enter the cache, and its
+        observations would be stored with no district, department or position.
+        That is not merely cosmetic: district is an access-control dimension,
+        so those rows fall outside a scoped investigator's reach entirely.
+
+        Reloading the whole table on every upsert would make a bulk import of
+        an 80,000-camera estate quadratic, so a miss costs one indexed row read
+        and is then remembered either way.
+        """
+        self._ensure_cam_cache()
+        ctx = self._cam_cache.get(camera_id)
+        if ctx is not None or camera_id in self._cam_cache_absent:
+            return ctx
+        with self.engine.connect() as c:
+            row = c.execute(select(
+                S.cameras.c.district, S.cameras.c.department,
+                S.cameras.c.lat, S.cameras.c.lon,
+            ).where(S.cameras.c.camera_id == camera_id)).first()
+        if row is None:
+            self._cam_cache_absent.add(camera_id)
+            return None
+        ctx = (row[0], row[1], row[2], row[3])
+        self._cam_cache[camera_id] = ctx
+        return ctx
 
     def delete_camera(self, camera_id: str) -> bool:
         """Remove a registry row. Health goes with it. Observations stay."""
@@ -434,6 +477,7 @@ class Store:
             result = c.execute(delete(S.cameras).where(
                 S.cameras.c.camera_id == camera_id))
         self._cam_cache.pop(camera_id, None)
+        self._cam_cache_absent.discard(camera_id)
         self._stats_cache = None
         return bool(getattr(result, "rowcount", 0))
 
@@ -681,11 +725,10 @@ class Store:
         """
         if not obs:
             return 0
-        self._ensure_cam_cache()
         rows = []
         for o in obs:
             r = o.row()
-            ctx = self._cam_cache.get(o.camera_id)
+            ctx = self._cam_ctx(o.camera_id)
             if ctx:
                 # Denormalise from the registry rather than trusting the caller.
                 r["district"] = r["district"] or ctx[0]

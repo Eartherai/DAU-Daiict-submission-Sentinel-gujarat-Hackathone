@@ -302,6 +302,13 @@ def wall_composition(store: Store, *, target: int = 50) -> dict[str, Any]:
     }
 
 
+#: How many `camNN` government fixtures the evaluation seeder creates.
+#: `enforce_evaluation_50` and `_is_evaluation_fixture` must agree on this
+#: number: one builds the keep-set from it and the other decides what it is
+#: entitled to delete, and a disagreement between them deletes real data.
+SEEDED_GOVERNMENT_CAMERAS = 30
+
+
 def _is_evaluation_fixture(camera_id: str, cam: dict[str, Any]) -> bool:
     """Was this row created by the evaluation seeder rather than onboarded?
 
@@ -315,7 +322,17 @@ def _is_evaluation_fixture(camera_id: str, cam: dict[str, Any]) -> bool:
     if camera_id in GOLDEN_IDS:
         return True
     if camera_id.startswith("cam") and camera_id[3:].isdigit():
-        return True
+        # Only the range the seeder actually creates.
+        #
+        # Unbounded, this branch was reachable *only* in the case it must never
+        # fire. `enforce_evaluation_50` puts cam01..cam30 in `wanted` and skips
+        # them before asking this question, so the only `camNN` that ever got
+        # here was one outside the seeded range — which is to say, one that was
+        # onboarded. The evaluation grid names its cameras this way, and the
+        # challenge supplies about fifty of them, so onboarding cam31..cam50
+        # and restarting the API deleted exactly the cameras being evaluated,
+        # silently, at startup.
+        return 1 <= int(camera_id[3:]) <= SEEDED_GOVERNMENT_CAMERAS
     return (cam.get("source_domain") or "").upper() == SYNTHETIC_CONTROL
 
 
@@ -330,7 +347,8 @@ def enforce_evaluation_50(store: Store) -> dict[str, Any]:
     gov_have = sum(1 for cid in existing if cid.startswith("cam") and cid[3:].isdigit())
     if gov_have < 30 or "OWN-PEOPLE" not in existing:
         seed_50_evaluation(store)
-    wanted: set[str] = {f"cam{i:02d}" for i in range(1, 31)}
+    wanted: set[str] = {f"cam{i:02d}"
+                        for i in range(1, SEEDED_GOVERNMENT_CAMERAS + 1)}
     wanted.update(GOLDEN_IDS)
     syn_ids = [
         c["camera_id"] for c in store.list_cameras()

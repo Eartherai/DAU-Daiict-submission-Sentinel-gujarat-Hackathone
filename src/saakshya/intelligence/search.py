@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from saakshya.analytics.anpr import plate_status
 from saakshya.analytics.attributes import colour_agreement, size_agreement
@@ -175,6 +175,58 @@ class VehicleSearch:
         self.store = store
         self.graph = graph or CameraGraph(store).load()
 
+    #: The corridor the corroboration loop actually reads. A candidate more
+    #: than an hour after an origin is discarded by the loop itself, so there is
+    #: no reason to fetch it.
+    FOLLOW_WINDOW_S = 3600.0
+    #: Safety cap per merged window, not across the whole store.
+    FOLLOW_WINDOW_LIMIT = 20_000
+
+    def _corroboration_window(self, origins, t_from: datetime | None,
+                              t_to: datetime | None):
+        """Every observation that could corroborate one of these origins.
+
+        This used to be a single `limit=20_000` scan of the whole store, and
+        `store.search` orders by `t_norm_us` ascending — so it returned the
+        *oldest* twenty thousand rows. Measured against `var/live.db` on
+        22 Sep 2026: 1,024,103 observations, of which that scan reached 20,000,
+        or 2.0%, leaving 98.0% and the most recent 453 hours unreachable. A
+        designated vehicle handed over on the day is seen *now*, so every
+        sighting that matters fell outside the scan and the route came back
+        empty for a reason no operator could see.
+
+        The loop only ever uses candidates in `(origin, origin + 3600s]`, so
+        ask for exactly those. Overlapping windows are merged first, because a
+        plate seen ten times inside an hour otherwise issues ten near-identical
+        queries. The result is both correct and smaller than the old scan.
+        """
+        if not origins:
+            return []
+        span = timedelta(seconds=self.FOLLOW_WINDOW_S)
+        wanted: list[tuple[datetime, datetime]] = []
+        for origin in sorted(origins, key=lambda o: o.t_norm):
+            lo, hi = origin.t_norm, origin.t_norm + span
+            if t_to is not None and hi > t_to:
+                hi = t_to
+            if t_from is not None and lo < t_from:
+                lo = t_from
+            if hi <= lo:
+                continue
+            if wanted and lo <= wanted[-1][1]:
+                wanted[-1] = (wanted[-1][0], max(wanted[-1][1], hi))
+            else:
+                wanted.append((lo, hi))
+
+        out = []
+        seen: set[str] = set()
+        for lo, hi in wanted:
+            for obs in self.store.search(SearchFilter(
+                    t_from=lo, t_to=hi, limit=self.FOLLOW_WINDOW_LIMIT)):
+                if obs.observation_id not in seen:
+                    seen.add(obs.observation_id)
+                    out.append(obs)
+        return out
+
     def follow_vehicle(self, plate: str, *, t_from: datetime | None = None,
                        t_to: datetime | None = None, limit: int = 20,
                        actor: str = "system", role: str | None = None,
@@ -193,8 +245,7 @@ class VehicleSearch:
         origins = [c.observation for c in found.candidates]
         contradictions: list[dict] = []
         candidates: list[dict] = []
-        all_obs = self.store.search(SearchFilter(t_from=t_from, t_to=t_to,
-                                                 limit=20_000))
+        all_obs = self._corroboration_window(origins, t_from, t_to)
         target = (parse(plate).canonical or plate.upper())
         seen_pairs: set[tuple[str, str, str]] = set()
         for origin in sorted(origins, key=lambda o: o.t_norm):

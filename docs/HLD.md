@@ -376,7 +376,137 @@ incur are as material as the ones it does:
 That is the finding worth carrying into procurement, and it is the opposite of
 the assumption a central-VMS design would start from.
 
-## 18. What this proposal will not say
+## 18. Cybersecurity architecture
+
+Step 3 names cybersecurity architecture as a design dimension in its own right,
+and Step 6 asks for cybersecurity controls alongside backup and disaster
+recovery. `docs/SECURITY.md` covers what the *application* enforces — four
+independent authorisation gates, purpose binding, a hash-chained audit. This
+section covers the *deployment*: the network it sits in, what is encrypted,
+and where keys live.
+
+Every control below is marked **IMPLEMENTED** — enforced by code in this
+repository and covered by tests — or **SPECIFIED**, meaning it is a deployment
+requirement this build does not itself perform. The distinction is the point.
+A prototype claiming enterprise controls it does not run is worth less than one
+that says which is which, because only the second can be deployed against.
+
+### 18.1 Trust zones
+
+Five zones, each crossing into the next through exactly one control point.
+
+| # | Zone | Holds | Crosses into the next via |
+|---|---|---|---|
+| 1 | Camera | Departmental cameras, NVRs, existing VMS | RTSP/ONVIF pull, read-only, initiated from zone 2 |
+| 2 | Edge node | Ingest, detection, ANPR, local store, queue | Outbound mTLS to zone 4. No inbound path. |
+| 3 | Operator | Browsers on the police network | HTTPS to zone 4 only |
+| 4 | Core | API, registry, search, evidence, audit | Database protocol to zone 5 |
+| 5 | Data | PostgreSQL/PostGIS, object store, audit chain | — |
+
+Two properties matter more than the table.
+
+**Zone 1 is never trusted.** Departmental cameras are unpatched, multi-vendor,
+and outside this project's control. Zone 2 pulls from them; nothing in zone 1
+initiates a connection, so a compromised camera reaches a decoder and no
+further. §6.2 of `docs/SECURITY.md` treats camera-supplied text as hostile for
+the same reason — a camera name is attacker-controlled input.
+
+**Zone 2 has no inbound path from zone 4.** An edge node dials the centre; the
+centre never dials the edge. A compromised centre therefore cannot reach into
+district infrastructure, and an edge node behind carrier NAT needs no inbound
+firewall rule. The cost is that commands to an edge node are pulled on its own
+schedule rather than pushed, which §15 already assumes for recovery.
+
+### 18.2 Encryption in transit
+
+| Leg | Control | Status |
+|---|---|---|
+| Operator → core | TLS 1.3, HSTS with preload, no fallback below 1.2 | **SPECIFIED** — terminated at the gateway, not by this process |
+| Edge → core | Mutual TLS; the client certificate is the node's identity | **SPECIFIED** |
+| Core → database | TLS, certificate pinned to the database host | **SPECIFIED** |
+| Camera → edge | RTSP, commonly cleartext on departmental networks | **SPECIFIED** as a segregated VLAN, because it frequently cannot be encrypted |
+
+The last row is the honest one. Much of the existing estate speaks RTSP without
+transport security and cannot be upgraded without replacing hardware, which the
+Core Goal rules out. The mitigation is topological rather than cryptographic:
+camera traffic stays on its own VLAN, terminates at the edge node, and never
+traverses the WAN. Claiming end-to-end encryption across an estate of this age
+would be false.
+
+### 18.3 Encryption at rest
+
+| Object | Control | Status |
+|---|---|---|
+| Database | Volume-level encryption (LUKS or the cloud equivalent) | **SPECIFIED** |
+| Evidence files | Volume-level encryption plus a per-package content hash | Hash **IMPLEMENTED**; encryption **SPECIFIED** |
+| Audit chain | Rows in the encrypted database, chained by SHA-256 | Chain **IMPLEMENTED**; encryption **SPECIFIED** |
+| Backups | Encrypted with a key held separately from the backup medium | **SPECIFIED** |
+
+`docs/SECURITY.md` §8 already records that this build performs no encryption at
+rest. What it did not say, and this does, is what the deployment must provide
+instead. Note the limit honestly: volume encryption protects a stolen disk, not
+a live compromise of the host, and the hash chain detects tampering rather than
+preventing it.
+
+### 18.4 Key and secret management
+
+**IMPLEMENTED.** No credential is read from a file in this repository. Keys come
+from the process environment or they do not exist, which is stated in
+`src/saakshya/copilot/backends.py` and enforced by `tools/verify/secret_scan.py`
+across every tracked file and the full git history. Bearer tokens are stored
+only as SHA-256 digests, are printed once at mint time, and cannot be recovered;
+disabling a user invalidates every token it holds. Minting requires shell access
+on the host — there is deliberately no credential-issuing HTTP endpoint, because
+an ADMIN session on the network is a lower bar than a shell.
+
+**SPECIFIED.** A deployment holds TLS private keys, database credentials, the
+at-rest volume key and any upstream API keys in a managed secret store — KMS,
+Vault or the platform equivalent — with rotation on a fixed schedule and on
+departure of anyone who held them. This build has no PKI: evidence integrity is
+a content hash, and signatures need a signing authority the deployment must
+supply.
+
+### 18.5 Gateway controls
+
+| Control | Status |
+|---|---|
+| Concurrency bounds on search and export | **IMPLEMENTED** (`Limits`: 8 searches, 2 exports) |
+| Result and export caps | **IMPLEMENTED** (2,000 results, 500 export items) |
+| Absurd time ranges refused before the database | **IMPLEMENTED** (400-day span) |
+| Request timeout | **IMPLEMENTED** (30 s) |
+| Per-principal rate limiting | **SPECIFIED** — at the gateway |
+| Request body size limit, HSTS, security headers | **SPECIFIED** — at the gateway |
+
+Concurrency is bounded in this build; request *rate* is not. The submission
+rules invite participants to host the platform publicly with test credentials,
+and an unauthenticated rate limit is the control that matters most in that
+setting.
+
+### 18.6 What an attacker gains from each zone
+
+Stated so the segmentation can be argued with rather than admired.
+
+- **A compromised camera** reaches a decoder on one edge node. It cannot reach
+  the core, and its name and metadata are already treated as hostile input.
+- **A compromised edge node** holds its own district's recent observations and
+  its client certificate. It cannot read another district's data, because the
+  core scopes every query by jurisdiction, and revoking one certificate isolates
+  it.
+- **A compromised operator browser** acts as that operator, within their role,
+  jurisdiction and purpose binding — and every action is in the audit chain. It
+  cannot mint tokens, because minting needs a shell.
+- **A compromised core** is the serious case: it reads the estate. Jurisdiction
+  scoping is enforced there, so it is not a further boundary. What survives is
+  detection rather than prevention — the audit chain is append-only and
+  externally verifiable, so the compromise is visible afterwards. §15 covers
+  recovery.
+
+An unkeyed hash chain stored in the database it protects does not stop a writer
+with database access from rebuilding it. Making that survivable needs the chain
+head published outside the system — a separate append-only store or a
+periodically notarised digest — and that is **SPECIFIED**, not built.
+
+## 19. What this proposal will not say
 
 - Not production ready.
 - Not legally admissible. BSA s.63 stays `DRAFT_PENDING_SIGNATURE`.

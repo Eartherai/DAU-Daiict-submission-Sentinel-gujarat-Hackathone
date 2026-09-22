@@ -14,7 +14,7 @@ quote them on the portal.
 | # | What the challenge asks for | File | Verified |
 |---|---|---|---|
 | 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` (17.7 MB) and `var/demo/SAAKSHYA_deck.pdf` (9.0 MB) | **34 slides**, 16:9. Upload the PPTX if the field wants PowerPoint; attach the PDF as well so nothing depends on their renderer. |
-| 2 | Technical proposal / high-level design | `docs/HLD.md` (22 KB, §1–18) plus `var/demo/diagrams/` | Includes §15 disaster recovery, §16 statewide rollout with exit gates, §17 an indicative cost model with its workings shown, §18 the claims this proposal declines to make. |
+| 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | Includes §15 disaster recovery, §16 statewide rollout with exit gates, §17 an indicative cost model with its workings shown, §18 the cybersecurity architecture with every control marked IMPLEMENTED or SPECIFIED, §19 the claims this proposal declines to make. |
 | 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 27 s** · 2560×1440 @ 30 fps · 8.9 MB. Inside the cap with 33 s to spare. Seven beats, all driven cleanly: onboarding through the registry API, AI detection on our own feeds, analytics, the traced mark, the watchlist alert, sealed evidence, the audit record. |
 | 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **4 m 42 s** · 2560×1440 @ 30 fps · 95.6 MB (1080p copy: `government_feed_1080.mp4`, 20.8 MB, upload this one if the portal caps size). Report: **178 plate reads across 9 government cameras**, each with UTC timestamp, camera id, camera name, district, department, object type and vote count. |
 
@@ -101,7 +101,7 @@ by them in questions.
   cross-camera repeats.** A vehicle traced from one government camera to
   another is not something this estate has yet shown; the cross-camera trace
   in the own-feed film is on our own corpus, and the film says so. `docs/HLD.md`
-  §18 states the same thing.
+  §19 states the same thing.
 - **The store is SQLite**, not the PostgreSQL + PostGIS deployment the
   challenge suggests. The store abstracts its backend; that migration has not
   been exercised and is not claimed.

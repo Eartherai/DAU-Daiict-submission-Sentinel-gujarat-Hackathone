@@ -230,7 +230,10 @@ class of mistake cannot recur silently.
 
 ## 8. What is not done
 
-Stated plainly rather than omitted:
+Stated plainly rather than omitted. Each of these is a *deployment*
+control rather than a missing idea: `docs/HLD.md` §18 specifies what the
+deployment must provide, zone by zone, and marks every control
+IMPLEMENTED or SPECIFIED so the two are never confused.
 
 - **No PKI.** Evidence and watchlist integrity are content hashes. Signatures
   need a signing authority this deployment does not have.

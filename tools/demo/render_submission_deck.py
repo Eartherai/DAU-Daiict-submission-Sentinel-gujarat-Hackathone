@@ -263,7 +263,7 @@ def cover() -> Image.Image:
     d.text((ML, 338), "and Evidence Fabric", font=SANS_B(58), fill=WHITE)
     sub = SANS(24)
     for i, line in enumerate(wrap(d,
-            "Hybrid of Models 1 + 2 + 3. Model 4 (central VMS recording) is rejected on arithmetic, not deferred.",
+            "Hybrid of Models 1 + 2 + 3, with Model 4's central analytics on selected cameras. Model 4's statewide central recording is declined on arithmetic, not deferred.",
             sub, W - ML - MR)):
         d.text((ML, 430 + i * 34), line, font=sub, fill=(176, 180, 186))
     d.line([(ML, 530), (W - MR, 530)], fill=(58, 62, 68), width=1)
@@ -357,7 +357,7 @@ def problem() -> Image.Image:
 def hybrid() -> Image.Image:
     return table_page(
         "Proposed model, with justification",
-        "Hybrid of Models 1 + 2 + 3. Model 4 is rejected.",
+        "Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
         ["MODEL", "ROLE IN THE HYBRID", "DEMONSTRATED BY"],
         [
             [("M1 — Registry & GIS  (mandatory, kept)", None),
@@ -369,9 +369,12 @@ def hybrid() -> Image.Image:
             [("M3 — Federation & metadata  (kept)", None),
              ("Government RTSP + local MediaMTX. Observation store is the metadata bus.", None),
              ("Search, trajectory, watchlist, alerts, evidence. Adapters, not a replacement VMS.", None)],
-            [("M4 — Central VMS recording  (rejected)", "red"),
-             ("Functional outcomes kept. Central ingest refused on cost and on the Core Goal.", "red"),
-             ("Not built. 80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB.", "red")],
+            [("M4 — Central analytics  (kept, selected cameras)", None),
+             ("Selected streams through one controlled gateway into central analytics, events, watchlist, evidence, GIS.", None),
+             ("Intelligence view. Detection, tracking, ANPR, alerts on own and selected feeds.", None)],
+            [("M4 — Statewide central recording  (declined)", "red"),
+             ("The transport, not the capability. Central ingest of all video refused on cost and on the Core Goal.", "red"),
+             ("Not built, and not deferred. 80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB.", "red")],
         ],
         "The organising idea — move analytics to the edge, move only metadata to the centre, move video only on demand.",
         "04",
@@ -382,7 +385,7 @@ def hybrid() -> Image.Image:
 def model4() -> Image.Image:
     img, d = canvas(False)
     rail(img, d, "ARITHMETIC", "05")
-    kicker(d, "Why Model 4 is rejected")
+    kicker(d, "Why central recording is declined")
     title(d, "The sizing number is arithmetic, shown in full", y=88, size=44)
     rows = [
         ("Cameras (issued figure)", "80,000", "MODELLED"),
@@ -498,7 +501,7 @@ def agenda() -> Image.Image:
         ["PORTAL ASKS", "THIS DECK"],
         [
             [("1. Proposed solution model, with justification", None),
-             ("Hybrid of Models 1 + 2 + 3. Model 4 (central VMS) rejected on 160 Gbps / 52 PB arithmetic.", None)],
+             ("Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics. Central VMS recording declined on 160 Gbps / 52 PB arithmetic.", None)],
             [("2. Overview, objectives, and key innovations", None),
              ("Find → Trace → Verify → Act. Capability measured. Metadata moves. Video stays.", None)],
             [("3. High-level architecture and end-to-end workflow", None),
@@ -809,7 +812,7 @@ def films() -> Image.Image:
             yy += 28
         y = yy + 28
     footer(d,
-           "Only metadata moves. Video stays where it is. Hybrid of Models 1 + 2 + 3.",
+           "Only metadata moves. Video stays where it is. Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
            dark=True)
     return img
 
@@ -841,7 +844,7 @@ def build() -> list[Image.Image]:
         bleed(DIAG / "05_hld_infographic.jpg",
               "Logical architecture",
               "Problem, principles, pipeline, models — one page",
-              "Full diagram as submitted. Hybrid of Models 1 + 2 + 3. Model 4 is rejected, not deferred.",
+              "Full diagram as submitted. Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
               "08"),
         bleed(DIAG / "06_system_architecture.jpg",
               "System architecture",

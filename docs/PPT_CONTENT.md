@@ -1,3 +1,10 @@
+> **NOT THE SUBMITTED DECK — 22 September 2026.** The deck in the submission
+> pack (`var/demo/SAAKSHYA_deck.pdf`, 34 pages) is drawn by
+> `tools/demo/render_submission_deck.py`. This file feeds a different script,
+> `tools/demo/render_deck.py`, whose output is not shipped. It is kept as
+> working notes; treat the submitted deck's source as authoritative and do not
+> quote this page's claims or numbers.
+
 # Presentation content
 
 Slide-by-slide source text. Every number is marked **MEASURED**, **MODELLED** or
@@ -14,7 +21,7 @@ portal rejects mock-ups, and the working system is the argument.
 Federated CCTV Intelligence and Evidence Fabric
 Gujarat Police Innovation Challenge 2026
 
-*Hybrid of Models 1 + 2 + 3. Model 4 (central VMS recording) rejected on arithmetic.*
+*Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics. Statewide central VMS recording declined on arithmetic.*
 
 ---
 
@@ -41,7 +48,7 @@ Two consequences drive every decision:
 > Find → Trace → Verify → Act.
 > The primary screen is an investigation, not a video wall. Overview is the
 > shift picture: the open alert, cameras that published a mark, ANPR GOOD vs
-> emptiness. Hybrid of Models **1 + 2 + 3**. Model 4 rejected.
+> emptiness. Hybrid of Models **1 + 2 + 3**, with selected-camera Model 4 analytics. Statewide central recording declined.
 
 ![Sign-in — proposed for the Innovation Challenge, not a commissioned seal](var/demo/ui_shots/signin.png)
 
@@ -95,7 +102,7 @@ The watchlist is representative and our own. Matching is continuous at ingest. A
 ## 3e · How the evaluation areas are met
 
 - **A1 Successful test case.** 30 government cameras onboarded. Live stills from ingest. Analytics output and detection report. Screen-recorded government-feed film exists.
-- **A2 Solution presentation.** This deck. Hybrid 1+2+3. Model 4 rejected on arithmetic. Numbers labelled MEASURED / MODELLED.
+- **A2 Solution presentation.** This deck. Hybrid 1+2+3, with selected-camera Model 4 analytics. Central recording declined on arithmetic. Numbers labelled MEASURED / MODELLED.
 - **A3 Solution architecture.** `docs/HLD.md` and drawn diagrams. Heterogeneous ingest, watchlist path, 80k as MODELLED.
 - **A4 Working platform.** This UI is the live store, not a mock-up. Own-feed film uses the synthetic corpus. Copilot is optional and not in the mandatory chain.
 - **A5 Video analytics output.** ANPR with voting; 69 distinct marks; 0 ANPR GOOD (geometry). Person, vehicle and two-wheeler detection from the same pass. Person long-stay is duration, not intrusion. No FRS. Timestamps on every observation.
@@ -466,7 +473,7 @@ Positions from names, precision stated. cam20–cam30 are not invented onto the 
 
 ## 28 · A3 · Logical architecture
 
-Hybrid of Models 1 + 2 + 3. Model 4 rejected. Video stays at the edge. Metadata moves.
+Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics. Central recording declined. Video stays at the edge. Metadata moves.
 
 ![Logical architecture — district edge to centre](var/demo/diagrams/01_logical_architecture.png)
 

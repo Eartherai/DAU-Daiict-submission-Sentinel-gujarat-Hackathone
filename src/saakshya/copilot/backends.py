@@ -21,20 +21,63 @@ from typing import Any, Protocol
 
 log = logging.getLogger("saakshya.copilot.backends")
 
-#: Measured 4 Sep 2026 against this project's AI Studio keys:
-#: `gemini-2.5-flash` / `gemini-2.0-flash` return 404 for new projects;
-#: `gemini-3-flash-preview` returned a grounded STOP; newer Flash aliases
-#: spent a small `maxOutputTokens` on thinking and finished empty.
-DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
+#: Measured 22 Sep 2026 against the Gemini Enterprise Agent Platform project
+#: supplied for this submission. `gemini-3.5-flash` answered text and vision;
+#: `gemini-3-flash-preview` and `gemini-2.5-flash` likewise; `gemini-2.5-pro`
+#: answered text. `gemini-3.5-pro`, `gemini-3-pro-preview`, `gemini-flash-latest`
+#: and `gemini-2.0-flash` are not published to this project and return 404.
+#: The older aliases stay in the list because a deployment holding an AI Studio
+#: key reaches a different catalogue, and the loop simply walks past a 404.
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 GEMINI_MODEL_FALLBACKS = (
+    "gemini-3.5-flash",
     "gemini-3-flash-preview",
-    "gemini-flash-latest",
     "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-flash-latest",
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
 )
-GEMINI_VISION_MODEL = "gemini-3-flash-preview"
+GEMINI_VISION_MODEL = "gemini-3.5-flash"
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"
+
+#: Two different Google products answer to the name "Gemini API", and a key
+#: minted for one is refused by the other. An AI Studio key (`AIza…`) belongs
+#: to the Gemini Developer API. A console-link or express-mode key (`AQ.…`)
+#: belongs to the Gemini Enterprise Agent Platform, which serves the same
+#: `generateContent` shape from Vertex hostnames. Sending the Enterprise key to
+#: the Developer API returns `API_KEY_SERVICE_BLOCKED`, which reads like a dead
+#: key and is not one — so the endpoint is chosen from the key, not assumed.
+GEMINI_DEVELOPER_BASE = "https://generativelanguage.googleapis.com/v1beta"
+GEMINI_ENTERPRISE_HOST = "https://aiplatform.googleapis.com/v1"
+ENTERPRISE_KEY_PREFIX = "AQ."
+
+
+def _enterprise_key(key: str) -> bool:
+    return key.startswith(ENTERPRISE_KEY_PREFIX)
+
+
+def gemini_endpoint(model: str, key: str) -> str:
+    """The `generateContent` URL for this key's platform.
+
+    Measured 22 Sep 2026: the Enterprise platform's unqualified
+    `/publishers/google/models/…` path is load-balanced across regions, and the
+    published model set differs per region — the same request for
+    `gemini-3.5-flash` returned 200, then 404 naming `asia-southeast1`, then 200
+    again. Pinning `locations/global` was 6/6 on two models where
+    `us-central1` was 0/6 on one of them. A demonstration cannot rest on which
+    region a request happens to land in, so the project-qualified global path is
+    used whenever the project is known, and the unqualified path only as a
+    fallback for a deployment that has not set one.
+    """
+    if not _enterprise_key(key):
+        return f"{GEMINI_DEVELOPER_BASE}/models/{model}:generateContent"
+    project = (os.environ.get("SAAKSHYA_GEMINI_PROJECT") or "").strip()
+    location = (os.environ.get("SAAKSHYA_GEMINI_LOCATION") or "global").strip()
+    if project:
+        return (f"{GEMINI_ENTERPRISE_HOST}/projects/{project}/locations/"
+                f"{location}/publishers/google/models/{model}:generateContent")
+    return (f"{GEMINI_ENTERPRISE_HOST}/publishers/google/models/"
+            f"{model}:generateContent")
 
 _GEMINI_TYPE = {
     "object": "OBJECT", "string": "STRING", "number": "NUMBER",
@@ -365,8 +408,7 @@ class GeminiBackend:
                     body = {**payload,
                             "generationConfig": self._generation_config(
                                 thinking=thinking)}
-                    url = (f"https://generativelanguage.googleapis.com/v1beta/"
-                           f"models/{model}:generateContent")
+                    url = gemini_endpoint(model, key)
                     try:
                         r = httpx.post(
                             url, json=body,
@@ -484,8 +526,7 @@ class GeminiBackend:
         for model in (os.environ.get("SAAKSHYA_GEMINI_VISION_MODEL")
                       or GEMINI_VISION_MODEL, *self._models()):
             for key in self._keys:
-                url = (f"https://generativelanguage.googleapis.com/v1beta/"
-                       f"models/{model}:generateContent")
+                url = gemini_endpoint(model, key)
                 try:
                     r = httpx.post(
                         url, json=body,

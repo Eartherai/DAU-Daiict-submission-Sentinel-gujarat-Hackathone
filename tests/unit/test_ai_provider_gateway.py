@@ -10,12 +10,15 @@ from __future__ import annotations
 import pytest
 
 from saakshya.copilot.backends import (
+    DEFAULT_GEMINI_MODEL,
+    GEMINI_MODEL_FALLBACKS,
     PROVIDERS,
     AnthropicBackend,
     GeminiBackend,
     RuleBackend,
     UnavailableBackend,
     default_backend,
+    gemini_endpoint,
 )
 
 
@@ -84,7 +87,10 @@ def test_no_key_is_ever_echoed_by_a_backend():
     assert "super-secret-value" not in str(getattr(b, "name", ""))
     g = GeminiBackend(api_key="super-secret-value")  # secret-test
     assert "super-secret-value" not in repr(g)
-    assert g.model == "gemini-3-flash-preview"
+    # The declared default, not a literal: the measured-best model changes as
+    # Google publishes and withdraws them, and this test is about the key
+    # never being echoed, not about which model is current.
+    assert g.model == DEFAULT_GEMINI_MODEL
 
 
 def test_gemini_accepts_the_studio_alias_and_a_key_pool(monkeypatch):
@@ -155,3 +161,61 @@ def test_copilot_config_does_not_wait_for_a_lazy_object(monkeypatch):
     cfg = _copilot_public_config()
     assert cfg["available"] is True
     assert cfg["gemini"] is True
+
+
+# -- which Google product a key belongs to ------------------------------------ #
+#
+# Two different Google products answer to the name "Gemini API". An AI Studio
+# key (`AIza…`) belongs to the Gemini Developer API on
+# generativelanguage.googleapis.com. A console-link or express-mode key (`AQ.…`)
+# belongs to the Gemini Enterprise Agent Platform, served from Vertex hostnames.
+#
+# Measured 22 Sep 2026: sending the Enterprise key supplied for this submission
+# to the Developer API returned 403 API_KEY_SERVICE_BLOCKED, which reads exactly
+# like an expired or revoked key and is not one. The same key against the
+# Enterprise endpoint answered 200 on the first try. A wrong-endpoint failure
+# that looks like a dead credential is worth a test, because the next person to
+# hit it will otherwise go looking for a new key.
+
+def test_an_enterprise_key_is_sent_to_the_enterprise_platform(monkeypatch):
+    monkeypatch.delenv("SAAKSHYA_GEMINI_PROJECT", raising=False)
+    url = gemini_endpoint("gemini-3.5-flash", "AQ.Ab8RN6-example")  # secret-test
+    assert url.startswith("https://aiplatform.googleapis.com/")
+    assert "generativelanguage" not in url
+
+
+def test_a_studio_key_still_goes_to_the_developer_api(monkeypatch):
+    monkeypatch.setenv("SAAKSHYA_GEMINI_PROJECT", "734123949353")
+    url = gemini_endpoint("gemini-3.5-flash", "AIzaSy-example")  # secret-test
+    # Even with an Enterprise project configured, an AI Studio key must not be
+    # sent to Vertex: it would be refused there for the mirror-image reason.
+    assert url.startswith("https://generativelanguage.googleapis.com/")
+
+
+def test_the_enterprise_region_is_pinned_when_the_project_is_known(monkeypatch):
+    """The unqualified publishers path is a region lottery; global is not.
+
+    Measured 22 Sep 2026: `/publishers/google/models/gemini-3.5-flash` returned
+    200, then 404 naming `asia-southeast1`, then 200 again, because the path is
+    load-balanced across regions and the published model set differs per region.
+    Pinning `locations/global` was 6/6 on two models where `us-central1` was
+    0/6 on one of them. A demonstration must not depend on which region a
+    request lands in.
+    """
+    monkeypatch.setenv("SAAKSHYA_GEMINI_PROJECT", "734123949353")
+    monkeypatch.delenv("SAAKSHYA_GEMINI_LOCATION", raising=False)
+    url = gemini_endpoint("gemini-3.5-flash", "AQ.Ab8RN6-example")  # secret-test
+    assert "/projects/734123949353/locations/global/" in url
+
+
+def test_without_a_project_the_enterprise_path_still_resolves(monkeypatch):
+    """A deployment that sets only a key must still reach a model."""
+    monkeypatch.delenv("SAAKSHYA_GEMINI_PROJECT", raising=False)
+    url = gemini_endpoint("gemini-3.5-flash", "AQ.Ab8RN6-example")  # secret-test
+    assert url.endswith("/publishers/google/models/gemini-3.5-flash:generateContent")
+
+
+def test_the_default_model_is_one_the_fallback_list_also_carries():
+    # The loop walks the fallback list on a 404, so a default outside that list
+    # would be tried once and then never again.
+    assert DEFAULT_GEMINI_MODEL in GEMINI_MODEL_FALLBACKS

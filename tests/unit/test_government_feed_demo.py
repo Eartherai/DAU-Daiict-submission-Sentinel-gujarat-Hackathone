@@ -47,11 +47,43 @@ def test_a_missing_report_is_reported_as_a_failure():
 
 
 def test_the_wall_waits_for_decoded_frames_not_attached_elements():
-    """An empty wall filmed confidently is worse than one that is connecting."""
+    """An empty wall filmed confidently is worse than one that is connecting.
+
+    Matched without whitespace: the guarantee is the threshold, not how the
+    expression happens to be spaced.
+    """
     src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
-    assert "videoWidth > 16" in src, (
+    flat = "".join(src.split())
+    assert "videoWidth>16" in flat, (
         "videoWidth > 0 is satisfied by the 2x2 placeholder Chrome reports "
         "before a WHEP track's first keyframe")
+    assert "videoWidth>0" not in flat, "the placeholder threshold is back"
+
+
+def test_the_wall_waits_for_every_visible_tile_to_show_something():
+    """Four decoding tiles was a quorum, not a wall.
+
+    A tile shows CONNECTING when it holds neither a decoded frame nor a
+    cached still, so waiting only on a decode count filmed black boxes beside
+    live video.
+    """
+    src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
+    flat = "".join(src.split())
+    assert "decoding>=8" in flat
+    assert "shown===vis.length" in flat
+
+
+def test_stills_are_pre_warmed_before_the_browser_opens():
+    """A capture takes 1-10s; a camera first asked during filming is filmed
+    before it answers."""
+    src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
+    assert "def prewarm_stills" in src
+    body = src.split("def prewarm_stills", 1)[1].split("\ndef ", 1)[0]
+    assert "/snapshot" in body
+    # It must not invent a frame for a camera that cannot produce one.
+    assert "honest outcome" in body
+    main = src.split("def main(", 1)[1]
+    assert "prewarm_stills(" in main
 
 
 def test_report_summary_counts_distinct_plates(tmp_path):

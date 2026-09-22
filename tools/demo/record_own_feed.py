@@ -167,8 +167,8 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
 
         beats = build(page, plate)
         mp4 = Path(str(out_dir) + ".mp4")
-        with Screencast(page, out_dir / "frames",
-                        width=VIEW_W, height=VIEW_H) as cast:
+        with Screencast(page, out_dir / "frames", width=VIEW_W,
+                        height=VIEW_H, quality=98) as cast:
             t0 = time.time()
             for b in beats:
                 b.at = time.time() - t0
@@ -179,7 +179,7 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
                 except Exception as exc:
                     b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
                 page.wait_for_timeout(int(b.dwell_s * 1000))
-        res = cast.write(mp4, crf=18, fps=30)
+        res = cast.write(mp4, crf=15, fps=30)
         cast.cleanup()
         if not res.get("ok"):
             print(f"  capture FAILED: {res.get('why')}")

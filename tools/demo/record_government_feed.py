@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import json
 import sys
 import time
 import urllib.error
@@ -74,11 +75,28 @@ def build(page, plate: str) -> list[Beat]:
         page.click('button[data-view="live"]')
         page.wait_for_selector("#live .live-tile", timeout=60000)
         # Wait for real decoded frames, not merely attached elements.
-        decoding = ("() => [...document.querySelectorAll('#live-grid video')]"
-                    ".filter(v => v.readyState >= 2 && v.videoWidth > 16)"
-                    ".length >= 4")
+        # Four decoding tiles was a quorum, not a wall. Wait for most of the
+        # session budget to be delivering pictures, and for every visible tile
+        # to be showing *something* — a decoded frame or its cached still —
+        # so the recording does not open on black boxes. If the grid cannot
+        # get there, film it as it is rather than waiting for ever.
+        ready = """() => {
+          const vs=[...document.querySelectorAll('#live-grid video')];
+          const decoding=vs.filter(v=>v.readyState>=2&&v.videoWidth>16).length;
+          const g=document.getElementById('live-grid');
+          const vh=innerHeight;
+          const vis=g?[...g.children].filter(t=>{const r=t.getBoundingClientRect();
+            return r.bottom>0&&r.top<vh&&r.width>8;}):[];
+          const shown=vis.filter(t=>{
+            const v=t.querySelector('video');
+            const i=t.querySelector('.frame img');
+            return (v&&v.videoWidth>16) ||
+                   (i&&i.getAttribute('src')&&i.style.display!=='none');
+          }).length;
+          return decoding>=8 && shown===vis.length;
+        }"""
         try:
-            page.wait_for_function(decoding, timeout=75000)
+            page.wait_for_function(ready, timeout=110000)
         except Exception:
             pass  # filmed as it is, however it is
 
@@ -164,6 +182,52 @@ def fetch_report(base: str, token: str, out: Path, limit: int = 1000) -> dict:
             "cameras": len(cams)}
 
 
+def prewarm_stills(base: str, token: str, cameras: int = 14) -> dict:
+    """Ask the server for a still per wall camera before the wall opens.
+
+    Four tiles filmed as black `CONNECTING` boxes in the last take. They were
+    not failing: a tile shows that placeholder when it has neither a decoded
+    WHEP frame nor a cached still, and those cameras' snapshots were being
+    refused (287 of them, 503, in the server log) while the wall was being
+    recorded. A capture on this estate takes one to ten seconds, so a tile
+    asked for the first time during a recording is very likely to be filmed
+    before it answers.
+
+    Warming the server's own cache first is not staging: the same endpoint
+    serves the same frame, just sooner. A camera that genuinely cannot produce
+    a still still shows as connecting, which is the honest outcome.
+    """
+    import concurrent.futures as cf
+
+    try:
+        req = urllib.request.Request(
+            f"{base}/gis/cameras?zoom=16",
+            headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            body = json.loads(r.read().decode("utf-8"))
+    except Exception as exc:
+        return {"ok": False, "why": type(exc).__name__}
+
+    ids = [c.get("camera_id") for c in
+           (body.get("features") or []) + (body.get("unlocated") or [])
+           if c.get("camera_id") and not str(c["camera_id"]).startswith("CTL-")]
+    ids = ids[:cameras]
+
+    def warm(cid: str) -> bool:
+        try:
+            rq = urllib.request.Request(
+                f"{base}/cameras/{cid}/snapshot",
+                headers={"Authorization": f"Bearer {token}"})
+            with urllib.request.urlopen(rq, timeout=45) as rs:
+                return rs.status == 200
+        except Exception:
+            return False
+
+    with cf.ThreadPoolExecutor(max_workers=6) as pool:
+        got = sum(1 for ok in pool.map(warm, ids) if ok)
+    return {"ok": True, "asked": len(ids), "warmed": got}
+
+
 def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
     try:
         from playwright.sync_api import sync_playwright
@@ -196,8 +260,8 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
 
         beats = build(page, plate)
         mp4 = Path(str(out_dir) + ".mp4")
-        with Screencast(page, out_dir / "frames",
-                        width=VIEW_W, height=VIEW_H) as cast:
+        with Screencast(page, out_dir / "frames", width=VIEW_W,
+                        height=VIEW_H, quality=98) as cast:
             t0 = time.time()
             for b in beats:
                 b.at = time.time() - t0
@@ -208,7 +272,7 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
                 except Exception as exc:
                     b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
                 page.wait_for_timeout(int(b.dwell_s * 1000))
-        res = cast.write(mp4, crf=18, fps=30)
+        res = cast.write(mp4, crf=15, fps=30)
         cast.cleanup()
         if not res.get("ok"):
             print(f"  capture FAILED: {res.get('why')}")
@@ -242,6 +306,9 @@ def main() -> None:
     report = Path(str(out_dir) + "_anpr_report.csv")
 
     print(f"recording the government-feed demonstration -> {mp4}")
+    warm = prewarm_stills(a.base, token)
+    print(f"  pre-warmed stills: {warm.get('warmed')}/{warm.get('asked')}"
+          if warm.get("ok") else f"  pre-warm skipped ({warm.get('why')})")
     beats = record(a.base, token, a.plate, out_dir)
     ok = mp4.exists()
 

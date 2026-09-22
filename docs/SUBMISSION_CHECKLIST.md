@@ -28,7 +28,7 @@ producing something an assessor will have cut off. That check passed.
 | Registry gap analysis | `reports/MODEL1_GAP_ANALYSIS.md` | 34 cameras onboarded, 18 capacity slots, six departments. Counted in SQL across the whole registry — not sampled. Names five fields at 94.1% unpopulated and says what each one blocks. |
 | Registry API documentation | `reports/REGISTRY_API.md` | Generated from the running service's own OpenAPI schema, so it cannot document an endpoint the platform does not serve. |
 | Sample onboarded camera-metadata dataset | `reports/sample_camera_metadata.csv` | 34 rows, 27 columns — the registry's own export, which round-trips back into `POST /registry/cameras/import.csv`. |
-| Scalability and load test, ~80,000 cameras | `reports/SCALE_80K_LOAD_TEST.md` | Measured, not modelled: 80,000 cameras onboarded in 1.305 s, gap analysis over all of them in 171 ms, single lookup 0.7 ms, 58.01 MB on disk. Followed by a section on what those numbers do **not** prove. |
+| Scalability and load test, ~80,000 cameras | `reports/SCALE_80K_LOAD_TEST.md` | Measured, not modelled: 80,000 cameras onboarded in 0.697 s (114,742/s), gap analysis over all of them in 85 ms, single lookup 0.46 ms, 58.01 MB on disk. Followed by a section on what those numbers do **not** prove. |
 
 ## 2b · A folder you can drag to Drive
 

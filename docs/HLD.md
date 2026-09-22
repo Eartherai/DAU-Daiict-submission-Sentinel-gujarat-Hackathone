@@ -340,41 +340,98 @@ rollout plan can be scheduled against it rather than around it.
 
 Section 12 recorded cost as **NOT ESTIMATED**. That was the honest status, but
 the challenge asks for estimated implementation and operational costs, so this
-is a model with its assumptions exposed — every input below is a placeholder to
-be replaced by procurement, and the figures are structure rather than price.
+is a model with its assumptions exposed. Unit prices are procurement's to
+supply; what this section owes is the *shape* of the bill and the one
+measurement that decides it.
 
-**The one measured input.** One CPU analytics process sustains **11.4 frames/s**
-— roughly 11 cameras at 1 Hz. Everything else follows from that and from unit
-prices this proposal does not know.
+### 17.1 Two measured throughputs, and which one to size on
+
+A single figure here would be misleading, because two different things were
+measured and they differ by a factor of two.
+
+| Measurement | Value | What it covers |
+|---|---|---|
+| Single analytics process, detection only, one stream | **11.4 frames/s** | Best case. 1,019 frames, `var/reports/camera_load.json`. |
+| Live AI worker, full pipeline, four cameras concurrently | **~1.4 frames/s per camera, ~5.6 aggregate** | Detection *and* ANPR and tracking, sharing a host with the API and media planes. |
+
+**Size on the second.** The first is a component benchmark taken with nothing
+else running; the second is what the software actually sustains doing the whole
+job. A statewide estimate built on the best case is the kind of number that
+collapses in the first question about it.
+
+One further figure from that same 50-camera run matters more than either:
+**50,775 of 52,637 delivered frames — 96.5% — were dropped by the consumer.**
+Ingest was never the constraint. The analytics process was, by a wide margin,
+and that is the finding to carry into procurement.
+
+### 17.2 The model, and its one unknown
 
 ```
-cameras_per_district        = 2,500          (design assumption)
-sample_rate_hz              = 1              (policy choice, not a limit)
+cameras_per_district        = 2,500          design assumption
+sample_rate_hz              = 1              policy choice, not a limit
 frames_per_second_needed    = 2,500
-cpu_process_throughput_fps  = 11.4           MEASURED
+process_throughput_fps      = 5.6            MEASURED, full pipeline
 gpu_speedup_factor          = S              UNKNOWN — must be benchmarked
-inference_nodes_per_district= 2,500 / (11.4 × S)
+inference_nodes_per_district= 2,500 / (5.6 × S)
 districts                   = 33
 ```
 
-With no GPU (S = 1) a district needs ~220 CPU processes, which is the argument
-for GPU at the district rather than a rewrite. The sensitivity to **S** is the
-whole cost model, and quoting a rupee figure without benchmarking **S** on the
-target accelerator would be inventing a number.
+### 17.3 Solved for every value of S
 
-**What is genuinely cheap here, and why.** The costs this design does *not*
-incur are as material as the ones it does:
+Rather than quote a speedup this proposal has not measured, the model is solved
+across the range. Procurement benchmarks **S** once and reads its own row.
+
+| GPU speedup **S** | Nodes per district | Statewide | Statewide on the best-case figure |
+|---:|---:|---:|---:|
+| 1 (CPU only) | 447 | 14,751 | 7,260 |
+| 5 | 90 | 2,970 | 1,452 |
+| 10 | 45 | 1,485 | 726 |
+| 20 | 23 | 759 | 363 |
+| 40 | 12 | 396 | 198 |
+
+The last column is the same statewide arithmetic on 11.4 frames/s, set
+beside column three so the sensitivity to the *measurement* is as visible
+as the sensitivity to **S**. The
+two differ by 2× at every row, which is smaller than the range of **S** itself
+— and that is the point: **S dominates the bill, and nobody should sign one
+until it is measured.**
+
+### 17.4 The benchmark that closes this section
+
+**S** is not a literature value; it depends on the accelerator, the batch size,
+the model precision and the decode path. It is one afternoon of work on the
+target hardware:
+
+1. Run the existing analytics process against a fixed 1,000-frame sample on the
+   CPU baseline and record frames/s. That is the denominator, already measured
+   here at 5.6 with the full pipeline.
+2. Repeat on the candidate accelerator with the same sample, same model weights
+   and same precision.
+3. **S** is the ratio. Read the matching row above.
+4. Re-run at the district's real camera count, because contention — not raw
+   inference speed — is what cost this platform half its throughput.
+
+Step 4 is the one usually skipped, and it is the one this project learned the
+hard way: moving from one camera to four raised aggregate throughput roughly
+sixfold while per-camera latency stayed flat, which says the worker was waiting
+on frames rather than saturating the processor. Ingest concurrency is the first
+thing to size, not the accelerator.
+
+### 17.5 What this design does not spend, and why
+
+The costs avoided are as material as the ones incurred.
 
 | Avoided | Because |
 |---|---|
 | Central video storage (~52 PB modelled) | Video stays at the camera/NVR |
 | Central video bandwidth (~160 Gbps modelled) | Only metadata and ~1 Hz stills traverse the uplink |
 | Per-camera VMS licensing at the centre | Departmental VMS platforms are integrated, not replaced |
-| Registry sharding | 80,000 camera rows occupy **58.01 MB**; onboarding runs at **61,305 cameras/s**, gap analysis over all 80,000 in **171 ms** — all **MEASURED** |
+| Registry sharding | 80,000 camera rows occupy **58.01 MB**; onboarding runs at **114,742 cameras/s**, gap analysis over all 80,000 in **85 ms**, single lookup **0.46 ms** — all **MEASURED**, and regenerated by `tools/reports/scale_load_test.py` rather than transcribed |
 
 **Operational cost is dominated by inference, not by storage or transport.**
-That is the finding worth carrying into procurement, and it is the opposite of
-the assumption a central-VMS design would start from.
+That is the opposite of the assumption a central-VMS design starts from, and it
+is why this proposal declines statewide central recording in §3 rather than
+costing it.
 
 ## 18. Cybersecurity architecture
 

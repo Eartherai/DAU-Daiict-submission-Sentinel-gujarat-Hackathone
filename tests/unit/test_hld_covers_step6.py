@@ -9,6 +9,7 @@ keyword — a proposal can say "disaster recovery" once in a table and answer
 nothing.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -55,9 +56,21 @@ def test_cost_model_exposes_its_assumptions(doc):
 
 
 def test_cost_model_refuses_to_quote_a_price_it_cannot_support(doc):
+    """No rupee figure, and the unknown is named with a way to resolve it.
+
+    This asserted one sentence verbatim, which broke the moment the section
+    was rewritten to solve the model across a range of GPU speedups instead of
+    stopping at the free variable. The property it was protecting is the one
+    worth pinning: the model may publish node counts derived from measurement,
+    and may not publish a price it has no basis for.
+    """
     section = doc.split("## 17.", 1)[1].split("## 18.", 1)[0]
     flat = " ".join(section.split())
-    assert "would be inventing a number" in flat
+    assert not re.search(r"(₹|Rs\.?\s?\d|INR\s?\d|crore|lakh)", flat, re.I), (
+        "the cost model quotes a currency figure it cannot support")
+    assert "UNKNOWN" in flat, "the honest status of the speedup factor was dropped"
+    assert "benchmark" in flat.lower(), (
+        "an unknown with no stated way to resolve it is just an unknown")
 
 
 def test_section_12_no_longer_contradicts_the_new_sections(doc):
@@ -70,5 +83,7 @@ def test_section_12_no_longer_contradicts_the_new_sections(doc):
 def test_the_proposal_still_states_what_it_will_not_claim(headings, doc):
     """Adding sections must not quietly drop the discipline."""
     assert any("will not say" in h.lower() for h in headings)
-    tail = doc.split("## 18.", 1)[1]
+    # Split on the heading's name rather than its number: adding a section
+    # renumbers everything after it, and this passed by luck once already.
+    tail = doc.split("What this proposal will not say", 1)[1]
     assert "Not tested at 80,000 cameras." in tail

@@ -5377,6 +5377,8 @@ loaders.cameras = async () => {
       el("thead", {}, el("tr", {},
         el("th", { text: "Camera" }), el("th", { text: "Resolution" }),
         el("th", { text: "Codec" }), el("th", { text: "Location" }),
+        el("th", { text: "Department" }), el("th", { text: "VMS" }),
+        el("th", { text: "Retention" }),
         el("th", { text: "ANPR" }), el("th", { text: "Appearance" }),
         el("th", { text: "Presence" }), el("th", { text: "Samples" }),
         el("th", { text: "Plate yield" }),
@@ -5395,23 +5397,27 @@ loaders.cameras = async () => {
     const ordered = [...res.features].sort((a, b) => Number(isSlot(a)) - Number(isSlot(b)));
     for (const f of ordered) {
       if (isSlot(f)) {
-        tb.append(el("tr", { class: "slot-row" },
+        tb.append(el("tr", { class: "slot-row", "data-camera-id": f.camera_id },
           el("td", { class: "mono", text: f.camera_id }),
           el("td", { class: "mono", text: f.resolution || "—" }),
           el("td", { text: f.codec || "—" }),
-          el("td", { colspan: "9" },
+          el("td", { colspan: "12" },
             el("span", { class: "chip unknown", text: "CAPACITY SLOT" }),
             el("span", { class: "sid", style: "margin-left:8px",
                          text: "reserved headroom — no stream, nothing to grade" }))));
         continue;
       }
-      tb.append(el("tr", {},
+      tb.append(el("tr", { "data-camera-id": f.camera_id },
         el("td", { class: "mono", text: f.camera_id }),
         el("td", { class: "mono", text: f.resolution || "—" }),
         el("td", { text: f.codec || "—" }),
         el("td", {}, f.located
           ? el("span", { class: "mono", text: `${num(f.lat, 4)}, ${num(f.lon, 4)}` })
           : el("span", { class: "chip unknown", text: "no coordinates" })),
+        el("td", {}, metaCell(f.department)),
+        el("td", {}, metaCell(f.vms)),
+        el("td", {}, metaCell(f.retention_days,
+                              f.retention_days ? `${f.retention_days} d` : null)),
         el("td", {}, gradeChip(f.anpr, "")),
         el("td", {}, gradeChip(f.vehicle, "")),
         el("td", {}, gradeChip(f.presence, "")),
@@ -5426,6 +5432,9 @@ loaders.cameras = async () => {
     }
     table.append(tb);
     box.append(table);
+    state.capabilityFeatures = res.features;
+    populateRegFilters(res.features.filter((f) => !f.synthetic_slot));
+    applyRegFilter();
   } catch (err) {
     clear(box);
     box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
@@ -6750,4 +6759,114 @@ $("#btn-ob-export")?.addEventListener("click", async (e) => {
   } finally {
     e.target.disabled = false;
   }
+});
+
+/* ─── Model 1 · registry search, filter and export ───────────────────────── */
+/* "Role-based search, filtering, export, and metadata audit trails" is a named
+ * Model 1 feature. The estate table listed measured capability and none of the
+ * registry metadata an integrator acts on — which VMS a feed must come through,
+ * how long its footage survives — and offered no way to narrow fifty rows.
+ *
+ * Absence is rendered, not blanked. A registry's whole job is to distinguish
+ * "nobody has told us" from "there is nothing to tell", and an empty cell says
+ * neither. */
+
+function metaCell(value, label = null) {
+  const shown = label !== null ? label : value;
+  if (value === null || value === undefined || value === "") {
+    return el("span", { class: "chip unknown", title:
+      "No department has supplied this field. It is named in the gap report "
+      + "above, and accepted by POST /registry/cameras/import.", text: "not supplied" });
+  }
+  return el("span", { text: String(shown) });
+}
+
+const regFilter = { q: "", dept: "", district: "", anpr: "", missingOnly: false };
+
+//: The fields the gap report counts. A row is "incomplete" when any is absent.
+const REG_METADATA_FIELDS = ["vms", "storage_location", "retention_days",
+                             "vendor", "camera_type"];
+
+function regRowMatches(f) {
+  if (regFilter.dept && f.department !== regFilter.dept) return false;
+  if (regFilter.district && f.district !== regFilter.district) return false;
+  if (regFilter.anpr && String(f.anpr || "UNKNOWN") !== regFilter.anpr) return false;
+  if (regFilter.missingOnly) {
+    const complete = REG_METADATA_FIELDS.every(
+      (k) => f[k] !== null && f[k] !== undefined && f[k] !== "");
+    if (complete) return false;
+  }
+  if (regFilter.q) {
+    const hay = ["camera_id", "name", "department", "district", "vms", "vendor",
+                 "camera_type", "storage_location", "codec"]
+      .map((k) => String(f[k] ?? "")).join(" ").toLowerCase();
+    if (!hay.includes(regFilter.q)) return false;
+  }
+  return true;
+}
+
+/** Hide rows the filter excludes, and say how many are hidden.
+ *
+ * A filtered table that silently shows four of fifty rows is how an operator
+ * concludes the estate is four cameras. The count states both numbers. */
+function applyRegFilter() {
+  const feats = state.capabilityFeatures || [];
+  if (!feats.length) return;
+  const rows = $$("#cameras tbody tr");
+  let shown = 0;
+  for (const tr of rows) {
+    const cid = tr.dataset.cameraId;
+    const f = feats.find((x) => String(x.camera_id) === cid);
+    const ok = f ? regRowMatches(f) : true;
+    tr.hidden = !ok;
+    if (ok) shown += 1;
+  }
+  const n = $("#reg-count");
+  if (n) {
+    const total = rows.length;
+    const active = regFilter.q || regFilter.dept || regFilter.district
+      || regFilter.anpr || regFilter.missingOnly;
+    n.textContent = active ? `${shown} of ${total} rows` : `${total} rows`;
+    n.classList.toggle("filtered", !!active && shown < total);
+  }
+}
+
+function populateRegFilters(feats) {
+  for (const [sel, key, all] of [["#reg-dept", "department", "All departments"],
+                                 ["#reg-district", "district", "All districts"]]) {
+    const node = $(sel);
+    if (!node) continue;
+    const keep = node.value;
+    const seen = [...new Set(feats.map((f) => f[key]).filter(Boolean))].sort();
+    node.replaceChildren(el("option", { value: "" }, all),
+                         ...seen.map((v) => el("option", { value: v }, v)));
+    if (seen.includes(keep)) node.value = keep;
+  }
+}
+
+for (const [sel, key] of [["#reg-dept", "dept"], ["#reg-district", "district"],
+                          ["#reg-anpr", "anpr"]]) {
+  $(sel)?.addEventListener("change", (e) => {
+    regFilter[key] = e.target.value;
+    applyRegFilter();
+  });
+}
+$("#reg-q")?.addEventListener("input", (e) => {
+  regFilter.q = e.target.value.trim().toLowerCase();
+  applyRegFilter();
+});
+$("#reg-missing")?.addEventListener("change", (e) => {
+  regFilter.missingOnly = e.target.checked;
+  applyRegFilter();
+});
+$("#btn-reg-clear")?.addEventListener("click", () => {
+  Object.assign(regFilter, { q: "", dept: "", district: "", anpr: "",
+                             missingOnly: false });
+  for (const s of ["#reg-q", "#reg-dept", "#reg-district", "#reg-anpr"]) {
+    const n = $(s);
+    if (n) n.value = "";
+  }
+  const m = $("#reg-missing");
+  if (m) m.checked = false;
+  applyRegFilter();
 });

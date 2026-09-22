@@ -1,18 +1,18 @@
 # Scalability and load test — 80,000 cameras
 
-Generated 2026-09-21 14:54:12Z. Every figure below was measured by this script on a
+Generated 2026-09-22 18:46:15Z. Every figure below was measured by this script on a
 throwaway database; none is extrapolated.
 
 ## Registry plane, at statewide scale
 
 | Operation | Result |
 |---|---:|
-| Bulk onboarding of 80,000 cameras | **1.305s** (61,305/s) |
-| Registry gap analysis (all 80,000) | **171.3 ms** |
-| Capability grading summary | 269.0 ms |
-| Map viewport, zoom 11 → 1,665 features | 399.7 ms |
-| Single camera lookup | **0.7 ms** |
-| Department filter over the whole estate (80,000 rows) | 648.8 ms |
+| Bulk onboarding of 80,000 cameras | **0.697s** (114,742/s) |
+| Registry gap analysis (all 80,000) | **85.0 ms** |
+| Capability grading summary | 151.0 ms |
+| Map viewport, zoom 11 → 1,665 features | 225.0 ms |
+| Single camera lookup | **0.46 ms** |
+| Department filter over the whole estate (80,000 rows) | 406.3 ms |
 | Database size | 58.01 MB |
 
 The map viewport is a bounded query rather than a full dump: it returns

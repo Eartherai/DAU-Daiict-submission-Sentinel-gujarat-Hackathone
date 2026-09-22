@@ -554,6 +554,18 @@ class MapService:
                 "lat": r["lat"], "lon": r["lon"],
                 "located": r["lat"] is not None and r["lon"] is not None,
                 "district": r["district"], "tier": r["tier"],
+                # The registry metadata an integrator actually acts on. These
+                # are the same fields /gis/gaps reports as unsupplied, and
+                # leaving them out of the inventory meant the estate view
+                # could not be filtered by the thing a department cares about
+                # — which VMS a feed must be integrated through, and how long
+                # its footage survives.
+                "department": r.get("department"),
+                "vms": r.get("vms"),
+                "vendor": r.get("vendor"),
+                "camera_type": r.get("camera_type"),
+                "storage_location": r.get("storage_location"),
+                "retention_days": r.get("retention_days"),
                 "codec": r.get("codec"),
                 "resolution": (f"{r['width']}x{r['height']}"
                                if r.get("width") else None),

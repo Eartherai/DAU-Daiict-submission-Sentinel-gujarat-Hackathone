@@ -2578,3 +2578,38 @@ body.wall-focus #live-progress {
   .onboard-grid { grid-template-columns: 1fr 1fr; }
   .onboard-actions button.primary { margin-left: 0; width: 100%; }
 }
+
+/* ─── Model 1 · registry filter bar ──────────────────────────────────────── */
+.reg-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.reg-search { flex: 1 1 260px; min-width: 200px; display: flex; }
+.reg-filter input[type="search"],
+.reg-filter select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.reg-filter select { width: auto; }
+.reg-filter input[type="search"]:focus-visible,
+.reg-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.reg-check { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.reg-count { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.reg-count.filtered { color: var(--accent); font-weight: 600; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+@media (max-width: 760px) {
+  .reg-count { margin-left: 0; }
+}

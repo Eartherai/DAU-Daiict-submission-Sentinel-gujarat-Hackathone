@@ -1,6 +1,6 @@
 # Registry API
 
-Generated 2026-09-21 15:20:11Z from the running service's own OpenAPI schema, so it
+Generated 2026-09-22 18:46:07Z from the running service's own OpenAPI schema, so it
 cannot describe an endpoint the platform does not serve.
 
 The registry is Model 1: camera metadata, onboarding and gap reporting.

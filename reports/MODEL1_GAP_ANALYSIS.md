@@ -1,6 +1,6 @@
 # Registry gap analysis
 
-Generated 2026-09-21 14:52:53Z from `sqlite:///var/live.db`. Counted across the whole registry in
+Generated 2026-09-22 18:46:07Z from `sqlite:///var/live.db`. Counted across the whole registry in
 SQL; nothing here is sampled or estimated.
 
 A gap is a field no department has supplied yet, not a field the

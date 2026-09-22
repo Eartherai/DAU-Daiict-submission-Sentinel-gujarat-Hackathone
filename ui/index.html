@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr109">
+<link rel="stylesheet" href="/ui/style.css?v=cr110">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -625,6 +625,25 @@
           <div class="onboard-result" id="onboard-result" role="status" aria-live="polite"></div>
         </div>
 
+        <div class="reg-filter" id="reg-filter">
+          <label class="reg-search">
+            <span class="sr-only">Search the registry</span>
+            <input id="reg-q" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="Search id, name, department, district, VMS, vendor…">
+          </label>
+          <select id="reg-dept" aria-label="Filter by department"><option value="">All departments</option></select>
+          <select id="reg-district" aria-label="Filter by district"><option value="">All districts</option></select>
+          <select id="reg-anpr" aria-label="Filter by ANPR grade">
+            <option value="">Any ANPR grade</option>
+            <option value="GOOD">GOOD</option>
+            <option value="DEGRADED">DEGRADED</option>
+            <option value="UNKNOWN">UNKNOWN</option>
+            <option value="UNSUITABLE">UNSUITABLE</option>
+          </select>
+          <label class="reg-check"><input type="checkbox" id="reg-missing"> Only rows with missing metadata</label>
+          <span class="reg-count" id="reg-count" role="status" aria-live="polite"></span>
+          <button class="ghost" id="btn-reg-clear" type="button">Clear</button>
+        </div>
         <div class="col-body wrap-scroll" id="cameras"></div>
         <div class="section-note">
           Grades are measured from this camera's own stream and observations, not
@@ -802,7 +821,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr137"></script>
+<script type="module" src="/ui/app.js?v=cr138"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

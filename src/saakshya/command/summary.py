@@ -190,6 +190,10 @@ def command_summary(store: Store) -> dict[str, Any]:
     _live_hb = bool(_hb.get("pid")) and not _hb.get("stale")
     _rows = [r for r in (_hb.get("cameras") or {}).values() if isinstance(r, dict)]
     _active = [r for r in _rows if str(r.get("ai")) == "ACTIVE"]
+    #: Cameras that have something to analyse. The registry also holds
+    #: capacity slots with no stream, and counting those would flatter
+    #: the ratio in the wrong direction.
+    _streamable = sum(1 for c in cams if (c.get("rtsp_url") or "").strip())
 
     def _sum(field: str) -> float | None:
         vals = [r.get(field) for r in _active if isinstance(r.get(field), (int, float))]
@@ -279,9 +283,16 @@ def command_summary(store: Store) -> dict[str, Any]:
                 "chip": ("AI ACTIVE" if _active else
                          ("AI STARTING" if _live_hb else "AI DEGRADED")),
                 "label": ("MEASURED" if _live_hb else NA),
+                # State the denominator. One worker analyses a handful of
+                # cameras concurrently - inference throughput, not roster size
+                # - and "N active cameras" on an estate of thirty reads as
+                # though the other twenty-six are covered. They are not, and an
+                # operator deciding where to look needs to know that.
                 "note": (
                     (f"AI worker pid {_hb.get('pid')} reporting "
-                     f"{len(_active)} active camera(s).")
+                     f"{len(_active)} of {_streamable} camera(s) with a "
+                     f"stream under analysis. Concurrency is bounded by "
+                     f"inference throughput, not by the registry.")
                     if _active else
                     ("AI worker is up and connecting to its cameras."
                      if _live_hb else

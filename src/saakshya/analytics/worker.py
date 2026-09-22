@@ -345,8 +345,25 @@ class Worker:
             })
 
 
-def _default_ai_cameras(db_url: str, limit: int = 4) -> list[str]:
-    """Cameras that actually have a stream to analyse.
+#: How many cameras one worker analyses concurrently. Inference is the real
+#: constraint, not the roster: measured on this host, CPU-only, four cameras
+#: run at roughly 1.4 fps each for about 5.6 fps aggregate. Raising this does
+#: not buy coverage, it divides the same frames more thinly — so it is a
+#: deployment decision, exposed rather than hardcoded.
+AI_CAMERA_LIMIT = int(os.environ.get("SAAKSHYA_AI_CAMERA_LIMIT", "4") or 4)
+
+#: Order in which a scarce analysis slot is worth spending, best first.
+#: GOOD and DEGRADED can yield a registration mark. UNKNOWN has never been
+#: graded and might — and analysing it is what produces the evidence either
+#: way. UNSUITABLE has been *measured* unable to read a plate at this geometry,
+#: so it is the worst use of a slot when anything else is waiting; it still
+#: earns a place once the better bands are exhausted, because vehicle and
+#: person detection work on a camera that cannot resolve a plate.
+_ANPR_PRIORITY = {"GOOD": 0, "DEGRADED": 1, "UNKNOWN": 2, "": 2, "UNSUITABLE": 3}
+
+
+def _default_ai_cameras(db_url: str, limit: int | None = None) -> list[str]:
+    """Cameras that have a stream, ordered by what a slot can yield there.
 
     The default was the literal "OWN-TRAFFIC", which on this estate has no
     source at all: the worker started, logged `ai worker has no source for
@@ -355,9 +372,20 @@ def _default_ai_cameras(db_url: str, limit: int = 4) -> list[str]:
     failed, but because nothing had been asked to run. A default that cannot
     work is worse than no default, because it looks configured.
 
-    Pick real cameras with a URL to open instead, preferring those the
-    registry has already graded as worth reading.
+    Choosing real cameras fixed that and introduced a quieter fault: the
+    replacement sorted by `camera_id` and took the first four. Measured against
+    `var/live.db` on 22 Sep 2026 that selected cam01..cam04, **all four graded
+    UNSUITABLE for ANPR**, while 21 cameras that had never been graded sat
+    idle. Every scarce slot was spent on a camera already measured unable to
+    read a plate. Alphabetical order is not a capability judgement, and this
+    platform's whole argument is that capability is measured rather than
+    assumed.
+
+    Ordering by grade does not conjure throughput — on an estate where nothing
+    grades GOOD it simply stops the worst allocation — and the tie inside a
+    band stays alphabetical so the choice is reproducible.
     """
+    limit = AI_CAMERA_LIMIT if limit is None else limit
     try:
         from saakshya.store.repository import Store
 
@@ -367,7 +395,27 @@ def _default_ai_cameras(db_url: str, limit: int = 4) -> list[str]:
                 if (c.get("rtsp_url") or "").strip()
                 and not str(c.get("camera_id", "")).startswith("CTL-")
                 and c.get("enabled") is not False]
-        rows.sort(key=lambda c: str(c.get("camera_id")))
+        if not rows:
+            return []
+
+        ids = [str(c["camera_id"]) for c in rows]
+        best: dict[str, int] = {}
+        try:
+            for cap in store.list_capability(ids):
+                cid = str(cap.get("camera_id"))
+                grade = (cap.get("anpr_grade") or "UNKNOWN").upper()
+                rank = _ANPR_PRIORITY.get(grade, 2)
+                # A camera is graded per time band; keep its best showing.
+                best[cid] = min(rank, best.get(cid, 99))
+        except Exception:
+            # An ungraded estate is the normal state on day one, and a
+            # capability table that cannot be read is not a reason to analyse
+            # nothing. Fall through with every camera equal.
+            log.warning("could not read capability grades; "
+                        "falling back to registry order", exc_info=True)
+
+        rows.sort(key=lambda c: (best.get(str(c["camera_id"]), 2),
+                                 str(c["camera_id"])))
         return [str(c["camera_id"]) for c in rows[:limit]]
     except Exception:
         log.exception("could not choose default AI cameras")

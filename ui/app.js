@@ -1470,7 +1470,8 @@ function noCoordinatesNotice(count) {
     if (!wrap) continue;
     const node = el("div", { class: "notice", id },
       el("strong", { text: `${count} cameras registered · none with coordinates` }),
-      "These cameras are reachable and being analysed — their measured "
+      "These cameras are reachable, and the ones under analysis are named "
+      + "on the System view — their measured "
       + "capability and observations are in the Cameras view. What is missing "
       + "is where they are. Location comes from the grid catalogue, which "
       + "requires a signed-in session on the CDN host. Nothing is placed on "

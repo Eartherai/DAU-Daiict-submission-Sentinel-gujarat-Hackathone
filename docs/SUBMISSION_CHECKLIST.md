@@ -15,8 +15,8 @@ quote them on the portal.
 |---|---|---|---|
 | 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` (17.7 MB) and `var/demo/SAAKSHYA_deck.pdf` (9.0 MB) | **34 slides**, 16:9. Upload the PPTX if the field wants PowerPoint; attach the PDF as well so nothing depends on their renderer. |
 | 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | Includes §15 disaster recovery, §16 statewide rollout with exit gates, §17 an indicative cost model with its workings shown, §18 the cybersecurity architecture with every control marked IMPLEMENTED or SPECIFIED, §19 the claims this proposal declines to make. |
-| 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 27 s** · 2560×1440 @ 30 fps · 8.9 MB. Inside the cap with 33 s to spare. Seven beats, all driven cleanly: onboarding through the registry API, AI detection on our own feeds, analytics, the traced mark, the watchlist alert, sealed evidence, the audit record. |
-| 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **4 m 42 s** · 2560×1440 @ 30 fps · 95.6 MB (1080p copy: `government_feed_1080.mp4`, 20.8 MB, upload this one if the portal caps size). Report: **178 plate reads across 9 government cameras**, each with UTC timestamp, camera id, camera name, district, department, object type and vote count. |
+| 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 46 s** · 2560×1440 · 9.4 MB. Ten beats, all driven cleanly. Onboarding is done **through the portal's own form** by an estate administrator, who then hands over to the investigating officer — because onboarding needs `admin:write` and ADMIN holds no search permission. The gap report visibly moves as the camera lands: `vms` and `retention_days` fall from 100% to 97.4%, the two fields supplied. |
+| 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **4 m 41 s** · 2560×1440 @ 30 fps · 95.6 MB (1080p copy: `government_feed_1080.mp4`, 20.8 MB, upload this one if the portal caps size). Report: **178 plate reads across 9 government cameras**, each with UTC timestamp, camera id, camera name, district, department, object type and vote count. |
 
 The recorder refuses to finish an own-feed film over three minutes rather than
 producing something an assessor will have cut off. That check passed.
@@ -32,9 +32,18 @@ producing something an assessor will have cut off. That check passed.
 
 ## 2b · A folder you can drag to Drive
 
-`var/demo/SUBMIT/` holds every file named above, numbered in submission order,
-built fresh on 22 September. The videos and the deck are hardlinks, so the
-folder costs no extra disk and can never drift from the originals.
+`var/demo/SUBMIT/` holds every file named above, numbered in submission order.
+Rebuild it with:
+
+```
+python tools/demo/build_submission_pack.py
+```
+
+Everything is hardlinked, so a regenerated report cannot leave a stale copy
+behind and the folder costs no extra disk. It refuses with a non-zero exit if a
+required artifact is missing, because a pack quietly missing the
+government-feed report is worse than no pack. It was assembled by hand once and
+drifted the first time a report was regenerated.
 
 ```
 00_CHECKLIST.md

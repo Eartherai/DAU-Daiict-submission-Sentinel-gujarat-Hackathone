@@ -47,11 +47,50 @@ def test_it_shows_the_four_things_the_challenge_asks_for():
     assert "alert" in titles                # 4. the alert it fired
 
 
-def test_onboarding_uses_the_documented_endpoint():
-    """The demo must onboard for real, not mime it."""
+def test_onboarding_is_driven_through_the_portal_not_a_background_fetch():
+    """The demo must onboard for real, and be seen to.
+
+    This asserted `method: 'POST'`, which pinned the old approach: the
+    recorder called /registry/cameras/import from page.evaluate. The
+    onboarding happened and the recording showed nothing — a page reload and a
+    new row, with no visible cause. Model 1's named deliverable is a
+    *demonstration* of manual and bulk onboarding, and an invisible fetch
+    demonstrates nothing.
+
+    Worse, it hid a failure. The recording signed in as SUPERVISOR, which does
+    not hold `admin:write`, so the fetch returned 403 and nothing said so.
+    Driving the real form is what surfaced it: the panel printed
+    `PERMISSION_DENIED` into the frame.
+    """
     src = (ROOT / "tools" / "demo" / "record_own_feed.py").read_text()
-    assert "/registry/cameras/import" in src
-    assert "method: 'POST'" in src
+    assert "#ob-camera-id" in src, "the recorder does not fill the onboarding form"
+    assert "#btn-ob-submit" in src, "the recorder never commits the onboarding"
+    assert "#btn-ob-dry" in src, (
+        "the recorder does not validate first, which is the step that shows "
+        "the dry run writes nothing")
+    # Check the code, not the prose: the docstring explains the old approach
+    # by name, and an earlier version of this assertion flagged its own
+    # explanation.
+    body = src.split("def onboard()", 1)[1].split("def registry_gaps", 1)[0]
+    body = body.split('"""', 2)[-1]          # drop the docstring
+    assert "fetch(" not in body, (
+        "onboarding is back to a background fetch the recording cannot show")
+
+
+def test_the_recording_carries_a_token_that_can_actually_onboard():
+    """One token cannot film both halves, and the platform is right about that.
+
+    ADMIN holds no search permission and SUPERVISOR holds no admin:write,
+    because running the estate and investigating people are different jobs.
+    The film signs in as the administrator to onboard, then hands over.
+    """
+    src = (ROOT / "tools" / "demo" / "record_own_feed.py").read_text()
+    assert "--admin-token-file" in src
+    assert "admin:write" in src, (
+        "nothing explains why a second token is needed, so the next person "
+        "will remove it")
+    # and it must warn rather than silently film a refusal
+    assert "PERMISSION_DENIED" in src
 
 
 def test_an_overlong_recording_is_refused_not_shipped():

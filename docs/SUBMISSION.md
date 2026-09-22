@@ -1,3 +1,9 @@
+> **SUPERSEDED — 22 September 2026.** The artifacts changed after this
+> page was written: the deck is 34 slides not 54, the own-feed film is
+> 2:27 at 1440p, and the government film is 4:42 and reads 178 plates
+> across 9 cameras. Use `docs/SUBMISSION_CHECKLIST.md`. This page is
+> kept for the portal mechanics only — never quote its numbers.
+
 # Submission index
 
 Everything the challenge asks for, where it is, and how it was produced. Every

@@ -2484,3 +2484,97 @@ body.wall-focus #live-progress {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 46ch; vertical-align: bottom;
 }
+
+/* ─── Model 1 · onboarding panel ─────────────────────────────────────────── */
+.onboard {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px 12px;
+  background: var(--panel-2, var(--panel));
+}
+.onboard-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.onboard-pane[hidden] { display: none; }
+.onboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 10px;
+}
+.onboard-grid label,
+.onboard-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.onboard-actions label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.onboard-grid input,
+.onboard-grid select,
+#ob-csv {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  min-width: 0;
+}
+.onboard-grid input:focus-visible,
+.onboard-grid select:focus-visible,
+#ob-csv:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.onboard .req { color: var(--bad, #d9534f); }
+.onboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+/* button.primary is width:100% app-wide, which is right inside a narrow
+   column and wrong in a horizontal action row — it turns a routine create
+   into a full-bleed alarm bar. */
+.onboard-actions button.primary {
+  width: auto;
+  margin-left: auto;
+  padding: 6px 18px;
+}
+#ob-csv {
+  width: 100%;
+  margin-top: 8px;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  resize: vertical;
+}
+.onboard-result:empty { display: none; }
+.onboard-result {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border-left: 3px solid var(--line);
+  background: var(--bg);
+  font-size: 13px;
+}
+.onboard-result.ok  { border-left-color: var(--good, #2e7d32); }
+.onboard-result.bad { border-left-color: var(--bad, #d9534f); }
+.onboard-detail {
+  margin-top: 5px;
+  white-space: pre-wrap;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 760px) {
+  .onboard-grid { grid-template-columns: 1fr 1fr; }
+  .onboard-actions button.primary { margin-left: 0; width: 100%; }
+}

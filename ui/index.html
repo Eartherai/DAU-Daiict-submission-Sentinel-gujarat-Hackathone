@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr108">
+<link rel="stylesheet" href="/ui/style.css?v=cr109">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -521,8 +521,110 @@
       <div style="display:flex;flex-direction:column;height:100%">
         <div class="col-head">Camera capability
           <span class="n" id="cap-note"></span>
-          <div style="margin-left:auto"><button class="ghost" id="btn-regrade">Re-grade from stored observations</button></div>
+          <div style="margin-left:auto;display:flex;gap:4px">
+            <button class="ghost" id="btn-onboard-toggle" aria-expanded="false"
+                    aria-controls="onboard-panel">Onboard a camera</button>
+            <button class="ghost" id="btn-regrade">Re-grade from stored observations</button>
+          </div>
         </div>
+
+        <!-- ══ MODEL 1 · ONBOARDING ══════════════════════════════════════ -->
+        <div class="onboard" id="onboard-panel" hidden>
+          <div class="onboard-tabs" role="tablist" aria-label="Onboarding method">
+            <button class="ghost on" data-onboard="manual" role="tab"
+                    aria-selected="true">Manual entry</button>
+            <button class="ghost" data-onboard="bulk" role="tab"
+                    aria-selected="false">Bulk import (CSV)</button>
+            <button class="ghost" data-onboard="export" role="tab"
+                    aria-selected="false">Export</button>
+          </div>
+
+          <form class="onboard-pane" id="onboard-manual" novalidate>
+            <div class="onboard-grid">
+              <label>Camera id <span class="req" title="required">*</span>
+                <input id="ob-camera-id" required autocomplete="off"
+                       spellcheck="false" placeholder="MC-0001"></label>
+              <label>Name
+                <input id="ob-name" autocomplete="off" placeholder="Riverfront east"></label>
+              <label>Department
+                <input id="ob-department" autocomplete="off" list="ob-departments"
+                       placeholder="Municipal Corporation"></label>
+              <label>District
+                <input id="ob-district" autocomplete="off" placeholder="Ahmedabad"></label>
+              <label>Latitude
+                <input id="ob-lat" inputmode="decimal" autocomplete="off" placeholder="23.0301"></label>
+              <label>Longitude
+                <input id="ob-lon" inputmode="decimal" autocomplete="off" placeholder="72.5800"></label>
+              <label>VMS
+                <input id="ob-vms" autocomplete="off" placeholder="Milestone"></label>
+              <label>Vendor
+                <input id="ob-vendor" autocomplete="off" placeholder="Hikvision"></label>
+              <label>Camera type
+                <select id="ob-camera-type">
+                  <option value="">—</option>
+                  <option value="fixed">fixed</option>
+                  <option value="ptz">PTZ</option>
+                </select></label>
+              <label>Storage
+                <select id="ob-storage">
+                  <option value="">—</option>
+                  <option value="cloud">cloud</option>
+                  <option value="local">local</option>
+                </select></label>
+              <label>Retention (days)
+                <input id="ob-retention" inputmode="numeric" autocomplete="off" placeholder="15"></label>
+              <label>RTSP URL
+                <input id="ob-rtsp" autocomplete="off" spellcheck="false"
+                       placeholder="rtsp://…"></label>
+            </div>
+            <datalist id="ob-departments"></datalist>
+            <div class="onboard-actions">
+              <label><input type="checkbox" id="ob-update-existing"> Amend if this id already exists</label>
+              <button class="ghost" type="button" id="btn-ob-dry">Validate only</button>
+              <button class="primary" type="submit" id="btn-ob-submit">Onboard</button>
+            </div>
+            <div class="section-note">
+              Only the camera id is required. A registry holds what a department
+              has supplied and reports what it has not — a row carrying nothing
+              but an identifier is a legitimate entry, and the gap report will
+              name what is missing from it.
+            </div>
+          </form>
+
+          <div class="onboard-pane" id="onboard-bulk" hidden>
+            <div class="onboard-actions">
+              <input type="file" id="ob-file" accept=".csv,text/csv">
+              <button class="ghost" type="button" id="btn-ob-sample">Paste a sample</button>
+            </div>
+            <textarea id="ob-csv" spellcheck="false" rows="9"
+                      placeholder="camera_id,name,department,district,lat,lon,vms,retention_days"></textarea>
+            <div class="onboard-actions">
+              <label><input type="checkbox" id="ob-bulk-update"> Amend rows that already exist</label>
+              <button class="ghost" type="button" id="btn-ob-bulk-dry">Validate only</button>
+              <button class="primary" type="button" id="btn-ob-bulk">Import</button>
+            </div>
+            <div class="section-note">
+              An import applies wholly or not at all. One bad row refuses the
+              batch and names the row number and the reason, because a partial
+              import leaves nobody able to say which half landed. Columns this
+              registry does not know are ignored rather than refused.
+            </div>
+          </div>
+
+          <div class="onboard-pane" id="onboard-export" hidden>
+            <div class="onboard-actions">
+              <button class="ghost" type="button" id="btn-ob-export">Download registry CSV</button>
+            </div>
+            <div class="section-note">
+              The columns written here are the columns the bulk import accepts,
+              so a department can correct a file in a spreadsheet and send it
+              straight back.
+            </div>
+          </div>
+
+          <div class="onboard-result" id="onboard-result" role="status" aria-live="polite"></div>
+        </div>
+
         <div class="col-body wrap-scroll" id="cameras"></div>
         <div class="section-note">
           Grades are measured from this camera's own stream and observations, not
@@ -699,7 +801,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr135"></script>
+<script type="module" src="/ui/app.js?v=cr136"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

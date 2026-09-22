@@ -191,11 +191,42 @@ def test_wall_count_states_indexed_with_bounded_previews(app: str) -> None:
     ) in app
 
 
+#: The content each cache-busting marker was last bumped for. Editing an asset
+#: changes its hash, which fails this test and forces the version alongside it.
+ASSET_VERSIONS = {
+    "app.js": ("cr136", "4cdca617521c877e"),
+    "style.css": ("cr109", "4a07353c4512a747"),
+}
+
+
 def test_cache_version_bumped_for_changed_assets() -> None:
-    """A stale cached app.js would serve the old CONNECTING wall."""
+    """A stale cached app.js serves markup whose behaviour never loaded.
+
+    This used to pin the two version strings and nothing else, which meant it
+    failed when someone *bumped* a version and passed when someone edited an
+    asset and forgot to — the exact opposite of its purpose. Hashing the asset
+    makes the omission the failure: change app.js without bumping cr136 and
+    this test says so.
+
+    On a bump, update both halves of the entry. The hash is a short sha256 of
+    the file, which `python -c` will print:
+        import hashlib,pathlib;print(hashlib.sha256(
+            pathlib.Path("ui/app.js").read_bytes()).hexdigest()[:16])
+    """
+    import hashlib
+
     html = INDEX.read_text(encoding="utf-8")
-    assert "/ui/app.js?v=cr135" in html
-    assert "/ui/style.css?v=cr108" in html
+    for name, (version, digest) in ASSET_VERSIONS.items():
+        marker = f"/ui/{name}?v={version}"
+        assert marker in html, (
+            f"{name} is served at a different version than this test expects; "
+            f"looked for {marker!r}")
+        actual = hashlib.sha256((UI / name).read_bytes()).hexdigest()[:16]
+        assert actual == digest, (
+            f"{name} changed since {version} was set (hash {actual}, expected "
+            f"{digest}). Bump the version in ui/index.html and update "
+            f"ASSET_VERSIONS, or a cached copy will serve behaviour that no "
+            f"longer matches the markup.")
 
 
 def test_hls_wall_staggers_muxer_startup(app: str) -> None:

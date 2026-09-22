@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "saakshya-demo",
+      "runtimeExecutable": "make",
+      "runtimeArgs": [
+        "serve",
+        "PORT=8123"
+      ],
+      "port": 8123
+    }
+  ]
+}

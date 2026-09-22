@@ -6547,3 +6547,206 @@ if (["127.0.0.1", "localhost", "[::1]"].includes(location.hostname)) {
     value: { get map1() { return map1; }, get map2() { return map2; }, state },
   });
 }
+
+/* ─── Model 1 · camera onboarding ────────────────────────────────────────── */
+/* The mandatory model's named deliverable is "bulk AND manual camera-onboarding
+ * demonstration", and until now all three registry endpoints were reachable
+ * only with a shell. A registry portal nobody can onboard through is not a
+ * registry portal, and an assessor cannot be asked to take curl on trust.
+ *
+ * The refusals matter as much as the successes here: an import applies wholly
+ * or not at all, and the server names the offending row. Collapsing that into
+ * "import failed" would throw away the only thing that makes a bad spreadsheet
+ * fixable, so the row number and reason are shown verbatim. */
+
+const OB_FIELDS = {
+  "#ob-camera-id": "camera_id", "#ob-name": "name",
+  "#ob-department": "department", "#ob-district": "district",
+  "#ob-lat": "lat", "#ob-lon": "lon", "#ob-vms": "vms",
+  "#ob-vendor": "vendor", "#ob-camera-type": "camera_type",
+  "#ob-storage": "storage_location", "#ob-retention": "retention_days",
+  "#ob-rtsp": "rtsp_url",
+};
+const OB_NUMERIC = new Set(["lat", "lon", "retention_days"]);
+
+function obResult(node, ok, headline, detail = "") {
+  node.className = `onboard-result ${ok ? "ok" : "bad"}`;
+  node.replaceChildren(
+    el("b", { text: headline }),
+    ...(detail ? [el("div", { class: "onboard-detail", text: detail })] : []));
+}
+
+function obReadManual() {
+  const body = {};
+  for (const [sel, field] of Object.entries(OB_FIELDS)) {
+    const raw = ($(sel)?.value || "").trim();
+    if (!raw) continue;
+    if (OB_NUMERIC.has(field)) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) throw new Error(`${field} must be a number`);
+      body[field] = field === "retention_days" ? Math.round(n) : n;
+    } else {
+      body[field] = raw;
+    }
+  }
+  return body;
+}
+
+/** Say what the server actually said.
+ *
+ * The import refuses a batch by raising one {code, message} — there is no
+ * per-row error array to iterate, and the message already carries the row
+ * number ("row 3: MC-0002 is already onboarded"). It reaches us through
+ * api()'s ApiError, so the only job here is the success shape. */
+function obReport(node, res, { dry }) {
+  const created = res.created ?? 0;
+  const updated = res.updated ?? 0;
+  const headline = dry
+    ? `Valid — nothing was written. ${created} row(s) would be onboarded` +
+      (updated ? `, ${updated} amended.` : ".")
+    : `Onboarded ${created} camera(s)` + (updated ? `, amended ${updated}.` : ".");
+  obResult(node, true, headline, res.note || "");
+  return true;
+}
+
+function obShowPane(which) {
+  for (const b of $$("[data-onboard]")) {
+    const on = b.dataset.onboard === which;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", String(on));
+  }
+  for (const id of ["manual", "bulk", "export"]) {
+    const pane = $(`#onboard-${id}`);
+    if (pane) pane.hidden = id !== which;
+  }
+}
+
+$("#btn-onboard-toggle")?.addEventListener("click", () => {
+  const panel = $("#onboard-panel");
+  const open = panel.hidden;
+  panel.hidden = !open;
+  $("#btn-onboard-toggle").setAttribute("aria-expanded", String(open));
+  if (open) {
+    obShowPane("manual");
+    $("#ob-camera-id")?.focus();
+    // Offer the departments already in the estate rather than making an
+    // operator retype one and create a near-duplicate.
+    const seen = [...new Set((state.cameras || [])
+      .map((c) => c.department).filter(Boolean))].sort();
+    $("#ob-departments")?.replaceChildren(
+      ...seen.map((d) => el("option", { value: d })));
+  }
+});
+
+for (const b of $$("[data-onboard]")) {
+  b.addEventListener("click", () => obShowPane(b.dataset.onboard));
+}
+
+async function obSubmitManual(dry) {
+  const node = $("#onboard-result");
+  let cam;
+  try {
+    cam = obReadManual();
+  } catch (err) {
+    obResult(node, false, err.message);
+    return;
+  }
+  if (!cam.camera_id) {
+    obResult(node, false, "A camera id is required.");
+    $("#ob-camera-id")?.focus();
+    return;
+  }
+  try {
+    const res = await api("/registry/cameras/import", {
+      method: "POST",
+      body: JSON.stringify({
+        // dry_run is a field on ImportRequest, not a query parameter. Passing
+        // it in the query string is silently ignored, and "Validate only"
+        // then onboards for real.
+        dry_run: !!dry,
+        update_existing: !!$("#ob-update-existing")?.checked,
+        cameras: [cam],
+      }),
+    });
+    if (obReport(node, res, { dry }) && !dry) {
+      toast(`Onboarded ${cam.camera_id}`);
+      loaders.cameras?.();
+    }
+  } catch (err) {
+    obResult(node, false, `${err.code}: ${err.message}`);
+  }
+}
+
+$("#onboard-manual")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  obSubmitManual(false);
+});
+$("#btn-ob-dry")?.addEventListener("click", () => obSubmitManual(true));
+
+$("#ob-file")?.addEventListener("change", async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  $("#ob-csv").value = await f.text();
+  obResult($("#onboard-result"), true,
+    `Loaded ${f.name} — validate it before importing.`);
+});
+
+$("#btn-ob-sample")?.addEventListener("click", () => {
+  $("#ob-csv").value = [
+    "camera_id,name,department,district,lat,lon,vms,retention_days",
+    "MC-0002,Riverfront east,Municipal Corporation,Ahmedabad,23.02,72.57,Milestone,15",
+    "RTO-0007,Testing track,RTO,Rajkot,,,,",
+  ].join("\n");
+});
+
+async function obSubmitBulk(dry) {
+  const node = $("#onboard-result");
+  const csv = ($("#ob-csv")?.value || "").trim();
+  if (!csv) {
+    obResult(node, false, "Paste a CSV, or choose a file.");
+    return;
+  }
+  const params = new URLSearchParams();
+  if (dry) params.set("dry_run", "true");
+  if ($("#ob-bulk-update")?.checked) params.set("update_existing", "true");
+  const q = params.toString() ? `?${params}` : "";
+  try {
+    const res = await api(`/registry/cameras/import.csv${q}`, {
+      method: "POST",
+      headers: { "Content-Type": "text/csv" },
+      body: csv,
+    });
+    if (obReport(node, res, { dry }) && !dry) {
+      toast("Bulk import applied");
+      loaders.cameras?.();
+    }
+  } catch (err) {
+    obResult(node, false, `${err.code}: ${err.message}`);
+  }
+}
+
+$("#btn-ob-bulk-dry")?.addEventListener("click", () => obSubmitBulk(true));
+$("#btn-ob-bulk")?.addEventListener("click", () => obSubmitBulk(false));
+
+$("#btn-ob-export")?.addEventListener("click", async (e) => {
+  // A plain <a href> would arrive unauthenticated and come back 401 — the
+  // ANPR report download already learned that the hard way.
+  e.target.disabled = true;
+  try {
+    const res = await fetch("/registry/cameras/export.csv",
+                            { headers: authHeaders() });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = el("a", { href: url, download: "camera_metadata.csv" });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    obResult($("#onboard-result"), true, "Registry exported.");
+  } catch (err) {
+    obResult($("#onboard-result"), false, `Export failed: ${err.message}`);
+  } finally {
+    e.target.disabled = false;
+  }
+});

@@ -823,6 +823,40 @@ class Store:
         with self.engine.connect() as c:
             return [r[0] for r in c.execute(q) if r[0]]
 
+    def plate_marks(self, *, like: str | None = None, prefix: str | None = None,
+                    t_from: datetime | None = None, t_to: datetime | None = None,
+                    limit: int = 5000) -> list[dict[str, Any]]:
+        """Distinct registration marks matching a LIKE pattern, per camera.
+
+        One row per (mark, camera) with its read count and first/last time, so
+        a partial-plate query answers "which vehicles" rather than returning a
+        thousand observations of three of them. ``prefix`` becomes an index
+        range (``plate >= p AND plate < p'``), which is what keeps a witness
+        fragment like GJ18X67 a seek on ``ix_obs_plate_time`` instead of a scan
+        of every row; without one, ``plate > ''`` still skips the unplated
+        majority of the table.
+        """
+        col = S.observations.c.plate
+        q = select(col, S.observations.c.camera_id,
+                   func.count().label("reads"),
+                   func.min(S.observations.c.t_norm_us).label("first_us"),
+                   func.max(S.observations.c.t_norm_us).label("last_us"))
+        if prefix:
+            q = q.where(col >= prefix, col < prefix[:-1] + chr(ord(prefix[-1]) + 1))
+        else:
+            q = q.where(col > "")
+        if like:
+            q = q.where(col.like(like))
+        if t_from:
+            q = q.where(S.observations.c.t_norm_us >= to_us(t_from))
+        if t_to:
+            q = q.where(S.observations.c.t_norm_us <= to_us(t_to))
+        q = q.group_by(col, S.observations.c.camera_id).limit(limit)
+        with self.engine.connect() as c:
+            return [{"plate": r[0], "camera_id": r[1], "reads": int(r[2]),
+                     "first_seen": from_us(r[3]), "last_seen": from_us(r[4])}
+                    for r in c.execute(q) if r[0]]
+
     def recent_marks(self, limit: int = 48) -> list[dict[str, Any]]:
         """Latest distinct registration marks, with the camera that published them.
 

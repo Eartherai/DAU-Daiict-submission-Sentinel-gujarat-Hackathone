@@ -323,7 +323,12 @@ def create_app(state: AppState | None = None, *,
                 "evidence_id": evidence_id, "path": str(path)}})
             raise HTTPException(status_code=404, detail={
                 "code": "NOT_FOUND", "message": "frame is not available"})
-        return FileResponse(path, media_type="image/jpeg")
+        # Sealed frames are PNG. Declaring every one image/jpeg made strict
+        # clients refuse the bytes and left the trace without a picture.
+        media = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                 ".webp": "image/webp"}.get(path.suffix.lower(),
+                                            "application/octet-stream")
+        return FileResponse(path, media_type=media)
 
     # -- UI -------------------------------------------------------------------- #
     ui = static_dir or Path(__file__).resolve().parents[3] / "ui"

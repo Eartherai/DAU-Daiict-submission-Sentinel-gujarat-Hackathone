@@ -121,26 +121,46 @@ function toast(message, bad = false) {
   setTimeout(() => t.remove(), bad ? 7000 : 3500);
 }
 
+/* Every time a person reads is IST, and says so.
+ *
+ * These three used to slice the ISO string: '2026-09-21T10:43:01Z' became
+ * '10:43:01' on an alert card and '2026-09-21 10:43:01' in a table, with the
+ * offset stripped, beside a masthead clock reading 16:13 IST. A sighting was
+ * shown five and a half hours early with nothing to say so, and alert cards had
+ * no date, so an alert from two days ago read as this morning's. Now there is
+ * one formatter, pinned to Asia/Kolkata (not the browser's zone — a laptop set
+ * to UTC must print the same evidence), and the UTC value is kept as the
+ * element's title (see istTitles in SLOT S3). */
+const IST_FMT = new Intl.DateTimeFormat("en-IN", {
+  timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+const IST_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function fmtTime(iso) {
-  if (!iso) return "—";
-  return String(iso).replace("T", " ").replace(/(\+00:00|Z)$/, "").slice(0, 19);
+  const p = istParts(iso);
+  if (!p) return iso ? String(iso) : "—";
+  if (p.dateOnly) return `${p.d} ${IST_MONTHS[p.mo - 1]} ${p.y}`;
+  return rememberIst(`${p.d} ${IST_MONTHS[p.mo - 1]} ${p.y} ${p.hms} IST`, p.utc);
 }
 
 function fmtClock(iso) {
-  if (!iso) return "—";
-  return String(iso).slice(11, 19);
+  /* Still compact, but never date-less: a clock time without a day is how an
+   * old sighting passed for a current one. */
+  const p = istParts(iso);
+  if (!p) return iso ? String(iso) : "—";
+  if (p.dateOnly) return `${p.d} ${IST_MONTHS[p.mo - 1]}`;
+  return rememberIst(`${p.d} ${IST_MONTHS[p.mo - 1]} ${p.hms} IST`, p.utc);
 }
 
 function fmtAlertClock(a) {
   if (!a) return "—";
-  if (a.when) return fmtClock(a.when);
-  if (a.t_norm && typeof a.t_norm === "string") return fmtClock(a.t_norm);
-  const us = a.t_norm_us || a.t;
-  if (us && Number(us) > 1e12) {
-    try { return new Date(Number(us) / 1000).toISOString().slice(11, 19); }
-    catch { return "—"; }
-  }
-  return "—";
+  const when = a.when || (typeof a.t_norm === "string" ? a.t_norm : null)
+    || (Number(a.t_norm_us || a.t) > 1e12 ? Number(a.t_norm_us || a.t) : null);
+  if (!when) return "—";
+  const clock = fmtClock(when);
+  const age = istAge(when);
+  return age ? `${clock} · ${age}` : clock;
 }
 
 /* A rate of 0.00 and a rate of exactly zero mean different things to an
@@ -5472,7 +5492,7 @@ loaders.cases = async () => {
           el("span", { class: "plate", text: c.case_id }),
           el("span", { class: `chip ${c.status === "OPEN" ? "confirmed" : "plain"}`,
                        text: c.status }),
-          el("span", { class: "time", text: fmtTime(c.updated_at).slice(0, 10) })),
+          el("span", { class: "time", text: fmtDay(c.updated_at) })),
         el("div", { class: "meta" },
           el("span", { text: c.title }),
           c.district && el("span", { text: c.district }))));
@@ -6155,7 +6175,7 @@ async function jumpObservation(oid, cameraId) {
     const eventEl = $("#jump-event-time");
     const liveEl = $("#jump-live-pos");
     const noteEl = $("#jump-note");
-    if (eventEl) eventEl.textContent = `EVENT TIMESTAMP: ${j.event_timestamp || j.event_time || "—"}`;
+    if (eventEl) eventEl.textContent = `EVENT TIMESTAMP: ${fmtTime(j.event_timestamp || j.event_time)}`;
     if (liveEl) {
       liveEl.textContent = j.playback?.seekable
         ? `REPLAY POSITION: seek to ${j.pts_s ?? "—"}s on own-feed recording`
@@ -6179,7 +6199,7 @@ async function jumpObservation(oid, cameraId) {
         if (dlg.returnValue === "open") openCam();
       }, { once: true });
     } else {
-      toast(`EVENT ${j.event_time || ""} · live is not this timestamp`);
+      toast(`EVENT ${fmtTime(j.event_time)} · live is not this timestamp`);
       await openCam();
     }
   } catch (err) {
@@ -6630,7 +6650,7 @@ loaders.intelligence = async () => {
         platesBox.append(el("div", { class: "alert-card" },
           el("div", { class: "pl", text: p.plate || "—" }),
           el("div", { class: "meta", text:
-            `${p.camera_id || "—"} · ${p.t_norm || p.t || ""} · ${p.location || ""} · ${p.vehicle_class || ""} · ${p.confidence ?? ""}` }),
+            `${p.camera_id || "—"} · ${fmtTime(p.t_norm || p.t)} · ${p.location || ""} · ${p.vehicle_class || ""} · ${p.confidence ?? ""}` }),
           el("div", { class: "actions" },
             el("button", { class: "ghost", onclick: () => {
               show("live");
@@ -7060,6 +7080,95 @@ $("#btn-reg-clear")?.addEventListener("click", () => {
 
 /* ═══ SLOT S3 · reports and time — IST everywhere, printable trace report ═══════════════════════════ */
 /* Owned by workstream S3. Add code only between these markers. */
+
+/* ─── IST: parsing, age, and the UTC title ───────────────────────────────── */
+
+/* One instant from whatever the API sent: an ISO string (with or without an
+ * offset, with microseconds), epoch microseconds, or epoch milliseconds. A
+ * value without an offset is UTC, because that is what the store writes —
+ * reading it as browser-local time would move it by the viewer's zone. */
+function istInstant(v) {
+  if (v === null || v === undefined || v === "") return null;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
+  if (typeof v === "number" || /^\d{11,17}$/.test(String(v))) {
+    const n = Number(v);
+    const d = new Date(n > 1e14 ? n / 1000 : n);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  let s = String(v).trim();
+  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) return null;
+  s = s.replace(" ", "T").replace(/(\.\d{3})\d+/, "$1");
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(s)) s += "Z";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function istParts(v) {
+  /* A bare date is a calendar day, not midnight UTC; converting it would move
+   * 21 Sep to 21 Sep 05:30 and invent a time nobody recorded. */
+  const bare = typeof v === "string" && v.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (bare) return { y: +bare[1], mo: +bare[2], d: bare[3], dateOnly: true };
+  const t = istInstant(v);
+  if (!t) return null;
+  const f = {};
+  for (const p of IST_FMT.formatToParts(t)) f[p.type] = p.value;
+  return { y: +f.year, mo: +f.month, d: f.day,
+           hms: `${f.hour}:${f.minute}:${f.second}`,
+           utc: t.toISOString().replace(/\.000Z$/, "Z") };
+}
+
+/* '21 Sep 2026' — for places that show a day and nothing finer. */
+function fmtDay(iso) {
+  const p = istParts(iso);
+  return p ? `${p.d} ${IST_MONTHS[p.mo - 1]} ${p.y}` : "—";
+}
+
+/* How long ago, in words an operator reads at a glance. */
+function istAge(v, now = Date.now()) {
+  const t = istInstant(v);
+  if (!t) return "";
+  const s = Math.round((now - t.getTime()) / 1000);
+  if (s < 45) return "just now";
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
+/* The UTC value behind every IST string on screen, as a hover title.
+ *
+ * The formatters return strings, and some thirty callers across every view put
+ * those strings into elements. Threading a title through each call would touch
+ * every one of them; instead each formatted value is remembered here with its
+ * UTC instant, and an observer titles any element whose text carries one. An
+ * investigator comparing a screen with a UTC-stamped export can hover and read
+ * the exact value the store holds. */
+const istUtcByText = new Map();
+function rememberIst(text, utc) {
+  if (utc && !istUtcByText.has(text)) {
+    if (istUtcByText.size > 5000) istUtcByText.clear();
+    istUtcByText.set(text, utc);
+  }
+  return text;
+}
+const IST_STAMP = /\d{2} [A-Z][a-z]{2}(?: \d{4})? \d{2}:\d{2}:\d{2} IST/;
+function istTitle(node) {
+  if (!(node instanceof Element) || node.hasAttribute("title")) return;
+  if (node.children.length) return;
+  const m = (node.textContent || "").match(IST_STAMP);
+  const utc = m && istUtcByText.get(m[0]);
+  if (utc) node.setAttribute("title", `UTC ${utc}`);
+}
+function istTitles(root) {
+  if (!(root instanceof Element) || !(root.textContent || "").includes(" IST")) return;
+  istTitle(root);
+  for (const n of root.querySelectorAll("*")) istTitle(n);
+}
+new MutationObserver((records) => {
+  for (const r of records) {
+    istTitle(r.target);
+    for (const n of r.addedNodes) istTitles(n);
+  }
+}).observe(document.body, { childList: true, subtree: true });
 
 /* ═══ END SLOT S3 ═══ */
 

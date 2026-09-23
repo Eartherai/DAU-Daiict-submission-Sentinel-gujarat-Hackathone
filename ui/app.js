@@ -637,6 +637,10 @@ $("#search-form").addEventListener("submit", async (e) => {
   const btn = $("#search-form button.primary");
   btn.disabled = true;
   btn.textContent = "Searching…";
+  // Clear the previous vehicle first. Leaving its confirmed route on screen
+  // while a different plate returns nothing is how an evaluator stops trusting
+  // the screen.
+  resetInvestigation(plate);
   try {
     const eventType = $("#q-event")?.value.trim();
     const severity = $("#q-severity")?.value.trim();
@@ -658,9 +662,19 @@ $("#search-form").addEventListener("submit", async (e) => {
     } else {
       const res = await api(`/search?${params}`);
       state.results = res.candidates || [];
-      state.target = plate || null;
-      renderResults(res);
-      if (plate && state.results.length) await loadTrajectory(plate);
+      state.target = res.target_plate || plate || null;
+      if ((res.query || {}).type === "plate_pattern") {
+        renderPatternResults(res);
+        const body = $("#traj-body");
+        if (body) body.replaceChildren(el("div", { class: "empty",
+          text: "Choose a plate on the left to trace its movement." }));
+      } else {
+        renderResults(res);
+        const card = renderTargetCard(res);
+        if (card) $("#results").prepend(card);
+        if (plate && state.results.length) await loadTrajectory(state.target);
+        else if (plate) renderNoSighting(res, state.target);
+      }
     }
   } catch (err) {
     renderSearchError(err);
@@ -674,9 +688,10 @@ function renderSearchError(err) {
   const box = $("#results");
   clear(box);
   const guidance = {
-    PURPOSE_REQUIRED: "Fill in the case identifier and purpose at the top of the "
-      + "screen. Both are written into the audit record; a vehicle search "
-      + "cannot run without them.",
+    PURPOSE_REQUIRED: "Fill in the case identifier, and a purpose of at least "
+      + "12 characters, at the top of the screen — for example \"tracing a "
+      + "stolen vehicle\". Both are written into the audit record; a vehicle "
+      + "search cannot run without them.",
     NOT_AUTHENTICATED: "Sign in with the bearer token issued to you.",
     OUT_OF_JURISDICTION: "That district is outside your jurisdiction. A "
       + "supervisor with statewide scope can run this search.",
@@ -7064,6 +7079,199 @@ $("#btn-reg-clear")?.addEventListener("click", () => {
 
 /* ═══ SLOT S1 · investigation — trace a designated vehicle ═══════════════════════════ */
 /* Owned by workstream S1. Add code only between these markers. */
+
+/* ─── Investigate: the screen the Step 4 test case is judged on ─────────── */
+/* Three failures an officer met on this screen during a rehearsal:
+ *   - a plate on the stolen list came back looking like any other plate — the
+ *     watchlist was consulted only as a filter, so "is it wanted?" went
+ *     unanswered on the one screen built to answer it;
+ *   - searching a never-seen plate left the PREVIOUS vehicle's confirmed route
+ *     and evidence on screen, which is the moment an evaluator stops trusting
+ *     what they are shown;
+ *   - a witness's partial plate returned nothing.
+ * The backend now carries watchlist_status, open_alerts and pattern search;
+ * this renders them. */
+
+/** Clear everything the previous vehicle left behind, before asking again. */
+function resetInvestigation(plate) {
+  const body = $("#traj-body");
+  if (body) body.replaceChildren(loadingNote(plate
+    ? `Searching every camera in your jurisdiction for ${plate}…`
+    : "Searching…"));
+  const tgt = $("#traj-target");
+  if (tgt) tgt.textContent = plate || "";
+  const status = $("#traj-status");
+  if (status) status.textContent = "";
+  const detail = $("#detail");
+  if (detail) clear(detail);
+  const sel = $("#sel-id");
+  if (sel) sel.textContent = "";
+  state.trajectory = null;
+  if (map1) {
+    map1.selected = null;
+    try { map1.set("trajectory", null); } catch { map1.draw(); }
+  }
+}
+
+function wlLabel(entry) {
+  return String(entry.category || "watchlist").replace(/_/g, " ").toLowerCase();
+}
+
+/** The answer to "is this vehicle wanted?", first, in words. */
+function renderTargetCard(res) {
+  const plate = res.target_plate || state.target;
+  if (!plate) return null;
+  const ws = res.watchlist_status || {};
+  const alerts = res.open_alerts || null;
+  const inForce = (ws.entries || []).filter((e) => e.in_force);
+  const card = el("section", { class: `target-card${inForce.length ? " listed" : ""}`,
+                               "aria-label": `Target ${plate}` },
+    el("div", { class: "target-plate mono", text: plate }));
+  if (inForce.length) {
+    const top = inForce[0];
+    card.append(el("div", { class: "target-banner", role: "alert" },
+      el("strong", { text: `ON WATCHLIST · ${wlLabel(top).toUpperCase()} · ${top.priority}` }),
+      el("div", { class: "target-why", text: [top.reason, top.authority || top.source_system,
+        top.added_at ? `listed ${fmtTime(top.added_at)}` : null].filter(Boolean).join(" · ") })));
+    if (inForce.length > 1) {
+      card.append(el("div", { class: "target-more",
+        text: `On ${inForce.length} lists: ${inForce.map(wlLabel).join(", ")}` }));
+    }
+  } else if (ws.checked === false) {
+    card.append(el("div", { class: "target-clear muted",
+      text: ws.reason || "Watchlist status was not checked for your role." }));
+  } else {
+    card.append(el("div", { class: "target-clear",
+      text: `Not on any active watchlist (checked ${fmtClock(ws.checked_at)})` }));
+  }
+  if (alerts && alerts.open) {
+    const b = el("button", { class: "ghost", type: "button",
+      text: `${alerts.open} open alert${alerts.open === 1 ? "" : "s"} →` });
+    b.addEventListener("click", () => {
+      $('button[data-view="alerts"]')?.click();
+    });
+    card.append(el("div", { class: "target-actions" }, b,
+      alerts.latest_camera ? el("span", { class: "muted",
+        text: `latest on ${alerts.latest_camera} · ${fmtTime(alerts.latest_at)}` }) : null));
+  }
+  return card;
+}
+
+/** A plate nobody has seen is the realistic worst case. Say what to do next. */
+function renderNoSighting(res, plate) {
+  const body = $("#traj-body");
+  if (!body) return;
+  const strat = res.search_strategy || {};
+  const n = (strat.cameras_searched || []).length;
+  const period = strat.t_from || strat.t_to
+    ? `${fmtTime(strat.t_from) || "the start"} → ${fmtTime(strat.t_to) || "now"}`
+    : "all recorded time";
+  const act = (label, fn) => {
+    const b = el("button", { class: "ghost", type: "button", text: label });
+    b.addEventListener("click", fn);
+    return b;
+  };
+  body.replaceChildren(el("div", { class: "no-sighting" },
+    el("h4", { text: `${plate} — no sighting` }),
+    el("p", { text: `Not read on any of the ${n || "searchable"} cameras in your `
+      + `jurisdiction, over ${period}. That is an answer, not an error: either `
+      + "the vehicle has not passed a camera that can read plates, or it was "
+      + "read with different characters." }),
+    el("div", { class: "no-sighting-actions" },
+      act("Try near matches (OCR confusions)", () => {
+        $("#q-fuzzy").checked = true;
+        $("#search-form").requestSubmit();
+      }),
+      act("Search as a partial plate", () => {
+        const q = $("#q-plate");
+        q.value = `${plate.slice(0, Math.max(4, plate.length - 2))}*`;
+        $("#search-form").requestSubmit();
+      }),
+      act("Widen the time range", () => {
+        $("#q-from").value = "";
+        $("#q-to").value = "";
+        $("#search-form").requestSubmit();
+      }),
+      act("Alert me when it is seen", () => {
+        $('button[data-view="alerts"]')?.click();
+        toast(`Add ${plate} to a watchlist from the Alerts view to be told when it is read.`);
+      }))));
+}
+
+/** Partial and wildcard plates come back as marks, not observations. */
+function renderPatternResults(res) {
+  const box = $("#results");
+  clear(box);
+  const marks = res.marks || [];
+  const q = res.query || {};
+  const nMarks = res.marks_total ?? marks.length;
+  $("#result-count").textContent = `${nMarks} matching plate${nMarks === 1 ? "" : "s"}`;
+  // terms: [{raw, pattern}] — the officer's text and how it was read.
+  const terms = (q.terms || []).map((x) => x.pattern || x.raw).filter(Boolean).join(", ");
+  box.append(el("div", { class: "section-note",
+    text: `Pattern ${q.plate}${terms ? ` (${terms})` : ""}`
+      + (q.fuzzy ? " · OCR confusions allowed (0/O, 8/B, 1/I …)" : "")
+      + (res.scan_capped ? " · scan capped — narrow the time range" : "") }));
+  if (res.withheld?.message) {
+    box.append(el("div", { class: "notice warn", text: res.withheld.message }));
+  }
+  if (!marks.length) {
+    box.append(el("div", { class: "empty",
+      text: "No plate in the store matches that pattern." }));
+    return;
+  }
+  for (const m of marks) {
+    const chars = el("span", { class: "plate-chars mono" });
+    // chars: [{ch, kind, query}] with kind exact | class | confusion | wild.
+    for (const cm of (m.chars || [...String(m.plate)].map((ch) => ({ ch, kind: "exact" })))) {
+      const why = cm.kind === "confusion"
+        ? `read as ${cm.ch} where the query had ${cm.query} — an OCR confusion`
+        : cm.kind === "wild" ? "matched a wildcard"
+        : cm.kind === "class" ? `one of [${cm.query}]` : "exact";
+      chars.append(el("span", { class: `pc pc-${cm.kind || "exact"}`, title: why,
+                                text: cm.ch || "" }));
+    }
+    const row = el("button", { class: "mark-row", type: "button",
+                               "aria-label": `Search ${m.plate}` },
+      chars,
+      m.watchlist?.listed ? el("span", { class: "chip conflict", text: "WATCHLIST" }) : null,
+      el("span", { class: "mark-meta",
+        text: `${m.reads} read${m.reads === 1 ? "" : "s"} · `
+          + `${(m.cameras || []).length} camera${(m.cameras || []).length === 1 ? "" : "s"} · `
+          + `last ${fmtTime(m.last_seen)}` }));
+    row.addEventListener("click", () => {
+      $("#q-plate").value = m.plate;
+      $("#q-fuzzy").checked = false;
+      $("#search-form").requestSubmit();
+    });
+    box.append(row);
+  }
+}
+
+/* Contract for the alerts workstream: open the investigation of a vehicle from
+ * anywhere, with the case and purpose an alert already implies, instead of
+ * dead-ending on a raw "PURPOSE_REQUIRED … (X-Case-Id)" toast. */
+window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, from } = {}) => {
+  $('button[data-view="investigate"]')?.click();
+  const caseBox = $("#case-id");
+  const purposeBox = $("#purpose");
+  if (caseBox && !caseBox.value.trim()) {
+    caseBox.value = caseId || `ALERT-${new Date().toISOString().slice(0, 10)}`;
+  }
+  if (purposeBox && purposeBox.value.trim().length < 12) {
+    purposeBox.value = purpose || (from === "alert"
+      ? `Watchlist hit — verifying the movement of ${plate}`
+      : `Tracing the movement of ${plate}`);
+  }
+  caseBox?.dispatchEvent(new Event("change"));
+  purposeBox?.dispatchEvent(new Event("change"));
+  if (plate) {
+    $("#q-plate").value = plate;
+    $("#q-fuzzy").checked = false;
+    $("#search-form").requestSubmit();
+  }
+  if (observationId) state.pendingObservation = observationId;
+};
 
 /* ═══ END SLOT S1 ═══ */
 

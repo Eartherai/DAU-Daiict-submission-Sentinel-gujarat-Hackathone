@@ -2651,6 +2651,48 @@ body.wall-focus #live-progress {
 
 /* ═══ SLOT S1 · investigation — trace a designated vehicle ═══ */
 
+/* Target card — "is this vehicle wanted?" answered first, in words. */
+.target-card {
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--r, 6px);
+  padding: 10px 12px;
+  margin: 0 0 10px;
+  background: var(--surface-2, var(--bg));
+  position: sticky; top: 0; z-index: 2;
+}
+.target-card .target-plate { font-size: 22px; font-weight: 700; letter-spacing: .06em; }
+.target-card.listed { border-color: var(--bad, #c0392b); box-shadow: inset 4px 0 0 var(--bad, #c0392b); }
+.target-banner {
+  margin-top: 6px; padding: 7px 10px; border-radius: 4px;
+  background: var(--bad, #c0392b); color: #fff;
+}
+.target-banner strong { letter-spacing: .04em; }
+.target-why { font-size: 12px; opacity: .92; margin-top: 2px; }
+.target-more { font-size: 12px; margin-top: 4px; color: var(--muted); }
+.target-clear { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.target-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+
+/* Partial / wildcard plate results, character by character. */
+.mark-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  text-align: left; padding: 8px 10px; margin: 0 0 6px;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 4px; cursor: pointer; font: inherit;
+}
+.mark-row:hover { border-color: var(--accent); }
+.mark-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.plate-chars { font-size: 17px; font-weight: 700; letter-spacing: .08em; }
+.plate-chars .pc { padding: 0 1px; border-radius: 2px; }
+.plate-chars .pc-confusion { background: var(--verify, #f5b700); color: #111; }
+.plate-chars .pc-wild,
+.plate-chars .pc-class { text-decoration: underline dotted; text-underline-offset: 3px; }
+.mark-meta { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* A plate nobody has seen: an answer with next steps, not an empty panel. */
+.no-sighting h4 { margin: 0 0 6px; font-size: 16px; }
+.no-sighting p { margin: 0 0 10px; font-size: 13px; color: var(--muted); max-width: 60ch; }
+.no-sighting-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
 /* ═══ END SLOT S1 ═══ */
 
 

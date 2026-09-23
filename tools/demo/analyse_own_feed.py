@@ -55,7 +55,7 @@ def sha256_file(path: Path) -> str:
 
 
 def analyse(camera_id: str, *, max_seconds: float | None = None,
-            tidy: bool = True) -> dict:
+            tidy: bool = True, record: str | None = None) -> dict:
     import av
 
     from render_demo_video import Row, _tidy_drawn  # reuse the render's filter
@@ -74,9 +74,22 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
     # peek at a single unvoted read is what put nonsense on screen before.
     cfg.anpr.enable_single_read_leads = False
 
-    pipe = CameraPipeline(camera_id, cfg, district="Ahmedabad")
-    segment = f"SG-{camera_id}"
-    epoch = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+    store = None
+    district = "Ahmedabad"
+    if record:
+        from saakshya.store.repository import Store
+        store = Store(record)
+        store.create_all()
+        cam = store.get_camera(camera_id) or {}
+        district = cam.get("district") or district
+    pipe = CameraPipeline(camera_id, cfg, district=district)
+    # Observations are stamped with the time this platform processed the file.
+    # The footage's own capture date is not known, and inventing one would put
+    # a fabricated timestamp into an evidence store.
+    epoch = datetime.now(UTC)
+    segment = f"SG-{camera_id}-{epoch.strftime('%Y%m%dT%H%M%S')}"
+    recorded: list = []
+    n_recorded = 0
 
     plate_of: dict[str, str] = {}
     short_id: dict[str, int] = {}
@@ -112,6 +125,11 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
             for ob in pipe.process(frame):
                 if ob.plate and ob.track_id:
                     plate_of[ob.track_id] = ob.plate
+                if store is not None:
+                    recorded.append(ob)
+            if store is not None and len(recorded) >= 200:
+                n_recorded += store.add_observations(recorded) or len(recorded)
+                recorded = []
 
             drawn: list = []
             seen: set[str] = set()
@@ -150,6 +168,10 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
     for ob in pipe.flush():
         if ob.plate and ob.track_id:
             plate_of[ob.track_id] = ob.plate
+        if store is not None:
+            recorded.append(ob)
+    if store is not None and recorded:
+        n_recorded += store.add_observations(recorded) or len(recorded)
 
     duration = len(frames) / fps if fps else 0.0
     plates = sorted(set(plate_of.values()))
@@ -171,6 +193,8 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
         "tracks": len(short_id),
         "class_counts": classes,
         "plates_accepted": plates,
+        "observations_recorded": n_recorded,
+        "recorded_into": record or None,
         "frames": frames,
     }
 
@@ -179,15 +203,19 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("cameras", nargs="+")
     ap.add_argument("--max-seconds", type=float, default=None)
+    ap.add_argument("--record", metavar="DB_URL", default=None,
+                    help="also write the pipeline's observations into this "
+                         "store, so plates read off the file are searchable")
     a = ap.parse_args()
     for cid in a.cameras:
         print(f"analysing {cid}…", flush=True)
-        out = analyse(cid, max_seconds=a.max_seconds)
+        out = analyse(cid, max_seconds=a.max_seconds, record=a.record)
         dest = MEDIA / f"{cid}.tracks.json"
         dest.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
         kb = dest.stat().st_size / 1024
         print(f"wrote {dest.relative_to(ROOT)} — {out['frame_count']} frames, "
               f"{out['tracks']} tracks, plates {out['plates_accepted'] or 'none'}, "
+              f"{out['observations_recorded']} observations recorded, "
               f"{kb:.0f} KB, analysed in {out['analysed_in_s']} s")
     return 0
 

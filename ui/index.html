@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr111">
+<link rel="stylesheet" href="/ui/style.css?v=cr112">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -411,8 +411,8 @@
           </div>
           <div class="intel-health" id="intel-health"></div>
           <div class="intel-feeds-badge">
-            <span>OWN FEED A · PEOPLE</span>
-            <span>OWN FEED B · TRAFFIC</span>
+            <span>OWN FEED A · STREET &amp; PEOPLE</span>
+            <span>OWN FEED B · TRAFFIC &amp; ANPR</span>
             <span class="demo-flag">DEMO / CONTROLLED TEST when a fixture is used</span>
           </div>
         </header>
@@ -428,16 +428,16 @@
         </div>
         <div class="intel-grid">
           <div class="intel-col">
-            <div class="col-head">Own Feed A · OWN-PEOPLE
+            <div class="col-head">Own feed A · street and people · OWN-MUM-AUTOSTAND
               <button class="ghost" type="button" id="intel-open-a">Open video</button>
             </div>
-            <div class="intel-stage" id="intel-stage-a" data-camera="OWN-PEOPLE"></div>
+            <div class="intel-stage" id="intel-stage-a" data-camera="OWN-MUM-AUTOSTAND"></div>
           </div>
           <div class="intel-col">
-            <div class="col-head">Own Feed B · OWN-TRAFFIC
+            <div class="col-head">Own feed B · signal queue, rear plates · OWN-MUM-QUEUE
               <button class="ghost" type="button" id="intel-open-b">Open video</button>
             </div>
-            <div class="intel-stage" id="intel-stage-b" data-camera="OWN-TRAFFIC"></div>
+            <div class="intel-stage" id="intel-stage-b" data-camera="OWN-MUM-QUEUE"></div>
           </div>
         </div>
         <div class="intel-resources" id="intel-resources" aria-label="Model 4 resource panel"></div>
@@ -821,7 +821,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr139"></script>
+<script type="module" src="/ui/app.js?v=cr140"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

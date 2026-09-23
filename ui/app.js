@@ -6312,12 +6312,12 @@ $$("[data-wl-cat]").forEach((b) => b.addEventListener("click", () => {
 $("#intel-open-a")?.addEventListener("click", () => {
   show("live");
   liveDomain = "intelligence";
-  openLive($(`.live-tile[data-camera="OWN-PEOPLE"]`) || el("div"), "OWN-PEOPLE");
+  openLive($(`.live-tile[data-camera="${intelStageCamera("a")}"]`) || el("div"), intelStageCamera("a"));
 });
 $("#intel-open-b")?.addEventListener("click", () => {
   show("live");
   liveDomain = "intelligence";
-  openLive($(`.live-tile[data-camera="OWN-TRAFFIC"]`) || el("div"), "OWN-TRAFFIC");
+  openLive($(`.live-tile[data-camera="${intelStageCamera("b")}"]`) || el("div"), intelStageCamera("b"));
 });
 $("#intel-plate-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -6352,7 +6352,13 @@ $("#intel-focus")?.addEventListener("click", () => {
  * SHA-256 — is drawn against `currentTime`. If the file has not been analysed
  * the old still path remains, and says what it is. */
 
-const ownFeedMedia = new Map();   // camera id -> {url, tracks} | {failed: true}
+const ownFeedMedia = new Map();
+
+/** The camera a stage plays, from its data-camera attribute. */
+function intelStageCamera(which) {
+  return $(`#intel-stage-${which}`)?.dataset.camera
+    || (which === "a" ? "OWN-PEOPLE" : "OWN-TRAFFIC");
+}   // camera id -> {url, tracks} | {failed: true}
 
 async function loadOwnFeed(id) {
   const hit = ownFeedMedia.get(id);
@@ -6580,16 +6586,18 @@ loaders.intelligence = async () => {
   // Start the two participant feed previews together. Serial first-frame
   // capture made the second panel look broken for several seconds even though
   // its relay was healthy; each preview is already isolated per camera.
+  // Which recording each stage plays is declared once, on the element, rather
+  // than repeated as literals here, in the scene KPIs and in the open buttons.
   await Promise.all([
-    paintIntelStage("OWN-PEOPLE", $("#intel-stage-a")),
-    paintIntelStage("OWN-TRAFFIC", $("#intel-stage-b")),
+    paintIntelStage(intelStageCamera("a"), $("#intel-stage-a")),
+    paintIntelStage(intelStageCamera("b"), $("#intel-stage-b")),
   ]);
   const scene = $("#intel-scene");
   if (scene) {
     clear(scene);
     let a = {}, b = {};
-    try { a = await api("/command/cameras/OWN-PEOPLE/scene"); } catch { a = {}; }
-    try { b = await api("/command/cameras/OWN-TRAFFIC/scene"); } catch { b = {}; }
+    try { a = await api(`/command/cameras/${encodeURIComponent(intelStageCamera("a"))}/scene`); } catch { a = {}; }
+    try { b = await api(`/command/cameras/${encodeURIComponent(intelStageCamera("b"))}/scene`); } catch { b = {}; }
     const sum = (k) => Number(a[k] || 0) + Number(b[k] || 0);
     const cls = (k) => Number((a.classes || {})[k] || 0) + Number((b.classes || {})[k] || 0);
     const kpis = [
@@ -7030,3 +7038,43 @@ $("#btn-reg-clear")?.addEventListener("click", () => {
   if (m) m.checked = false;
   applyRegFilter();
 });
+
+
+
+
+/* ═══ SLOT S1 · investigation — trace a designated vehicle ═══════════════════════════ */
+/* Owned by workstream S1. Add code only between these markers. */
+
+/* ═══ END SLOT S1 ═══ */
+
+
+
+
+/* ═══ SLOT S2 · alerts — grouped triage, lifecycle, recent hits ═══════════════════════════ */
+/* Owned by workstream S2. Add code only between these markers. */
+
+/* ═══ END SLOT S2 ═══ */
+
+
+
+
+/* ═══ SLOT S3 · reports and time — IST everywhere, printable trace report ═══════════════════════════ */
+/* Owned by workstream S3. Add code only between these markers. */
+
+/* ═══ END SLOT S3 ═══ */
+
+
+
+
+/* ═══ SLOT S4 · roles and security — role-shaped navigation, friendly refusals ═══════════════════════════ */
+/* Owned by workstream S4. Add code only between these markers. */
+
+/* ═══ END SLOT S4 ═══ */
+
+
+
+
+/* ═══ SLOT S5 · operations chrome — one camera count, 1366x768, shortcuts ═══════════════════════════ */
+/* Owned by workstream S5. Add code only between these markers. */
+
+/* ═══ END SLOT S5 ═══ */

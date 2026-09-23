@@ -2645,3 +2645,38 @@ body.wall-focus #live-progress {
   padding: 5px 8px; border-radius: 6px;
 }
 .intel-stage .intel-caption:empty { display: none; }
+
+
+
+
+/* ═══ SLOT S1 · investigation — trace a designated vehicle ═══ */
+
+/* ═══ END SLOT S1 ═══ */
+
+
+
+
+/* ═══ SLOT S2 · alerts — grouped triage, lifecycle, recent hits ═══ */
+
+/* ═══ END SLOT S2 ═══ */
+
+
+
+
+/* ═══ SLOT S3 · reports and time — IST everywhere, printable trace report ═══ */
+
+/* ═══ END SLOT S3 ═══ */
+
+
+
+
+/* ═══ SLOT S4 · roles and security — role-shaped navigation, friendly refusals ═══ */
+
+/* ═══ END SLOT S4 ═══ */
+
+
+
+
+/* ═══ SLOT S5 · operations chrome — one camera count, 1366x768, shortcuts ═══ */
+
+/* ═══ END SLOT S5 ═══ */

@@ -765,7 +765,10 @@ async def marks(state: StateDep, ctx: AuthDep,
 @router.get("/reports/anpr.csv", summary="ANPR output report (plates + timestamps)",
             response_class=PlainTextResponse)
 async def anpr_report(state: StateDep, ctx: AuthDep,
-                      limit: Annotated[int, Query(ge=1, le=5000)] = 1000
+                      limit: Annotated[int, Query(ge=1, le=5000)] = 1000,
+                      plate: Annotated[str | None, Query(max_length=24)] = None,
+                      reads: Annotated[str | None, Query(pattern="^(latest|all)$")] = None,
+                      t_from: str | None = None, t_to: str | None = None,
                       ) -> PlainTextResponse:
     """The submission artifact: every mark read, with when and where.
 
@@ -774,37 +777,34 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
     not a report. This is generated from the live store at request time — it
     contains what was actually read, so an empty estate produces a header and
     no rows rather than an invented one.
+
+    `plate` narrows it to one vehicle; `reads=all` lists every read instead of
+    the latest per mark (and is the default once a plate is given, because the
+    latest read alone is not a movement history). Columns are documented in
+    `saakshya.reports.anpr`.
     """
     try:
         ctx.principal.require(Permission.CAMERA_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
-    rows = state.store.recent_marks(limit)
-    cams: dict[str, dict[str, Any]] = {}
+    from saakshya.reports import anpr_csv, anpr_rows
 
-    def _cam(cid: str) -> dict[str, Any]:
-        if cid not in cams:
-            cams[cid] = state.store.get_camera(cid) or {}
-        return cams[cid]
-
-    def _q(v: Any) -> str:
-        t = "" if v is None else str(v)
-        return '"' + t.replace('"', '""') + '"' if any(
-            c in t for c in ',"\n') else t
-
-    out = ["plate,timestamp_utc,camera_id,camera_name,district,department,"
-           "object_type,votes"]
-    for r in rows:
-        cam = _cam(str(r.get("camera_id") or ""))
-        out.append(",".join(_q(x) for x in (
-            r.get("plate"), r.get("t"), r.get("camera_id"), r.get("name"),
-            r.get("district"), cam.get("department"),
-            r.get("object_type"), r.get("votes"))))
-    body = "\n".join(out) + "\n"
+    mode = reads or ("all" if plate else "latest")
+    tf, tt = parse_time(t_from, "t_from"), parse_time(t_to, "t_to")
+    rows = anpr_rows(state.store, plate=plate, reads=mode,  # type: ignore[arg-type]
+                     limit=limit, districts=ctx.principal.scope_filter(),
+                     t_from=tf, t_to=tt)
+    if plate:
+        # A plate-filtered export is a search for one vehicle by another route,
+        # so it is recorded like one.
+        ctx.audit(state.store, "anpr_report_plate", target=plate,
+                  result_count=len(rows))
+    body = anpr_csv(rows)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    tag = f"-{re.sub(r'[^A-Z0-9]', '', plate.upper())}" if plate else ""
     return PlainTextResponse(body, media_type="text/csv", headers={
         "Content-Disposition":
-            f'attachment; filename="saakshya-anpr-{stamp}.csv"'})
+            f'attachment; filename="saakshya-anpr{tag}-{stamp}.csv"'})
 
 
 @router.get("/config", summary="What this deployment has been configured with")

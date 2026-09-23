@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from saakshya.common.ist import annotate_ist
 from saakshya.investigation import InvestigationService
 from saakshya.investigation.cases import CaseService
 from saakshya.security import AccessError, AuthContext
@@ -564,7 +565,10 @@ class ToolRegistry:
                     "expected": tool.parameters}
         except Exception as exc:
             return {"error": type(exc).__name__, "message": str(exc)}
-        return result if isinstance(result, dict) else {"result": result}
+        # Every timestamp gains an IST twin (`t_norm_ist` beside `t_norm`). The
+        # model quoted UTC to officers reading IST screens; it now has the IST
+        # string to quote and never has to convert a time zone itself.
+        return annotate_ist(result if isinstance(result, dict) else {"result": result})
 
     def schemas(self) -> list[dict[str, Any]]:
         return [t.schema() for t in self.tools.values()]

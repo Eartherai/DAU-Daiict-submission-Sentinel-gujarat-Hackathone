@@ -1,0 +1,24 @@
+{
+  "what": "whole per-frame pipeline (detect, track, plate, OCR), CPU vs MPS for the detector; plate models stay on ONNX CPU",
+  "camera": "OWN-MUM-QUEUE",
+  "cpu": {
+    "frames": 145,
+    "ms_median": 597.8,
+    "ms_p95": 671.6,
+    "fps": 1.67,
+    "observations": 67,
+    "plates": []
+  },
+  "mps": {
+    "frames": 145,
+    "ms_median": 292.8,
+    "ms_p95": 374.7,
+    "fps": 3.42,
+    "observations": 67,
+    "plates": []
+  },
+  "speedup_median": 2.04,
+  "same_plates": true,
+  "same_observation_count": true,
+  "measured_at": "2026-09-23T19:52:04+0530"
+}

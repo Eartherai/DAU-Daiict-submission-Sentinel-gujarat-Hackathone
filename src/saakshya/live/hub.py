@@ -301,7 +301,12 @@ class MediaHub:
     def _ai_loop(self) -> None:
         if self._stop.wait(8.0):
             return
-        os.environ.setdefault("SAAKSHYA_FORCE_CPU", "1")
+        # The detector runs on the Apple GPU (MPS) when there is one. It was pinned
+        # to CPU here with no recorded reason; measured on this M5 at 2560x1440 the
+        # whole per-frame pipeline is 2.0x faster on MPS (598 -> 293 ms median) with
+        # identical observations and plates, and the detector alone 3.4x with every
+        # box matched at IoU >= 0.9 (tools/bench/detector_device.py). Set
+        # SAAKSHYA_FORCE_CPU=1 to pin it to CPU.
         pipes: dict[str, Any] = {}
         try:
             from saakshya.analytics.pipeline import CameraPipeline, PipelineConfig

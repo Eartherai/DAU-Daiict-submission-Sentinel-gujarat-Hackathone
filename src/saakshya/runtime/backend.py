@@ -350,10 +350,16 @@ class TransformersBackend(InferenceBackend):
                 threshold=self._record.detector_conf,
             )[0]
             id2label = getattr(self._model.config, "id2label", {}) or {}
+            # One device-to-host copy per tensor. Iterating the tensors and
+            # calling .tolist() per box forced a GPU sync for every detection:
+            # on MPS that was 175 ms of a 261 ms frame, against 75 ms for the
+            # model itself. Measured in tools/bench/detector_device.py.
+            scores = post["scores"].tolist()
+            labels = post["labels"].tolist()
+            boxes = post["boxes"].tolist()
             out = []
-            for score, label, box in zip(post["scores"], post["labels"], post["boxes"],
-                                         strict=False):
-                x1, y1, x2, y2 = (int(v) for v in box.tolist())
+            for score, label, box in zip(scores, labels, boxes, strict=False):
+                x1, y1, x2, y2 = (int(v) for v in box)
                 out.append(Detection(box=(x1, y1, x2, y2), score=float(score),
                                      label=str(id2label.get(int(label), int(label)))))
             return out

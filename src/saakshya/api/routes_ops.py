@@ -248,37 +248,128 @@ def _copilot_public_config() -> dict[str, Any]:
     }
 
 
+def _alert_rows_in_scope(state: Any, ctx: Any, rows: list[dict[str, Any]]
+                         ) -> list[dict[str, Any]]:
+    scope = ctx.principal.scope_filter()
+    if scope is None:
+        return rows
+    allowed = {c["camera_id"] for c in state.store.list_cameras()
+               if c.get("district") in scope}
+    return [r for r in rows if r.get("camera_id") in allowed]
+
+
+#: "Resolved" is two stored states. The tab asked for CLEARED only, so every
+#: alert closed as a false positive vanished from the Resolved tab.
+_RESOLVED = {"CLEARED", "FALSE_POSITIVE"}
+
+
 @router.get("/alerts", summary="Alerts, newest first")
 async def alerts(state: StateDep, ctx: AuthDep, status: str | None = "OPEN",
-                 limit: Annotated[int, Query(ge=1, le=500)] = 100) -> dict[str, Any]:
+                 limit: Annotated[int, Query(ge=1, le=500)] = 100,
+                 grouped: bool = False,
+                 window_s: Annotated[int, Query(ge=30, le=86_400)] = 600,
+                 plate: Annotated[str | None, Query(max_length=24)] = None,
+                 ) -> dict[str, Any]:
+    """Alerts, or with ``grouped=true`` incidents: one per (plate, watchlist entry).
+
+    The ungrouped shape is unchanged apart from added fields, so existing
+    clients keep working. ``window_s`` is the duplicate-hit window: reads of
+    one vehicle closer together than this are one pass.
+    """
+    from saakshya.watchlist.incidents import enrich, group, status_counts
+
     try:
         ctx.principal.require(Permission.ALERT_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
+    resolved = (status or "").strip().upper() == "RESOLVED"
     try:
-        wanted = parse_alert_status(status)
+        wanted = None if resolved else parse_alert_status(status)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail={
             "code": "BAD_STATUS", "message": str(exc)}) from exc
-    rows = state.investigation.alerts.list_alerts(wanted)
-    scope = ctx.principal.scope_filter()
-    if scope is not None:
-        allowed = {c["camera_id"] for c in state.store.list_cameras()
-                   if c.get("district") in scope}
-        rows = [r for r in rows if r.get("camera_id") in allowed]
-    return {"alerts": [_with_iso_times(r) for r in rows[:limit]],
-            "count": len(rows[:limit]),
-            "stats": state.investigation.alerts.stats()}
+    everything = _alert_rows_in_scope(
+        state, ctx, state.investigation.alerts.list_alerts(None))
+    counts = status_counts(everything)
+    if resolved:
+        rows = [r for r in everything if r.get("status") in _RESOLVED]
+    elif wanted is not None:
+        rows = [r for r in everything if r.get("status") == str(wanted)]
+    else:
+        rows = everything
+    if plate:
+        want = plate.replace(" ", "").upper()
+        rows = [r for r in rows if want in (r.get("plate") or "").upper()]
+    stats = state.investigation.alerts.stats()
+    if grouped:
+        # Grouping needs every member, not the first `limit` rows: cutting at
+        # 100 alerts would report a vehicle with 24 sightings as having 9.
+        enriched = enrich(state.store, [_with_iso_times(r) for r in rows])
+        groups = group(enriched, window_s=window_s)
+        lanes = {"hotlist": 0, "near": 0}
+        for g in groups:
+            if g["open"]:
+                lanes[g["lane"]] = lanes.get(g["lane"], 0) + 1
+        return {"groups": groups[:limit], "count": len(groups[:limit]),
+                "group_count": len(groups), "alert_count": len(rows),
+                "window_s": window_s, "status_counts": counts,
+                "open_groups_by_lane": lanes, "stats": stats}
+    page = enrich(state.store, [_with_iso_times(r) for r in rows[:limit]])
+    return {"alerts": page, "count": len(page), "status_counts": counts,
+            "stats": stats}
+
+
+def _alert_audit(state: Any, ctx: Any):
+    """Audit with the request's role, case and jurisdiction attached."""
+    def write(action: str, target: str, purpose: str | None) -> None:
+        state.store.audit(
+            actor=ctx.principal.user_id, action=action,
+            role=str(ctx.principal.role), case_id=ctx.case_id,
+            purpose=purpose or ctx.purpose, target=target,
+            jurisdiction=("STATE" if ctx.principal.statewide
+                          else ",".join(ctx.principal.districts)))
+    return write
+
+
+def _check_alert_scope(state: Any, ctx: Any, alert_ids: list[str]) -> None:
+    """Refuse the whole request if any alert sits outside the officer's districts.
+
+    The single-alert routes never checked this: an operator scoped to one
+    district could acknowledge another district's alert by id.
+    """
+    if ctx.principal.scope_filter() is None:
+        return
+    from sqlalchemy import select
+
+    from saakshya.store import schema as S
+    with state.store.engine.connect() as c:
+        cams = [r.camera_id for r in c.execute(
+            select(S.alerts.c.camera_id).where(S.alerts.c.alert_id.in_(alert_ids)))]
+    districts = {cid: (state.store.get_camera(cid) or {}).get("district")
+                 for cid in set(cams)}
+    for cid in cams:
+        ctx.principal.require_scope(districts.get(cid))
+
+
+def _lifecycle_result(res: dict[str, Any], alert_id: str) -> dict[str, Any]:
+    if alert_id in res["changed"]:
+        return res
+    why = (res["skipped"][0]["why"] if res["skipped"] else "not changed")
+    code = "NOT_FOUND" if why == "no such alert" else "BAD_TRANSITION"
+    raise HTTPException(status_code=404 if code == "NOT_FOUND" else 409, detail={
+        "code": code, "message": f"{alert_id}: {why}"})
 
 
 @router.post("/alerts/{alert_id}/acknowledge", summary="Acknowledge an alert")
 async def alert_ack(state: StateDep, ctx: AuthDep, alert_id: str) -> dict[str, Any]:
     try:
         ctx.principal.require(Permission.ALERT_ACK)
-        state.investigation.alerts.acknowledge(alert_id, actor=ctx.principal.user_id)
-        ctx.audit(state.store, "alert_acknowledge", target=alert_id)
+        _check_alert_scope(state, ctx, [alert_id])
+        res = state.investigation.alerts.acknowledge(
+            alert_id, actor=ctx.principal.user_id, audit=_alert_audit(state, ctx))
     except AccessError as exc:
         raise access_error(exc) from exc
+    _lifecycle_result(res, alert_id)
     return {"alert_id": alert_id, "status": "ACKNOWLEDGED",
             "operator_status": "Acknowledged",
             "acknowledged_by": ctx.principal.user_id}
@@ -289,10 +380,13 @@ async def alert_investigate(state: StateDep, ctx: AuthDep, alert_id: str
                             ) -> dict[str, Any]:
     try:
         ctx.principal.require(Permission.ALERT_ACK)
-        state.investigation.alerts.investigate(alert_id, actor=ctx.principal.user_id)
-        ctx.audit(state.store, "alert_investigate", target=alert_id)
+        _check_alert_scope(state, ctx, [alert_id])
+        res = state.investigation.alerts.investigate(
+            alert_id, actor=ctx.principal.user_id, case_id=ctx.case_id,
+            audit=_alert_audit(state, ctx))
     except AccessError as exc:
         raise access_error(exc) from exc
+    _lifecycle_result(res, alert_id)
     return {"alert_id": alert_id, "status": "INVESTIGATING",
             "operator_status": "Investigating",
             "acknowledged_by": ctx.principal.user_id}
@@ -301,6 +395,7 @@ async def alert_investigate(state: StateDep, ctx: AuthDep, alert_id: str
 class AlertClear(BaseModel):
     reason: str = Field(min_length=4, max_length=1000)
     false_positive: bool = False
+    disposition: str | None = Field(default=None, max_length=24)
 
 
 @router.post("/alerts/{alert_id}/clear", summary="Clear an alert with a reason")
@@ -308,13 +403,54 @@ async def alert_clear(state: StateDep, ctx: AuthDep, alert_id: str,
                       body: AlertClear) -> dict[str, Any]:
     try:
         ctx.principal.require(Permission.ALERT_ACK)
-        state.investigation.alerts.clear(
+        _check_alert_scope(state, ctx, [alert_id])
+        res = state.investigation.alerts.clear(
             alert_id, actor=ctx.principal.user_id, reason=body.reason,
-            false_positive=body.false_positive)
-        ctx.audit(state.store, "alert_clear", target=alert_id)
+            false_positive=body.false_positive, disposition=body.disposition,
+            audit=_alert_audit(state, ctx))
     except AccessError as exc:
         raise access_error(exc) from exc
-    return {"alert_id": alert_id, "status": "CLEARED"}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_REQUEST", "message": str(exc)}) from exc
+    _lifecycle_result(res, alert_id)
+    return {"alert_id": alert_id, "status": res["status"]}
+
+
+class AlertTransition(BaseModel):
+    alert_ids: list[str] = Field(min_length=1, max_length=500)
+    action: str = Field(pattern="^(acknowledge|investigate|resolve)$")
+    reason: str | None = Field(default=None, max_length=1000)
+    disposition: str | None = Field(default=None, max_length=24)
+    case_id: str | None = Field(default=None, max_length=80)
+    group_id: str | None = Field(default=None, max_length=120)
+
+
+@router.post("/alerts/transition",
+             summary="Acknowledge, investigate or resolve several alerts at once")
+async def alert_transition(state: StateDep, ctx: AuthDep,
+                           body: AlertTransition) -> dict[str, Any]:
+    """Apply one lifecycle step to a whole incident.
+
+    Alerts already past the step are reported under ``skipped`` rather than
+    failing the request, so acknowledging a group that holds one resolved
+    sighting acknowledges the rest and leaves that one alone.
+    """
+    try:
+        ctx.principal.require(Permission.ALERT_ACK)
+        _check_alert_scope(state, ctx, body.alert_ids)
+        res = state.investigation.alerts.transition(
+            body.alert_ids, body.action, actor=ctx.principal.user_id,
+            reason=body.reason, disposition=body.disposition,
+            case_id=body.case_id or (ctx.case_id if body.action == "investigate"
+                                     else None),
+            group_id=body.group_id, audit=_alert_audit(state, ctx))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_REQUEST", "message": str(exc)}) from exc
+    return res
 
 
 # --------------------------------------------------------------------------- #
@@ -358,6 +494,130 @@ async def evidence_get(state: StateDep, ctx: AuthDep, evidence_id: str
         raise HTTPException(status_code=404, detail={
             "code": "NOT_FOUND", "message": f"no such evidence: {evidence_id}"})
     return m.to_dict()
+
+
+def _evidence_frame_file(state: Any, frame_path: str | None):
+    """Where the sealed frame is on this machine, or None.
+
+    Manifests record the path the frame was written to, often relative to the
+    process that sealed it (``var/evidence/EZ….png``). A server started from
+    another directory, or with the evidence root moved, then could not find a
+    frame that was sitting in its own evidence root. The file name is the
+    evidence id, so looking for it under the configured root is safe: the
+    digest check below still decides whether it is the sealed frame.
+    """
+    from pathlib import Path
+
+    if not frame_path:
+        return None
+    p = Path(frame_path)
+    if p.is_file():
+        return p
+    alt = Path(state.evidence.root) / p.name
+    return alt if alt.is_file() else None
+
+
+@router.get("/evidence/{evidence_id}/frame.jpg",
+            summary="The sealed evidence still, optionally cropped to the vehicle")
+async def evidence_frame(state: StateDep, ctx: AuthDep, evidence_id: str,
+                         crop: Annotated[str, Query(pattern="^(vehicle|plate|full)$")] = "vehicle",
+                         w: Annotated[int, Query(ge=80, le=1920)] = 480):
+    """The picture behind an alert.
+
+    Alert cards printed the plate text twice where a picture belonged, although
+    every alert on the evaluation store had a sealed frame — no route served it.
+
+    Access: EVIDENCE_READ, as for the manifest. An OPERATOR does not hold that
+    permission but acknowledges alerts, and cannot verify a single-frame read
+    without seeing it, so ALERT_READ also opens the *vehicle crop* of a frame
+    that belongs to an alert. The whole scene stays behind EVIDENCE_READ. Every
+    fetch is audited. The frame's SHA-256 is recomputed and returned in a
+    header; a frame that no longer matches its manifest is refused rather than
+    shown as if it were the sealed record.
+    """
+    import io
+
+    from fastapi.responses import Response
+    from PIL import Image
+    from sqlalchemy import select
+
+    from saakshya.evidence.manifest import sha256_file
+    from saakshya.store import schema as S
+
+    m = state.evidence.load(evidence_id)
+    if m is None:
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_FOUND", "message": f"no such evidence: {evidence_id}"})
+    try:
+        if ctx.principal.may(Permission.EVIDENCE_READ):
+            pass
+        else:
+            ctx.principal.require(Permission.ALERT_READ)
+            with state.store.engine.connect() as c:
+                on_alert = c.execute(select(S.alerts.c.alert_id).where(
+                    S.alerts.c.observation_id == m.observation_id).limit(1)).first()
+                if on_alert is None:
+                    # Repeat sightings are folded into an alert's
+                    # match_reason, not its observation_id column.
+                    on_alert = c.execute(select(S.alerts.c.alert_id).where(
+                        S.alerts.c.match_reason.contains(m.observation_id))
+                        .limit(1)).first()
+            if on_alert is None or crop == "full":
+                ctx.principal.require(Permission.EVIDENCE_READ)
+        cam = state.store.get_camera(m.camera_id) if m.camera_id else None
+        ctx.principal.require_scope((cam or {}).get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+
+    if crop == "plate":
+        # Only the vehicle box is stored per observation. Guessing a plate box
+        # inside it would draw a confident rectangle around nothing.
+        raise HTTPException(status_code=422, detail={
+            "code": "PLATE_BOX_NOT_STORED",
+            "message": "this store keeps the vehicle box only; use crop=vehicle"})
+    path = _evidence_frame_file(state, m.frame_path)
+    if path is None:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_FRAME",
+            "message": ("no frame was sealed with this record" if not m.frame_path
+                        else "the sealed frame file is not on this server")})
+    digest = sha256_file(path)
+    if m.frame_sha256 and digest != m.frame_sha256:
+        raise HTTPException(status_code=409, detail={
+            "code": "FRAME_DIGEST_MISMATCH",
+            "message": "the frame on disk no longer matches its sealed digest"})
+
+    img = Image.open(path).convert("RGB")
+    box = None
+    if crop == "vehicle":
+        with state.store.engine.connect() as c:
+            o = c.execute(select(S.observations.c.bbox_x1, S.observations.c.bbox_y1,
+                                 S.observations.c.bbox_x2, S.observations.c.bbox_y2)
+                          .where(S.observations.c.observation_id == m.observation_id)
+                          ).first()
+        if o is not None and None not in tuple(o):
+            x1, y1, x2, y2 = (float(v) for v in o)
+            # A little context around the box: a crop that ends exactly at the
+            # bumper hides the lane and the neighbouring vehicle, which is how
+            # an officer tells a misread from a different car.
+            pad_x, pad_y = (x2 - x1) * 0.12, (y2 - y1) * 0.12
+            box = (max(0, int(x1 - pad_x)), max(0, int(y1 - pad_y)),
+                   min(img.width, int(x2 + pad_x)), min(img.height, int(y2 + pad_y)))
+            if box[2] - box[0] >= 8 and box[3] - box[1] >= 8:
+                img = img.crop(box)
+            else:
+                box = None
+    if img.width > w:
+        img = img.resize((w, max(1, round(img.height * w / img.width))))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    ctx.audit(state.store, "evidence_frame_view", target=evidence_id)
+    return Response(content=buf.getvalue(), media_type="image/jpeg", headers={
+        "Cache-Control": "private, max-age=3600",
+        "X-Frame-SHA256": digest,
+        "X-Frame-Verified": "true" if m.frame_sha256 == digest else "no-digest",
+        "X-Crop": "vehicle" if box else "full",
+    })
 
 
 @router.post("/evidence/{evidence_id}/verify",

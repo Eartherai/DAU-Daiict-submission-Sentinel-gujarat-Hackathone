@@ -50,6 +50,7 @@ WATCHLIST_SUBJECT = {
     "suspect_vehicle": "WATCHLIST MATCH",
     "blacklisted_vehicle": "WATCHLIST MATCH",
     "investigation_target": "TARGET",
+    "evaluation_designated": "WATCHLIST MATCH",
     "custom": "TARGET",
 }
 

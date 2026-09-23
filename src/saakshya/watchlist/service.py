@@ -44,6 +44,11 @@ class Category(StrEnum):
     MISSING_PERSON_ASSOCIATED = "missing_person_associated"
     SUSPECT_VEHICLE = "suspect_vehicle"
     BLACKLISTED_VEHICLE = "blacklisted_vehicle"
+    #: A plate read off real footage and listed so the alert path can be shown
+    #: working on live data. It says nothing about the vehicle or its owner.
+    #: Such entries were filed as "stolen_vehicle", which put a false statement
+    #: about a real, identifiable person's car into every alert and export.
+    EVALUATION_DESIGNATED = "evaluation_designated"
     CUSTOM = "custom"
 
 
@@ -73,6 +78,7 @@ CATEGORY_WEIGHT = {
     Category.BLACKLISTED_VEHICLE: 0.9,
     Category.SUSPECT_VEHICLE: 0.8,
     Category.INVESTIGATION_TARGET: 0.7,
+    Category.EVALUATION_DESIGNATED: 0.7,
     Category.CUSTOM: 0.5,
 }
 

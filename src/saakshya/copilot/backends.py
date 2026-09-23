@@ -813,7 +813,7 @@ class RuleBackend:
             return (f"search_plate: {n} observation(s), on "
                     f"{', '.join(cams) or 'no named camera'}. The strongest is "
                     f"{first.get('status', 'unrated')} at "
-                    f"{first.get('t_norm', 'an unrecorded time')} "
+                    f"{first.get('t_norm_ist') or first.get('t_norm') or 'an unrecorded time'} "
                     f"(quality {first.get('observation_quality', 'unknown')}).")
         if name == "build_trajectory":
             hyp = r.get("hypotheses") or []

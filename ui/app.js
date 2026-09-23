@@ -5197,48 +5197,7 @@ $$("[data-alert-status]").forEach((b) => b.addEventListener("click", () => {
   loaders.alerts();
 }));
 
-loaders.alerts = async () => {
-  const box = $("#alerts");
-  try {
-    const res = await api(`/alerts?status=${alertStatus}&limit=200`);
-    clear(box);
-    $("#n-alerts").textContent = res.stats ? String(res.stats.open ?? "") : "";
-  labelCount("#n-alerts", "alerts open");
-    if (!res.alerts.length) {
-      box.append(el("div", { class: "empty" }, "No alerts in this state."));
-      return;
-    }
-    const cards = el("div", { class: "alert-cards" },
-      ...res.alerts.slice(0, 12).map((a) => el("div", { class: "alert-card" },
-        plateRead(a.plate),
-        el("div", { class: "body" },
-          el("div", { class: "pl", text: a.plate || "—" }),
-          el("div", { class: "meta", text:
-            `WATCHLIST MATCH · ${String(a.category || "").replace(/_/g, " ")} · ${a.camera_id || "—"} · ${a.priority || ""}` }),
-          el("div", { class: "tm", text:
-            `${fmtAlertClock(a)} · confidence ${a.confidence != null ? (Number(a.confidence) * 100).toFixed(1) + "%" : "—"}` }),
-          el("div", { class: "actions" },
-            el("button", { class: "ghost", onclick: () => jumpAlert(a) }, "VIEW VIDEO"),
-            el("button", { class: "ghost", onclick: () => trackEntity(a.plate, a) }, "TRACK VEHICLE"),
-            el("button", { class: "ghost", onclick: () => routeAlert(a) }, "ROUTE"),
-            el("button", { class: "ghost", onclick: () => { show("map"); toast("GIS: camera " + (a.camera_id || "")); } }, "OPEN GIS"),
-            a.status === "OPEN" ? el("button", { class: "ghost", onclick: async (e) => {
-              e.target.disabled = true;
-              try {
-                await api(`/alerts/${encodeURIComponent(a.alert_id)}/acknowledge`, { method: "POST" });
-                toast("Acknowledged"); loaders.alerts();
-              } catch (err) { toast(`${err.code}: ${err.message}`, true); }
-            } }, "ACKNOWLEDGE") : el("span", { class: "chip", text: a.status })
-          )
-        )
-      ))
-    );
-    box.append(cards, alertTable(res.alerts, true));
-  } catch (err) {
-    clear(box);
-    box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
-  }
-};
+/* loaders.alerts is defined in SLOT S2 (incidents, not rows). */
 
 /* One audit table, so the overview's activity panel and the audit view cannot
  * drift apart in what they show or how they show it. */
@@ -7113,8 +7072,17 @@ function resetInvestigation(plate) {
   }
 }
 
+/* Matches CATEGORY_LABEL in src/saakshya/watchlist/incidents.py, so a plate
+ * reads the same on the target card as on its alert. */
+const WL_LABEL = {
+  evaluation_designated: "designated vehicle of interest (evaluation)",
+  investigation_target: "investigation target",
+  missing_person_associated: "linked to a missing person",
+  custom: "custom list",
+};
 function wlLabel(entry) {
-  return String(entry.category || "watchlist").replace(/_/g, " ").toLowerCase();
+  const c = String(entry.category || "watchlist");
+  return WL_LABEL[c] || c.replace(/_/g, " ").toLowerCase();
 }
 
 /** The answer to "is this vehicle wanted?", first, in words. */
@@ -7280,6 +7248,199 @@ window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, fr
 
 /* ═══ SLOT S2 · alerts — grouped triage, lifecycle, recent hits ═══════════════════════════ */
 /* Owned by workstream S2. Add code only between these markers. */
+
+/* ─── Alerts: one decision per vehicle, not one card per read ───────────── */
+/* On the evaluation store 126 open alert rows were thirteen vehicles, every
+ * one printed HIGH, and the queue showed the first twelve rows — so a shift
+ * in-charge saw one vehicle twelve times and never reached the other twelve.
+ * Rows are the audit vocabulary; incidents are what an officer decides on.
+ * Each card now carries the sealed still, the read set against the listed
+ * plate character by character, the priority with its reason in words, and
+ * one set of actions that applies to every read of that vehicle. */
+
+const evidenceThumbs = new Map();          // evidence id -> object URL
+
+function evidenceThumb(ev, alt) {
+  const img = el("img", { class: "inc-thumb", alt, loading: "lazy", width: 160, height: 100 });
+  if (!ev?.evidence_id || !ev.has_frame) {
+    img.classList.add("none");
+    img.alt = "no sealed still for this read";
+    return img;
+  }
+  const hit = evidenceThumbs.get(ev.evidence_id);
+  if (hit) { img.src = hit; return img; }
+  // The full sealed frame, not crop=vehicle. On the evaluation store the
+  // stored vehicle box and the sealed still come from different moments of a
+  // pass — a motorcycle at x 1180-1360 of the still, its box at x 370-829 on
+  // empty road — so the crop showed tarmac captioned as the vehicle. The full
+  // frame genuinely contains it; the capture-time mismatch is logged as a
+  // known issue in the evidence pipeline rather than hidden by a crop.
+  fetch(`/evidence/${encodeURIComponent(ev.evidence_id)}/frame.jpg?crop=full&w=320`,
+        { headers: authHeaders() })
+    .then((r) => (r.ok ? r.blob() : Promise.reject(r.status)))
+    .then((b) => {
+      const url = URL.createObjectURL(b);
+      evidenceThumbs.set(ev.evidence_id, url);
+      img.src = url;
+    })
+    .catch(() => { img.classList.add("none"); img.alt = "still unavailable"; });
+  return img;
+}
+
+/** Read above, listed below, aligned — so "exact" is something you can check. */
+function readVsList(match) {
+  const wrap = el("div", { class: "rvl", "aria-label":
+    `read ${match.read}, listed ${match.listed}, ${match.kind === "EXACT" ? "exact" : "near"} match` });
+  const row = (label, key) => {
+    const r = el("div", { class: "rvl-row" }, el("span", { class: "rvl-label", text: label }));
+    for (const pos of match.positions || []) {
+      r.append(el("span", { class: `rvl-ch rvl-${pos.state || "same"}`,
+        title: pos.state === "same" ? "" : `${pos.read ?? "·"} read, ${pos.listed ?? "·"} listed (${pos.state})`,
+        text: pos[key] ?? "·" }));
+    }
+    return r;
+  };
+  wrap.append(row("read", "read"), row("listed", "listed"),
+    el("span", { class: `rvl-kind ${match.kind === "EXACT" ? "exact" : "near"}`,
+                 text: match.kind === "EXACT" ? "✓ EXACT" : "≈ NEAR" }));
+  return wrap;
+}
+
+async function transitionIncident(g, action, extra = {}) {
+  const res = await api("/alerts/transition", { method: "POST", body: JSON.stringify({
+    alert_ids: g.alert_ids, action, group_id: g.group_id, ...extra }) });
+  // {action, status, changed: [alert ids], skipped: [{alert_id, why}], by, at_us}
+  const done = (res.changed || []).length;
+  toast(`${action === "resolve" ? "Resolved" : action === "investigate" ? "Under investigation"
+    : "Acknowledged"}: ${g.plate}${done ? ` (${done} reads)` : ""}`);
+  loaders.alerts();
+}
+
+function resolveForm(g, anchor) {
+  if (anchor.querySelector(".inc-resolve")) return;
+  const sel = el("select", { "aria-label": "Disposition" },
+    el("option", { value: "confirmed" }, "Confirmed — the listed vehicle"),
+    el("option", { value: "false_positive" }, "False positive — misread or other vehicle"),
+    el("option", { value: "cleared" }, "Cleared — no further action"));
+  const why = el("input", { "aria-label": "Reason", placeholder: "Reason (recorded in the audit log)" });
+  const ok = el("button", { class: "primary", type: "button", text: "Resolve all reads" });
+  const cancel = el("button", { class: "ghost", type: "button", text: "Cancel" });
+  const f = el("div", { class: "inc-resolve" }, sel, why, ok, cancel);
+  ok.addEventListener("click", async () => {
+    if (why.value.trim().length < 4) { why.focus(); toast("Give a reason — it is written to the audit log.", true); return; }
+    ok.disabled = true;
+    try { await transitionIncident(g, "resolve", { disposition: sel.value, reason: why.value.trim() }); }
+    catch (err) { ok.disabled = false; toast(friendlyError(err), true); }
+  });
+  cancel.addEventListener("click", () => f.remove());
+  anchor.append(f);
+  why.focus();
+}
+
+function friendlyError(err) {
+  return err?.message ? `${err.message}` : String(err);
+}
+
+function incidentCard(g) {
+  const pr = (g.display_priority || g.listed_priority || "").toUpperCase();
+  const cat = g.watchlist?.category_label || String(g.category || "").replace(/_/g, " ");
+  const open = g.open ?? 0;
+  const card = el("article", { class: `incident prio-${pr.toLowerCase()}`, tabindex: "0",
+                               "data-group": g.group_id, "aria-label": `${g.plate}, ${cat}, ${pr}` },
+    evidenceThumb(g.evidence, `sealed still of ${g.plate}`));
+  const body = el("div", { class: "inc-body" },
+    el("div", { class: "inc-head" },
+      el("span", { class: "inc-plate mono", text: g.plate }),
+      el("span", { class: `chip prio prio-${pr.toLowerCase()}`, text: pr }),
+      el("span", { class: "inc-cat", text: cat })),
+    readVsList(g.match || { kind: "EXACT", read: g.plate, listed: g.listed_plate || g.plate, positions: [] }),
+    el("div", { class: "inc-why", text: g.priority_reason || "" }),
+    el("div", { class: "inc-meta", text:
+      `${g.count} read${g.count === 1 ? "" : "s"} · ${g.camera_count} camera${g.camera_count === 1 ? "" : "s"}`
+      + ` · ${g.latest_camera_name || g.latest_camera_id || ""}${g.latest_district ? `, ${g.latest_district}` : ""}` }),
+    el("div", { class: "inc-time", text:
+      `first ${fmtAlertClock({ t_norm: g.first_seen })} · last ${fmtAlertClock({ t_norm: g.last_seen })}` }));
+  for (const n of g.notes || []) body.append(el("div", { class: "inc-note", text: `⚠ ${n}` }));
+  if (g.recommended_action) body.append(el("div", { class: "inc-rec", text: `Recommended: ${g.recommended_action}` }));
+  const actions = el("div", { class: "actions" });
+  const btn = (label, fn, cls = "ghost") => {
+    const b = el("button", { class: cls, type: "button", text: label });
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      b.disabled = true;
+      try { await fn(); } catch (err) { toast(friendlyError(err), true); } finally { b.disabled = false; }
+    });
+    return b;
+  };
+  actions.append(
+    btn("Investigate", async () => {
+      if (window.SK_openInvestigation) {
+        await window.SK_openInvestigation({ plate: g.plate, observationId: g.latest_observation_id,
+          purpose: `Watchlist hit ${g.latest_alert_id} — verifying ${g.plate}`, from: "alert" });
+      }
+      try { await transitionIncident(g, "investigate"); } catch { /* the search still opened */ }
+    }, "primary"),
+    btn("View video", async () => jumpAlert({ alert_id: g.latest_alert_id, plate: g.plate,
+      camera_id: g.latest_camera_id, observation_id: g.latest_observation_id, t_norm: g.last_seen })),
+    open ? btn(`Acknowledge${g.count > 1 ? ` all ${open}` : ""}`, () => transitionIncident(g, "acknowledge")) : null,
+    btn("Resolve…", async () => resolveForm(g, body)),
+    el("span", { class: "chip", text: Object.entries(g.statuses || {}).map(([k, v]) => `${k} ${v}`).join(" · ") }));
+  body.append(actions);
+  card.append(body);
+  return card;
+}
+
+loaders.alerts = async () => {
+  const box = $("#alerts");
+  try {
+    const res = await api(`/alerts?grouped=true&status=${alertStatus}&limit=500`);
+    clear(box);
+    const groups = res.groups || [];
+    const openRows = res.status_counts?.OPEN ?? res.alert_count ?? 0;
+    $("#n-alerts").textContent = String(openRows);
+    labelCount("#n-alerts", "alerts open");
+    box.append(el("div", { class: "inc-summary" },
+      el("strong", { text: `${res.alert_count ?? 0} alert${res.alert_count === 1 ? "" : "s"} · `
+        + `${groups.length} vehicle${groups.length === 1 ? "" : "s"}` }),
+      el("span", { text: ` — grouped so each vehicle is one decision. Reads within `
+        + `${Math.round((res.window_s || 600) / 60)} minutes of each other are one pass. `
+        + "J / K move, A acknowledges, X resolves." })));
+    if (!groups.length) {
+      box.append(el("div", { class: "empty" }, "No alerts in this state."));
+      return;
+    }
+    const rank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    groups.sort((a, b) => (rank[a.display_priority] ?? 9) - (rank[b.display_priority] ?? 9)
+      || (b.last_seen_us || 0) - (a.last_seen_us || 0));
+    box.append(el("div", { class: "incidents" }, ...groups.map(incidentCard)));
+  } catch (err) {
+    clear(box);
+    box.append(el("div", { class: "notice bad" }, friendlyError(err)));
+  }
+};
+
+/* Keyboard triage: J/K between incidents, A acknowledge, X resolve. Ignored
+ * while typing, and only on the Alerts view. */
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const tag = (e.target?.tagName || "").toLowerCase();
+  if (["input", "textarea", "select"].includes(tag) || e.target?.isContentEditable) return;
+  if (!$("#view-alerts")?.classList.contains("active")) return;
+  const cards = $$("#alerts .incident");
+  if (!cards.length) return;
+  const i = cards.indexOf(document.activeElement);
+  const key = e.key.toLowerCase();
+  if (key === "j" || key === "k") {
+    e.preventDefault();
+    const n = key === "j" ? Math.min(cards.length - 1, i + 1) : Math.max(0, (i < 0 ? 0 : i) - 1);
+    cards[n].focus();
+    cards[n].scrollIntoView({ block: "nearest" });
+  } else if ((key === "a" || key === "x") && i >= 0) {
+    e.preventDefault();
+    const label = key === "a" ? "Acknowledge" : "Resolve";
+    [...cards[i].querySelectorAll("button")].find((b) => b.textContent.startsWith(label))?.click();
+  }
+});
 
 /* ═══ END SLOT S2 ═══ */
 

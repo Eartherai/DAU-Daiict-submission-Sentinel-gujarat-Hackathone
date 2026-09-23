@@ -79,8 +79,10 @@ def test_the_header_keeps_the_purpose_usable_on_a_1366_laptop() -> None:
     higher. Before it, five chips stacked into a column one chip wide and
     covered the Purpose field every vehicle search requires."""
     css = (Path(__file__).resolve().parents[2] / "ui/style.css").read_text(encoding="utf-8")
-    block = css[css.index("@media (max-width: 1440px)"):]
-    block = block[:block.index("\n}\n") + 3]
+    # Several 1440px blocks exist; take the one that shapes the header.
+    blocks = [b for b in css.split("@media (max-width: 1440px)")[1:]]
+    block = next((b[:b.index("\n}\n") + 3] for b in blocks if ".topbar" in b[:b.index("\n}\n")]), "")
+    assert block, "no 1440px rule shapes the header"
     assert "flex-wrap: wrap" in block, "the header cannot become two rows"
     assert "min-width: 360px" in block, "the purpose bar may still shrink to nothing"
     assert "flex-wrap: nowrap" in block, "status chips may stack into a column again"

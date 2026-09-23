@@ -2819,3 +2819,31 @@ body.wall-focus #live-progress {
   .report-dialog { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; }
   .report-actions { width: 100%; }
 }
+
+/* ─── Intelligence: feeds first, and large ─────────────────────────────── */
+.intel-grid { padding-top: 12px; }
+.intel-stage { aspect-ratio: 16 / 9; min-height: 0; }
+.intel-hero { padding: 14px 20px 10px; }
+.intel-hero h2 { font-size: 20px; }
+.intel-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 2px 16px 10px;
+  font: 500 12px/1.3 var(--sans); color: var(--ink-2); }
+.intel-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.intel-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.intel-legend i.dash { background: none; border: 2px dashed var(--ink-faint); height: 8px; }
+.intel-legend i.plate { background: #fff; border: 1px solid #111; }
+.intel-resources, .intel-kpis { align-items: stretch; }
+.intel-resources .sid, .intel-kpis .sid { grid-column: 1 / -1; font: 700 11px/1 var(--sans);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding-top: 4px; }
+.not-measured { grid-column: 1 / -1; font: 400 12px/1.45 var(--sans); color: var(--ink-2);
+  background: var(--surface-2, var(--bg)); border: 1px dashed var(--line-strong);
+  border-radius: 8px; padding: 8px 10px; }
+.not-measured b { font-weight: 650; color: var(--ink); }
+.intel-arch { margin: 4px 16px 20px; border: 1px solid var(--line); border-radius: var(--r); }
+.intel-arch > summary { cursor: pointer; padding: 10px 14px; font: 650 13px/1 var(--sans); color: var(--ink-2); }
+.intel-arch[open] > summary { border-bottom: 1px solid var(--line); }
+.intel-arch .intel-claim { padding: 10px 14px 0; }
+.intel-arch .demo-flag { background: var(--verify-bg); color: var(--verify); border-radius: 999px;
+  padding: 2px 8px; font: 650 10px/1.4 var(--sans); letter-spacing: .06em; }
+.inc-thumb.none { display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 8px; font: 500 11px/1.3 var(--sans); color: var(--ink-3); border: 1px solid var(--line); }
+.not-measured .nm-item { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }

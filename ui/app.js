@@ -5854,10 +5854,18 @@ function paintIntelCommand(cmd) {
     health.append(
       el("div", { class: "chip", text: `Online ${cmd?.kpis?.cameras_online?.display ?? cmd?.healthy ?? "—"}` }),
       el("div", { class: "chip", text: `Alerts ${cmd?.kpis?.active_alerts?.display ?? cmd?.active_alerts ?? "—"}` }),
-      el("div", { class: "chip", text: `AI P50 ${cmd?.kpis?.ai_latency_p50?.display ?? "NOT_MEASURED"}` }),
+      el("div", { class: "chip", text: (() => {
+        const ok = (v) => v !== undefined && v !== null && v !== "NOT_MEASURED";
+        const p = cmd?.kpis?.ai_latency_p50?.display;
+        const inf = cmd?.resources?.inference_p50?.display;
+        // The panel below showed "Inference P50 287.6 ms" while this chip
+        // said NOT MEASURED: it read end-to-end latency only.
+        return ok(p) ? `AI P50 ${p}` : ok(inf) ? `Inference P50 ${inf}` : "AI P50 not measured";
+      })() }),
     );
     for (const row of Object.values(cmd?.isolation || {})) {
-      if (row?.chip) health.append(el("div", { class: "chip verify", text: row.chip }));
+      if (row?.chip) health.append(el("div", {
+        class: /DEGRADED|UNAVAILABLE/.test(row.chip) ? "chip verify" : "chip", text: row.chip }));
     }
   }
   const kpiBox = $("#intel-kpis");
@@ -5878,12 +5886,11 @@ function paintIntelCommand(cmd) {
       ["AI latency P95", "ai_latency_p95"],
       ["Watchlist alert latency", "watchlist_alert_latency"],
     ];
-    for (const [title, key] of order) kpiBox.append(kpiCell(title, cmd.kpis[key]));
+    paintMeasuredOnly(kpiBox, "Estate right now", order, cmd.kpis);
   }
   const resBox = $("#intel-resources");
   if (resBox && cmd?.resources) {
     clear(resBox);
-    resBox.append(el("div", { class: "sid", text: "AI RESOURCE PANEL" }));
     const order = [
       ["AI workers", "ai_workers"],
       ["Detector FPS", "detector_fps"],
@@ -5895,7 +5902,36 @@ function paintIntelCommand(cmd) {
       ["GPU", "gpu"],
       ["RAM", "ram"],
     ];
-    for (const [title, key] of order) resBox.append(kpiCell(title, cmd.resources[key]));
+    paintMeasuredOnly(resBox, "Live AI plane", order, cmd.resources);
+  }
+}
+
+/** Tiles for what was measured; one line naming what was not.
+ *
+ *  Twenty tiles reading NOT_MEASURED were the loudest thing on the page when
+ *  no live worker ran on the server, and read as a broken system rather than
+ *  an honest one. The honesty is kept - every unmeasured figure is still
+ *  named, with the reason - but it no longer takes the space of a result. */
+function paintMeasuredOnly(box, heading, order, data) {
+  const measured = [], missing = [];
+  for (const [title, key] of order) {
+    const item = data?.[key];
+    const d = item?.display ?? item?.value;
+    if (d === undefined || d === null || d === "NOT_MEASURED" || d === "") missing.push([title, item]);
+    else measured.push([title, item]);
+  }
+  box.append(el("div", { class: "sid", text: heading }));
+  for (const [title, item] of measured) box.append(kpiCell(title, item));
+  if (missing.length) {
+    const line = el("div", { class: "not-measured" }, el("b", { text: "Not measured on this server: " }));
+    missing.forEach(([t, it], i) => {
+      if (i) line.append(" · ");
+      // Each figure carries its own reason; the first version printed OCR's
+      // reason after the GPU as well.
+      line.append(el("span", { class: "nm-item", title: it?.source || it?.label || "", text: t }));
+    });
+    line.append(el("span", { class: "muted", text: " (hover a name for why)" }));
+    box.append(line);
   }
 }
 
@@ -5916,7 +5952,9 @@ function paintCommandStatus(cmd, o) {
       .map((row) => row?.chip).filter(Boolean);
     const p50 = cmd?.kpis?.ai_latency_p50?.display ?? "NOT_MEASURED";
     ai.textContent = chips.length ? chips.join(" · ") : `AI P50 ${p50}`;
-    ai.classList.toggle("verify", chips.length > 0);
+    // Amber only for a fault. "AI ACTIVE · OCR ACTIVE" in warning colour
+    // told the operator something was wrong when nothing was.
+    ai.classList.toggle("verify", chips.some((c) => /DEGRADED|UNAVAILABLE/.test(c)));
   }
 }
 
@@ -6406,6 +6444,12 @@ function videoContentRect(video, w, h) {
   return { scale, ox: (w - vw * scale) / 2, oy: (h - vh * scale) / 2 };
 }
 
+/** Colour by what it is, so the scene reads at a glance without labels. */
+const OWN_KIND_COLOUR = {
+  person: "#3ec8dc", car: "#f5b700", auto: "#f5b700", vehicle: "#f5b700",
+  truck: "#ff7a45", bus: "#ff7a45", motorcycle: "#7ddc5a", bicycle: "#7ddc5a",
+};
+
 function drawOwnFrame(canvas, video, tracks, caption) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -6430,20 +6474,26 @@ function drawOwnFrame(canvas, video, tracks, caption) {
     if (kind === "person") people += 1; else vehicles += 1;
     const rx = ox + x1 * scale, ry = oy + y1 * scale;
     const rw = Math.max(1, (x2 - x1) * scale), rh = Math.max(1, (y2 - y1) * scale);
-    const colour = kind === "person" ? "#3ec8dc" : "#f5b700";
-    ctx.lineWidth = 2;
+    const colour = OWN_KIND_COLOUR[kind] || OWN_KIND_COLOUR.vehicle;
+    ctx.lineWidth = kind === "person" ? 1.5 : 2;
     ctx.strokeStyle = colour;
     // Tentative tracks are dashed: the pipeline has seen it, not yet held it.
     ctx.setLineDash(confirmed ? [] : [5, 4]);
     ctx.strokeRect(rx, ry, rw, rh);
     ctx.setLineDash([]);
-    const label = `#${num} ${kind} ${conf}%`;
+    // A label on every box buried the street under text: forty "#220 person
+    // 45%" tags on a 600 px stage. Labels are drawn only on confirmed tracks
+    // whose box is wide enough to carry one; the colour and the legend say
+    // what the rest are, and the counts below the stage say how many.
+    const label = `${kind} ${conf}`;
     const tw = ctx.measureText(label).width + 8;
     const ly = ry >= 16 ? ry - 16 : ry + rh + 2;
-    ctx.fillStyle = "rgba(0,0,0,0.62)";
-    ctx.fillRect(rx, ly, tw, 15);
-    ctx.fillStyle = colour;
-    ctx.fillText(label, rx + 4, ly + 2);
+    if (confirmed && rw >= tw) {
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
+      ctx.fillRect(rx, ly, tw, 15);
+      ctx.fillStyle = colour;
+      ctx.fillText(label, rx + 4, ly + 2);
+    }
     if (plate) {
       // A plate appears only once the pipeline's vote has accepted it.
       const pw = ctx.measureText(plate).width + 10;
@@ -7339,13 +7389,17 @@ window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, fr
 
 const evidenceThumbs = new Map();          // evidence id -> object URL
 
+/** An <img> with no source renders its alt text over a broken-image glyph,
+ *  which is what an alert card showed where no still was sealed. A read with
+ *  no still gets a labelled placeholder instead, and says so plainly. */
+function thumbPlaceholder(text) {
+  return el("div", { class: "inc-thumb none", role: "img", "aria-label": text },
+    el("span", { text }));
+}
+
 function evidenceThumb(ev, alt) {
+  if (!ev?.evidence_id || !ev.has_frame) return thumbPlaceholder("No still sealed for this read");
   const img = el("img", { class: "inc-thumb", alt, loading: "lazy", width: 160, height: 100 });
-  if (!ev?.evidence_id || !ev.has_frame) {
-    img.classList.add("none");
-    img.alt = "no sealed still for this read";
-    return img;
-  }
   const hit = evidenceThumbs.get(ev.evidence_id);
   if (hit) { img.src = hit; return img; }
   // The full sealed frame, not crop=vehicle. On the evaluation store the
@@ -7362,7 +7416,7 @@ function evidenceThumb(ev, alt) {
       evidenceThumbs.set(ev.evidence_id, url);
       img.src = url;
     })
-    .catch(() => { img.classList.add("none"); img.alt = "still unavailable"; });
+    .catch(() => { img.replaceWith(thumbPlaceholder("Still unavailable")); });
   return img;
 }
 
@@ -7435,7 +7489,7 @@ function incidentCard(g) {
     readVsList(g.match || { kind: "EXACT", read: g.plate, listed: g.listed_plate || g.plate, positions: [] }),
     el("div", { class: "inc-why", text: g.priority_reason || "" }),
     el("div", { class: "inc-meta", text:
-      `${g.count} read${g.count === 1 ? "" : "s"} · ${g.camera_count} camera${g.camera_count === 1 ? "" : "s"}`
+      `${g.reads ?? g.count} read${(g.reads ?? g.count) === 1 ? "" : "s"} · ${g.camera_count} camera${g.camera_count === 1 ? "" : "s"}`
       + ` · ${g.latest_camera_name || g.latest_camera_id || ""}${g.latest_district ? `, ${g.latest_district}` : ""}` }),
     el("div", { class: "inc-time", text:
       `first ${fmtAlertClock({ t_norm: g.first_seen })} · last ${fmtAlertClock({ t_norm: g.last_seen })}` }));

@@ -127,9 +127,14 @@ def test_boxes_map_through_the_elements_object_fit() -> None:
 def test_the_overlay_labels_are_short_numbers_not_ulids() -> None:
     block = APP_JS[APP_JS.index("function drawOwnFrame"):
                    APP_JS.index("async function paintIntelStage(id, host)")]
-    assert "`#${num}" in block
     assert "track_id" not in block, (
         "a 28-character ULID over a car reads like a garbage number plate")
+    # Short labels, and only where they fit: a tag on every box buried the
+    # street under forty "#220 person 45%" labels.
+    assert "const label = `${kind} ${conf}`" in block
+    assert "confirmed && rw >= tw" in block
+    # A plate is always drawn - it is the one label an officer came for.
+    assert "if (plate) {" in block
 
 
 def test_a_hidden_tab_does_not_leave_the_video_paused() -> None:

@@ -121,6 +121,16 @@ alternatives — OCR error, cloned mark, clock drift, mis-association — and ca
 score. Track fragments of one pass at one camera coalesce, and the merge is
 stated.
 
+The route leaves the screen as a **vehicle trace report**
+(`GET /reports/vehicle/{plate}.html`, opened in place from the target card or
+an alert): every read in the officer's jurisdiction, the legs between cameras
+with any leg a road vehicle could not drive flagged as a possible misread or
+cloned plate, the watchlist status at the moment of printing, the sealed stills
+re-hashed and withheld if they no longer match, the case and purpose, signature
+blocks, and a SHA-256 over the rows so a printed copy can be checked against
+the store. The page carries no script and fetches nothing. It is gated and
+audited exactly as the plate search is.
+
 ### 4.6 Evidence
 Hash-chained frame, clip and manifest. BSA s.63 certificate prepared as a
 **draft** with signature blocks empty. The system never asserts admissibility.
@@ -197,6 +207,13 @@ The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 - **BSA s.63** — draft certificate prepared, unsigned, never claimed admissible.
 - **Purpose limitation** — enforced at the gate, recorded in an immutable log.
 - **No biometric identification** — no face pipeline exists, by decision.
+  Footage published for this submission is anonymised without adding one: the
+  person detector's boxes, found on the whole frame and on overlapping tiles,
+  have their top quarter pixelated and held for three frames either side
+  (`tools/demo/blur_heads.py`). Nothing that locates a face is shipped.
+- **Purpose in any script** — a purpose written in Gujarati reaches the audit
+  log as written; header values outside ISO-8859-1 are percent-encoded by the
+  interface and decoded once at the gate.
 - **No government database integration claimed** — VAHAN, CCTNS, SARATHI, AFIS
   and NAFIS adapters raise `NotImplementedError` naming what each would require.
 - **ER/STQC** — camera compliance status is a registry field, not an assertion
@@ -251,7 +268,7 @@ the same discipline as the rest of the proposal.
 | Load balancing / health | Horizontal processes per node; `/system/health`; hash-chained audit | **MEASURED** on 30 cameras; **UNTESTED** as a cluster scheduler |
 | HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (18 e2e tests). Central HA, backup and DR designed in §15; still **UNTESTED** multi-node | **MEASURED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
 | Cybersecurity | Four gates (auth, role, jurisdiction, purpose). ADMIN cannot search. Tokens not in query strings. No secrets in the repository | **MEASURED** on the API; statewide SOC integration **UNTESTED** |
-| Cost | Not estimated in rupees. §17 gives the model and its one measured input (11.4 fps); the GPU speed-up factor **S** must be benchmarked before any figure is quoted | **MODELLED** §17; unit prices **NOT ESTIMATED** |
+| Cost | Not estimated in rupees. §17 gives the model and its measured inputs (11.4 fps; **S = 2.0** whole-pipeline on an Apple M5 integrated GPU, 3.4 for the detector alone); the target accelerator's **S** comes from the same scripted benchmark before any figure is quoted | **MODELLED** §17; **S MEASURED** on dev hardware; unit prices **NOT ESTIMATED** |
 
 Nothing in this table is quoted as “tested at 80,000”.
 
@@ -410,6 +427,29 @@ target hardware:
 3. **S** is the ratio. Read the matching row above.
 4. Re-run at the district's real camera count, because contention — not raw
    inference speed — is what cost this platform half its throughput.
+
+**Steps 1–3 are now one command, and have been run once.** On the development
+machine — an Apple M5, whose GPU is integrated, not a data-centre accelerator —
+`tools/bench/detector_device.py` runs the production detector and then the
+whole per-frame pipeline on CPU and on the GPU (MPS), each in its own process,
+over the same 2560×1440 frames, and checks the outputs agree before reporting a
+ratio:
+
+| What was timed | CPU median | GPU median | **S** | Parity |
+|---|---:|---:|---:|---|
+| Detector alone (RT-DETRv2-R18) | 448 ms | 133 ms | **3.4** | 3,622 of 3,622 boxes matched at IoU ≥ 0.9 |
+| Whole pipeline (detect, track, plate, OCR) | 598 ms | 293 ms | **2.0** | same 67 observations, same plates |
+
+Source: `var/reports/detector_device.json`, `var/reports/pipeline_device.json`.
+The whole-pipeline ratio is the one to read into §17.3, and it is lower than
+the detector's because the plate detector and OCR are ONNX models kept on CPU
+(CoreML fails on their zero-element dynamic shapes, recorded in
+`runtime/profile.py`). The first GPU measurement was 201 ms, not 133: a
+post-processing loop synced the GPU once per detected box. That was software,
+and it is fixed; what remains is the model on the device. **S = 2.0 is a
+laptop's integrated GPU.** It says the method works and the pipeline is not
+CPU-bound by construction; it is not the target accelerator's row, which the
+same command produces on that hardware.
 
 Step 4 is the one usually skipped, and it is the one this project learned the
 hard way: moving from one camera to four raised aggregate throughput roughly

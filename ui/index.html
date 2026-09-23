@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr117">
+<link rel="stylesheet" href="/ui/style.css?v=cr119">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -411,27 +411,12 @@
       <div class="intel-shell">
         <header class="intel-hero">
           <div>
-            <p class="intel-kicker">MODEL 4 — CENTRAL INTELLIGENCE COMMAND</p>
-            <h2>Own golden feeds · full analytics</h2>
-            <p class="intel-claim">Centralized analytics and command orchestration with regional media/AI pools for statewide deployment. Not a claim that 80,000 cameras are processed centrally.</p>
+            <p class="intel-kicker">Own feeds · analysed frame by frame</p>
+            <h2>What the pipeline sees</h2>
+            <p class="intel-claim">Licensed street recordings from Mumbai, 2560×1440 at 30 fps. Every box is this platform's own detector and tracker on that exact frame; a registration mark is printed only once the pipeline's vote accepts it. Heads are blurred before the footage is shown.</p>
           </div>
           <div class="intel-health" id="intel-health"></div>
-          <div class="intel-feeds-badge">
-            <span>OWN FEED A · STREET &amp; PEOPLE</span>
-            <span>OWN FEED B · TRAFFIC &amp; ANPR</span>
-            <span class="demo-flag">DEMO / CONTROLLED TEST when a fixture is used</span>
-          </div>
         </header>
-        <div class="m4-arch" aria-label="Architecture">
-          <div>CAMERA SOURCES</div>
-          <div>REGIONAL INGEST</div>
-          <div>MEDIA / EVENT FABRIC</div>
-          <div class="m4-split">
-            <span>VIDEO PLANE · WHEP/HLS</span>
-            <span>AI PLANE · Detection / ANPR / Track / Watchlist / Alerts</span>
-          </div>
-          <div>COMMAND CENTER · VIDEO · GIS · INVESTIGATION</div>
-        </div>
         <div class="intel-grid">
           <div class="intel-col">
             <div class="col-head">Own feed A · street and people · OWN-MUM-AUTOSTAND
@@ -446,9 +431,31 @@
             <div class="intel-stage" id="intel-stage-b" data-camera="OWN-MUM-QUEUE"></div>
           </div>
         </div>
-        <div class="intel-resources" id="intel-resources" aria-label="Model 4 resource panel"></div>
+        <div class="intel-legend" aria-label="Overlay legend">
+          <span><i style="background:#f5b700"></i>car · auto</span>
+          <span><i style="background:#ff7a45"></i>truck · bus</span>
+          <span><i style="background:#7ddc5a"></i>two-wheeler</span>
+          <span><i style="background:#3ec8dc"></i>person</span>
+          <span><i class="dash"></i>dashed: seen, not yet held by the tracker</span>
+          <span><i class="plate"></i>white tag: plate accepted by the vote</span>
+        </div>
+        <div class="intel-resources" id="intel-resources" aria-label="Live AI plane"></div>
         <div class="intel-kpis" id="intel-kpis" aria-label="Command KPIs"></div>
         <div class="intel-scene" id="intel-scene"></div>
+        <details class="intel-arch">
+          <summary>How this scales statewide (Model 4)</summary>
+          <p class="intel-claim">Centralised analytics and command, with regional media and AI pools for statewide deployment. Not a claim that 80,000 cameras are processed centrally. <span class="demo-flag">DEMO / CONTROLLED TEST</span> is shown wherever a fixture stands in for a feed.</p>
+          <div class="m4-arch" aria-label="Architecture">
+            <div>CAMERA SOURCES</div>
+            <div>REGIONAL INGEST</div>
+            <div>MEDIA / EVENT FABRIC</div>
+            <div class="m4-split">
+              <span>VIDEO PLANE · WHEP/HLS</span>
+              <span>AI PLANE · Detection / ANPR / Track / Watchlist / Alerts</span>
+            </div>
+            <div>COMMAND CENTER · VIDEO · GIS · INVESTIGATION</div>
+          </div>
+        </details>
         <div class="intel-work">
           <div class="intel-col">
             <div class="col-head">ANPR LIVE
@@ -840,7 +847,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr149"></script>
+<script type="module" src="/ui/app.js?v=cr151"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

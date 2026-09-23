@@ -66,3 +66,14 @@ def test_withheld_alerts_never_print_null() -> None:
     """Roles that may not read alerts get `open: null`; String(null) is 'null'."""
     assert "String(o.alerts.open)" not in APP
     assert "o.alerts.withheld" in APP
+
+
+def test_an_incident_counts_reads_not_alert_rows() -> None:
+    """One alert with six folded sightings on two cameras printed '1 read'."""
+    from saakshya.watchlist.incidents import group
+    row = {"plate": "GJ18JX7786", "watchlist_id": "W1", "alert_id": "A1",
+           "t_norm_us": 1, "status": "OPEN", "cameras": ["C-014", "C-021"],
+           "observation_ids": ["o1", "o2", "o3", "o4", "o5", "o6"]}
+    g = group([row])[0]
+    assert g["count"] == 1 and g["reads"] == 6 and g["camera_count"] == 2
+    assert "g.reads ?? g.count" in APP

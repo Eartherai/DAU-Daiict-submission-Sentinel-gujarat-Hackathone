@@ -246,11 +246,7 @@ class Worker:
                         "ts": time.time(),
                         "boxes": boxes,
                     })
-                    anpr = "UNAVAILABLE"
-                    for o in obs or []:
-                        if getattr(o, "plate", None):
-                            anpr = "MEASURED"
-                            break
+                    plates_now = sum(1 for o in obs or [] if getattr(o, "plate", None))
                     if obs:
                         pending[cid].extend(obs)
                         for o in obs:
@@ -297,7 +293,12 @@ class Worker:
                         row["queue_depth"] = q.qsize()
                         row["inference_p50_ms"] = _pct(50)
                         row["inference_p95_ms"] = _pct(95)
-                        row["anpr"] = anpr
+                        # Sticky for the session. Set per frame it flipped to
+                        # UNAVAILABLE on every frame without a plate - most of
+                        # them - so a worker reading plates reported that it
+                        # was not, nine samples in ten.
+                        row["plates_read"] = row.get("plates_read", 0) + plates_now
+                        row["anpr"] = "MEASURED" if row["plates_read"] else "RUNNING"
                 except Exception:
                     log.exception("ai worker frame failed camera=%s", cid)
                     with self._lock:

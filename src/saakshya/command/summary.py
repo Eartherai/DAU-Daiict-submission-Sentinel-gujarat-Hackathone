@@ -299,12 +299,11 @@ def command_summary(store: Store) -> dict[str, Any]:
                      "No AI worker heartbeat in this API process. "
                      "Video tiles continue.")),
             },
-            "ocr": {
-                "state": "UNAVAILABLE",
-                "chip": "OCR DEGRADED",
-                "label": NA,
-                "note": "OCR is not sampled in this API process. Video continues.",
-            },
+            # OCR runs inside the AI worker, so its state is the worker's.
+            # This was a fixed "OCR DEGRADED", shown while the worker was
+            # reading plates - the same permanent false verdict the AI chip
+            # above was corrected for.
+            "ocr": _ocr_isolation(_live_hb, _active, NA),
             "watchlist": {
                 "state": "AVAILABLE",
                 "chip": None,
@@ -326,3 +325,21 @@ def command_summary(store: Store) -> dict[str, Any]:
     with _SUMMARY_LOCK:
         _SUMMARY_CACHE[store] = (time.monotonic(), payload)
     return copy.deepcopy(payload)
+
+
+def _ocr_isolation(live_hb: bool, active: list[dict], na: str) -> dict:
+    """OCR's chip, from what the worker's heartbeat says it has read."""
+    if not live_hb or not active:
+        return {"state": "UNAVAILABLE", "chip": "OCR DEGRADED", "label": na,
+                "note": "No AI worker is analysing a stream, so no plate is being "
+                        "read. Video continues."}
+    read = sum(int(r.get("plates_read") or 0) for r in active)
+    reading = [r for r in active if int(r.get("plates_read") or 0) > 0
+               or str(r.get("anpr")) == "MEASURED"]
+    if reading:
+        return {"state": "ACTIVE", "chip": "OCR ACTIVE", "label": "MEASURED",
+                "note": f"{read} plate read(s) accepted this session on "
+                        f"{len(reading)} of {len(active)} analysed camera(s)."}
+    return {"state": "RUNNING", "chip": "OCR RUNNING", "label": "MEASURED",
+            "note": "OCR runs on every analysed camera; no plate has been "
+                    "accepted by the vote yet this session."}

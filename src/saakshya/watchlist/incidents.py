@@ -362,6 +362,11 @@ def group(rows: list[dict[str, Any]], *, window_s: int = DEFAULT_WINDOW_S
             "category": latest.get("category"),
             "watchlist": latest.get("watchlist") or {},
             "count": len(members),
+            # Reads, not alert rows: repeat sightings are folded into one
+            # alert's observation_ids, so "1 read · 2 cameras" was printed for
+            # an alert that rested on six reads across two cameras.
+            "reads": len({o for a in members for o in (a.get("observation_ids") or [])})
+                     or len(members),
             "passes": passes,
             "window_s": window_s,
             "cameras": cameras,

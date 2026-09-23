@@ -189,3 +189,21 @@ def test_government_seed_urls_have_no_userinfo(tmp_path):
     ctl = store.get_camera("CTL-00000") or store.get_camera("CTL-00001")
     if ctl:
         assert not (ctl.get("whep_url") or "").startswith("http://103.250")
+
+
+def test_ocr_chip_follows_the_worker_not_a_fixed_verdict(tmp_path, monkeypatch):
+    """'OCR DEGRADED' was hard-coded, shown while the worker read plates."""
+    import os
+    hb = {"pid": os.getpid(), "cameras": {
+        "CAM-1": {"ai": "ACTIVE", "frames": 40, "anpr": "MEASURED", "plates_read": 3},
+        "CAM-2": {"ai": "ACTIVE", "frames": 40, "anpr": "RUNNING", "plates_read": 0}}}
+    monkeypatch.setattr("saakshya.analytics.worker.read_heartbeat", lambda: hb,
+                        raising=False)
+    store = Store(f"sqlite:///{tmp_path / 'o.db'}")
+    store.create_all()
+    ocr = command_summary(store)["isolation"]["ocr"]
+    assert ocr["chip"] == "OCR ACTIVE" and "3 plate" in ocr["note"]
+    hb["cameras"]["CAM-1"].update(anpr="RUNNING", plates_read=0)
+    fresh = Store(f"sqlite:///{tmp_path / 'o2.db'}")      # the summary is cached per store
+    fresh.create_all()
+    assert command_summary(fresh)["isolation"]["ocr"]["chip"] == "OCR RUNNING"

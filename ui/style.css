@@ -2850,3 +2850,18 @@ body.wall-focus #live-progress {
 .ev-records td.ok { color: var(--confirmed); font-weight: 650; }
 .ev-records td.bad { color: var(--conflict); font-weight: 700; }
 .ev-records .ev-link { font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+
+/* ─── Analytics: two real columns ─────────────────────────────────────────
+ * The timebase panel spans every track, which stops auto-fit collapsing the
+ * empty ones: at 2560 px the grid made six 320 px tracks and the two content
+ * panels sat in the first two, with the rest of the screen blank. */
+:root { --cls-car: #d99a00; --cls-heavy: #e8632b; --cls-two: #4caf2f; --cls-person: #1fa9bd; }
+#analytics > .command-grid { grid-template-columns: minmax(300px, 1fr) minmax(460px, 1.8fr); }
+@media (max-width: 1000px) { #analytics > .command-grid { grid-template-columns: 1fr; } }
+.bars .b .pct { font: 400 11px var(--mono); color: var(--ink-faint); min-width: 38px; text-align: right; }
+.bars .b .track { height: 9px; display: block; }
+/* A <span> is inline, and inline boxes ignore width and height: the fill never
+ * drew, so every bar was the same empty grey track whatever it counted. */
+.bars .b .fill { display: block; }
+.bars { padding: 4px 14px 10px; }
+.bars .b .num { min-width: 64px; }

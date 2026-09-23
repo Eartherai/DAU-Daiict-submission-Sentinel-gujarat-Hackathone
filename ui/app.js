@@ -2034,15 +2034,20 @@ function card(title, big, sub, extra) {
 }
 
 function bars(counts, tokens) {
-  const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+  const vals = Object.values(counts);
+  const total = vals.reduce((a, b) => a + b, 0) || 1;
+  // Scaled to the largest, not the total: against the total, 3,001 cars and
+  // 11 bicycles both drew as thin grey slivers and the chart said nothing.
+  const max = Math.max(1, ...vals);
   return el("div", { class: "bars" }, Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => el("div", { class: "b" },
-      el("span", { class: "lab", text: k }),
+    .map(([k, v]) => el("div", { class: "b", title: `${k}: ${Number(v).toLocaleString()} · ${((v / total) * 100).toFixed(1)}% of all` },
+      el("span", { class: "lab", text: k.replace(/_/g, " / ") }),
       el("span", { class: "track" },
         el("span", { class: "fill",
-                     style: `width:${(v / total) * 100}%;background:var(${tokens[k] || "--unknown"})` })),
-      el("span", { class: "num", text: Number(v).toLocaleString() }))));
+                     style: `width:${Math.max(0.6, (v / max) * 100)}%;background:var(${tokens[k] || "--accent"})` })),
+      el("span", { class: "num", text: Number(v).toLocaleString() }),
+      el("span", { class: "pct", text: `${((v / total) * 100).toFixed(v / total < 0.01 ? 1 : 0)}%` }))));
 }
 
 
@@ -2110,10 +2115,12 @@ function fillAnalyticsYield(body, c, overview) {
       ...(() => {
         const types = obs.by_object_type || {};
         if (!Object.keys(types).length) return [];
+        // The same colours as the boxes on the Intelligence feeds, so a class
+        // reads the same everywhere it appears.
         const tokens = {
-          car: "--ink", person: "--unknown", truck: "--ink-2", bus: "--ink-3",
-          motorcycle: "--ink", bicycle: "--ink-faint", van: "--ink-2",
-          truck_bus: "--ink-3",
+          car: "--cls-car", van: "--cls-car", person: "--cls-person",
+          truck: "--cls-heavy", bus: "--cls-heavy", truck_bus: "--cls-heavy",
+          motorcycle: "--cls-two", bicycle: "--cls-two", unknown: "--ink-faint",
         };
         const n = Object.keys(types).filter((k) => types[k]).length;
         return [

@@ -656,7 +656,62 @@ async def evidence_chain(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
         ctx.principal.require(Permission.EVIDENCE_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
-    return state.evidence.verify_chain().to_dict()
+    res = state.evidence.verify_chain().to_dict()
+    res["records"] = _chain_records(state, ctx, res)
+    return res
+
+
+def _chain_records(state: Any, ctx: Any, res: dict[str, Any]) -> list[dict[str, Any]]:
+    """What each sealed record is, beside whether it verified.
+
+    The page listed record ids and ticks: it proved the chain held and said
+    nothing about what was sealed. Each row now carries its camera, capture
+    time, whether a still was sealed, and the hash link to the record before
+    it. Integrity is statewide (the chain is one chain); the content of a
+    record outside the caller's jurisdiction is withheld, and a plate is shown
+    only to a role that may read plates.
+    """
+    from sqlalchemy import select
+
+    from saakshya.api.plate_access import plates_visible
+    from saakshya.common.ist import iso_ist
+    from saakshya.store import schema as S
+    from saakshya.store.repository import from_us
+
+    ok_by_name = {c.get("check"): c.get("passed") for c in res.get("checks") or []}
+    E, O = S.evidence, S.observations
+    q = (select(E.c.evidence_id, E.c.camera_id, E.c.t_norm_us, E.c.frame_path,
+                E.c.frame_sha256, E.c.prev_hash, E.c.entry_hash, E.c.bsa_s63_status,
+                O.c.plate, O.c.district)
+         .select_from(E.outerjoin(O, O.c.observation_id == E.c.observation_id))
+         .order_by(E.c.created_at_us).limit(500))
+    with state.store.engine.connect() as c:
+        rows = [dict(r._mapping) for r in c.execute(q)]
+    show_plate = plates_visible(ctx)
+    cams: dict[str, dict[str, Any]] = {}
+    out = []
+    for i, r in enumerate(rows, 1):
+        cid = r["camera_id"] or ""
+        if cid not in cams:
+            cams[cid] = state.store.get_camera(cid) or {}
+        district = r["district"] or cams[cid].get("district")
+        rec = {"seq": i, "evidence_id": r["evidence_id"],
+               "ok": ok_by_name.get(f"record {r['evidence_id']}"),
+               "entry_hash": (r["entry_hash"] or "")[:16],
+               "prev_hash": (r["prev_hash"] or "")[:16]}
+        if not ctx.principal.in_scope(district):
+            rec["withheld"] = "outside your jurisdiction"
+        else:
+            rec.update({
+                "camera_id": cid, "camera_name": cams[cid].get("name") or cid,
+                "district": district,
+                "captured_ist": iso_ist(from_us(r["t_norm_us"])) if r["t_norm_us"] else "",
+                "still_sealed": bool(r["frame_path"] and r["frame_sha256"]),
+                "certificate": r["bsa_s63_status"],
+                "plate": (r["plate"] or "") if show_plate else None,
+            })
+        out.append(rec)
+    return out
 
 
 # --------------------------------------------------------------------------- #

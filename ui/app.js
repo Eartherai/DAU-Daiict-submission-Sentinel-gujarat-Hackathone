@@ -5671,11 +5671,17 @@ loaders.evidence = async () => {
       box.append(el("div", { class: "notice warn" },
         el("strong", { class: "mono", text: c.name }), c.detail));
     }
+    if ((v.records || []).length) {
+      box.append(evidenceRecordsTable(v.records));
+      const broken = (v.checks || []).filter((x) => !x.ok && !x.caution);
+      if (!broken.length) return;
+      box.append(el("h4", { text: "Failed checks" }));
+    }
     const table = el("table", { class: "data" },
       el("thead", {}, el("tr", {},
         el("th", { text: "" }), el("th", { text: "Check" }), el("th", { text: "Detail" }))));
     const tb = el("tbody");
-    for (const c of (v.checks || []).filter((x) => !x.caution)) {
+    for (const c of (v.checks || []).filter((x) => !x.caution && (!(v.records || []).length || !x.ok))) {
       tb.append(el("tr", {},
         el("td", { text: c.ok ? "✓" : "✗" }),
         el("td", { class: "mono", text: c.name }),
@@ -5688,6 +5694,38 @@ loaders.evidence = async () => {
     box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
   }
 };
+
+/** Each sealed record: what it is, and the link that binds it to the one before. */
+function evidenceRecordsTable(records) {
+  const head = ["#", "Sealed record", "Camera", "Captured (IST)", "Plate", "Still",
+                "Chained to previous", "Certificate", "Verified"];
+  const table = el("table", { class: "data ev-records" },
+    el("thead", {}, el("tr", {}, ...head.map((h) => el("th", { text: h })))));
+  const tb = el("tbody");
+  for (const r of records) {
+    const link = r.prev_hash
+      ? el("span", { class: "mono ev-link", title: "this record's hash covers the previous record's hash" },
+          `${r.prev_hash.slice(0, 8)}… → ${r.entry_hash.slice(0, 8)}…`)
+      : el("span", { class: "mono ev-link", text: `genesis → ${r.entry_hash.slice(0, 8)}…` });
+    const cells = r.withheld
+      ? [el("td", { colspan: 4, class: "muted", text: `Content withheld — ${r.withheld}` })]
+      : [el("td", {}, el("b", { text: r.camera_name || r.camera_id }),
+            el("div", { class: "mono muted", text: r.camera_id })),
+         el("td", { text: fmtTime(r.captured_ist) || "—" }),
+         el("td", { class: "mono", text: r.plate === null ? "not visible to your role" : (r.plate || "—") }),
+         el("td", { text: r.still_sealed ? "sealed" : "no still" }),
+         el("td", {}, link),
+         el("td", { class: "muted", text: (r.certificate || "").replaceAll("_", " ").toLowerCase() })];
+    if (r.withheld) cells.push(el("td", {}, link), el("td", {}));
+    tb.append(el("tr", {},
+      el("td", { text: String(r.seq) }),
+      el("td", { class: "mono", text: r.evidence_id }),
+      ...cells,
+      el("td", { class: r.ok ? "ok" : "bad", text: r.ok ? "✓ verified" : r.ok === false ? "✗ FAILED" : "—" })));
+  }
+  table.append(tb);
+  return table;
+}
 
 /* ─── copilot ────────────────────────────────────────────────────────────── */
 const COPILOT_PROMPTS = [

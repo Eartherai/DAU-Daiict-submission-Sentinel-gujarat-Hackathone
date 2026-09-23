@@ -2847,3 +2847,6 @@ body.wall-focus #live-progress {
 .inc-thumb.none { display: flex; align-items: center; justify-content: center; text-align: center;
   padding: 8px; font: 500 11px/1.3 var(--sans); color: var(--ink-3); border: 1px solid var(--line); }
 .not-measured .nm-item { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.ev-records td.ok { color: var(--confirmed); font-weight: 650; }
+.ev-records td.bad { color: var(--conflict); font-weight: 700; }
+.ev-records .ev-link { font-size: 11px; color: var(--ink-2); white-space: nowrap; }

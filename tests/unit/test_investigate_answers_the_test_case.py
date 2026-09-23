@@ -71,3 +71,23 @@ def test_alerts_can_open_an_investigation_without_a_raw_refusal() -> None:
     block = block[:block.index("};") + 2]
     assert "#case-id" in block and "#purpose" in block
     assert "< 12" in block, "the generated purpose must meet the 12-character rule"
+
+
+def test_the_header_keeps_the_purpose_usable_on_a_1366_laptop() -> None:
+    """Measured at 1366x768 after the change: status chips on one row, the
+    Purpose field 188 px wide and fully on screen, content starting ~100 px
+    higher. Before it, five chips stacked into a column one chip wide and
+    covered the Purpose field every vehicle search requires."""
+    css = (Path(__file__).resolve().parents[2] / "ui/style.css").read_text(encoding="utf-8")
+    block = css[css.index("@media (max-width: 1440px)"):]
+    block = block[:block.index("\n}\n") + 3]
+    assert "flex-wrap: wrap" in block, "the header cannot become two rows"
+    assert "min-width: 360px" in block, "the purpose bar may still shrink to nothing"
+    assert "flex-wrap: nowrap" in block, "status chips may stack into a column again"
+
+
+def test_deployment_plumbing_is_folded_away_from_the_officer() -> None:
+    html = (Path(__file__).resolve().parents[2] / "ui/index.html").read_text(encoding="utf-8")
+    det = html[html.index('id="deploy-details"'):html.index("</details>")]
+    for ind in ("feed-government", "feed-own", "feed-central"):
+        assert ind in det, f"{ind} is outside the disclosure"

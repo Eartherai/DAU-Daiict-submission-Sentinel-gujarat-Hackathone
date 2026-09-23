@@ -2721,4 +2721,37 @@ body.wall-focus #live-progress {
 
 /* ═══ SLOT S5 · operations chrome — one camera count, 1366x768, shortcuts ═══ */
 
+/* ─── The shell at the size a government laptop actually is ─────────────── */
+/* At 1366x768 the header had to fit roughly 1,950 px of content. The status
+   chips, allowed to wrap inside a header that does not, were squeezed into a
+   column one chip wide; the purpose bar, allowed to shrink to nothing, lost the
+   Purpose field every vehicle search requires. Below 1440 px the header is two
+   deliberate rows instead: identity, search, case and purpose, officer and
+   controls on the first; the status chips in one line on the second. */
+@media (max-width: 1440px) {
+  .topbar { flex-wrap: wrap; row-gap: 6px; padding: 6px 12px; }
+  .topbar .brand small { display: none; }
+  .masthead-search { flex: 0 1 200px; min-width: 150px; }
+  .purpose-bar { flex: 1 1 380px; min-width: 360px; max-width: none; }
+  .cc-status {
+    order: 99; flex: 1 0 100%; margin-left: 0;
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
+  }
+  .officer small {
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
+
+/* Deployment details: closed by default, one line when open. */
+.deploy-details { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.deploy-details > summary {
+  cursor: pointer; list-style: none; font-size: 11px; color: var(--navy-ink-2, var(--muted));
+  border: 1px solid var(--navy-line, var(--line)); border-radius: 999px; padding: 1px 8px;
+}
+.deploy-details > summary::-webkit-details-marker { display: none; }
+.deploy-details > summary::after { content: " ▾"; }
+.deploy-details[open] > summary::after { content: " ▴"; }
+.deploy-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.deploy-details:not([open]) > .feed-indicator { display: none; }
+
 /* ═══ END SLOT S5 ═══ */

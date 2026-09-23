@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr113">
+<link rel="stylesheet" href="/ui/style.css?v=cr114">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -69,9 +69,15 @@
     <span>Law-enforcement use only. Every query is attributed and written to a hash-chained audit log.</span>
     <span class="rule"></span>
     <span class="src" id="handling-src">source: —</span>
-    <span class="feed-indicator" id="feed-government">GOVERNMENT FEED: not reported</span>
-    <span class="feed-indicator" id="feed-own">OWN FEED / FULL ANALYTICS: not reported</span>
-    <span class="feed-indicator" id="feed-central">CENTRAL ANALYTICS MODE: not reported</span>
+    <!-- Deployment plumbing is for the estate administrator, not the officer.
+         It took two monospace lines above every screen; it now waits behind a
+         disclosure, and the choice is remembered. -->
+    <details class="deploy-details" id="deploy-details">
+      <summary>Deployment details</summary>
+      <span class="feed-indicator" id="feed-government">GOVERNMENT FEED: not reported</span>
+      <span class="feed-indicator" id="feed-own">OWN FEED / FULL ANALYTICS: not reported</span>
+      <span class="feed-indicator" id="feed-central">CENTRAL ANALYTICS MODE: not reported</span>
+    </details>
   </div>
 
   <nav class="product-modes" id="product-modes" aria-label="Command modes">
@@ -821,7 +827,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr142"></script>
+<script type="module" src="/ui/app.js?v=cr143"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

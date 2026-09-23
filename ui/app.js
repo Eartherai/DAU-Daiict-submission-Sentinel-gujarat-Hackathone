@@ -7394,4 +7394,15 @@ new MutationObserver((records) => {
 /* ═══ SLOT S5 · operations chrome — one camera count, 1366x768, shortcuts ═══════════════════════════ */
 /* Owned by workstream S5. Add code only between these markers. */
 
+/* Remember whether the deployment details were left open. Storage can be
+ * blocked or unavailable; the disclosure still works without it. */
+(() => {
+  const d = $("#deploy-details");
+  if (!d) return;
+  try { if (localStorage.getItem("saakshya.deployDetails") === "open") d.open = true; } catch { /* no storage */ }
+  d.addEventListener("toggle", () => {
+    try { localStorage.setItem("saakshya.deployDetails", d.open ? "open" : "closed"); } catch { /* no storage */ }
+  });
+})();
+
 /* ═══ END SLOT S5 ═══ */

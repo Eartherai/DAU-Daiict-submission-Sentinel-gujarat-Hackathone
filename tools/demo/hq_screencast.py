@@ -93,6 +93,15 @@ class Screencast:
     def frame_count(self) -> int:
         return len(self._frames)
 
+    def first_timestamp(self) -> float | None:
+        """Wall-clock time of the first captured frame, for aligning narration.
+
+        The stitched video starts at this frame, not at the moment recording
+        was requested, so anything timed from the request - a voiceover line,
+        a caption - must be shifted by the difference or it leads the picture.
+        """
+        return self._frames[0][0] if self._frames else None
+
     def measured_fps(self) -> float | None:
         if len(self._frames) < 2:
             return None

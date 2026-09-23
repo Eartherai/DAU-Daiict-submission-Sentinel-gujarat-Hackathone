@@ -50,9 +50,14 @@ class Beat:
     title: str
     dwell_s: float
     action: Callable[[], None] = lambda: None
+    #: What the narrator says over this beat. Its measured length can extend the
+    #: beat, never shorten it, so the voice always finishes over its own screen.
+    say: str = ""
     ok: bool = True
     err: str = ""
     at: float = field(default=0.0)
+    say_s: float = 0.0
+    audio: Path | None = None
 
 
 def build(page, plate: str, case_id: str = "FIR-000/2026",
@@ -152,7 +157,49 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
 
     def own_feeds():
         page.click('button[data-view="intelligence"]')
-        page.wait_for_timeout(6000)
+        # The stages fetch the recording and its frame track before playing;
+        # wait for real playback rather than a fixed sleep, so the beat never
+        # films a still that is about to become a video.
+        try:
+            page.wait_for_function(
+                """() => [...document.querySelectorAll('.intel-stage video')]
+                         .some(v => !v.paused && v.currentTime > 0.5)""",
+                timeout=20000)
+        except Exception:
+            pass
+        page.wait_for_timeout(1500)
+
+    def watchlist_hit():
+        """Correlation on fictional plates, and only on fictional plates.
+
+        The own feed is real footage of real vehicles. Putting one of them on a
+        "stolen" watchlist to make a demonstration fire would show a real owner
+        as a suspect. The watchlist hit is therefore shown on the synthetic
+        corpus, whose plates belong to nobody, and the narration says so.
+        """
+        page.click('button[data-view="alerts"]')
+        page.wait_for_timeout(2500)
+
+    def trace_report():
+        """Open the printable trace report for the plate just searched."""
+        for sel in ("#btn-trace-report", 'button:has-text("Trace report")',
+                    'a:has-text("Trace report")'):
+            try:
+                with page.expect_popup(timeout=4000) as pop:
+                    page.click(sel, timeout=2500)
+                report = pop.value
+                # The screencast follows this page, so show the report here.
+                page.goto(report.url, wait_until="domcontentloaded")
+                report.close()
+                page.wait_for_timeout(2500)
+                return
+            except Exception:
+                try:
+                    page.click(sel, timeout=1500)
+                    page.wait_for_timeout(2500)
+                    return
+                except Exception:
+                    continue
 
     def bind_purpose():
         """Purpose binding is a gate, not decoration.
@@ -185,26 +232,102 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
         page.wait_for_timeout(4000)
 
     return [
-        # The estate administrator onboards; the supervisor investigates.
-        # Filming the handover is not ceremony — it is the role separation the
-        # bonus criteria ask about, shown rather than asserted.
-        Beat("Signed in as the estate administrator", 4,
-             use_token(admin_token)),
-        Beat("Onboarding — a camera added through the registry portal", 18, onboard),
-        Beat("What the registry does not know", 11, registry_gaps),
-        Beat("Handing over to the investigating officer", 5,
-             use_token(investigator_token)),
-        Beat("Own feeds, with AI detection drawn on them", 18, own_feeds),
-        Beat("What the analytics produced", 13, nav("analytics", 2.5)),
-        Beat("The mark, traced across the estate", 16, search_plate),
-        Beat("Watchlist match, and the alert it fired", 16, nav("alerts", 2.0)),
-        Beat("Evidence, sealed and hash-chained", 12, nav("evidence", 2.0)),
-        Beat("Every query attributed", 11, nav("audit", 2.0)),
+        # The estate administrator onboards; the investigating officer
+        # investigates. Filming the handover is not ceremony: it is the role
+        # separation the bonus criteria ask about, shown rather than asserted.
+        Beat("Signed in as the estate administrator", 3, use_token(admin_token),
+             say="The estate administrator signs in. Registering cameras is "
+                 "their job. Searching for vehicles is not."),
+        Beat("Onboarding — a camera added through the registry portal", 14, onboard,
+             say="A department's camera is onboarded through the registry "
+                 "portal. The form validates first, and writes nothing. Then it "
+                 "commits. Only the camera id is required."),
+        Beat("What the registry does not know", 9, registry_gaps,
+             say="The gap report moves as the camera lands. The two fields "
+                 "supplied leave the missing list. The three not supplied stay "
+                 "named, so a department knows what to send."),
+        Beat("Handing over to the investigating officer", 3,
+             use_token(investigator_token),
+             say="The investigating officer takes over."),
+        Beat("Own feeds, with AI detection drawn on them", 22, own_feeds,
+             say="Our own feed is licensed footage of Mumbai traffic, filmed "
+                 "from a foot-over-bridge and playing at thirty frames a second. "
+                 "Every box is this platform's own pipeline, on that exact frame. "
+                 "A number plate appears only once the pipeline's vote accepts "
+                 "it. Faces are blurred."),
+        Beat("What the analytics produced", 10, nav("analytics", 2.5),
+             say="Detections become counts and read rates, measured from the "
+                 "store rather than declared."),
+        Beat("The mark, traced across the estate", 15, search_plate,
+             say="A plate read off that footage is now searchable. Every search "
+                 "carries a case number and a stated purpose, or it does not run."),
+        Beat("Watchlist match, and the alert it fired", 16, watchlist_hit,
+             say="Watchlist correlation is shown on fictional plates. We do not "
+                 "put a real person's vehicle on a watchlist for a "
+                 "demonstration. The alert sets the read beside the listed "
+                 "plate, character by character."),
+        Beat("A trace report an officer can sign", 10, trace_report,
+             say="The route becomes a report a senior officer can read, print "
+                 "and sign."),
+        Beat("Evidence, sealed and hash-chained", 9, nav("evidence", 2.0),
+             say="Evidence is sealed with a hash chain."),
+        Beat("Every query attributed", 9, nav("audit", 2.0),
+             say="And every query is attributed: who searched, for which "
+                 "vehicle, when, and why."),
     ]
+
+#: Allowance per beat for the clicks and loads the action itself takes, used to
+#: project the take's length before recording rather than discover it after.
+ACTION_ALLOWANCE_S = 2.5
+
+
+def narrate(beats: list[Beat], work: Path, voice: str) -> float:
+    """Synthesise every beat's line and project the take's length.
+
+    Refuses a take that cannot fit: finding out at 3m04s that a recording is
+    over the limit costs a whole take, and the government grid's session
+    budget with it on the other film.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import narration
+
+    if not narration.available():
+        raise SystemExit("narration needs macOS `say`, ffmpeg and ffprobe")
+    projected = 0.0
+    for i, b in enumerate(beats):
+        if b.say:
+            b.audio = work / f"line_{i:02d}.wav"
+            b.say_s = narration.synth(b.say, b.audio, voice=voice)
+        projected += max(b.dwell_s + ACTION_ALLOWANCE_S, b.say_s + 0.6)
+    if projected > HARD_LIMIT_S - 5:
+        raise SystemExit(
+            f"the narrated take projects to {projected:.0f}s against a "
+            f"{HARD_LIMIT_S:.0f}s limit; shorten a line before recording")
+    return projected
+
+
+def finish_narrated(beats: list[Beat], silent: Path, out: Path, work: Path,
+                    offset_s: float) -> None:
+    """Lay each line at its beat's recorded start and burn the captions in."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import narration
+
+    total = narration.probe_duration(silent)
+    lines, chapters = [], []
+    for i, b in enumerate(beats):
+        start = max(0.0, b.at - offset_s)
+        if b.audio:
+            lines.append(narration.Line(start, b.say, b.audio, b.say_s))
+        nxt = (beats[i + 1].at - offset_s) if i + 1 < len(beats) else total
+        chapters.append((start, min(start + 3.2, nxt), b.title))
+    track = narration.build_track(lines, total, work / "narration.wav")
+    ass = narration.write_ass(lines, work / "captions.ass",
+                              width=VIEW_W, height=VIEW_H, chapter=chapters)
+    narration.finish(silent, track, ass, out)
 
 
 def record(base: str, token: str, plate: str, out_dir: Path,
-           admin_token: str = "") -> list[Beat]:
+           admin_token: str = "", voice: str | None = "Aman") -> list[Beat]:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:                                # pragma: no cover
@@ -237,9 +360,15 @@ def record(base: str, token: str, plate: str, out_dir: Path,
         beats = build(page, plate, admin_token=admin_token,
                       investigator_token=token)
         mp4 = Path(str(out_dir) + ".mp4")
+        work = out_dir / "narration"
+        if voice:
+            projected = narrate(beats, work, voice)
+            print(f"  narration synthesised; take projects to {projected:.0f}s")
+        silent = Path(str(out_dir) + "_silent.mp4") if voice else mp4
         with Screencast(page, out_dir / "frames", width=VIEW_W,
                         height=VIEW_H, quality=98) as cast:
             t0 = time.time()
+            wall0 = t0
             for b in beats:
                 b.at = time.time() - t0
                 print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}",
@@ -248,9 +377,19 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                     b.action()
                 except Exception as exc:
                     b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
-                page.wait_for_timeout(int(b.dwell_s * 1000))
-        res = cast.write(mp4, crf=15, fps=30)
+                # Hold for the planned dwell, or until the narrator finishes
+                # this beat's line, whichever is later.
+                spent = time.time() - t0 - b.at
+                hold = max(b.dwell_s, b.say_s + 0.6 - spent)
+                page.wait_for_timeout(int(max(0.0, hold) * 1000))
+        res = cast.write(silent, crf=15, fps=30)
+        first = cast.first_timestamp()
         cast.cleanup()
+        if voice and res.get("ok"):
+            offset = (first - wall0) if first else 0.0
+            finish_narrated(beats, silent, mp4, work, offset)
+            print(f"  narrated and captioned -> {mp4} "
+                  f"(first frame {offset:+.2f}s after start)")
         if not res.get("ok"):
             print(f"  capture FAILED: {res.get('why')}")
         else:
@@ -280,6 +419,8 @@ def main() -> None:
     ap.add_argument("--base", default="http://127.0.0.1:8083")
     ap.add_argument("--token")
     ap.add_argument("--token-file")
+    ap.add_argument("--voice", default="Aman",
+                    help="macOS voice for the narration; 'none' records silently")
     ap.add_argument("--admin-token-file",
                     help="ADMIN token. Onboarding needs admin:write, which "
                          "SUPERVISOR does not hold; without this the "
@@ -306,8 +447,8 @@ def main() -> None:
     out_dir = Path(a.out)
     mp4 = Path(str(out_dir) + ".mp4")
     print(f"recording the own-feed demonstration -> {mp4}")
-    beats = record(a.base, token, a.plate, out_dir,
-                   admin_token=admin_token)
+    beats = record(a.base, token, a.plate, out_dir, admin_token=admin_token,
+                   voice=None if a.voice.lower() == "none" else a.voice)
     ok = mp4.exists()
 
     print()

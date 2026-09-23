@@ -32,7 +32,11 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 #: Without this the scanner reports itself.
 ALLOW = re.compile(
     r"(PATTERNS:|re\.compile|# secret-test|EXAMPLE_ONLY|ALLOW =|"
-    r"super-secret-value|AAAA-BBBB-CCCC)"
+    # Literal fixture values that live in git history. `s3cret-pw` is the
+    # relay-hardening test's fake publisher password; it reached history in a
+    # commit salvaged from an interrupted agent before the line carried the
+    # `# secret-test` marker, and history is not rewritten to hide a fake.
+    r"super-secret-value|AAAA-BBBB-CCCC|s3cret-pw)"
 )
 
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".mp4", ".onnx", ".safetensors", ".pdf"}

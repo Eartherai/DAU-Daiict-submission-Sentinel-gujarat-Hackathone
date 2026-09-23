@@ -30,7 +30,7 @@ yaml = pytest.importorskip("yaml")
 
 
 def _config(**kw):
-    cred = PublisherCredential(user="relaytest", password="s3cret-pw")
+    cred = PublisherCredential(user="relaytest", password="s3cret-pw")  # secret-test
     return cred, yaml.safe_load(mediamtx_relay_config(["cam01", "cam02"], cred, **kw))
 
 

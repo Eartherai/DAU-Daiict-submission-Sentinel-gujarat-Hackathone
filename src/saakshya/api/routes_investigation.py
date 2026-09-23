@@ -23,6 +23,7 @@ from saakshya.api.deps import (
     csv_list,
     parse_time,
 )
+from saakshya.intelligence.plate_pattern import PatternError
 from saakshya.security import AccessError, Permission
 
 router = APIRouter(tags=["investigation"])
@@ -70,6 +71,12 @@ async def search(
                 min_quality=min_quality, watchlist_only=watchlist_only, limit=limit)
     except AccessError as exc:
         raise access_error(exc) from exc
+    except PatternError as exc:
+        # A fragment too loose to search ("G*") is refused with the reason, so
+        # the officer adds the characters they are sure of rather than
+        # scrolling a list of every plate in the state.
+        raise HTTPException(status_code=400, detail={
+            "code": "BAD_PLATE_PATTERN", "message": str(exc)}) from exc
 
 
 @router.get("/observations/{observation_id}",

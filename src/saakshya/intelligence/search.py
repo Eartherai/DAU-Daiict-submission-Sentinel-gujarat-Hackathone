@@ -432,15 +432,26 @@ class VehicleSearch:
                     ))
             stage["ocr_repair"] = len(candidates)
 
+        near_scan: dict | None = None
         if fuzzy and not candidates:
-            # Only when exact and OCR-repair return nothing, and every result is labelled.
-            everything = self.store.search(SearchFilter(t_from=t_from, t_to=t_to,
-                                                        limit=20_000))
-            for o in everything:
-                if not o.plate:
+            # Only when exact and OCR-repair return nothing, and every result is
+            # labelled. The comparison runs over the distinct marks the store
+            # holds, not over raw observations: it used to take the first
+            # 20,000 observations of 1,024,103 — 2% of the store — and report
+            # "No observation matched" for plates it had simply never looked
+            # at, without saying the scan was partial. Distinct marks are a few
+            # hundred rows, so the whole store is covered, and if that ever
+            # stops being true the cap is reported rather than hidden.
+            marks = self.store.plate_marks(t_from=t_from, t_to=t_to,
+                                           limit=self.NEAR_MARK_LIMIT)
+            distinct = sorted({m["plate"] for m in marks})
+            near_scan = {"marks_scanned": len(distinct),
+                         "capped": len(marks) >= self.NEAR_MARK_LIMIT}
+            for mark in distinct:
+                a = plate_agreement(target, mark)
+                if a < 0.7:
                     continue
-                a = plate_agreement(target, o.plate)
-                if a >= 0.7:
+                for o in self.store.search_plate(mark, t_from=t_from, t_to=t_to):
                     candidates.append(Candidate(
                         observation=o, score=a * W_PLATE / (W_PLATE or 1),
                         terms=[ScoreTerm("plate", a, W_PLATE,
@@ -461,13 +472,87 @@ class VehicleSearch:
         return SearchResult(
             query={"type": "plate", "plate": target, "fuzzy": fuzzy,
                    "t_from": t_from.isoformat() if t_from else None,
-                   "t_to": t_to.isoformat() if t_to else None},
+                   "t_to": t_to.isoformat() if t_to else None,
+                   **({"near_match_scan": near_scan} if near_scan else {})},
             candidates=candidates,
             cameras_considered=sorted({c.observation.camera_id for c in candidates}),
             prune_reason="indexed plate lookup; no graph prune required",
             stage_counts=stage, anomalies=anomalies,
             sighting=sighting_pattern(candidates),
         )
+
+    #: Ceiling on (mark, camera) groups read by a near-match or pattern scan.
+    #: Far above what this estate holds; reaching it is reported, never silent.
+    NEAR_MARK_LIMIT = 50_000
+
+    def search_plate_pattern(self, query: str, *, near: bool = False,
+                             t_from: datetime | None = None,
+                             t_to: datetime | None = None,
+                             actor: str = "system", role: str | None = None,
+                             case_id: str | None = None,
+                             purpose: str | None = None) -> dict:
+        """Partial, wildcard and multi-plate search, answered as distinct marks.
+
+        The unit of the answer is the registration mark, not the observation:
+        a witness fragment is a question about *which vehicle*, and 66 rows of
+        one car would bury the second candidate. Each mark carries its reads
+        per camera, first and last sighting, and a character-by-character
+        account of how it met the query.
+        """
+        from saakshya.intelligence.plate_pattern import parse_query
+
+        terms = parse_query(query)
+        marks: dict[str, dict] = {}
+        capped = False
+        for term in terms:
+            rows = self.store.plate_marks(
+                like=term.sql_like(near), prefix=term.literal_prefix(near) or None,
+                t_from=t_from, t_to=t_to, limit=self.NEAR_MARK_LIMIT)
+            capped = capped or len(rows) >= self.NEAR_MARK_LIMIT
+            for r in rows:
+                chars = term.match(r["plate"], near)
+                if chars is None:
+                    continue
+                m = marks.get(r["plate"])
+                if m is None:
+                    confusions = sum(1 for c in chars if c.kind == "confusion")
+                    m = marks[r["plate"]] = {
+                        "plate": r["plate"], "term": term.text,
+                        "match": "confusion" if confusions else "exact",
+                        "confusions": confusions,
+                        "chars": [c.to_dict() for c in chars],
+                        "reads": 0, "by_camera": {},
+                        "first_seen": r["first_seen"], "last_seen": r["last_seen"],
+                    }
+                m["reads"] += r["reads"]
+                m["by_camera"][r["camera_id"]] = (
+                    m["by_camera"].get(r["camera_id"], 0) + r["reads"])
+                if r["first_seen"] and (m["first_seen"] is None
+                                        or r["first_seen"] < m["first_seen"]):
+                    m["first_seen"] = r["first_seen"]
+                if r["last_seen"] and (m["last_seen"] is None
+                                       or r["last_seen"] > m["last_seen"]):
+                    m["last_seen"] = r["last_seen"]
+
+        # Exact character matches first, then the most-read mark: a mark read
+        # sixty times is more likely the vehicle than one read once, but a
+        # lookalike never outranks a mark that matched as written.
+        ordered = sorted(marks.values(),
+                         key=lambda m: (m["confusions"], -m["reads"], m["plate"]))
+        self.store.audit(actor, "search_plate_pattern", role=role,
+                         case_id=case_id, purpose=purpose,
+                         target=",".join(t.text for t in terms)[:200],
+                         result_count=len(ordered))
+        return {
+            "terms": [{"raw": t.raw, "pattern": t.text,
+                       "implicit_prefix": t.implicit_prefix,
+                       "unknown_positions": t.unknown_positions,
+                       "sql_like": t.sql_like(near),
+                       "describe": t.describe(near)} for t in terms],
+            "near": near,
+            "marks": ordered,
+            "capped": capped,
+        }
 
     # -- the hard case ------------------------------------------------------ #
     def find_gap_candidates(

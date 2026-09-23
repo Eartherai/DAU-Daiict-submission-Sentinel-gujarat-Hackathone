@@ -26,6 +26,7 @@ from saakshya.analytics.plates import lookalikes
 from saakshya.capability.grader import Grade, TimeBand
 from saakshya.evidence import EvidenceService
 from saakshya.intelligence import CameraGraph, Candidate, TrajectorySolver, VehicleSearch
+from saakshya.intelligence.plate_pattern import char_diff, is_pattern
 from saakshya.security import AuthContext, OutOfScope, Permission
 from saakshya.store import SearchFilter, Store, VehicleObservation
 from saakshya.watchlist import AlertEngine, WatchlistService
@@ -94,6 +95,9 @@ class NextCamera:
 W_TRANSITION, W_FIT, W_QUALITY, W_AVAILABLE = 0.40, 0.25, 0.20, 0.15
 
 _GRADE_SCORE = {"GOOD": 1.0, "DEGRADED": 0.5, "UNSUITABLE": 0.0, "UNKNOWN": 0.4}
+
+#: Most urgent entry first when a mark is on more than one list.
+_PRIORITY_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 
 class InvestigationService:
@@ -168,7 +172,10 @@ class InvestigationService:
         searched = sorted(set(cameras) & allowed) if cameras else sorted(allowed)
         exclusions = self._exclusions(ctx, searched, t_from, t_to)
 
-        if plate:
+        if plate and is_pattern(plate):
+            payload = self._search_pattern(ctx, plate, near=fuzzy, allowed=allowed,
+                                           t_from=t_from, t_to=t_to)
+        elif plate:
             res = self.search.search_plate(
                 plate, t_from=t_from, t_to=t_to, fuzzy=fuzzy,
                 actor=ctx.principal.user_id, role=str(ctx.principal.role),
@@ -211,6 +218,20 @@ class InvestigationService:
                 }
                 ctx.audit(self.store, "search_withheld",
                           target=plate, result_count=len(withheld))
+            # A near match is shown with the characters that differ, so the
+            # officer compares GJ18X6705 with GJ18X67O5 position by position
+            # instead of trusting a percentage.
+            target = res.query.get("plate") or plate
+            for c in payload["candidates"]:
+                if c.get("plate") and c["plate"] != target:
+                    c["match_chars"] = [m.to_dict()
+                                        for m in char_diff(target, c["plate"])]
+            # Is this vehicle wanted? It is half of the evaluation's test case,
+            # and the search used to answer it only as a filter — a plate on
+            # the stolen list came back looking like any other plate.
+            payload["target_plate"] = target
+            payload["watchlist_status"] = self.watchlist_status(ctx, target)
+            payload["open_alerts"] = self._open_alerts(ctx, target, allowed)
         else:
             f = SearchFilter(
                 cameras=searched or None,
@@ -245,6 +266,10 @@ class InvestigationService:
                     keep.append(c)
             payload["candidates"] = keep
             payload["result_count"] = len(keep)
+            if "marks" in payload:
+                payload["marks"] = [m for m in payload["marks"]
+                                    if (m.get("watchlist") or {}).get("listed")]
+                payload["result_count"] = len(payload["marks"])
 
         payload["search_strategy"] = {
             "cameras_searched": searched,
@@ -254,7 +279,184 @@ class InvestigationService:
                              else list(ctx.principal.districts)),
             "limit_applied": limit,
         }
+        scan = (payload.get("query") or {}).get("near_match_scan")
+        if scan:
+            payload["search_strategy"]["near_match_scan"] = {
+                **scan,
+                "message": (
+                    f"near-match comparison covered all {scan['marks_scanned']} "
+                    "distinct marks in the store"
+                    if not scan.get("capped") else
+                    f"near-match comparison was capped at "
+                    f"{scan['marks_scanned']} distinct marks — narrow the "
+                    "time range to cover the rest"),
+            }
         return payload
+
+    # -- partial plates (INV-08) ------------------------------------------- #
+    def _search_pattern(self, ctx: AuthContext, query: str, *, near: bool,
+                        allowed: set[str], t_from: datetime | None,
+                        t_to: datetime | None) -> dict[str, Any]:
+        """A witness fragment, wildcard or comma list, answered by mark.
+
+        Jurisdiction is applied per camera: reads on cameras outside the
+        officer's scope are removed from each mark's count, and a mark seen
+        only outside scope is withheld and counted, never silently dropped.
+        """
+        res = self.search.search_plate_pattern(
+            query, near=near, t_from=t_from, t_to=t_to,
+            actor=ctx.principal.user_id, role=str(ctx.principal.role),
+            case_id=ctx.case_id, purpose=ctx.purpose)
+        listed = self._listed_plates(ctx, [m["plate"] for m in res["marks"]])
+        marks: list[dict[str, Any]] = []
+        withheld = 0
+        for m in res["marks"]:
+            by_cam = {c: n for c, n in m["by_camera"].items() if c in allowed}
+            if not by_cam:
+                withheld += 1
+                continue
+            cams = sorted(by_cam, key=lambda c: -by_cam[c])
+            marks.append({
+                "plate": m["plate"], "term": m["term"], "match": m["match"],
+                "confusions": m["confusions"], "chars": m["chars"],
+                "reads": sum(by_cam.values()),
+                "cameras": [{"camera_id": c, "reads": by_cam[c],
+                             "name": (self._cams.get(c) or {}).get("name"),
+                             "district": (self._cams.get(c) or {}).get("district")}
+                            for c in cams],
+                "first_seen": m["first_seen"].isoformat() if m["first_seen"] else None,
+                "last_seen": m["last_seen"].isoformat() if m["last_seen"] else None,
+                "watchlist": listed.get(m["plate"]),
+            })
+        mark_limit = 60
+        payload: dict[str, Any] = {
+            "query": {"type": "plate_pattern", "plate": query, "fuzzy": near,
+                      "terms": res["terms"],
+                      "t_from": t_from.isoformat() if t_from else None,
+                      "t_to": t_to.isoformat() if t_to else None},
+            "marks": marks[:mark_limit],
+            "marks_total": len(marks),
+            "marks_truncated": len(marks) > mark_limit,
+            "candidates": [],
+            "result_count": len(marks),
+            "scan_capped": res["capped"],
+        }
+        if withheld:
+            payload["withheld"] = {
+                "count": withheld, "reason": "OUT_OF_JURISDICTION",
+                "districts": [],
+                "message": (f"{withheld} further mark(s) matching this pattern "
+                            "were read only on cameras outside your "
+                            "jurisdiction and are not shown."),
+            }
+        return payload
+
+    def _listed_plates(self, ctx: AuthContext,
+                       plates: list[str]) -> dict[str, dict[str, Any]]:
+        """Watchlist summary for several marks in one query, when permitted."""
+        if not plates or not ctx.principal.may(Permission.WATCHLIST_READ):
+            return {}
+        from sqlalchemy import select
+
+        from saakshya.store import schema as S
+        from saakshya.watchlist.service import VehicleOfInterest
+        now = datetime.now(UTC)
+        out: dict[str, dict[str, Any]] = {}
+        with self.store.engine.connect() as c:
+            rows = list(c.execute(select(S.watchlist).where(
+                S.watchlist.c.plate.in_(plates[:500]),
+                S.watchlist.c.status == "ACTIVE")))
+        for r in rows:
+            e = VehicleOfInterest.from_row(r)
+            if not e.active_at(now)[0]:
+                continue
+            out.setdefault(e.plate, {"listed": True,
+                                     "category": str(e.category),
+                                     "priority": str(e.priority)})
+        if rows:
+            ctx.audit(self.store, "watchlist_check",
+                      target=",".join(sorted(out))[:200], result_count=len(out))
+        return out
+
+    # -- watchlist status (INV-02) ----------------------------------------- #
+    def watchlist_status(self, ctx: AuthContext, plate: str) -> dict[str, Any]:
+        """Whether a searched mark is on an active watchlist, and on whose word.
+
+        Checked at search time and stamped with that time, so "not listed"
+        is read as a statement about a moment rather than a permanent fact.
+        A role without watchlist access is told the check was not made —
+        which is different from being told the vehicle is not wanted.
+        """
+        now = datetime.now(UTC)
+        if not ctx.principal.may(Permission.WATCHLIST_READ):
+            return {"checked": False, "checked_at": now.isoformat(),
+                    "listed": False, "entries": [],
+                    "reason": "your role does not include watchlist access, so "
+                              "this mark was not checked against it"}
+        from sqlalchemy import select
+
+        from saakshya.store import from_us
+        from saakshya.store import schema as S
+        from saakshya.watchlist.service import VehicleOfInterest
+        with self.store.engine.connect() as c:
+            rows = list(c.execute(select(S.watchlist).where(
+                S.watchlist.c.plate == plate,
+                S.watchlist.c.status == "ACTIVE")
+                .order_by(S.watchlist.c.created_at_us.desc())))
+        entries = []
+        for r in rows:
+            e = VehicleOfInterest.from_row(r)
+            in_force, why = e.active_at(now)
+            entries.append({
+                "watchlist_id": e.watchlist_id, "plate": e.plate,
+                "category": str(e.category), "priority": str(e.priority),
+                "reason": e.reason, "authority": e.authority,
+                "source_system": e.source_system,
+                "jurisdiction": e.jurisdiction, "version": e.version,
+                "added_at": (from_us(r._mapping["created_at_us"]).isoformat()
+                             if r._mapping["created_at_us"] else None),
+                "valid_until": e.valid_until.isoformat() if e.valid_until else None,
+                "in_force": in_force, "in_force_reason": why,
+            })
+        entries.sort(key=lambda x: (not x["in_force"],
+                                    _PRIORITY_RANK.get(x["priority"], 9)))
+        ctx.audit(self.store, "watchlist_check", target=plate,
+                  result_count=sum(1 for x in entries if x["in_force"]))
+        return {"checked": True, "checked_at": now.isoformat(),
+                "listed": any(x["in_force"] for x in entries),
+                "entries": entries}
+
+    def _open_alerts(self, ctx: AuthContext, plate: str,
+                     allowed: set[str]) -> dict[str, Any] | None:
+        """Alerts this mark has already raised, within the officer's scope."""
+        if not ctx.principal.may(Permission.ALERT_READ):
+            return None
+        from sqlalchemy import select
+
+        from saakshya.store import from_us
+        from saakshya.store import schema as S
+        with self.store.engine.connect() as c:
+            rows = [dict(r._mapping) for r in c.execute(
+                select(S.alerts.c.alert_id, S.alerts.c.status,
+                       S.alerts.c.camera_id, S.alerts.c.t_norm_us,
+                       S.alerts.c.priority)
+                .where(S.alerts.c.plate == plate)
+                .order_by(S.alerts.c.t_norm_us.desc()))]
+        rows = [r for r in rows if r["camera_id"] in allowed]
+        live = [r for r in rows if r["status"] in ("OPEN", "ACKNOWLEDGED",
+                                                    "INVESTIGATING")]
+        opened = [r for r in rows if r["status"] == "OPEN"]
+        latest = live[0] if live else (rows[0] if rows else None)
+        return {
+            "open": len(opened),
+            "active": len(live),
+            "total": len(rows),
+            "open_ids": [r["alert_id"] for r in opened[:50]],
+            "latest_alert_id": latest["alert_id"] if latest else None,
+            "latest_at": (from_us(latest["t_norm_us"]).isoformat()
+                          if latest and latest["t_norm_us"] else None),
+            "latest_camera": latest["camera_id"] if latest else None,
+        }
 
     def _exclusions(self, ctx: AuthContext, searched: list[str],
                     t_from: datetime | None, t_to: datetime | None

@@ -743,11 +743,14 @@ async def overview(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
 @router.get("/marks", summary="Latest distinct registration marks with location")
 async def marks(state: StateDep, ctx: AuthDep,
                 camera_id: str | None = None) -> dict[str, Any]:
-    """Cheap plate strip for Overview and Live. Not a search."""
-    try:
-        ctx.principal.require(Permission.CAMERA_READ)
-    except AccessError as exc:
-        raise access_error(exc) from exc
+    """Plate strip for Overview and Live.
+
+    Called "not a search", and gated on camera:read - so an ADMIN or AUDITOR
+    refused at /search could read every plate with place and time here. It is a
+    search result for every vehicle at once, and is treated as one.
+    """
+    from saakshya.api.plate_access import audit_plate_read, in_scope, require_plate_read
+    require_plate_read(ctx)
     if camera_id:
         cam = state.store.get_camera(camera_id)
         if not cam:
@@ -757,9 +760,12 @@ async def marks(state: StateDep, ctx: AuthDep,
             ctx.principal.require_scope(cam.get("district"))
         except AccessError as exc:
             raise access_error(exc) from exc
-        return {"marks": state.store.marks_for_camera(camera_id, 24),
-                "camera_id": camera_id}
-    return {"marks": state.store.recent_marks(48)}
+        rows = state.store.marks_for_camera(camera_id, 24)
+        audit_plate_read(ctx, state.store, "marks_read", target=camera_id, rows=len(rows))
+        return {"marks": rows, "camera_id": camera_id}
+    rows = in_scope(ctx, state.store.recent_marks(48), state.store)
+    audit_plate_read(ctx, state.store, "marks_read", target="ALL", rows=len(rows))
+    return {"marks": rows}
 
 
 @router.get("/reports/anpr.csv", summary="ANPR output report (plates + timestamps)",
@@ -783,10 +789,10 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
     latest read alone is not a movement history). Columns are documented in
     `saakshya.reports.anpr`.
     """
-    try:
-        ctx.principal.require(Permission.CAMERA_READ)
-    except AccessError as exc:
-        raise access_error(exc) from exc
+    # The report is every plate with place and time: a bulk search. It needs
+    # search:plate and is audited as an export, whether or not it is filtered.
+    from saakshya.api.plate_access import require_plate_read
+    require_plate_read(ctx)
     from saakshya.reports import anpr_csv, anpr_rows
 
     mode = reads or ("all" if plate else "latest")
@@ -794,11 +800,8 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
     rows = anpr_rows(state.store, plate=plate, reads=mode,  # type: ignore[arg-type]
                      limit=limit, districts=ctx.principal.scope_filter(),
                      t_from=tf, t_to=tt)
-    if plate:
-        # A plate-filtered export is a search for one vehicle by another route,
-        # so it is recorded like one.
-        ctx.audit(state.store, "anpr_report_plate", target=plate,
-                  result_count=len(rows))
+    ctx.audit(state.store, "anpr_report_export", target=plate or "ALL",
+              result_count=len(rows))
     body = anpr_csv(rows)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     tag = f"-{re.sub(r'[^A-Z0-9]', '', plate.upper())}" if plate else ""

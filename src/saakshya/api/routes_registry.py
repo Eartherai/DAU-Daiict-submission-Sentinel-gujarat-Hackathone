@@ -46,6 +46,9 @@ FIELDS = (
     "storage_location", "retention_days", "tier", "owner", "region", "road",
     "integration_model", "maintenance_status", "quality_note",
 )
+#: Columns that open a camera's picture. Exported only to roles that
+#: administer the registry.
+_STREAM_FIELDS = {"rtsp_url", "hls_url", "whep_url"}
 _FLOAT = {"lat", "lon"}
 _INT = {"width", "height", "declared_fps", "retention_days"}
 
@@ -89,6 +92,10 @@ class ImportRequest(BaseModel):
     update_existing: bool = False
     #: Validate and report, write nothing.
     dry_run: bool = False
+    #: Why this change is being made (a work order, a department's letter).
+    #: Recorded as the purpose of the audit entry, so a registry edit can be
+    #: traced back to its authority.
+    reason: str | None = Field(default=None, max_length=500)
 
 
 def _coerce_csv_row(row: dict[str, str], line: int) -> dict[str, Any]:
@@ -117,8 +124,21 @@ def _coerce_csv_row(row: dict[str, str], line: int) -> dict[str, Any]:
 
 
 def _apply(state: Any, rows: list[CameraIn], *, update_existing: bool,
-           dry_run: bool) -> dict[str, Any]:
-    """Validate the whole batch, then write it — or neither."""
+           dry_run: bool, ctx: Any = None, source: str = "json",
+           reason: str | None = None) -> dict[str, Any]:
+    """Validate the whole batch, then write it — or neither.
+
+    Registry writes left no trace: Model 1 names "metadata audit trails", and
+    a camera could be onboarded, re-positioned or refused with nothing in the
+    log saying who or why. Onboarding and amendment are now recorded as
+    separate actions, with the reason as the entry's purpose, and a refused
+    overwrite is recorded too. A dry run writes nothing, including no audit.
+    """
+    import dataclasses
+
+    actx = ctx
+    if ctx is not None and reason:
+        actx = dataclasses.replace(ctx, purpose=reason)
     seen: set[str] = set()
     created: list[str] = []
     updated: list[str] = []
@@ -134,6 +154,9 @@ def _apply(state: Any, rows: list[CameraIn], *, update_existing: bool,
         seen.add(cid)
         exists = state.store.get_camera(cid) is not None
         if exists and not update_existing:
+            if actx is not None and not dry_run:
+                actx.audit(state.store, "registry_import_refused:ALREADY_ONBOARDED",
+                           target=cid, result_count=0)
             raise HTTPException(status_code=409, detail={
                 "code": "ALREADY_ONBOARDED",
                 "message": (f"row {i}: {cid} is already onboarded. Re-send with "
@@ -147,6 +170,13 @@ def _apply(state: Any, rows: list[CameraIn], *, update_existing: bool,
             payload["camera_id"] = cam.camera_id.strip()
             payload.setdefault("enabled", True)
             state.store.upsert_camera(payload)
+        if actx is not None:
+            if created:
+                actx.audit(state.store, f"registry_import:{source}",
+                           target=",".join(created)[:500], result_count=len(created))
+            if updated:
+                actx.audit(state.store, f"registry_amend:{source}",
+                           target=",".join(updated)[:500], result_count=len(updated))
 
     return {
         "accepted": len(rows),
@@ -168,7 +198,8 @@ async def import_cameras(state: StateDep, ctx: AuthDep, body: ImportRequest
     except AccessError as exc:
         raise access_error(exc) from exc
     return _apply(state, body.cameras,
-                  update_existing=body.update_existing, dry_run=body.dry_run)
+                  update_existing=body.update_existing, dry_run=body.dry_run,
+                  ctx=ctx, source="json", reason=body.reason)
 
 
 @router.post("/cameras/import.csv", summary="Bulk camera onboarding (CSV)")
@@ -198,7 +229,8 @@ async def import_cameras_csv(
     if not rows:
         raise HTTPException(status_code=422, detail={
             "code": "EMPTY", "message": "the CSV carried no rows"})
-    return _apply(state, rows, update_existing=update_existing, dry_run=dry_run)
+    return _apply(state, rows, update_existing=update_existing, dry_run=dry_run,
+                  ctx=ctx, source="csv")
 
 
 @router.get("/cameras/export.csv", summary="Export the registry",
@@ -227,13 +259,29 @@ async def export_cameras(
         want = department.strip().lower()
         rows = [r for r in rows
                 if (r.get("department") or "").strip().lower() == want]
+    # The export ignored jurisdiction, so a district operator downloaded the
+    # whole state's registry.
+    if not ctx.principal.statewide:
+        rows = [r for r in rows if ctx.principal.in_scope(r.get("district"))]
     rows = rows[:limit]
 
+    # Stream URLs are the keys to a camera's picture, and carry credentials
+    # on some estates. They round-trip for the people who administer the
+    # registry; everyone else gets the metadata without them.
+    fields = list(FIELDS)
+    with_urls = ctx.principal.may(Permission.ADMIN_WRITE)
+    if not with_urls:
+        fields = [f for f in fields if f not in _STREAM_FIELDS]
+    ctx.audit(state.store, "registry_export",
+              target=("with stream URLs" if with_urls else "no stream URLs")
+              + (f" · {department}" if department else ""),
+              result_count=len(rows))
+
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=list(FIELDS), extrasaction="ignore")
+    writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()
     for r in rows:
         writer.writerow({k: ("" if r.get(k) is None else r.get(k))
-                         for k in FIELDS})
+                         for k in fields})
     return PlainTextResponse(buf.getvalue(), media_type="text/csv", headers={
         "Content-Disposition": 'attachment; filename="saakshya-registry.csv"'})

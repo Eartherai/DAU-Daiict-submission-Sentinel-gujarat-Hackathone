@@ -884,7 +884,8 @@ class InvestigationService:
         return VehicleObservation.from_row(r) if r else None
 
     # -- home screen (§42) ---------------------------------------------------- #
-    def operational_summary(self, ctx: AuthContext) -> dict[str, Any]:
+    def operational_summary(self, ctx: AuthContext, *,
+                            include_marks: bool = True) -> dict[str, Any]:
         ctx.principal.require(Permission.CAMERA_READ)
         allowed = {
             cid for cid in self._scoped_cameras(ctx)
@@ -933,11 +934,16 @@ class InvestigationService:
                 "published_marks": st.get("cameras_with_plate", 0),
             },
             "capability_anpr": dict(cap_tally),
-            "alerts": {
+            # "0 open alerts" said to a role that may not read alerts is a
+            # false statement about the estate. Withheld is the true answer.
+            "alerts": ({
                 "open": sum(1 for a in alerts if a.get("status") == "OPEN"),
                 "total": len(alerts),
                 "recent": alerts[:10],
-            },
+            } if ctx.principal.may(Permission.ALERT_READ) else {
+                "open": None, "total": None, "recent": [], "withheld": True,
+                "reason": "your role does not include alerts",
+            }),
             "observations": {
                 "total": st.get("observations", 0),
                 "with_plate": st.get("observations_with_plate", 0),
@@ -952,12 +958,36 @@ class InvestigationService:
                 "distinct_plates": st.get("distinct_plates", 0),
                 "raw_ocr_attempts": st.get("raw_ocr_read_records", 0),
                 "by_object_type": st.get("observations_by_object_type", {}),
-                "recent_plates": self.store.distinct_plates()[:80],
-                "recent_marks": self.store.recent_marks(36),
+                # The command summary is polled every few seconds and shows no
+                # plates; reading and auditing them there would write a
+                # meaningless "marks read" entry into the audit chain per poll.
+                **(self._overview_marks(ctx) if include_marks else
+                   {"recent_plates": [], "recent_marks": [], "plates_withheld": None}),
                 "marks_last_hour": self.store.marks_in_latest_hour(),
             },
             "graph": self.graph.stats(),
         }
+
+    def _overview_marks(self, ctx: AuthContext) -> dict[str, Any]:
+        """The home screen's plates, under the rule every plate route follows.
+
+        The Overview listed the latest plates with camera and time to anyone
+        holding camera:read, so an ADMIN or AUDITOR refused at /search read the
+        same movements from the home screen, unaudited. Plates need
+        search:plate, are cut to the caller's jurisdiction, and are recorded.
+        """
+        from saakshya.security import may_read_plates
+        if not may_read_plates(ctx.principal):
+            return {"recent_plates": [], "recent_marks": [], "plates_withheld": True}
+        marks = self.store.recent_marks(36)
+        if not ctx.principal.statewide:
+            marks = [m for m in marks if ctx.principal.in_scope(
+                m.get("district") or (self._cams.get(m.get("camera_id")) or {}).get("district"))]
+            plates = sorted({m["plate"] for m in marks if m.get("plate")})
+        else:
+            plates = self.store.distinct_plates()[:80]
+        ctx.audit(self.store, "marks_read", target="overview", result_count=len(marks))
+        return {"recent_plates": plates, "recent_marks": marks, "plates_withheld": False}
 
 
 def _attribute_caveat(object_types: tuple[str, ...] | None) -> str:

@@ -58,10 +58,26 @@ class PermissionDenied(AccessError):
     status = 403
     code = "PERMISSION_DENIED"
 
+    def __init__(self, message: str, *, permission: str | None = None,
+                 role: str | None = None) -> None:
+        super().__init__(message)
+        #: Carried as fields, not only in the message, so the refusal can be
+        #: written to the audit log as "denied:<permission>" and explained on
+        #: screen in a sentence, without anyone parsing a Python repr.
+        self.permission = permission
+        self.role = role
+
 
 class OutOfScope(AccessError):
     status = 403
     code = "OUT_OF_JURISDICTION"
+
+    def __init__(self, message: str, *, district: str | None = None,
+                 districts: tuple[str, ...] = (), role: str | None = None) -> None:
+        super().__init__(message)
+        self.district = district
+        self.districts = tuple(districts)
+        self.role = role
 
 
 class PurposeRequired(AccessError):
@@ -200,9 +216,15 @@ class Principal:
 
     def require(self, perm: Permission) -> None:
         if not self.may(perm):
+            # The held-permission list used to be appended here, and it reached
+            # the screen verbatim: an administrator opening the map met
+            # "role ADMIN does not hold alert:read; held: ['admin:write', ...]"
+            # as a red toast. The role table is published at /admin/roles for
+            # anyone who needs it; a refusal names what was asked for, and
+            # `refusal_sentence` turns that into something an officer can read.
             raise PermissionDenied(
-                f"role {self.role} does not hold {perm}; "
-                f"held: {sorted(str(p) for p in self.permissions)}")
+                f"role {self.role} does not hold {perm}",
+                permission=str(perm), role=str(self.role))
 
     def in_scope(self, district: str | None) -> bool:
         if self.statewide:
@@ -218,7 +240,8 @@ class Principal:
         if not self.in_scope(district):
             raise OutOfScope(
                 f"{self.user_id} is scoped to {list(self.districts)}; "
-                f"{district!r} is outside it")
+                f"{district!r} is outside it",
+                district=district, districts=self.districts, role=str(self.role))
 
     def scope_filter(self) -> tuple[str, ...] | None:
         """Districts to constrain a query to, or None for statewide."""
@@ -227,7 +250,8 @@ class Principal:
     def to_dict(self) -> dict[str, Any]:
         return {
             "user_id": self.user_id, "display_name": self.display_name,
-            "role": str(self.role), "department": self.department,
+            "role": str(self.role), "role_label": role_label(str(self.role)),
+            "department": self.department,
             "districts": list(self.districts), "badge_no": self.badge_no,
             "statewide": self.statewide,
             "permissions": sorted(str(p) for p in self.permissions),
@@ -272,6 +296,118 @@ class AuthContext:
             result_count=result_count,
             jurisdiction=("STATE" if self.principal.statewide
                           else ",".join(self.principal.districts)))
+
+
+# --------------------------------------------------------------------------- #
+# Plate visibility
+# --------------------------------------------------------------------------- #
+def may_read_plates(principal: Principal) -> bool:
+    """May this caller read stored registration marks with place and time?
+
+    The same permission the vehicle search requires, because a list of the
+    latest marks with camera and time *is* a search result: it answers "where
+    was this vehicle" for every vehicle at once. The Overview strip, the ANPR
+    report and the recent-reads list were gated on camera:read, so an ADMIN or
+    AUDITOR who was refused /search?plate= could read the same movements from
+    the home screen, unaudited. Every such read now goes through this test.
+    """
+    return principal.may(Permission.SEARCH_PLATE)
+
+
+def may_see_live_plates(principal: Principal) -> bool:
+    """May this caller see the plate text drawn over a live picture?
+
+    Narrower than history, wider than search. What a camera shows *now* is on
+    the screen of whoever watches it, and a control-room operator has to
+    compare an alert's plate with the vehicle in front of the camera; that is
+    the operator's job (alert:ack). An estate administrator verifying a
+    stream, or an auditor, has no need of the machine-read text, so it is
+    withheld from them and the box is drawn without it.
+    """
+    return principal.may(Permission.SEARCH_PLATE) or principal.may(Permission.ALERT_ACK)
+
+
+# --------------------------------------------------------------------------- #
+# Refusals, in words
+# --------------------------------------------------------------------------- #
+#: How a role is named on screen. The enum value is an identifier; officers
+#: know themselves by their job.
+ROLE_LABELS: dict[str, str] = {
+    "ADMIN": "Estate administrator",
+    "SUPERVISOR": "Supervisor",
+    "INVESTIGATOR": "Investigating officer",
+    "OPERATOR": "Control-room operator",
+    "AUDITOR": "Auditor",
+    "SERVICE": "Edge service",
+}
+
+_ROLE_PLURAL: dict[str, str] = {
+    "OPERATOR": "control-room operators",
+    "INVESTIGATOR": "investigating officers",
+    "SUPERVISOR": "supervisors",
+    "ADMIN": "estate administrators",
+    "AUDITOR": "auditors",
+}
+
+#: What each permission lets a person do, as a verb phrase, and how the
+#: sentence naming who does it begins. Who *does* hold it is computed from
+#: ROLE_PERMISSIONS, so the sentence cannot drift from the table in force.
+_PERMISSION_WORDS: dict[str, tuple[str, str]] = {
+    "camera:read": ("view the camera estate", "The camera estate is visible to"),
+    "health:read": ("view camera health", "Camera health is visible to"),
+    "capability:read": ("view measured camera capability",
+                        "Measured capability is visible to"),
+    "search:plate": ("search or list vehicle registration marks",
+                     "Vehicle searches are run by"),
+    "search:appearance": ("search vehicles by appearance",
+                          "Appearance searches are run by"),
+    "trajectory:build": ("trace a vehicle's route", "Route tracing is done by"),
+    "watchlist:read": ("read the watchlist", "The watchlist is read by"),
+    "watchlist:write": ("change the watchlist", "The watchlist is kept by"),
+    "alert:read": ("view alerts", "Alerts are handled by"),
+    "alert:ack": ("acknowledge or clear alerts", "Alerts are handled by"),
+    "evidence:read": ("view evidence", "Evidence is handled by"),
+    "evidence:create": ("seal evidence", "Evidence is sealed by"),
+    "evidence:export": ("export evidence", "Evidence is exported by"),
+    "case:read": ("view cases", "Cases are read by"),
+    "case:write": ("open or change cases", "Cases are kept by"),
+    "audit:read": ("read the audit log", "The audit log is read by"),
+    "admin:write": ("change the camera registry or user accounts",
+                    "The registry is administered by"),
+    "edge:sync": ("synchronise an edge node", "Edge sync is done by"),
+}
+
+
+def _join(words: list[str]) -> str:
+    if len(words) <= 1:
+        return "".join(words)
+    return ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def role_label(role: str | None) -> str:
+    return ROLE_LABELS.get(str(role or ""), str(role or "unknown role"))
+
+
+def refusal_sentence(exc: AccessError) -> str:
+    """The refusal an officer reads. The machine code travels beside it.
+
+    "PERMISSION_DENIED: role ADMIN does not hold alert:read; held: [...]" is
+    accurate and unusable on a control-room screen. This says which role,
+    what it cannot do, and who does it instead: the next step, not the gate.
+    """
+    if isinstance(exc, PermissionDenied) and exc.permission:
+        verb, lead = _PERMISSION_WORDS.get(
+            exc.permission, (f"use {exc.permission}", "This is done by"))
+        holders = [plural for r, plural in _ROLE_PLURAL.items()
+                   if exc.permission in {str(p) for p in ROLE_PERMISSIONS[Role(r)]}]
+        tail = f" {lead} {_join(holders)}." if holders else ""
+        return f"Your role ({role_label(exc.role)}) cannot {verb}.{tail}"
+    if isinstance(exc, OutOfScope):
+        where = exc.district or "an unlocated place"
+        mine = ", ".join(exc.districts) or "none"
+        return (f"That record is in {where}, outside your jurisdiction ({mine}). "
+                "A supervisor with statewide scope can see it.")
+    return str(exc)
 
 
 #: Used by tools, tests and the offline edge node, where there is no HTTP request

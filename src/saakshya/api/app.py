@@ -29,6 +29,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.staticfiles import StaticFiles
 
 from saakshya.api import (
@@ -38,7 +39,7 @@ from saakshya.api import (
     routes_ops,
     routes_system,
 )
-from saakshya.api.deps import AppState, AuthDep, StateDep
+from saakshya.api.deps import AppState, AuthDep, StateDep, access_error
 from saakshya.obs import METRICS, actor_var, configure_logging, request_id_var
 from saakshya.security import AccessError, Permission
 
@@ -259,13 +260,49 @@ def create_app(state: AppState | None = None, *,
         return response
 
     # -- error mapping -------------------------------------------------------- #
+    # -- refusals are evidence too ------------------------------------------ #
+    # An ADMIN who tried to read plates, or an investigator who reached outside
+    # their district, left no trace: the audit log recorded what people were
+    # allowed to do and nothing they were refused. Attempted misuse is exactly
+    # what an oversight cell needs to see. Every 403 of these two kinds is now
+    # written to the hash-chained log here, in one place, so no route can forget.
+    # A missing purpose is not overreach - it is a form not yet filled - and is
+    # not recorded as one.
+    _AUDITED_REFUSALS = {"PERMISSION_DENIED", "OUT_OF_JURISDICTION"}
+
+    def _audit_refusal(request: Request, detail: dict) -> None:
+        ctx = getattr(request.state, "auth_ctx", None)
+        code = detail.get("code")
+        if ctx is None or code not in _AUDITED_REFUSALS:
+            return
+        if code == "PERMISSION_DENIED":
+            action = f"denied:{detail.get('permission') or 'permission'}"
+            target = request.url.path
+        else:
+            action = "denied:jurisdiction"
+            target = f"{detail.get('district') or 'unlocated'} via {request.url.path}"
+        try:
+            ctx.audit(request.app.state.saakshya.store, action,
+                      target=target[:300], result_count=0)
+        except Exception:                     # never turn a 403 into a 500
+            log.exception("could not audit a refusal")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def on_http_error(request: Request, exc: StarletteHTTPException):
+        detail = exc.detail if isinstance(exc.detail, dict) else {"message": exc.detail}
+        if exc.status_code == 403:
+            _audit_refusal(request, detail)
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail},
+                            headers=getattr(exc, "headers", None))
+
     @app.exception_handler(AccessError)
     async def on_access_error(request: Request, exc: AccessError):
         METRICS.incr("access_denied_total", code=exc.code)
         log.warning("access denied", extra={"extra_fields": {
             "code": exc.code, "path": request.url.path, "message": str(exc)}})
-        return JSONResponse(status_code=exc.status, content={
-            "detail": {"code": exc.code, "message": str(exc)}})
+        detail = access_error(exc).detail
+        _audit_refusal(request, detail)
+        return JSONResponse(status_code=exc.status, content={"detail": detail})
 
     @app.exception_handler(RequestValidationError)
     async def on_validation(request: Request, exc: RequestValidationError):

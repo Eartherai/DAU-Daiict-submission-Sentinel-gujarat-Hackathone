@@ -82,8 +82,12 @@ async function api(path, opts = {}) {
   try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text }; }
   if (!res.ok) {
     const d = (body && body.detail) || {};
+    // `human` is the refusal an officer can read ("Your role (Control-room
+    // operator) cannot search or list vehicle registration marks. Vehicle
+    // searches are run by investigating officers and supervisors."). The
+    // technical message stays in the code and the log, not on the screen.
     throw new ApiError(res.status, d.code || String(res.status),
-                       d.message || res.statusText);
+                       d.human || d.message || res.statusText);
   }
   return body;
 }

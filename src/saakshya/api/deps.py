@@ -237,6 +237,10 @@ async def auth_context(
     ctx = AuthContext(principal=principal, case_id=x_case_id, purpose=x_purpose,
                       request_id=getattr(request.state, "request_id", None))
     request.state.actor = principal.user_id
+    # Kept for the refusal handler: a 403 is raised deep inside a route, long
+    # after this context was built, and the audit entry for it needs to know
+    # who was refused, and under which case and purpose.
+    request.state.auth_ctx = ctx
     return ctx
 
 
@@ -244,8 +248,23 @@ AuthDep = Annotated[AuthContext, Depends(auth_context)]
 
 
 def access_error(exc: AccessError) -> HTTPException:
-    return HTTPException(status_code=exc.status,
-                         detail={"code": exc.code, "message": str(exc)})
+    """A refusal a person can read, with the machine code beside it.
+
+    "role ADMIN does not hold alert:read; held: [...]" reached the operator's
+    screen verbatim. The code and the technical message are kept for clients
+    and the log; `human` says which role, what it cannot do and who does it.
+    """
+    from saakshya.security.access import refusal_sentence, role_label
+    detail: dict = {"code": exc.code, "message": str(exc),
+                    "human": refusal_sentence(exc)}
+    role = getattr(exc, "role", None)
+    if role:
+        detail["role_label"] = role_label(role)
+    if getattr(exc, "permission", None):
+        detail["permission"] = exc.permission
+    if getattr(exc, "district", None):
+        detail["district"] = exc.district
+    return HTTPException(status_code=exc.status, detail=detail)
 
 
 # --------------------------------------------------------------------------- #

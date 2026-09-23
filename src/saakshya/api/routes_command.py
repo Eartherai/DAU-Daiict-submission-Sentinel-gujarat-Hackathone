@@ -88,12 +88,15 @@ async def summary(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
     from fastapi.concurrency import run_in_threadpool
 
     def _read_summary() -> tuple[dict[str, Any], dict[str, Any]]:
-        return command_summary(state.store), state.investigation.operational_summary(ctx)
+        return (command_summary(state.store),
+                state.investigation.operational_summary(ctx, include_marks=False))
 
     kpis, ops = await run_in_threadpool(_read_summary)
+    alerts = ops.get("alerts") or {}
     kpis["operational"] = {
         "cameras": ops.get("cameras"),
-        "alerts_open": (ops.get("alerts") or {}).get("open"),
+        "alerts_open": alerts.get("open"),
+        "alerts_withheld": bool(alerts.get("withheld")),
         "distinct_plates": (ops.get("observations") or {}).get("distinct_plates"),
     }
     return kpis
@@ -221,7 +224,10 @@ async def boxes(state: StateDep, ctx: AuthDep, camera_id: str,
         pass
     payload["counts"] = live_object_counts(state.store, camera_id)
     payload["scene"] = scene_dashboard(state.store, camera_id)
-    return payload
+    # Plate text over a live picture goes to roles that act on vehicles; an
+    # estate administrator checking a stream sees the boxes without the marks.
+    from saakshya.api.plate_access import redact_boxes
+    return redact_boxes(ctx, payload)
 
 
 @router.get("/cameras/{camera_id}/counts", summary="People / vehicles / tracked")
@@ -287,11 +293,19 @@ async def events(
 async def plates(state: StateDep, ctx: AuthDep,
                  limit: Annotated[int, Query(ge=1, le=200)] = 48
                  ) -> dict[str, Any]:
-    try:
-        ctx.principal.require(Permission.CAMERA_READ)
-    except AccessError as exc:
-        raise access_error(exc) from exc
-    return recent_plates(state.store, limit)
+    # A list of recent reads with camera and time answers "where was this
+    # vehicle" for every vehicle at once: it needs what the search needs,
+    # is cut to the caller's jurisdiction, and is recorded.
+    from saakshya.api.plate_access import audit_plate_read, in_scope, require_plate_read
+    require_plate_read(ctx)
+    out = recent_plates(state.store, limit)
+    for key in ("plates", "reads", "marks", "items"):
+        if isinstance(out.get(key), list):
+            out[key] = in_scope(ctx, out[key], state.store)
+            audit_plate_read(ctx, state.store, "marks_read", target="command/plates",
+                             rows=len(out[key]))
+            break
+    return out
 
 
 @router.get("/jump/{observation_id}", summary="Jump-to-event payload")
@@ -310,6 +324,14 @@ async def jump(state: StateDep, ctx: AuthDep, observation_id: str
         ctx.principal.require_scope(cam.get("district"))
     except AccessError as exc:
         raise access_error(exc) from exc
+    # The jump still works - camera and time are what playback needs - but the
+    # stored plate is a search result, and needs what the search needs.
+    from saakshya.security import may_read_plates
+    if not may_read_plates(ctx.principal):
+        payload = {**payload, "plate": None, "plate_raw": None,
+                   "plate_withheld": True}
+    else:
+        payload = {**payload, "plate_withheld": False}
     return payload
 
 

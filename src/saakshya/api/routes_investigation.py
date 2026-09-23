@@ -293,6 +293,8 @@ async def plate_crop(state: StateDep, ctx: AuthDep, camera_id: str,
 
     import re
 
+    from saakshya.api.plate_access import require_plate_read
+    require_plate_read(ctx)          # a crop of a stored plate is a stored plate
     try:
         ctx.principal.require(Permission.CAMERA_READ)
         cam = state.store.get_camera(camera_id)
@@ -807,8 +809,11 @@ async def case_get(state: StateDep, ctx: AuthDep, case_id: str) -> dict[str, Any
         if case is None:
             raise HTTPException(status_code=404, detail={
                 "code": "NOT_FOUND", "message": f"no such case: {case_id}"})
+        # A case file keeps its shape for roles without search:plate - what
+        # was attached, by whom, when - but not the vehicles themselves.
+        from saakshya.api.plate_access import redact_case_items
         return {"case": case.to_dict(),
-                "items": state.cases.items(ctx, case_id),
+                "items": redact_case_items(ctx, state.cases.items(ctx, case_id)),
                 "notes": state.cases.notes(ctx, case_id)}
     except AccessError as exc:
         raise access_error(exc) from exc
@@ -917,4 +922,8 @@ def own_feed_tracks(state: StateDep, ctx: AuthDep, camera_id: str) -> Any:
                         "bytes than the file now on disk; re-run the analysis "
                         "rather than draw boxes over a picture they do not "
                         "belong to")})
-    return JSONResponse(data, headers={"Cache-Control": "private, max-age=300"})
+    # Same rule as the live overlay: plate text over a picture is for roles
+    # that act on vehicles; the boxes are drawn for everyone who may see video.
+    from saakshya.api.plate_access import redact_tracks
+    return JSONResponse(redact_tracks(ctx, data),
+                        headers={"Cache-Control": "private, max-age=300"})

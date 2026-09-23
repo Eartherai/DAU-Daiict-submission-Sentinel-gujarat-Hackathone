@@ -986,6 +986,9 @@ function normaliseVerification(v) {
     cautions: (v.cautions || []).map((c) => ({
       name: c.check || "", detail: c.detail || "",
     })),
+    // What each sealed record is. Dropped here, the Evidence view went on
+    // listing bare ids although the server now says what each one holds.
+    records: v.records || [],
   };
 }
 

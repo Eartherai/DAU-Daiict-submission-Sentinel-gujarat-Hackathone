@@ -53,3 +53,14 @@ def test_records_carry_content_and_links_and_respect_jurisdiction(tmp_path):
     assert inv[1]["withheld"] == "outside your jurisdiction"
     assert "plate" not in inv[1] and "camera_id" not in inv[1]
     assert inv[1]["ok"] is True                   # integrity is still reported
+
+
+def test_the_page_keeps_the_records_the_server_sends() -> None:
+    """The first version of this change passed its server test and showed
+    nothing new: the client's normaliser rebuilt the response without them."""
+    from pathlib import Path
+    app = (Path(__file__).resolve().parents[2] / "ui/app.js").read_text(encoding="utf-8")
+    norm = app[app.index("function normaliseVerification"):]
+    norm = norm[:norm.index("\n}\n")]
+    assert "records: v.records" in norm
+    assert "evidenceRecordsTable(v.records)" in app

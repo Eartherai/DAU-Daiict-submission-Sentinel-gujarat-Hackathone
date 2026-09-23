@@ -6337,7 +6337,167 @@ $("#intel-focus")?.addEventListener("click", () => {
   else toast("Track a target first");
 });
 
+/* ─── Own feeds: the recording plays, the pipeline's boxes follow it ─────── */
+/* An own feed was a JPEG swapped every 450 ms from a one-second snapshot cache,
+ * over boxes polled from a CPU-bound worker at about 1.4 frames a second. On a
+ * recorded file that is a slideshow, and it is what an assessor saw while being
+ * told "AI-powered detection and analytics". It also drew the source's pixel
+ * coordinates straight onto a canvas of a different size under `object-fit:
+ * cover`, so the boxes sat in the wrong place on any tile that was not exactly
+ * the source's shape.
+ *
+ * A recorded file does not have to be sampled like a live camera. The MP4
+ * plays at its own rate, and the production pipeline's output for every frame
+ * — produced offline by tools/demo/analyse_own_feed.py and bound to the file by
+ * SHA-256 — is drawn against `currentTime`. If the file has not been analysed
+ * the old still path remains, and says what it is. */
+
+const ownFeedMedia = new Map();   // camera id -> {url, tracks} | {failed: true}
+
+async function loadOwnFeed(id) {
+  const hit = ownFeedMedia.get(id);
+  if (hit) return hit;
+  const pending = (async () => {
+    const [fileRes, trackRes] = await Promise.all([
+      fetch(`/media/own/${encodeURIComponent(id)}/file`, { headers: authHeaders() }),
+      fetch(`/media/own/${encodeURIComponent(id)}/tracks`, { headers: authHeaders() }),
+    ]);
+    if (!fileRes.ok || !trackRes.ok) {
+      return { failed: true,
+               why: !trackRes.ok ? `analysis ${trackRes.status}` : `file ${fileRes.status}` };
+    }
+    const [blob, tracks] = await Promise.all([fileRes.blob(), trackRes.json()]);
+    return { url: URL.createObjectURL(blob), tracks };
+  })().catch((err) => ({ failed: true, why: String(err) }));
+  ownFeedMedia.set(id, pending);
+  const done = await pending;
+  ownFeedMedia.set(id, done);
+  return done;
+}
+
+const OWN_TYPE_NAME = { p: "person", c: "car", t: "truck", b: "bus",
+                        m: "motorcycle", y: "bicycle", a: "auto", v: "vehicle" };
+
+/** Where the picture actually lands inside the element, for cover or contain. */
+function videoContentRect(video, w, h) {
+  const vw = video.videoWidth || 1, vh = video.videoHeight || 1;
+  const fit = getComputedStyle(video).objectFit;
+  const scale = fit === "contain" ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh);
+  return { scale, ox: (w - vw * scale) / 2, oy: (h - vh * scale) / 2 };
+}
+
+function drawOwnFrame(canvas, video, tracks, caption) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  if (canvas.width !== Math.round(w * dpr)) canvas.width = Math.round(w * dpr);
+  if (canvas.height !== Math.round(h * dpr)) canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const frames = tracks.frames || [];
+  if (!frames.length || !video.videoWidth) return;
+  const i = Math.min(frames.length - 1,
+                     Math.max(0, Math.floor(video.currentTime * (tracks.fps || 12))));
+  const boxes = frames[i][1] || [];
+  const { scale, ox, oy } = videoContentRect(video, w, h);
+  let people = 0, vehicles = 0;
+  ctx.font = "600 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textBaseline = "top";
+  for (const b of boxes) {
+    const [x1, y1, x2, y2, code, num, conf, plate, confirmed] = b;
+    const kind = OWN_TYPE_NAME[code] || "vehicle";
+    if (kind === "person") people += 1; else vehicles += 1;
+    const rx = ox + x1 * scale, ry = oy + y1 * scale;
+    const rw = Math.max(1, (x2 - x1) * scale), rh = Math.max(1, (y2 - y1) * scale);
+    const colour = kind === "person" ? "#3ec8dc" : "#f5b700";
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = colour;
+    // Tentative tracks are dashed: the pipeline has seen it, not yet held it.
+    ctx.setLineDash(confirmed ? [] : [5, 4]);
+    ctx.strokeRect(rx, ry, rw, rh);
+    ctx.setLineDash([]);
+    const label = `#${num} ${kind} ${conf}%`;
+    const tw = ctx.measureText(label).width + 8;
+    const ly = ry >= 16 ? ry - 16 : ry + rh + 2;
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(rx, ly, tw, 15);
+    ctx.fillStyle = colour;
+    ctx.fillText(label, rx + 4, ly + 2);
+    if (plate) {
+      // A plate appears only once the pipeline's vote has accepted it.
+      const pw = ctx.measureText(plate).width + 10;
+      const py = ly === ry - 16 ? ly - 17 : ly + 17;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(rx, py, pw, 16);
+      ctx.strokeStyle = "#111";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx, py, pw, 16);
+      ctx.fillStyle = "#111";
+      ctx.fillText(plate, rx + 5, py + 2);
+    }
+  }
+  if (caption) {
+    caption.textContent = `${vehicles} vehicle${vehicles === 1 ? "" : "s"} · `
+      + `${people} ${people === 1 ? "person" : "people"} in frame · `
+      + `frame ${i + 1}/${frames.length}`;
+  }
+}
+
 async function paintIntelStage(id, host) {
+  if (!host) return;
+  if (host._intelTimer) { clearInterval(host._intelTimer); host._intelTimer = null; }
+  if (host._intelRaf) { cancelAnimationFrame(host._intelRaf); host._intelRaf = 0; }
+  const media = await loadOwnFeed(id);
+  if (media.failed) {
+    // Not analysed, or the file changed since: say so, and fall back to the
+    // still path rather than draw boxes that do not belong to this picture.
+    await paintIntelStageStill(id, host);
+    const note = el("div", { class: "pane-label pane-label-warn",
+      text: `${id} · STILL PREVIEW · ${media.why} — run tools/demo/analyse_own_feed.py ${id}` });
+    host.append(note);
+    return;
+  }
+  clear(host);
+  const t = media.tracks;
+  const video = el("video", { class: "intel-video", muted: true, loop: true,
+                              playsinline: true, autoplay: true, preload: "auto",
+                              "aria-label": `${id} recording` });
+  video.muted = true;               // attribute alone does not satisfy autoplay
+  video.src = media.url;
+  const canvas = el("canvas", { class: "live-overlay", "aria-hidden": "true" });
+  const badge = el("div", { class: "pane-label",
+    text: `${id} · RECORDED FILE · ${t.width}×${t.height} · ${Math.round(t.fps)} fps · `
+      + "boxes by this platform's pipeline, every frame" });
+  const caption = el("div", { class: "intel-caption", "aria-live": "off" });
+  host.append(video, canvas, badge, caption);
+  video.play?.().catch(() => { /* autoplay blocked: the first click plays it */ });
+  // Chrome defers autoplay in a hidden tab and suspends animation frames, so a
+  // workspace opened in a background tab stayed paused at 0 s when brought
+  // forward. Resume on visibility rather than rely on the deferred autoplay.
+  const resume = () => {
+    if (!host.isConnected) {
+      document.removeEventListener("visibilitychange", resume);
+      return;
+    }
+    if (document.visibilityState === "visible" && video.paused && !host._userPaused) {
+      video.play?.().catch(() => {});
+    }
+  };
+  document.addEventListener("visibilitychange", resume);
+  host.addEventListener("click", () => {
+    if (video.paused) { host._userPaused = false; video.play(); }
+    else { host._userPaused = true; video.pause(); }
+  });
+  const loop = () => {
+    if (!host.isConnected) return;
+    drawOwnFrame(canvas, video, t, caption);
+    host._intelRaf = requestAnimationFrame(loop);
+  };
+  host._intelRaf = requestAnimationFrame(loop);
+}
+
+async function paintIntelStageStill(id, host) {
   if (!host) return;
   if (host._intelTimer) { clearInterval(host._intelTimer); host._intelTimer = null; }
   clear(host);

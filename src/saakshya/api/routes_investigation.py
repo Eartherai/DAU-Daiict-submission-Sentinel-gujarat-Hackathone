@@ -805,3 +805,109 @@ async def case_get(state: StateDep, ctx: AuthDep, case_id: str) -> dict[str, Any
                 "notes": state.cases.notes(ctx, case_id)}
     except AccessError as exc:
         raise access_error(exc) from exc
+
+
+# --------------------------------------------------------------------------- #
+# Recorded own-feed files, played natively, with the pipeline's frame track.
+# --------------------------------------------------------------------------- #
+#
+# The Intelligence view showed an own feed as a JPEG swapped every 450 ms from
+# a one-second snapshot cache, over boxes polled from a CPU-bound worker at
+# about 1.4 frames a second. On a recorded file that is a slideshow, and it is
+# what an assessor saw while being told "AI-powered detection and analytics".
+#
+# A recorded file does not have to be sampled like a live camera. These two
+# routes let the browser play the MP4 at its own rate and draw the production
+# pipeline's per-frame output against `currentTime`. Government cameras are
+# never served this way: they are live streams, and there is no file.
+
+_TRACK_HASH_CACHE: dict[tuple[str, int, int], str] = {}
+
+
+def _own_media_path(state: Any, ctx: Any, camera_id: str):
+    """Resolve a camera to its recorded file, or refuse, under the usual gates."""
+    from pathlib import Path
+
+    from saakshya.command.domain import GOVERNMENT, classify_source_domain
+    from saakshya.live.snapshot import local_media_url
+
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+        cam = state.store.get_camera(camera_id)
+        if not cam:
+            raise HTTPException(status_code=404, detail={
+                "code": "NOT_FOUND", "message": f"no such camera: {camera_id}"})
+        ctx.principal.require_scope(cam.get("district"))
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    domain = classify_source_domain(camera_id, stored=cam.get("source_domain"),
+                                    integration_model=cam.get("integration_model"))
+    if domain == GOVERNMENT:
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_A_RECORDING",
+            "message": ("government cameras are live streams; there is no "
+                        "recorded file to serve")})
+    path = local_media_url(camera_id)
+    if not path:
+        raise HTTPException(status_code=404, detail={
+            "code": "NO_FILE", "message": f"no recorded file for {camera_id}"})
+    return Path(path)
+
+
+def _file_sha256(path: Any) -> str:
+    """Hash once per (path, size, mtime): footage can be tens of megabytes."""
+    import hashlib
+
+    st = path.stat()
+    key = (str(path), st.st_size, int(st.st_mtime))
+    hit = _TRACK_HASH_CACHE.get(key)
+    if hit:
+        return hit
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    _TRACK_HASH_CACHE[key] = h.hexdigest()
+    return _TRACK_HASH_CACHE[key]
+
+
+@router.get("/media/own/{camera_id}/file", include_in_schema=False)
+def own_feed_file(state: StateDep, ctx: AuthDep, camera_id: str):
+    """The recorded MP4 itself. Range requests are honoured, so it seeks."""
+    from fastapi.responses import FileResponse
+
+    path = _own_media_path(state, ctx, camera_id)
+    return FileResponse(str(path), media_type="video/mp4",
+                        headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.get("/media/own/{camera_id}/tracks",
+            summary="Per-frame detections the pipeline produced over a recording")
+def own_feed_tracks(state: StateDep, ctx: AuthDep, camera_id: str) -> Any:
+    """The production pipeline's output for every frame of the file.
+
+    Produced offline by tools/demo/analyse_own_feed.py and bound to the file by
+    SHA-256. A sidecar whose file has since changed is refused rather than
+    drawn: boxes computed over one picture and painted over another would be
+    the most convincing kind of fabrication this platform could produce.
+    """
+    import json
+
+    from fastapi.responses import JSONResponse
+
+    path = _own_media_path(state, ctx, camera_id)
+    side = path.with_name(f"{camera_id}.tracks.json")
+    if not side.is_file():
+        raise HTTPException(status_code=404, detail={
+            "code": "NOT_ANALYSED",
+            "message": (f"{camera_id} has not been analysed frame by frame; run "
+                        "tools/demo/analyse_own_feed.py")})
+    data = json.loads(side.read_text(encoding="utf-8"))
+    if data.get("sha256") != _file_sha256(path):
+        raise HTTPException(status_code=409, detail={
+            "code": "STALE_ANALYSIS",
+            "message": (f"the analysis of {camera_id} was made over different "
+                        "bytes than the file now on disk; re-run the analysis "
+                        "rather than draw boxes over a picture they do not "
+                        "belong to")})
+    return JSONResponse(data, headers={"Cache-Control": "private, max-age=300"})

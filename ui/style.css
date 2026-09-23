@@ -2613,3 +2613,35 @@ body.wall-focus #live-progress {
 @media (max-width: 760px) {
   .reg-count { margin-left: 0; }
 }
+
+/* ─── Own feeds: native playback with the pipeline's per-frame boxes ─────── */
+.intel-stage video.intel-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;          /* the overlay reads this and maps through it */
+  display: block;
+  background: #000;
+  cursor: pointer;
+}
+.intel-stage .live-overlay { pointer-events: none; z-index: 2; }
+.intel-stage .pane-label {
+  position: absolute; left: 8px; top: 8px; z-index: 3;
+  max-width: calc(100% - 16px);
+  background: rgba(0, 0, 0, .66); color: #fff;
+  font: 600 11px/1.25 var(--sans, system-ui, sans-serif);
+  letter-spacing: .02em;
+  padding: 4px 8px; border-radius: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.intel-stage .pane-label-warn {
+  top: auto; bottom: 8px;
+  background: rgba(120, 60, 0, .85);
+  white-space: normal;
+}
+.intel-stage .intel-caption {
+  position: absolute; right: 8px; bottom: 8px; z-index: 3;
+  background: rgba(0, 0, 0, .62); color: #e8e8e8;
+  font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 5px 8px; border-radius: 6px;
+}
+.intel-stage .intel-caption:empty { display: none; }

@@ -16,6 +16,7 @@ import time
 from fractions import Fraction
 
 import av
+from av.video.frame import PictureType
 
 from saakshya.live.credentials import credentialed, needs_grid_credential, redact
 
@@ -52,6 +53,111 @@ def _hwaccel():
         return HWAccel("videotoolbox", allow_software_fallback=True)
     except Exception:
         return None
+
+
+#: Output clock. RTP carries H.264 at 90 kHz, and so does every consumer of
+#: the local RTSP; a 1/fps counter could only ever say "the next frame".
+OUTPUT_CLOCK = 90_000
+#: Seconds of source time between forced IDRs. A late joiner - a tile that
+#: scrolls into view, the AI worker reconnecting - waits for the next IDR
+#: before it can decode anything, so this bounds that wait.
+IDR_INTERVAL_S = float(os.environ.get("SAAKSHYA_RELAY_IDR_S", "1.0"))
+#: A source clock that jumps further than this, either way, has been reset
+#: (camera reboot, gateway reconnect), not merely jittered.
+DISCONTINUITY_S = 5.0
+
+
+class WallTimebase:
+    """Map source PTS onto the published stream, and decide IDRs by time.
+
+    The publisher used to stamp its output with a frame counter at 1/fps and
+    force an IDR every ``fps * 2`` frames. Both assume the source delivers the
+    nominal rate, and on this grid it does not: measured delivery runs from 4
+    to 30 fps, several cameras at 3.7-5.9 under load. A camera sending 4 fps
+    into a 12 fps counter was published playing three times too fast, then
+    starving; its 24-frame GOP became six seconds of wall time, which is what
+    MediaMTX logged as "segment duration changed from 2s to 3s" and what a
+    late-joining tile spent staring at a frozen still. Anything downstream -
+    the AI worker's dwell, speed and trajectory - inherited invented time.
+
+    Here output PTS is source time since the first frame at 90 kHz, clamped
+    to stay monotonic, and an IDR is due once a second of *source time* has
+    passed since the last one, however many frames that took. Pure: it never
+    touches a codec, so it is tested on its own.
+    """
+
+    def __init__(self, fps: int, *, idr_interval_s: float = IDR_INTERVAL_S,
+                 clock: int = OUTPUT_CLOCK) -> None:
+        self.min_gap_s = 1.0 / max(1, fps)
+        self.idr_interval_s = max(0.1, idr_interval_s)
+        self.clock = clock
+        self._origin: float | None = None  # source seconds mapped to output 0
+        self._offset = 0  # output ticks added after a discontinuity rebase
+        self._last_source: float | None = None
+        self._next_admit: float | None = None
+        self._last_idr: float | None = None
+        self.last_pts: int | None = None
+        self.rebases = 0
+
+    def admit(self, source_s: float) -> bool:
+        """Whether this source frame is published at the wall cadence."""
+        if self._jumped(source_s):
+            self._rebase(source_s)
+        if self._next_admit is not None and source_s + 1e-6 < self._next_admit:
+            return False
+        self._next_admit = source_s + self.min_gap_s
+        return True
+
+    def stamp(self, source_s: float) -> tuple[int, bool]:
+        """Output PTS in ``clock`` ticks, and whether to force an IDR."""
+        if self._jumped(source_s):
+            self._rebase(source_s)
+        if self._origin is None:
+            self._origin = source_s
+        pts = self._offset + round((source_s - self._origin) * self.clock)
+        if self.last_pts is not None and pts <= self.last_pts:
+            pts = self.last_pts + 1
+        self.last_pts = pts
+        self._last_source = source_s
+        keyframe = (self._last_idr is None
+                    or source_s - self._last_idr >= self.idr_interval_s - 1e-6)
+        if keyframe:
+            self._last_idr = source_s
+        return pts, keyframe
+
+    def _jumped(self, source_s: float) -> bool:
+        return (self._last_source is not None
+                and abs(source_s - self._last_source) > DISCONTINUITY_S)
+
+    def _rebase(self, source_s: float) -> None:
+        # Continue the output one frame after where it was, rather than
+        # clamping every later frame to last_pts + 1 (a backwards jump) or
+        # publishing a gap of minutes (a forwards one).
+        self.rebases += 1
+        step = round(self.min_gap_s * self.clock)
+        self._offset = (self.last_pts or 0) + step
+        self._origin = source_s
+        self._next_admit = None
+        self._last_idr = None
+        self._last_source = source_s
+
+
+def _publish_destination(destination: str) -> str:
+    """The loopback destination with the relay's per-boot publish credential.
+
+    The relay's MediaMTX refuses anonymous publishers, so a publisher without
+    this cannot write its path. It arrives by environment, like the grid
+    credential, so it never appears in a process list.
+    """
+    user = os.environ.get("SAAKSHYA_RELAY_PUBLISH_USER", "")
+    password = os.environ.get("SAAKSHYA_RELAY_PUBLISH_PASS", "")
+    if not user or not password:
+        return destination
+    from urllib.parse import quote
+    scheme, sep, rest = destination.partition("://")
+    if not sep or "@" in rest.split("/", 1)[0]:
+        return destination
+    return f"{scheme}://{quote(user, safe='')}:{quote(password, safe='')}@{rest}"
 
 
 def _encoder(*, software: bool = False) -> str:
@@ -105,8 +211,14 @@ def _copy_or_transcode(source: str, destination: str, mode: str,
                   f"not browser-safe for packet copy, transcoding",
                   file=sys.stderr, flush=True)
             mode = "transcode"
-        out = av.open(destination, mode="w", format="rtsp",
-                      options={"rtsp_transport": "tcp"})
+        # The relay always publishes RTSP. A file destination is accepted so
+        # the timing of what this function publishes can be read back and
+        # tested without a media server.
+        if destination.startswith(("rtsp://", "rtsps://")):
+            out = av.open(_publish_destination(destination), mode="w",
+                          format="rtsp", options={"rtsp_transport": "tcp"})
+        else:
+            out = av.open(destination, mode="w")
         if mode == "copy":
             output_stream = out.add_stream_from_template(stream)
             for packet in inp.demux(stream):
@@ -125,42 +237,47 @@ def _copy_or_transcode(source: str, destination: str, mode: str,
         output_stream.height = height
         output_stream.pix_fmt = "yuv420p"
         output_stream.bit_rate = _bitrate(bitrate)
-        # Readers join this long-running stream at arbitrary points.  Without
-        # an explicit GOP VideoToolbox can publish indefinitely without a new
-        # IDR, leaving WHEP/HLS sessions connected but permanently undecodable.
-        # Keep the wall rendition low cadence and force a two-second IDR
-        # interval for deterministic late joins.
-        wall_time_base = Fraction(1, max(1, fps))
-        output_stream.time_base = wall_time_base
-        output_stream.codec_context.time_base = wall_time_base
-        output_stream.codec_context.gop_size = max(2, fps * 2)
+        # Readers join this long-running stream at arbitrary points, and each
+        # waits for an IDR before it can decode. The IDR cadence is therefore
+        # set in source *time* by WallTimebase, one a second, with the GOP
+        # size kept only as a ceiling: counted in frames it stretched to
+        # three to six seconds on a camera delivering four frames a second.
+        timebase = WallTimebase(fps)
+        out_time_base = Fraction(1, OUTPUT_CLOCK)
+        output_stream.time_base = out_time_base
+        output_stream.codec_context.time_base = out_time_base
+        gop_ceiling = max(30, fps * 4)
+        output_stream.codec_context.gop_size = gop_ceiling
         output_stream.codec_context.max_b_frames = 0
         if codec == "libx264":
             output_stream.options = {
                 "profile": "baseline", "bf": "0", "preset": "veryfast",
-                "tune": "zerolatency", "g": str(max(10, fps * 2)),
+                "tune": "zerolatency", "g": str(gop_ceiling),
+                "forced-idr": "1",
             }
         else:
             output_stream.options = {
                 "realtime": "1", "profile": "baseline", "bf": "0",
-                "g": str(max(2, fps * 2)),
+                "g": str(gop_ceiling),
             }
-        next_source_s: float | None = None
-        wall_pts = 0
+        wall_start = time.monotonic()
         for frame in inp.decode(stream):
-            # ``rate=3`` configures the encoder timebase; it does not discard
-            # the source's other ~22 frames each second.  Sample by source PTS
-            # so we neither backlog nor manufacture a slow-motion wall.
+            # ``rate=fps`` configures the encoder; it does not discard the
+            # source's other frames. Sample by source PTS so we neither
+            # backlog nor manufacture a slow-motion wall. A frame with no
+            # PTS is timed by arrival, which is the best truth left.
             if frame.pts is not None and frame.time_base is not None:
                 source_s = float(frame.pts * frame.time_base)
-                if next_source_s is not None and source_s + 1e-6 < next_source_s:
-                    continue
-                next_source_s = source_s + (1.0 / max(1, fps))
+            else:
+                source_s = time.monotonic() - wall_start
+            if not timebase.admit(source_s):
+                continue
             if frame.width != width or frame.height != height:
                 frame = frame.reformat(width=width, height=height, format="yuv420p")
-            frame.pts = wall_pts
-            frame.time_base = wall_time_base
-            wall_pts += 1
+            pts, keyframe = timebase.stamp(source_s)
+            frame.pts = pts
+            frame.time_base = out_time_base
+            frame.pict_type = PictureType.I if keyframe else PictureType.NONE
             for packet in output_stream.encode(frame):
                 out.mux(packet)
         for packet in output_stream.encode(None):

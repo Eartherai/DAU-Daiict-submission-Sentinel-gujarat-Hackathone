@@ -100,6 +100,16 @@ When listing cameras, prefer a short labelled list over a paragraph.
 """
 
 
+#: What an officer should do about a refused tool call, in words.
+_REFUSAL_WORDS = {
+    "PURPOSE_REQUIRED": "{tools} did not run: plate queries need a case number and a stated "
+                        "purpose. Fill both in at the top of the page, then ask again.",
+    "PERMISSION_DENIED": "{tools} did not run: your role does not include it. Vehicle searches "
+                         "are run by investigating officers and supervisors.",
+    "OUT_OF_SCOPE": "{tools} did not run: the camera or district is outside your jurisdiction.",
+}
+
+
 @dataclass
 class CopilotAnswer:
     text: str
@@ -325,11 +335,19 @@ class Copilot:
         if forbidden:
             bits.append("It also used language this system does not permit: "
                         + ", ".join(forbidden) + ".")
-        if performed:
-            bits.append("The underlying queries did run — "
-                        + ", ".join(sorted({p['tool'] for p in performed}))
+        ran = sorted({p["tool"] for p in performed if not p.get("refused")})
+        refused = [p for p in performed if p.get("refused")]
+        if ran:
+            bits.append("The underlying queries did run — " + ", ".join(ran)
                         + " — and their results are shown beside this message. "
                           "Read them directly.")
+        # A refused query did not run. Listing it under "did run", with results
+        # "shown beside this message" that did not exist, sent the officer
+        # looking for an answer that was never produced.
+        for code in sorted({str(p.get("error") or "") for p in refused}):
+            tools = ", ".join(sorted({p["tool"] for p in refused
+                                      if str(p.get("error") or "") == code}))
+            bits.append(_REFUSAL_WORDS.get(code, "{tools} was refused.").format(tools=tools))
         return " ".join(bits)
 
     @staticmethod

@@ -7227,8 +7227,28 @@ function renderTargetCard(res) {
     card.append(el("div", { class: "target-clear muted",
       text: ws.reason || "Watchlist status was not checked for your role." }));
   } else {
+    const nearListed = (res.near_match_watchlist || []).length > 0;
     card.append(el("div", { class: "target-clear",
-      text: `Not on any active watchlist (checked ${fmtClock(ws.checked_at)})` }));
+      text: `Not on any active watchlist${nearListed ? " as typed" : ""} (checked ${fmtClock(ws.checked_at)})` }));
+  }
+  // A near match can be the wanted vehicle with one character misread. It is
+  // said first and loudly, with the way to trace the listed mark itself.
+  for (const n of res.near_match_watchlist || []) {
+    const e = (n.watchlist_status?.entries || []).find((x) => x.in_force);
+    if (!e) continue;
+    const go = el("button", { class: "primary", type: "button", text: `Trace ${n.plate}` });
+    // The search that produced this card already carries the case and purpose.
+    go.addEventListener("click", () => {
+      $("#q-plate").value = n.plate;
+      $("#q-fuzzy").checked = false;
+      $("#search-form").requestSubmit();
+    });
+    card.append(el("div", { class: "target-banner near", role: "alert" },
+      el("strong", { text: `NEAR MATCH ${n.plate} IS ON WATCHLIST · ${wlLabel(e).toUpperCase()} · ${e.priority}` }),
+      el("div", { class: "target-why",
+        text: `${n.reads} read${n.reads === 1 ? "" : "s"} of ${n.plate} differ from ${plate} by one or more `
+          + "characters. Compare them position by position before acting." }),
+      go));
   }
   const rep = el("button", { class: "primary", type: "button", id: "btn-trace-report",
     title: "Every read, the route, the sealed stills and a digest — one page to print and sign",

@@ -33,6 +33,7 @@ from sqlalchemy import select
 from saakshya.analytics.plates import CONFUSIONS, normalise
 from saakshya.store import Store
 from saakshya.store import schema as S
+from saakshya.store.repository import from_us
 
 PRIORITY_ORDER = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 
@@ -213,6 +214,9 @@ def enrich(store: Store, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     wl_ids = sorted({r["watchlist_id"] for r in rows if r.get("watchlist_id")})
 
     votes: dict[str, int | None] = {}
+    #: When and where each folded sighting was, so an alert's first and latest
+    #: sighting come from its reads rather than from one row that mixed them.
+    seen_at: dict[str, tuple[int | None, str | None]] = {}
     bbox: dict[str, list[float] | None] = {}
     evidence: dict[str, dict[str, Any]] = {}
     entries: dict[str, dict[str, Any]] = {}
@@ -222,8 +226,10 @@ def enrich(store: Store, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for chunk in _chunks(sorted(obs_ids)):
             for o in c.execute(select(O.c.observation_id, O.c.plate_votes,
                                       O.c.bbox_x1, O.c.bbox_y1, O.c.bbox_x2,
-                                      O.c.bbox_y2).where(O.c.observation_id.in_(chunk))):
+                                      O.c.bbox_y2, O.c.camera_id, O.c.t_norm_us)
+                               .where(O.c.observation_id.in_(chunk))):
                 votes[o.observation_id] = o.plate_votes
+                seen_at[o.observation_id] = (o.t_norm_us, o.camera_id)
                 if None not in (o.bbox_x1, o.bbox_y1, o.bbox_x2, o.bbox_y2):
                     bbox[o.observation_id] = [o.bbox_x1, o.bbox_y1, o.bbox_x2, o.bbox_y2]
             E = S.evidence
@@ -250,7 +256,8 @@ def enrich(store: Store, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "authority": m["authority"], "status": m["status"],
                     "source_system": m["source_system"], "version": m["version"],
                 }
-        cams = sorted({r.get("camera_id") for r in rows if r.get("camera_id")})
+        cams = sorted({r.get("camera_id") for r in rows if r.get("camera_id")}
+                      | {cam for _, cam in seen_at.values() if cam})
         Cm = S.cameras
         for chunk in _chunks(cams):
             for cam in c.execute(select(Cm.c.camera_id, Cm.c.name, Cm.c.district)
@@ -287,9 +294,20 @@ def enrich(store: Store, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             except (TypeError, ValueError):
                 lifecycle = []
         match = compare_plates(r.get("plate"), listed_plate)
-        cam = camera_meta.get(r.get("camera_id") or "", {})
+        timed = sorted((seen_at[i][0], seen_at[i][1], i) for i in ids
+                       if i in seen_at and seen_at[i][0] is not None)
+        row = dict(r)
+        first_us = r.get("t_norm_us")
+        if timed:
+            first_us = timed[0][0]
+            # Latest sighting: its time, camera and observation, together.
+            row["t_norm_us"], row["camera_id"] = timed[-1][0], timed[-1][1] or r.get("camera_id")
+            row["t_norm"] = from_us(timed[-1][0]).isoformat()
+        cam = camera_meta.get(row.get("camera_id") or "", {})
         out.append({
-            **r,
+            **row,
+            "first_t_norm_us": first_us,
+            "first_t_norm": from_us(first_us).isoformat() if first_us else None,
             "observation_ids": ids,
             "cameras": cameras,
             "plate_votes": best_votes,
@@ -371,8 +389,11 @@ def group(rows: list[dict[str, Any]], *, window_s: int = DEFAULT_WINDOW_S
             "window_s": window_s,
             "cameras": cameras,
             "camera_count": len(cameras),
-            "first_seen": first.get("t_norm"),
-            "first_seen_us": first.get("t_norm_us"),
+            # The earliest read of any member, not the first alert row's time,
+            # which a repeat sighting moves forward.
+            "first_seen": min(members, key=lambda a: a.get("first_t_norm_us") or a.get("t_norm_us") or 0)
+                          .get("first_t_norm") or first.get("t_norm"),
+            "first_seen_us": min((a.get("first_t_norm_us") or a.get("t_norm_us") or 0) for a in members),
             "last_seen": latest.get("t_norm"),
             "last_seen_us": latest.get("t_norm_us"),
             "latest_alert_id": latest.get("alert_id"),

@@ -30,10 +30,19 @@ CAMERA_ID = re.compile(r"\b[A-Z]{1,4}-\d{2,6}\b")
 #: Live Gujarat ids are `cam01`…`cam30`, not the synthetic `C-014` shape.
 CAMERA_LIVE = re.compile(r"\bCAM\d{1,3}\b")
 EVIDENCE_ID = re.compile(r"\b(?:EV|OB|TR|AL|WL)-[A-Za-z0-9]{4,}\b")
-#: Indian registration marks: two-letter state, district digits, optional
-#: series letters, four digits. Also the BH series.
-PLATE = re.compile(r"\b(?:[A-Z]{2}\s?\d{1,2}\s?[A-Z]{0,3}\s?\d{4}"
+#: The state and union-territory codes a registration mark can begin with.
+#: Any two letters used to do: "reported stolen on 27 Aug 2026" parsed as the
+#: mark ON 27 AUG 2026, and every answer about that vehicle was withheld as
+#: citing a plate nobody had read.
+STATE_CODES = ("AN AP AR AS BR CG CH DD DL DN GA GJ HP HR JH JK KA KL LA LD MH ML "
+               "MN MP MZ NL OD OR PB PY RJ SK TG TN TR TS UK UP WB").split()
+#: Indian registration marks: state code, district digits, optional series
+#: letters, four digits. Also the BH series.
+PLATE = re.compile(r"\b(?:(?:" + "|".join(STATE_CODES) + r")\s?\d{1,2}\s?[A-Z]{0,3}\s?\d{4}"
                    r"|\d{2}\s?BH\s?\d{4}\s?[A-Z]{1,2})\b")
+#: "MP 12 JAN 2026" is a date written after a state name, not a mark: a spaced
+#: month and a plausible year. Unspaced marks are never read this way.
+_SPACED_DATE = re.compile(r"\s\d{1,2}\s(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s(?:19|20)\d{2}$")
 TIMESTAMP = re.compile(
     r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?"      # ISO
     r"|\b(?:[01]?\d|2[0-3]):[0-5]\d\b")                    # bare clock time
@@ -171,6 +180,8 @@ def verify(answer: str, tool_results: list[Any], *,
     for pattern, kind in ((EVIDENCE_ID, "identifier"), (PLATE, "registration_mark")):
         for m in pattern.finditer(upper):
             tok = m.group(0)
+            if pattern is PLATE and _SPACED_DATE.search(tok):
+                continue
             rep.checked += 1
             if tok.replace(" ", "") in corpus.replace(" ", ""):
                 rep.citations.append(tok)

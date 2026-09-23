@@ -77,3 +77,29 @@ def test_an_incident_counts_reads_not_alert_rows() -> None:
     g = group([row])[0]
     assert g["count"] == 1 and g["reads"] == 6 and g["camera_count"] == 2
     assert "g.reads ?? g.count" in APP
+
+
+def test_enrich_reads_first_and_latest_from_the_sightings(tmp_path) -> None:
+    """Rows already in a store keep the first camera; the queue must still say
+    where the vehicle was last, and when it was first read."""
+    import json
+
+    from saakshya.store.repository import Store
+    from saakshya.watchlist.incidents import enrich, group
+    from tests.conftest import make_observation
+
+    store = Store(f"sqlite:///{tmp_path / 'e.db'}")
+    store.create_all()
+    a = make_observation("C-014", plate="GJ18JX7786", offset_s=0, track="T1")
+    b = make_observation("C-021", plate="GJ18JX7786", offset_s=300, track="T2")
+    store.add_observations([a, b])
+    row = {"alert_id": "AL1", "plate": "GJ18JX7786", "watchlist_id": "W1",
+           "camera_id": "C-014", "observation_id": a.observation_id,
+           "t_norm_us": int(b.t_norm.timestamp() * 1e6), "t_norm": b.t_norm.isoformat(),
+           "status": "OPEN", "priority": "HIGH",
+           "match_reason": json.dumps({"observation_ids": [a.observation_id, b.observation_id],
+                                       "cameras": ["C-014", "C-021"]})}
+    g = group(enrich(store, [row]))[0]
+    assert g["latest_camera_id"] == "C-021"
+    assert g["first_seen_us"] == int(a.t_norm.timestamp() * 1e6)
+    assert g["last_seen_us"] == int(b.t_norm.timestamp() * 1e6)

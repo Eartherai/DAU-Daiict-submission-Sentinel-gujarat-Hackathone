@@ -165,3 +165,25 @@ def test_a_purpose_in_gujarati_reaches_the_audit_log_as_written(world):
     a = world["client"].get("/audit?limit=500&action=vehicle_trace_report", headers={
         "Authorization": f"Bearer {world['tokens']['sup.1']}"}).json()["entries"]
     assert any(e.get("purpose") == purpose and e.get("case_id") == "CASE-GU-1" for e in a)
+
+
+
+def test_a_lead_with_no_still_is_not_told_to_check_the_still():
+    """'Verify on the still' was printed beside reads with no still sealed."""
+    from saakshya.reports.vehicle_trace import render_html
+    row = {"plate": "GJ01TR0001", "timestamp_utc": "2026-09-01T08:00:00+00:00",
+           "timestamp_ist": "2026-09-01T13:30:00+05:30", "camera_id": "CAM-A",
+           "camera_name": "Paldi crossing", "district": "Ahmedabad", "confidence": "0.910",
+           "votes": 1, "confirmed": "no", "plate_format_valid": "yes",
+           "plate_format_note": "", "observation_id": "OB1", "evidence_id": "EV1"}
+    t = {"plate": "GJ01TR0001", "rows": [row], "cameras": {}, "legs": [],
+         "stills": {"EV1": {"status": "no frame sealed"}}, "watchlist": {"checked": False},
+         "confirmed": 0, "leads": 1, "flagged_legs": 0,
+         "generated_ist": "2026-09-24T10:00:00+05:30", "user": "u", "role": "SUPERVISOR",
+         "purpose": "p", "case_id": "c", "jurisdiction": "statewide",
+         "digest": "0" * 64, "report_id": "TR-X"}
+    body = render_html(t)
+    assert "no still retained; corroborate at the source" in body
+    assert "lead — verify on the still" not in body
+    t["stills"]["EV1"] = {"status": "verified", "uri": "data:image/jpeg;base64,AA", "sha256": "a" * 64}
+    assert "lead — verify on the still" in render_html(t)

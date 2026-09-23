@@ -248,20 +248,29 @@ class AlertEngine:
                              f"distinct cameras")
                 priority = new_priority
 
+        # The row describes the latest sighting - time, camera and observation
+        # together. It used to advance the time and keep the first camera, so
+        # the card read "latest on C-014 · 13:35:24" for a vehicle that was at
+        # C-021 at 13:35:24. The sighting that raised the alert is kept here.
+        first = reason_blob.get("first_sighting") or {
+            "observation_id": row.get("observation_id"), "camera_id": row.get("camera_id"),
+            "t_norm_us": row.get("t_norm_us")}
         blob = {**reason_blob, "observation_ids": obs_ids, "cameras": cams,
-                "terms": terms, "notes": notes}
+                "terms": terms, "notes": notes, "first_sighting": first}
         with self.store.engine.begin() as c:
             c.execute(update(S.alerts)
                       .where(S.alerts.c.alert_id == row["alert_id"])
                       .values(confidence=max(row["confidence"] or 0.0, confidence),
                               priority=priority,
                               match_reason=json.dumps(blob),
-                              t_norm_us=to_us(obs.t_norm)))
+                              t_norm_us=to_us(obs.t_norm),
+                              camera_id=obs.camera_id,
+                              observation_id=obs.observation_id))
         return Alert(
             alert_id=row["alert_id"], watchlist_id=row["watchlist_id"],
             plate=row["plate"], category=row["category"], priority=priority,
             confidence=max(row["confidence"] or 0.0, confidence),
-            camera_id=row["camera_id"], t_norm=obs.t_norm,
+            camera_id=obs.camera_id, t_norm=obs.t_norm,
             observation_ids=obs_ids, cameras=cams,
             status=AlertStatus.OPEN, terms=terms,
             reason=reason_blob.get("reason", ""),

@@ -227,3 +227,23 @@ def test_government_adapters_refuse_to_pretend(wired):
         with pytest.raises(NotImplementedError) as ei:
             adapter.fetch()
         assert "stub" in str(ei.value).lower() or "credentials" in str(ei.value).lower()
+
+
+def test_a_repeat_sighting_moves_the_camera_with_the_time(wired):
+    """The row advanced its time and kept its first camera: 'latest on C-014 ·
+    13:35:24' for a vehicle that was at C-021 at 13:35:24."""
+    import json
+    s, wl, ae = wired
+    wl.add(stolen())
+    first, later = ob("C-014", "GJ05AB1234", 10, "r1"), ob("C-021", "GJ05AB1234", 310, "r2")
+    s.add_observations([first, later])
+    for o in (first, later):
+        ae.process(wl.match(o)[0])
+    from sqlalchemy import select
+    from saakshya.store import schema as S
+    with s.engine.connect() as c:
+        row = dict(c.execute(select(S.alerts)).first()._mapping)
+    assert row["camera_id"] == "C-021"
+    assert row["observation_id"] == later.observation_id
+    blob = json.loads(row["match_reason"])
+    assert blob["first_sighting"]["camera_id"] == "C-014"

@@ -389,8 +389,14 @@ def render_html(t: dict[str, Any]) -> str:
                    "<th>Camera</th><th>District</th><th>Read</th><th>Confidence</th>"
                    "<th>Frames agreeing</th><th>Standing</th><th>Evidence</th></tr>")
         for i, r in enumerate(rows, 1):
+            ev_status = stills.get(r.get("evidence_id") or "", {})
+            has_still = "uri" in ev_status or ev_status.get("status") in (
+                "verified", "no digest recorded") or str(ev_status.get("status", "")).startswith("not embedded")
+            # "Verify on the still" beside a read with no still sealed asked the
+            # officer for something the record does not hold.
             stand = ('<span class="ok">confirmed</span>' if r["confirmed"] == "yes"
-                     else '<span class="lead">lead — verify on the still</span>')
+                     else '<span class="lead">lead — verify on the still</span>' if has_still
+                     else '<span class="lead">lead — no still retained; corroborate at the source</span>')
             fmt = "" if r["plate_format_valid"] == "yes" else (
                 f'<div class="bad">format: {_e(r["plate_format_note"])}</div>')
             ev = r.get("evidence_id") or ""
@@ -425,7 +431,7 @@ def render_html(t: dict[str, Any]) -> str:
     out.append('<h2>Reading this report</h2><div class="note">Registration marks are machine '
                'reads. A <b>confirmed</b> read was agreed across two or more frames of one '
                'pass; a <b>lead</b> rests on a single frame and must be checked against the '
-               'still before it is relied on. A read is evidence that a vehicle bearing these '
+               'still, or at the source where no still was retained, before it is relied on. A read is evidence that a vehicle bearing these '
                'characters passed the camera — not of who was driving it. Legs are timed from '
                'camera clocks normalised to IST; implied speeds use straight-line distance and '
                'are therefore the slowest the vehicle could have gone.</div>')
@@ -435,8 +441,8 @@ def render_html(t: dict[str, Any]) -> str:
                f'camera, characters, confidence, frames agreeing and evidence id): '
                f'<span class="mono">{_e(t["digest"])}</span>. Regenerating this report for the '
                'same jurisdiction from the same store gives the same digest; a different '
-               'digest means the record changed. Each evidence id is bound to its still by '
-               'the sealed, hash-chained manifest. Generation is written to the audit '
-               'log.</div>')
+               'digest means the record changed. Where a still was sealed, the evidence id '
+               'binds it through the hash-chained manifest. Generation is written to the '
+               'audit log.</div>')
     out.append("</body></html>")
     return "".join(out)

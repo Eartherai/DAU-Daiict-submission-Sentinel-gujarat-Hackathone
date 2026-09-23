@@ -346,7 +346,7 @@ class VehicleSearch:
         route = [{
             "observation_id": o.observation_id, "camera_id": o.camera_id,
             "t_norm": o.t_norm.isoformat(), "plate": o.plate,
-            "evidence_ref": o.evidence_ref,
+            "evidence_ref": o.evidence_ref, "plate_votes": o.plate_votes,
         } for o in sorted(origins, key=lambda o: o.t_norm)
           if o.observation_id not in rejected_ids]
         return {

@@ -107,3 +107,26 @@ def test_deployment_plumbing_is_folded_away_from_the_officer() -> None:
     det = html[html.index('id="deploy-details"'):html.index("</details>")]
     for ind in ("feed-government", "feed-own", "feed-central"):
         assert ind in det, f"{ind} is outside the disclosure"
+
+
+def test_follow_vehicle_counts_confirmed_as_agreed_across_frames() -> None:
+    """'7 confirmed sighting(s)' was printed for seven single-frame leads."""
+    src = (Path(__file__).resolve().parents[2]
+           / "src/saakshya/investigation/workspace.py").read_text(encoding="utf-8")
+    block = src[src.index("def follow_vehicle"):src.index("def next_best_cameras")]
+    assert '"confirmed_sightings": corroborated' in block
+    assert '(r.get("plate_votes") or 0) >= 2' in block
+    search = (Path(__file__).resolve().parents[2]
+              / "src/saakshya/intelligence/search.py").read_text(encoding="utf-8")
+    assert '"plate_votes": o.plate_votes' in search
+
+
+def test_a_listed_near_match_is_said_first() -> None:
+    """GJ18JX7787 with near matches returned seven reads of the listed stolen
+    GJ18JX7786 under 'Not on any active watchlist'."""
+    src = (Path(__file__).resolve().parents[2]
+           / "src/saakshya/investigation/workspace.py").read_text(encoding="utf-8")
+    assert 'payload["near_match_watchlist"] = near' in src
+    block = APP[APP.index("function renderTargetCard"):APP.index("function renderNoSighting")]
+    assert "near_match_watchlist" in block and "IS ON WATCHLIST" in block
+    assert "Trace ${n.plate}" in block

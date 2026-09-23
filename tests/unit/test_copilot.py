@@ -412,3 +412,38 @@ def test_live_camera_ids_are_grounded_against_tool_output():
     bad = verify("cam99 is infrared.", tools, known_cameras={"cam06"})
     assert not bad.grounded
     assert any(u["value"] == "CAM99" for u in bad.ungrounded)
+
+
+def test_a_date_in_prose_is_not_a_registration_mark() -> None:
+    """Every answer about the stolen vehicle was withheld: 'reported stolen on
+    27 Aug 2026' parsed as the mark ON 27 AUG 2026."""
+    from saakshya.copilot.grounding import verify
+    tools = [{"plate": "GJ18JX7786", "camera_id": "C-021"}]
+    ok = verify("GJ18JX7786 was last read at C-021. It was reported stolen on 27 Aug 2026.",
+                tools).to_dict()
+    assert ok["grounded"], ok
+    # A state name followed by a date is a date as well.
+    assert verify("The FIR was filed in MP 12 Jan 2026 and GJ18JX7786 was read at C-021.",
+                  tools).to_dict()["grounded"]
+    # A mark nobody read is still refused, spaced or not.
+    for invented in ("GJ01AB1234", "MH 12 AB 1234"):
+        bad = verify(f"GJ18JX7786 travelled with {invented}.", tools).to_dict()
+        assert not bad["grounded"]
+        assert any(u["kind"] == "registration_mark" for u in bad["ungrounded"])
+
+
+def test_a_refused_tool_is_not_listed_as_having_run() -> None:
+    """The withheld message said refused queries 'did run' with results 'shown
+    beside this message'. Nothing was shown, because nothing ran."""
+    from saakshya.copilot import grounding
+    from saakshya.copilot.orchestrator import Copilot
+    rep = grounding.GroundingReport()
+    rep.add("registration_mark", "GJ01AB1234")
+    msg = Copilot._withheld_message(rep, [], [
+        {"tool": "search_plate", "refused": True, "error": "PURPOSE_REQUIRED"},
+        {"tool": "query_watchlist", "refused": True, "error": "PURPOSE_REQUIRED"},
+        {"tool": "camera_context", "refused": False, "error": None}])
+    assert "did run — camera_context —" in msg
+    assert "search_plate" not in msg.split("did run")[1].split("—")[1]
+    assert "query_watchlist, search_plate did not run" in msg
+    assert "case number" in msg

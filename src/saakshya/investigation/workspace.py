@@ -232,6 +232,22 @@ class InvestigationService:
             payload["target_plate"] = target
             payload["watchlist_status"] = self.watchlist_status(ctx, target)
             payload["open_alerts"] = self._open_alerts(ctx, target, allowed)
+            # A near match can be the wanted vehicle read with one character
+            # wrong. Searching GJ18JX7787 returned seven reads of the listed
+            # stolen GJ18JX7786 under a card saying "not on any watchlist" -
+            # true of what was typed, and the one thing an officer must not
+            # miss. Each distinct near-match plate is checked too.
+            near = []
+            for p in dict.fromkeys(c["plate"] for c in payload["candidates"]
+                                   if c.get("plate") and c["plate"] != target):
+                st = self.watchlist_status(ctx, p)
+                if any(e.get("in_force") for e in st.get("entries") or []):
+                    near.append({"plate": p, "watchlist_status": st,
+                                 "reads": sum(1 for c in payload["candidates"]
+                                              if c.get("plate") == p)})
+                if len(near) >= 5:
+                    break
+            payload["near_match_watchlist"] = near
         else:
             f = SearchFilter(
                 cameras=searched or None,
@@ -447,6 +463,17 @@ class InvestigationService:
                                                     "INVESTIGATING")]
         opened = [r for r in rows if r["status"] == "OPEN"]
         latest = live[0] if live else (rows[0] if rows else None)
+        if latest and latest["t_norm_us"]:
+            # Alerts raised before repeat sightings moved the camera with the
+            # time still carry the first camera beside the latest time. The
+            # read at that moment says where the vehicle actually was.
+            with self.store.engine.connect() as c:
+                at = c.execute(select(S.observations.c.camera_id).where(
+                    S.observations.c.plate == plate,
+                    S.observations.c.t_norm_us == latest["t_norm_us"],
+                    S.observations.c.camera_id.in_(sorted(allowed))).limit(1)).first()
+            if at is not None:
+                latest = {**latest, "camera_id": at.camera_id}
         return {
             "open": len(opened),
             "active": len(live),
@@ -606,8 +633,15 @@ class InvestigationService:
             r["evidence_ref"] for r in result["route"] + result["candidates"]
             if r.get("evidence_ref")
         })
+        # "Confirmed" means what it means everywhere else here: the plate was
+        # agreed across two or more frames of one pass. It counted every
+        # sighting, and said "7 confirmed" beside a trace report showing seven
+        # single-frame leads for the same vehicle.
+        corroborated = sum(1 for r in result["route"] if (r.get("plate_votes") or 0) >= 2)
         result["route_confidence"] = {
-            "confirmed_sightings": len(result["route"]),
+            "plate_sightings": len(result["route"]),
+            "confirmed_sightings": corroborated,
+            "single_frame_leads": len(result["route"]) - corroborated,
             "ranked_follow_ups": len(result["candidates"]),
             "contradictions": len(result["contradictions"]),
             "meaning": ("engineering ordering score; candidates require "

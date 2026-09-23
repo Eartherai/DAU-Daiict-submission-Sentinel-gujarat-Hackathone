@@ -352,6 +352,14 @@ alerts = Table(
     Column("cleared_reason", Text),
     Column("t_norm_us", Integer, index=True),
     Column("created_at_us", Integer),
+    # The lifecycle beyond "acknowledged". Officers could acknowledge an alert
+    # and nothing else: the Resolved tab could never fill, and nothing recorded
+    # whether a closed hit was a real vehicle, a misread or a lawful owner.
+    # All nullable, so an existing store gains them in place at startup.
+    Column("disposition", String(24)),       # confirmed | false_positive | cleared
+    Column("case_id", String(80)),           # attached when marked investigating
+    Column("lifecycle", Text),               # JSON list: who did what, when, why
+    Column("updated_at_us", Integer),
 )
 
 # --------------------------------------------------------------------------- #

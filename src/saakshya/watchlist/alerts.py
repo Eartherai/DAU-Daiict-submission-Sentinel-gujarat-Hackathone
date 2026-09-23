@@ -293,31 +293,130 @@ class AlertEngine:
                 status=str(a.status), t_norm_us=to_us(a.t_norm),
                 created_at_us=now_us()))
 
-    # -- operator actions ---------------------------------------------------- #
-    def acknowledge(self, alert_id: str, *, actor: str) -> None:
-        with self.store.engine.begin() as c:
-            c.execute(update(S.alerts).where(S.alerts.c.alert_id == alert_id)
-                      .values(status=str(AlertStatus.ACKNOWLEDGED),
-                              acknowledged_by=actor, acknowledged_at_us=now_us()))
-        self.store.audit(actor, "alert_acknowledge", target=alert_id)
+    # -- lifecycle ------------------------------------------------------------ #
+    #: Which states each action may start from. Anything else is skipped and
+    #: reported, not forced: acknowledging a group that holds one already
+    #: resolved sighting must not quietly re-open it.
+    _FROM = {
+        "acknowledge": {AlertStatus.OPEN},
+        "investigate": {AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED},
+        "resolve": {AlertStatus.OPEN, AlertStatus.ACKNOWLEDGED,
+                    AlertStatus.INVESTIGATING},
+    }
 
-    def investigate(self, alert_id: str, *, actor: str) -> None:
+    def transition(self, alert_ids: list[str], action: str, *, actor: str,
+                   reason: str | None = None, disposition: str | None = None,
+                   case_id: str | None = None, group_id: str | None = None,
+                   audit=None) -> dict:
+        """Move alerts along New → Acknowledged → Investigating → Resolved.
+
+        The Alerts view could acknowledge and nothing else, so the Resolved tab
+        could never fill and no record said whether a closed hit was a real
+        vehicle or a misread. Resolving now requires a disposition and a
+        reason; every change is appended to the alert's own lifecycle (who,
+        when, what, why) and written to the hash-chained audit log, one entry
+        per alert, so an auditor filtering by alert id finds every step.
+
+        ``audit`` lets the HTTP layer record the role, case and jurisdiction of
+        the request; without it the store's plain audit is used.
+        """
+        from saakshya.watchlist.incidents import DISPOSITIONS
+
+        if action not in self._FROM:
+            raise ValueError(f"unknown action {action!r}; expected one of "
+                             f"{sorted(self._FROM)}")
+        reason = (reason or "").strip()
+        if action == "resolve":
+            if disposition not in DISPOSITIONS:
+                raise ValueError("resolving needs a disposition: one of "
+                                 + ", ".join(sorted(DISPOSITIONS)))
+            if len(reason) < 4:
+                raise ValueError("resolving needs a reason of at least 4 characters")
+        ids = list(dict.fromkeys(a for a in alert_ids if a))
+        if not ids:
+            raise ValueError("no alert ids given")
+        now = now_us()
+        new_status = {
+            "acknowledge": AlertStatus.ACKNOWLEDGED,
+            "investigate": AlertStatus.INVESTIGATING,
+            "resolve": (AlertStatus.FALSE_POSITIVE if disposition == "false_positive"
+                        else AlertStatus.CLEARED),
+        }[action]
+        changed: list[str] = []
+        skipped: list[dict] = []
         with self.store.engine.begin() as c:
-            c.execute(update(S.alerts).where(S.alerts.c.alert_id == alert_id)
-                      .values(status=str(AlertStatus.INVESTIGATING),
-                              acknowledged_by=actor, acknowledged_at_us=now_us()))
-        self.store.audit(actor, "alert_investigate", target=alert_id)
+            rows = {r.alert_id: r._mapping for r in c.execute(
+                select(S.alerts).where(S.alerts.c.alert_id.in_(ids)))}
+            for aid in ids:
+                row = rows.get(aid)
+                if row is None:
+                    skipped.append({"alert_id": aid, "why": "no such alert"})
+                    continue
+                cur = AlertStatus(row["status"] or "OPEN")
+                if cur not in self._FROM[action]:
+                    skipped.append({"alert_id": aid, "status": str(cur),
+                                    "why": f"already {cur}"})
+                    continue
+                try:
+                    history = json.loads(row["lifecycle"]) if row["lifecycle"] else []
+                except (TypeError, ValueError):
+                    history = []
+                step = {"action": action, "from": str(cur), "to": str(new_status),
+                        "by": actor, "at_us": now}
+                if reason:
+                    step["reason"] = reason
+                if disposition:
+                    step["disposition"] = disposition
+                if case_id:
+                    step["case_id"] = case_id
+                if group_id:
+                    step["group_id"] = group_id
+                history.append(step)
+                values = {"status": str(new_status), "lifecycle": json.dumps(history),
+                          "updated_at_us": now}
+                if action == "acknowledge" or not row["acknowledged_by"]:
+                    values.update(acknowledged_by=actor, acknowledged_at_us=now)
+                if case_id:
+                    values["case_id"] = case_id
+                if action == "resolve":
+                    values.update(disposition=disposition, cleared_reason=reason)
+                c.execute(update(S.alerts).where(S.alerts.c.alert_id == aid)
+                          .values(**values))
+                changed.append(aid)
+        purpose = "; ".join(x for x in (
+            disposition and f"disposition {disposition}", reason,
+            group_id and f"incident {group_id}") if x) or None
+        for aid in changed:
+            if audit is not None:
+                audit(f"alert_{action}", aid, purpose)
+            else:
+                self.store.audit(actor, f"alert_{action}", target=aid,
+                                 purpose=purpose, case_id=case_id)
+        return {"action": action, "status": str(new_status), "changed": changed,
+                "skipped": skipped, "by": actor, "at_us": now}
+
+    # -- operator actions ---------------------------------------------------- #
+    # The single-alert actions predate the lifecycle and are kept for the
+    # routes and the Intelligence panel that call them. They now go through
+    # transition(), so acknowledging a resolved alert no longer silently
+    # re-opens it, and every step lands in the alert's lifecycle as well as the
+    # audit log.
+    def acknowledge(self, alert_id: str, *, actor: str, audit=None) -> dict:
+        return self.transition([alert_id], "acknowledge", actor=actor, audit=audit)
+
+    def investigate(self, alert_id: str, *, actor: str, case_id: str | None = None,
+                    audit=None) -> dict:
+        return self.transition([alert_id], "investigate", actor=actor,
+                               case_id=case_id, audit=audit)
 
     def clear(self, alert_id: str, *, actor: str, reason: str,
-              false_positive: bool = False) -> None:
+              false_positive: bool = False, disposition: str | None = None,
+              audit=None) -> dict:
         """Close an alert. A cleared vehicle must not immediately re-alert on the
         same evidence — that is how operators learn to ignore the system."""
-        status = AlertStatus.FALSE_POSITIVE if false_positive else AlertStatus.CLEARED
-        with self.store.engine.begin() as c:
-            c.execute(update(S.alerts).where(S.alerts.c.alert_id == alert_id)
-                      .values(status=str(status), cleared_reason=reason,
-                              acknowledged_by=actor, acknowledged_at_us=now_us()))
-        self.store.audit(actor, "alert_clear", target=alert_id, purpose=reason)
+        disposition = disposition or ("false_positive" if false_positive else "cleared")
+        return self.transition([alert_id], "resolve", actor=actor, reason=reason,
+                               disposition=disposition, audit=audit)
 
     def list_alerts(self, status: AlertStatus | None = None) -> list[dict]:
         q = select(S.alerts).order_by(S.alerts.c.t_norm_us.desc())

@@ -2801,3 +2801,21 @@ body.wall-focus #live-progress {
 .deploy-details:not([open]) > .feed-indicator { display: none; }
 
 /* ═══ END SLOT S5 ═══ */
+
+/* Vehicle trace report viewer */
+.report-dialog { width: min(1100px, 96vw); height: 92vh; padding: 0; border: 1px solid var(--line-strong);
+  border-radius: var(--r); background: var(--surface); color: var(--ink); display: none;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%); }
+.report-dialog[open] { display: flex; flex-direction: column; }
+.report-dialog::backdrop { background: rgb(16 19 24 / 62%); }
+.report-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border-bottom: 1px solid var(--line); flex-wrap: wrap; background: var(--surface); }
+.report-bar h3 { margin: 0; font-size: 15px; color: var(--ink); }
+.report-bar #report-note { flex: 1; min-width: 200px; font-size: 12px; color: var(--ink-faint); }
+.report-actions { display: flex; gap: 8px; }
+.report-actions button { white-space: nowrap; }
+#report-frame { flex: 1; width: 100%; border: 0; background: #fff; border-radius: 0 0 var(--r) var(--r); }
+@media (max-width: 720px) {
+  .report-dialog { width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; border-radius: 0; }
+  .report-actions { width: 100%; }
+}

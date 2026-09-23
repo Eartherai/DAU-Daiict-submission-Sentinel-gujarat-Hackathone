@@ -65,8 +65,16 @@ function authHeaders() {
   }
   const h = {};
   if (state.token) h.Authorization = `Bearer ${state.token}`;
-  if (state.caseId) h["X-Case-Id"] = state.caseId;
-  if (state.purpose) h["X-Purpose"] = state.purpose;
+  // Header values must be ISO-8859-1: a purpose in Gujarati, or one with a
+  // typographic dash, made fetch() throw before the request was sent. Such
+  // values go percent-encoded, flagged so the server decodes them once.
+  const plain = (v) => /^[\x20-\x7e]*$/.test(v);
+  if (state.caseId || state.purpose) {
+    const enc = !plain(state.caseId || "") || !plain(state.purpose || "");
+    if (enc) h["X-Purpose-Encoding"] = "uri";
+    if (state.caseId) h["X-Case-Id"] = enc ? encodeURIComponent(state.caseId) : state.caseId;
+    if (state.purpose) h["X-Purpose"] = enc ? encodeURIComponent(state.purpose) : state.purpose;
+  }
   const gemini = sessionStorage.getItem("saakshya.gemini");
   if (gemini === "off") h["X-AI-Provider"] = "local";
   else if (gemini === "on") h["X-AI-Provider"] = "gemini";
@@ -7124,6 +7132,11 @@ function renderTargetCard(res) {
     card.append(el("div", { class: "target-clear",
       text: `Not on any active watchlist (checked ${fmtClock(ws.checked_at)})` }));
   }
+  const rep = el("button", { class: "primary", type: "button", id: "btn-trace-report",
+    title: "Every read, the route, the sealed stills and a digest — one page to print and sign",
+    text: "Trace report" });
+  rep.addEventListener("click", () => openTraceReport(plate));
+  card.append(el("div", { class: "target-actions" }, rep));
   if (alerts && alerts.open) {
     const b = el("button", { class: "ghost", type: "button",
       text: `${alerts.open} open alert${alerts.open === 1 ? "" : "s"} →` });
@@ -7136,6 +7149,51 @@ function renderTargetCard(res) {
   }
   return card;
 }
+
+/** The printable trace report, shown in place so the officer never leaves the
+ *  case. The server renders a script-free page; it is shown in a sandboxed
+ *  frame (no scripts run in it) and can be printed or saved as one file. */
+async function openTraceReport(plate) {
+  const dlg = $("#report-dialog");
+  const frame = $("#report-frame");
+  const note = $("#report-note");
+  note.textContent = `Building the trace report for ${plate}…`;
+  frame.removeAttribute("srcdoc");
+  if (!dlg.open) dlg.showModal();
+  try {
+    const body = await api(`/reports/vehicle/${encodeURIComponent(plate)}.html`);
+    const html = (body && body.raw) || "";
+    frame.srcdoc = html;
+    const id = (html.match(/Report <b class="mono">([^<]+)</) || [])[1] || plate;
+    note.textContent = `${id} · generated now from the store · this request is in the audit log`;
+    dlg.dataset.reportId = id;
+    dlg.dataset.html = html;
+  } catch (e) {
+    note.textContent = friendlyError ? friendlyError(e) : String(e.message || e);
+  }
+}
+
+function wireReportDialog() {
+  const dlg = $("#report-dialog");
+  if (!dlg || dlg.dataset.wired) return;
+  dlg.dataset.wired = "1";
+  $("#report-print").addEventListener("click", () => {
+    const w = $("#report-frame").contentWindow;
+    if (w) { w.focus(); w.print(); }
+  });
+  $("#report-save").addEventListener("click", () => {
+    const html = dlg.dataset.html || "";
+    if (!html) return;
+    const a = el("a", { href: URL.createObjectURL(new Blob([html], { type: "text/html" })),
+                        download: `${dlg.dataset.reportId || "trace-report"}.html` });
+    document.body.append(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+  $("#report-close").addEventListener("click", () => dlg.close());
+}
+document.addEventListener("DOMContentLoaded", wireReportDialog);
+if (document.readyState !== "loading") wireReportDialog();
 
 /** A plate nobody has seen is the realistic worst case. Say what to do next. */
 function renderNoSighting(res, plate) {
@@ -7231,8 +7289,10 @@ function renderPatternResults(res) {
 /* Contract for the alerts workstream: open the investigation of a vehicle from
  * anywhere, with the case and purpose an alert already implies, instead of
  * dead-ending on a raw "PURPOSE_REQUIRED … (X-Case-Id)" toast. */
-window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, from } = {}) => {
-  $('button[data-view="investigate"]')?.click();
+/** Bind a case and a purpose before a plate read, unless the officer already
+ *  has. Every plate read is refused without both, and the defaults say where
+ *  the request came from, so the audit line reads true. */
+function ensurePurpose({ plate, caseId, purpose, from } = {}) {
   const caseBox = $("#case-id");
   const purposeBox = $("#purpose");
   if (caseBox && !caseBox.value.trim()) {
@@ -7243,8 +7303,15 @@ window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, fr
       ? `Watchlist hit — verifying the movement of ${plate}`
       : `Tracing the movement of ${plate}`);
   }
-  caseBox?.dispatchEvent(new Event("change"));
-  purposeBox?.dispatchEvent(new Event("change"));
+  // The page listens for `input`, not `change`: dispatching `change` filled
+  // the boxes without committing them, so the request went out unbound.
+  syncPurpose();
+}
+window.SK_ensurePurpose = ensurePurpose;
+
+window.SK_openInvestigation = async ({ plate, caseId, purpose, observationId, from } = {}) => {
+  $('button[data-view="investigate"]')?.click();
+  ensurePurpose({ plate, caseId, purpose, from });
   if (plate) {
     $("#q-plate").value = plate;
     $("#q-fuzzy").checked = false;
@@ -7392,6 +7459,11 @@ function incidentCard(g) {
       }
       try { await transitionIncident(g, "investigate"); } catch { /* the search still opened */ }
     }, "primary"),
+    btn("Trace report", async () => {
+      window.SK_ensurePurpose?.({ plate: g.plate, from: "alert",
+        purpose: `Watchlist hit ${g.latest_alert_id} — tracing ${g.plate}` });
+      await openTraceReport(g.plate);
+    }),
     btn("View video", async () => jumpAlert({ alert_id: g.latest_alert_id, plate: g.plate,
       camera_id: g.latest_camera_id, observation_id: g.latest_observation_id, t_norm: g.last_seen })),
     open ? btn(`Acknowledge${g.count > 1 ? ` all ${open}` : ""}`, () => transitionIncident(g, "acknowledge")) : null,

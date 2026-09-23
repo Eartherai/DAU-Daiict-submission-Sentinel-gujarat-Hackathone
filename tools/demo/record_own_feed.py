@@ -84,6 +84,10 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
 
     def nav(view: str, settle: float = 1.5):
         def go():
+            # A report left open is modal; close it before moving on.
+            if page.evaluate("!!document.querySelector('#report-dialog')?.open"):
+                page.click("#report-close")
+                page.wait_for_timeout(300)
             page.click(f'button[data-view="{view}"]')
             page.wait_for_timeout(int(settle * 1000))
         return go
@@ -180,26 +184,32 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
         page.click('button[data-view="alerts"]')
         page.wait_for_timeout(2500)
 
-    def trace_report():
-        """Open the printable trace report for the plate just searched."""
-        for sel in ("#btn-trace-report", 'button:has-text("Trace report")',
-                    'a:has-text("Trace report")'):
+    def trace_report(report_plate: str = "GJ18JX7786"):
+        """Open the printable trace report for the vehicle the alert named.
+
+        The alert is on a fictional plate, which is also the one with a route
+        across cameras; the plate read off our own footage was read once and
+        has no route to print. The report opens in place, from the alert card,
+        and is scrolled so the legs, the reads and the signature block are on
+        screen long enough to read.
+        """
+        def go():
+            card = page.locator(".incident", has_text=report_plate).first
             try:
-                with page.expect_popup(timeout=4000) as pop:
-                    page.click(sel, timeout=2500)
-                report = pop.value
-                # The screencast follows this page, so show the report here.
-                page.goto(report.url, wait_until="domcontentloaded")
-                report.close()
-                page.wait_for_timeout(2500)
-                return
+                card.locator("button", has_text="Trace report").click(timeout=4000)
             except Exception:
-                try:
-                    page.click(sel, timeout=1500)
-                    page.wait_for_timeout(2500)
-                    return
-                except Exception:
-                    continue
+                page.click("#btn-trace-report", timeout=3000)
+            page.wait_for_function(
+                "() => (document.querySelector('#report-frame')?.srcdoc || '').length > 1000",
+                timeout=10000)
+            page.wait_for_timeout(2600)
+            # Scrolled from the parent: the report frame runs no script of its
+            # own (it is sandboxed without allow-scripts), but it is same-origin.
+            for y in (520, 1040, 1700, 2600):
+                page.evaluate("y => document.querySelector('#report-frame')"
+                              ".contentWindow.scrollTo({top: y, behavior: 'smooth'})", y)
+                page.wait_for_timeout(1700)
+        return go
 
     def bind_purpose():
         """Purpose binding is a gate, not decoration.
@@ -266,9 +276,10 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
                  "put a real person's vehicle on a watchlist for a "
                  "demonstration. The alert sets the read beside the listed "
                  "plate, character by character."),
-        Beat("A trace report an officer can sign", 10, trace_report,
-             say="The route becomes a report a senior officer can read, print "
-                 "and sign."),
+        Beat("A trace report an officer can sign", 11, trace_report(),
+             say="From the alert, the route becomes a report an officer can "
+                 "print and sign. Every read, each leg timed, and a digest "
+                 "over the rows."),
         Beat("Evidence, sealed and hash-chained", 9, nav("evidence", 2.0),
              say="Evidence is sealed with a hash chain."),
         Beat("Every query attributed", 9, nav("audit", 2.0),

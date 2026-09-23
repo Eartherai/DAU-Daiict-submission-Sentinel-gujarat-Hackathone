@@ -7,11 +7,23 @@ rule for this submission: faces are blurred in anything published.
 
 This platform deliberately has no face detector — "no biometric
 identification" is a design decision recorded in the HLD — so blurring is done
-without one. The pipeline already draws a box round every person it tracks;
-the top of that box is where the head is. That region is blurred, frame by
-frame, using the boxes the production pipeline produced for that exact frame
-(the sidecar written by analyse_own_feed.py). No face is ever located, and
-nothing is added to the platform that could later be turned to identify one.
+without one. The production pipeline's person detector puts a box round every
+person it sees; the top of that box is where the head is. That region is
+blurred, frame by frame. No face is ever located, and nothing is added to the
+platform that could later be turned to identify one.
+
+The first version blurred from the analysis sidecar, and checked by eye it
+missed people in plain view: two men beside a parked car, a man by a tree. The
+sidecar holds the *presentation* boxes, and presentation deliberately drops a
+person whose box sits inside a vehicle's, treating them as a passenger. That
+is right for a readable overlay and wrong for privacy. The second version ran
+the detector through the pipeline and blurred from the raw tracker pool; by
+eye it still missed small and half-hidden people, because the detector sees
+the 2560 px frame shrunk to 640 px. This version runs the production detector
+on the whole frame and again on overlapping tiles, at a lower confidence than
+the overlay uses, and blurs each region for a few frames either side of the
+one it was found on — because over-blurring costs nothing and a missed face is
+the failure that matters.
 
     python tools/demo/blur_heads.py OWN-MUM-AUTOSTAND
 
@@ -35,6 +47,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
 MEDIA = ROOT / "var" / "media"
 
 #: Fraction of a person box, from the top, treated as the head. A standing
@@ -63,7 +76,54 @@ def head_regions(boxes: list, width: int, height: int) -> list[tuple[int, int, i
     return out
 
 
-def blur(camera_id: str, *, crf: int = 16) -> dict:
+#: Tiles per axis for the second detection pass. The detector sees a 640 px
+#: input; a 2560 px frame shrinks four times and a person 60 px tall becomes
+#: 15 px, below what it finds reliably. Overlapping tiles double the scale.
+TILES = (3, 2)
+TILE_OVERLAP = 0.14
+#: A region is blurred on this many frames either side of the one it was
+#: detected on, so a detection that flickers out for a frame stays covered.
+TEMPORAL_PAD = 3
+
+
+def _tiles(width: int, height: int) -> list[tuple[int, int, int, int]]:
+    nx, ny = TILES
+    tw, th = width / nx, height / ny
+    ox, oy = tw * TILE_OVERLAP, th * TILE_OVERLAP
+    out = []
+    for j in range(ny):
+        for i in range(nx):
+            x1, y1 = max(0, int(i * tw - ox)), max(0, int(j * th - oy))
+            x2, y2 = min(width, int((i + 1) * tw + ox)), min(height, int((j + 1) * th + oy))
+            out.append((x1, y1, x2, y2))
+    return out
+
+
+def _detector():
+    """The production vehicle/person detector, from the registry, as deployed."""
+    from saakshya.analytics.pipeline import PipelineConfig
+    from saakshya.models.registry import get
+    from saakshya.runtime.backend import BACKENDS
+
+    rec = get(PipelineConfig().vehicle_detector_key)
+    if rec is None:
+        raise SystemExit("the vehicle detector is not in the model registry")
+    return BACKENDS.get(rec)
+
+
+def detect_people(img, backend, person_conf: float) -> list[list]:
+    """Every person box on the whole frame and on each tile, in frame pixels."""
+    h, w = img.shape[:2]
+    boxes = []
+    for (tx1, ty1, tx2, ty2) in [(0, 0, w, h), *_tiles(w, h)]:
+        for d in backend.detect(img[ty1:ty2, tx1:tx2]):
+            if (d.label or "").lower() == "person" and d.score >= person_conf:
+                x1, y1, x2, y2 = d.box
+                boxes.append([x1 + tx1, y1 + ty1, x2 + tx1, y2 + ty1, "p"])
+    return boxes
+
+
+def blur(camera_id: str, *, crf: int = 16, person_conf: float = 0.25) -> dict:
     import av
     import cv2
 
@@ -74,32 +134,38 @@ def blur(camera_id: str, *, crf: int = 16) -> dict:
         if not clip.exists():
             raise SystemExit(f"no recording for {camera_id}")
         shutil.move(str(clip), str(source))
-    if not side.exists():
-        raise SystemExit(f"{camera_id} has not been analysed; run analyse_own_feed.py first")
-    tracks = json.loads(side.read_text(encoding="utf-8"))
-    import hashlib
-    h = hashlib.sha256(source.read_bytes()).hexdigest()
-    if tracks.get("sha256") != h:
-        raise SystemExit("the sidecar was not computed over the source file; "
-                         "refusing to blur from boxes that belong to other bytes")
-    frames = tracks["frames"]
 
     with av.open(str(source)) as c:
         vs = c.streams.video[0]
         width, height = vs.codec_context.width, vs.codec_context.height
-        fps = tracks.get("fps") or float(vs.average_rate)
+        fps = float(vs.average_rate) if vs.average_rate else 30.0
+
+    # Pass 1: find every head. Regions only are kept, not frames.
+    backend = _detector()
+    regions: list[list[tuple[int, int, int, int]]] = []
+    with av.open(str(source)) as c:
+        for i, vf in enumerate(c.decode(video=0)):
+            img = vf.to_ndarray(format="bgr24")
+            regions.append(head_regions(detect_people(img, backend, person_conf),
+                                        width, height))
+            if i and i % 50 == 0:
+                print(f"  {camera_id}: {i} frames searched for people", flush=True)
+
+    # Pass 2: blur the union of each frame's neighbours' regions and encode.
     cmd = ["ffmpeg", "-y", "-v", "error",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{width}x{height}",
            "-r", f"{fps}", "-i", "-",
            "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(clip)]
     enc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    blurred = 0
+    blurred = frames = 0
+    n = len(regions)
     with av.open(str(source)) as c:
         for i, vf in enumerate(c.decode(video=0)):
             img = vf.to_ndarray(format="bgr24")
-            boxes = frames[i][1] if i < len(frames) else []
-            for (x1, y1, x2, y2) in head_regions(boxes, width, height):
+            todo = {r for k in range(max(0, i - TEMPORAL_PAD), min(n, i + TEMPORAL_PAD + 1))
+                    for r in regions[k]}
+            for (x1, y1, x2, y2) in todo:
                 roi = img[y1:y2, x1:x2]
                 k = max(15, ((max(x2 - x1, y2 - y1) // 2) | 1))
                 # Pixelate, then soften: unmistakably anonymised, not smeared.
@@ -107,16 +173,24 @@ def blur(camera_id: str, *, crf: int = 16) -> dict:
                                    interpolation=cv2.INTER_LINEAR)
                 roi = cv2.resize(small, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
                 img[y1:y2, x1:x2] = cv2.GaussianBlur(roi, (k, k), 0)
-                blurred += 1
+            blurred += len(regions[i]) if i < n else 0
             enc.stdin.write(img.tobytes())
+            frames += 1
     enc.stdin.close()
     if enc.wait() != 0:
         raise SystemExit("encoding the blurred file failed")
-    # The sidecar describes the source's bytes; move it so it cannot be served
-    # over the blurred copy (the server would refuse it anyway).
-    side.rename(MEDIA / f"{camera_id}.source.tracks.json")
+    if frames and not blurred:
+        # A footage clip of a street with nobody detected is possible; a blur
+        # pass that silently did nothing is the failure this guards against.
+        clip.unlink(missing_ok=True)
+        raise SystemExit(f"{camera_id}: no person detected in {frames} frames - "
+                         "refusing to publish an unblurred copy; check the detector")
+    # Any sidecar describes other bytes now; move it so it cannot be served over
+    # the blurred copy (the server would refuse it on SHA-256 anyway).
+    if side.exists():
+        side.rename(MEDIA / f"{camera_id}.source.tracks.json")
     return {"camera_id": camera_id, "heads_blurred": blurred,
-            "frames": len(frames), "out": str(clip.relative_to(ROOT))}
+            "frames": frames, "out": str(clip.relative_to(ROOT))}
 
 
 def main() -> int:

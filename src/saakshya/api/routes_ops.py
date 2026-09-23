@@ -13,7 +13,8 @@ from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi import Path as PathParam
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from saakshya.api.deps import (
@@ -808,6 +809,38 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
     return PlainTextResponse(body, media_type="text/csv", headers={
         "Content-Disposition":
             f'attachment; filename="saakshya-anpr{tag}-{stamp}.csv"'})
+
+
+@router.get("/reports/vehicle/{plate}.html",
+            summary="Printable trace report for one vehicle",
+            response_class=HTMLResponse)
+async def vehicle_trace_report(state: StateDep, ctx: AuthDep,
+                               plate: Annotated[str, PathParam(max_length=24)]
+                               ) -> HTMLResponse:
+    """One page an officer can print, sign and put in the case diary.
+
+    Every read in the caller's jurisdiction, the legs between cameras with a
+    physically impossible one flagged, the watchlist status at printing, the
+    sealed stills re-verified, and a digest over the rows. The page carries no
+    script and fetches nothing, so it saves and prints as a single file. Same
+    gate as a plate search (search:plate, bound to a case and a stated purpose,
+    audited): it is one vehicle's whole movement history on paper, and the
+    case and purpose are printed on it.
+    """
+    try:
+        ctx.authorise(Permission.SEARCH_PLATE)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    from saakshya.reports.vehicle_trace import build, render_html
+
+    t = build(state, ctx, plate)
+    ctx.audit(state.store, "vehicle_trace_report", target=t["plate"],
+              result_count=len(t["rows"]))
+    body = render_html(t)
+    return HTMLResponse(body, headers={
+        "Cache-Control": "no-store",
+        "X-Report-Id": t["report_id"], "X-Report-Digest": t["digest"],
+        "Content-Disposition": f'inline; filename="{t["report_id"]}.html"'})
 
 
 @router.get("/config", summary="What this deployment has been configured with")

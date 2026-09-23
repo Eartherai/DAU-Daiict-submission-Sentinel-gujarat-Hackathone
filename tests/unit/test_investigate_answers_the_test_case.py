@@ -69,8 +69,22 @@ def test_the_purpose_rule_is_stated_where_the_refusal_is_shown() -> None:
 def test_alerts_can_open_an_investigation_without_a_raw_refusal() -> None:
     block = APP[APP.index("window.SK_openInvestigation"):]
     block = block[:block.index("};") + 2]
-    assert "#case-id" in block and "#purpose" in block
-    assert "< 12" in block, "the generated purpose must meet the 12-character rule"
+    assert "ensurePurpose(" in block
+    helper = APP[APP.index("function ensurePurpose"):]
+    helper = helper[:helper.index("\n}\n") + 3]
+    assert "#case-id" in helper and "#purpose" in helper
+    assert "< 12" in helper, "the generated purpose must meet the 12-character rule"
+    # The boxes listen for `input`; dispatching `change` filled them without
+    # committing, and the request went out unbound. Commit directly.
+    assert "syncPurpose()" in helper
+
+
+def test_purpose_headers_survive_characters_outside_latin_1() -> None:
+    """A default purpose with an em dash made fetch() throw before sending."""
+    block = APP[APP.index("function authHeaders"):]
+    block = block[:block.index("\n}\n") + 3]
+    assert "encodeURIComponent(state.purpose)" in block
+    assert '"X-Purpose-Encoding"' in block
 
 
 def test_the_header_keeps_the_purpose_usable_on_a_1366_laptop() -> None:

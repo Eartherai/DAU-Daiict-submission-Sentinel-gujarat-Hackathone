@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr115">
+<link rel="stylesheet" href="/ui/style.css?v=cr117">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -747,6 +747,19 @@
   </main>
 </div>
 
+<dialog id="report-dialog" class="report-dialog" aria-labelledby="report-title">
+  <div class="report-bar">
+    <h3 id="report-title">Vehicle trace report</h3>
+    <span class="muted" id="report-note" role="status"></span>
+    <span class="report-actions">
+      <button type="button" class="primary" id="report-print">Print / save as PDF</button>
+      <button type="button" class="ghost" id="report-save">Download HTML</button>
+      <button type="button" class="ghost" id="report-close" aria-label="Close report">Close</button>
+    </span>
+  </div>
+  <iframe id="report-frame" title="Vehicle trace report" sandbox="allow-same-origin allow-modals"></iframe>
+</dialog>
+
 <dialog id="token-dialog">
   <form method="dialog" class="gate-form">
     <h3>Sign in</h3>
@@ -827,7 +840,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr146"></script>
+<script type="module" src="/ui/app.js?v=cr149"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

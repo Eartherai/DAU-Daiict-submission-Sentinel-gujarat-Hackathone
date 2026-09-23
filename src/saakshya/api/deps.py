@@ -212,6 +212,7 @@ async def auth_context(
     authorization: Annotated[str | None, Header()] = None,
     x_case_id: Annotated[str | None, Header(alias="X-Case-Id")] = None,
     x_purpose: Annotated[str | None, Header(alias="X-Purpose")] = None,
+    x_purpose_encoding: Annotated[str | None, Header(alias="X-Purpose-Encoding")] = None,
 ) -> AuthContext:
     """Authenticate, and carry the purpose binding into the service layer.
 
@@ -234,6 +235,15 @@ async def auth_context(
         raise HTTPException(status_code=401, detail={
             "code": "NOT_AUTHENTICATED", "message": str(exc)}) from exc
 
+    if (x_purpose_encoding or "").strip().lower() == "uri":
+        # HTTP header values are ISO-8859-1. A purpose written in Gujarati, or
+        # one holding a typographic dash, cannot be sent raw — the browser
+        # refuses the request before it leaves. The interface percent-encodes
+        # such values and says so; they are decoded here, once, so the audit
+        # log records what the officer wrote.
+        from urllib.parse import unquote
+        x_case_id = unquote(x_case_id) if x_case_id else x_case_id
+        x_purpose = unquote(x_purpose) if x_purpose else x_purpose
     ctx = AuthContext(principal=principal, case_id=x_case_id, purpose=x_purpose,
                       request_id=getattr(request.state, "request_id", None))
     request.state.actor = principal.user_id

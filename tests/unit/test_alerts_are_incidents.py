@@ -53,3 +53,16 @@ def test_keyboard_triage_ignores_typing() -> None:
     block = SLOT[SLOT.index('document.addEventListener("keydown"'):]
     assert '"input", "textarea", "select"' in block
     assert 'classList.contains("active")' in block
+
+
+def test_zero_is_a_true_answer_on_the_overview() -> None:
+    """`hour.distinct || distinct_plates` printed the all-time total (178)
+    under "last hour" whenever the last hour was genuinely empty."""
+    assert "hour.distinct || o.observations.distinct_plates" not in APP
+    assert "hour.distinct ?? 0" in APP
+
+
+def test_withheld_alerts_never_print_null() -> None:
+    """Roles that may not read alerts get `open: null`; String(null) is 'null'."""
+    assert "String(o.alerts.open)" not in APP
+    assert "o.alerts.withheld" in APP

@@ -1784,15 +1784,20 @@ loaders.overview = async () => {
           : `${withStill} cameras have a stored still` }),
         bar(showing, "green")),
       el("div", { class: "kpi" },
-        el("h4", { text: "Marks read, last hour" }),
-        el("div", { class: "big", text: String(hour.distinct || o.observations.distinct_plates || 0) }),
-        el("div", { class: "sub", text: `${hour.confirmed || o.observations.plate_confirmed || 0} confirmed · ${hour.leads || o.observations.plate_leads || 0} single-frame leads` }),
-        bar(hour.distinct || o.observations.distinct_plates || 0)),
+        // Zero is a true answer. `||` treated it as missing and printed the
+        // all-time total (178) under "last hour" on a store with nothing read
+        // in the last hour. The window is the latest hour of ingest, which is
+        // "now" on a live grid and honest on a paused one.
+        el("h4", { text: "Marks read, latest hour" }),
+        el("div", { class: "big", text: String(hour.distinct ?? 0) }),
+        el("div", { class: "sub", text: `${hour.confirmed ?? 0} confirmed · ${hour.leads ?? 0} single-frame leads · `
+          + `${o.observations.distinct_plates ?? 0} all time` }),
+        bar(hour.distinct ?? 0)),
       el("div", { class: "kpi" },
         el("h4", { text: "Alerts unacknowledged" }),
-        el("div", { class: "big", text: String(o.alerts.open) }),
+        el("div", { class: "big", text: o.alerts.withheld ? "—" : String(o.alerts.open ?? 0) }),
         el("div", { class: "sub", text: "each names the watchlist rule that fired" }),
-        bar(o.alerts.open, "red")),
+        bar(o.alerts.open ?? 0, "red")),
       cmd ? el("div", { class: "kpi" },
         el("h4", { text: "Persons / vehicles in store" }),
         el("div", { class: "big", text: `${cmd.kpis?.people?.display ?? cmd.persons_detected ?? 0} / ${cmd.kpis?.vehicles?.display ?? cmd.vehicles_tracked ?? 0}` }),
@@ -1811,7 +1816,8 @@ loaders.overview = async () => {
         `${unk} camera${unk === 1 ? " is" : "s are"} not graded. That is an absence of evidence about those cameras, not a poor grade.` }) : null);
 
     const open = el("div", { class: "ov-card" },
-      el("span", { class: "pill", text: `${o.alerts.open} unacknowledged` }),
+      el("span", { class: "pill", text: o.alerts.withheld
+        ? "not visible to your role" : `${o.alerts.open ?? 0} unacknowledged` }),
       el("h3", { text: "Open alerts" }),
       el("p", { class: "lede", text: "Nothing becomes an alert unless a watchlist rule fires, and the rule that fired is named on the row." }),
       alerts.length
@@ -1936,8 +1942,10 @@ function fillNavFoot(o) {
   foot.append(
     row(o.cameras.total, "cameras onboarded"),
     row(good, "graded good for plate reading"),
-    row(hour.distinct || o.observations.distinct_plates || 0, "marks read in the last hour"),
-    row(o.alerts.open, "alerts open, unacknowledged"));
+    row(hour.distinct ?? 0, "marks read in the latest hour"),
+    o.alerts.withheld
+      ? row("—", "alerts: not visible to your role")
+      : row(o.alerts.open ?? 0, "alerts open, unacknowledged"));
 }
 
 /* System health, also written into the nav dot so a degraded subsystem is

@@ -96,6 +96,16 @@ def test_a_tied_vote_is_not_settled_by_order() -> None:
     assert v.resolve("T1") is None
 
 
+def test_other_vehicles_plates_on_a_track_are_not_disagreement() -> None:
+    # A bus's box holds the cars in front of it: their plates are other
+    # vehicles, not rival readings of this one.
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads(*(["MH03EG7361"] * 5), *(["MH02ER3645"] * 4),
+                       *(["MH02FG0919"] * 4), "MH03EG7381"))
+    best = v.resolve("T1")
+    assert best is not None and best.plate.canonical == "MH03EG7361"
+
+
 def test_a_converged_vote_still_publishes_with_its_stragglers() -> None:
     v = PlateVoter(AnprConfig())
     v.add("T1", _reads(*(["MH02GB4920"] * 9), "MN22GB4920", "MH02GB4926"))

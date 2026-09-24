@@ -64,6 +64,7 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
     """
     from collections import Counter
 
+    from saakshya.analytics.plates import agreement
     from saakshya.analytics.plates import slot_typed as parse
 
     out: dict[str, str] = {}
@@ -82,7 +83,9 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
         # What the store records is still decided at the end of the track.
         if votes < max(3, anpr_cfg.min_votes) or votes < runner + 2:
             continue
-        if votes < anpr_cfg.min_agreement * len(valid):
+        lookalikes = sum(1 for p, _ in valid
+                         if agreement(p.canonical, best) >= anpr_cfg.lookalike_agreement)
+        if votes < anpr_cfg.min_agreement * lookalikes:
             continue
         conf = sum(r.confidence for p, r in valid if p.canonical == best) / votes
         if conf >= anpr_cfg.min_confidence:

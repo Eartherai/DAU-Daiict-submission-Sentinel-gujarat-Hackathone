@@ -35,7 +35,7 @@ from typing import Any
 
 import numpy as np
 
-from saakshya.analytics.plates import PlateRead, parse, slot_typed
+from saakshya.analytics.plates import PlateRead, agreement, parse, slot_typed
 from saakshya.models.registry import ANPR_CPU, ModelRecord
 from saakshya.runtime.backend import BACKENDS, InferenceBackend
 
@@ -120,14 +120,20 @@ class AnprConfig:
     min_votes: int = 2
     #: Minimum mean OCR confidence for a voted (>=min_votes) read to publish.
     min_confidence: float = 0.55
-    #: The winning reading must hold at least this share of the track's valid
-    #: reads, and be strictly ahead of the runner-up. Frames of a readable
-    #: plate converge; frames of an unreadable one scatter. A plate whose
-    #: digits the licensed footage blurs came back as MH01EX0900 x3, EK0900
-    #: x4, EX0800 x2, EK9900 x2, EK0800 x2 and four singles - some single
-    #: reads at 0.98 - so no per-read confidence separates it, and "two
-    #: agreeing reads" published an invented mark. Agreement does.
+    #: The winning reading must hold at least this share of the reads that look
+    #: like it, and be strictly ahead of the next such reading. Frames of a
+    #: readable plate converge; frames of an unreadable one scatter. A plate
+    #: whose digits the licensed footage blurs came back as MH01EX0900 x3,
+    #: EK0900 x3, EX0800, EK9900, EK0800 x2 each and more - some single reads
+    #: at 0.98 - so no per-read confidence separates it, and "two agreeing
+    #: reads" published an invented mark. Only lookalikes count against the
+    #: winner: a vehicle's track also collects other vehicles' plates
+    #: (MH03EG7361 held 75 of 1,322 valid reads, the rest mostly other cars),
+    #: and those are not disagreement about this one.
     min_agreement: float = 0.5
+    #: Two readings are the same plate read differently when at least this
+    #: share of their positions agree: at most two of ten characters differ.
+    lookalike_agreement: float = 0.8
 
     #: When a track yields only one valid read — which is the common case at the
     #: per-camera frame rate a large estate can afford — that read is published
@@ -406,15 +412,12 @@ class PlateVoter:
             return None
 
         counts = Counter(pr.canonical for pr, _ in valid)
-        ranked = counts.most_common(2)
-        best, votes = ranked[0]
+        best, votes = counts.most_common(1)[0]
         members = [(pr, r) for pr, r in valid if pr.canonical == best]
         conf = float(np.mean([r.confidence for _, r in members]))
 
         provisional = False
-        if votes >= self.cfg.min_votes and (
-                votes < self.cfg.min_agreement * len(valid)
-                or (len(ranked) > 1 and ranked[1][1] == votes)):
+        if votes >= self.cfg.min_votes and not self._agreed(best, votes, counts):
             # The frames do not agree on this plate. A scattered or tied vote
             # is an unreadable plate, not a close call to be settled here.
             self.rejected_disagreement += 1
@@ -444,6 +447,13 @@ class PlateVoter:
             best_box=best_read.box,
             runners_up=[(t, n) for t, n in counts.most_common()[1:4]],
         )
+
+    def _agreed(self, best: str, votes: int, counts: Counter[str]) -> bool:
+        """Whether the reads that look like `best` converge on it."""
+        family = {c: n for c, n in counts.items()
+                  if agreement(c, best) >= self.cfg.lookalike_agreement}
+        rival = max((n for c, n in family.items() if c != best), default=0)
+        return votes >= self.cfg.min_agreement * sum(family.values()) and votes > rival
 
     def resolve_all(self, track_key: str) -> list[VotedPlate]:
         """Every *corroborated* plate in this bucket, not just the top one.

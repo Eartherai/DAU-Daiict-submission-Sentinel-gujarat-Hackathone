@@ -51,6 +51,12 @@ _STANDARD = re.compile(r"^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{4})$")
 _BH = re.compile(r"^(\d{2})(BH)(\d{4})([A-Z]{1,2})$")
 _STRIP = re.compile(r"[^A-Z0-9]")
 
+#: Numbers are allotted from 0001 to 9999; 0000 is never issued. A recogniser
+#: that reads a plate whose digits are smeared - the licensed footage blurs
+#: some - fills them with zeros: "MH01EK0000", with three agreeing frames at
+#: 0.85, where the number was not visible at all.
+_NO_ZERO_NUMBER = "number 0000 is never issued"
+
 
 @dataclass(frozen=True, slots=True)
 class PlateRead:
@@ -93,6 +99,8 @@ def parse(raw: str) -> PlateRead:
 
     m = _BH.match(canon)
     if m:
+        if m.group(3) == "0000":
+            return PlateRead(canon, raw, False, "invalid", "BH", _NO_ZERO_NUMBER)
         return PlateRead(canon, raw, True, "bh", "BH", "matches Bharat series format")
 
     m = _STANDARD.match(canon)
@@ -104,6 +112,8 @@ def parse(raw: str) -> PlateRead:
     if state not in STATE_CODES:
         return PlateRead(canon, raw, False, "invalid", state,
                          f"'{state}' is not a valid state/UT code")
+    if m.group(4) == "0000":
+        return PlateRead(canon, raw, False, "invalid", state, _NO_ZERO_NUMBER)
     return PlateRead(canon, raw, True, "standard", state, "valid standard format")
 
 

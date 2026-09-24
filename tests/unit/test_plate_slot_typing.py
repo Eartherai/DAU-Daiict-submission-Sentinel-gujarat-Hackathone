@@ -56,3 +56,14 @@ def test_the_portable_ocr_can_be_forced(monkeypatch) -> None:
     monkeypatch.setenv("SAAKSHYA_OCR", "onnx")
     eng = AnprEngine(AnprConfig(), backend=Fake())
     assert eng.ocr_backend is eng.backend
+
+
+def test_number_0000_is_never_a_mark() -> None:
+    # A plate whose digits are blurred came back as MH01EK0000, three frames
+    # agreeing at 0.85. No registration is numbered 0000.
+    from saakshya.analytics.plates import parse
+    for mark in ("MH01EK0000", "GJ050000", "22BH0000A"):
+        r = parse(mark)
+        assert not r.valid and "0000" in r.reason, mark
+        assert not slot_typed(mark).valid, mark
+    assert parse("MH01EK0001").valid and parse("22BH0001A").valid

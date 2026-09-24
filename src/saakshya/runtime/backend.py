@@ -219,6 +219,10 @@ class FastAlprBackend(InferenceBackend):
         from fast_alpr.default_detector import DefaultDetector
         from fast_alpr.default_ocr import DefaultOCR
 
+        from saakshya.runtime.hardware import onnxruntime_offline
+
+        onnxruntime_offline()
+
         self._record = record
         providers = list(self.ctx.providers)
         self._detector = DefaultDetector(

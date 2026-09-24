@@ -129,12 +129,35 @@ def _probe_mps() -> bool:
         return False
 
 
+def onnxruntime_offline() -> None:
+    """Switch off ONNX Runtime's usage telemetry before its first session.
+
+    ONNX Runtime 1.29 carries Microsoft's telemetry client, which posts usage
+    events over HTTPS from a worker thread of its own. Nothing here configured
+    it and nothing here wants it: this platform's rule is that detection and
+    ANPR stay on the deployment's own hardware, and a police host should not
+    make calls nobody asked for. It also crashed interpreter shutdown - that
+    thread dispatched an HTTP response after the logger it reports to had been
+    destroyed ("recursive_mutex lock failed", about one test run in five; the
+    macOS crash report names the telemetry client's HttpClientManager).
+    """
+    if importlib.util.find_spec("onnxruntime") is None:
+        return
+    try:
+        import onnxruntime as ort
+
+        ort.disable_telemetry_events()
+    except Exception:  # an older build without the switch has no client either
+        pass
+
+
 def _onnx_providers() -> tuple[str, ...]:
     if importlib.util.find_spec("onnxruntime") is None:
         return ()
     try:
         import onnxruntime as ort
 
+        onnxruntime_offline()
         return tuple(ort.get_available_providers())
     except Exception:
         return ()

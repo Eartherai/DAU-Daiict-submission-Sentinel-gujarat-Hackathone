@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr123">
+<link rel="stylesheet" href="/ui/style.css?v=cr124">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -526,7 +526,8 @@
             <button class="ghost on" data-alert-status="OPEN">New</button>
             <button class="ghost" data-alert-status="ACKNOWLEDGED">Acknowledged</button>
             <button class="ghost" data-alert-status="INVESTIGATING">Investigating</button>
-            <button class="ghost" data-alert-status="CLEARED">Resolved</button>
+            <!-- RESOLVED is CLEARED and FALSE_POSITIVE; asking for CLEARED hid every false positive. -->
+            <button class="ghost" data-alert-status="RESOLVED">Resolved</button>
             <button class="ghost" data-alert-status="">All</button>
           </div>
         </div>
@@ -852,10 +853,11 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr155"></script>
+<script type="module" src="/ui/app.js?v=cr156"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>
+    <p id="jump-camera">CAMERA: —</p>
     <p id="jump-event-time">EVENT TIMESTAMP: —</p>
     <p id="jump-live-pos">CURRENT LIVE POSITION: —</p>
     <p class="section-note" id="jump-note"></p>

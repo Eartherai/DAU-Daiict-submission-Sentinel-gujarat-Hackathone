@@ -401,7 +401,9 @@ def jump_playback(store: Store, camera_id: str, *,
             "seekable": True,
             "event_pts_s": pts_s,
             "current_live_position": None,
-            "note": "Local file replay. Labelled by source_domain, not government live.",
+            # Shown to the officer in the jump dialog; "source_domain" was a
+            # field name, not something they could act on.
+            "note": "Recorded file replay — not a live government feed.",
         }
     return {
         "kind": "LIVE_POSITION",

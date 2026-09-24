@@ -297,6 +297,9 @@ def jump_payload(store: Store, observation_id: str) -> dict[str, Any]:
     return {
         "observation_id": observation_id,
         "camera_id": m["camera_id"],
+        # The jump dialog names the camera it will open; without the name it
+        # could only print the district ("Ahmedabad (C-021)").
+        "camera_name": cam.get("name"),
         "signal": cam.get("site") or cam.get("road") or cam.get("district"),
         "event_time": event_time,
         "event_timestamp": event_time,

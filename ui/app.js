@@ -94,8 +94,13 @@ async function api(path, opts = {}) {
     // operator) cannot search or list vehicle registration marks. Vehicle
     // searches are run by investigating officers and supervisors."). The
     // technical message stays in the code and the log, not on the screen.
+    // A 500 says "quote the request id" and the id was dropped here, so the
+    // officer was told to quote something no screen showed.
+    const rid = d.request_id
+      || (res.status >= 500 ? res.headers.get("X-Request-Id") : null);
+    const text = d.human || d.message || res.statusText;
     throw new ApiError(res.status, d.code || String(res.status),
-                       d.human || d.message || res.statusText);
+                       rid ? `${text} (request id ${rid})` : text);
   }
   return body;
 }
@@ -127,9 +132,17 @@ function loadingNote(text) {
     text: text || "Loading from the live store…" });
 }
 
+/* Toasts share one stack. Each used to sit at the same fixed spot, so two at
+ * once printed over each other ("Map: the r[Track a target first]request id")
+ * and neither could be read. */
 function toast(message, bad = false) {
+  let stack = document.getElementById("toast-stack");
+  if (!stack) {
+    stack = el("div", { id: "toast-stack", role: "status", "aria-live": "polite" });
+    document.body.append(stack);
+  }
   const t = el("div", { class: `toast${bad ? " bad" : ""}`, text: message });
-  document.body.append(t);
+  stack.append(t);
   setTimeout(() => t.remove(), bad ? 7000 : 3500);
 }
 
@@ -704,6 +717,22 @@ $("#search-form").addEventListener("submit", async (e) => {
 function renderSearchError(err) {
   const box = $("#results");
   clear(box);
+  // A refused search ran nothing, so the Movement column must not go on
+  // saying "Searching every camera…" under the refused plate.
+  $("#traj-body")?.replaceChildren(el("div", { class: "empty",
+    text: "No search ran. Nothing to trace yet." }));
+  if ($("#traj-target")) $("#traj-target").textContent = "";
+  state.target = null;
+  const title = {
+    PURPOSE_REQUIRED: "Case and purpose needed",
+    NOT_AUTHENTICATED: "Sign in first",
+    OUT_OF_JURISDICTION: "Outside your jurisdiction",
+    PERMISSION_DENIED: "Not available to your role",
+    QUERY_TOO_BROAD: "Search too broad",
+    BUSY: "System busy",
+  }[err.code];
+  // No PERMISSION_DENIED line here: the server's own sentence names the role
+  // and who can run the search, and a fixed line replaced it with less.
   const guidance = {
     PURPOSE_REQUIRED: "Fill in the case identifier, and a purpose of at least "
       + "12 characters, at the top of the screen — for example \"tracing a "
@@ -712,14 +741,13 @@ function renderSearchError(err) {
     NOT_AUTHENTICATED: "Sign in with the bearer token issued to you.",
     OUT_OF_JURISDICTION: "That district is outside your jurisdiction. A "
       + "supervisor with statewide scope can run this search.",
-    PERMISSION_DENIED: "Your role does not hold this permission.",
     QUERY_TOO_BROAD: "Add at least one filter. An unfiltered scan of the whole "
       + "estate is refused deliberately.",
     BUSY: "The system refused this request rather than queueing it. Try again "
       + "shortly.",
   }[err.code];
   box.append(el("div", { class: "notice bad" },
-    el("strong", { text: err.code || "Search failed" }),
+    el("strong", { text: title || "Search failed" }),
     guidance || err.message));
   $("#result-count").textContent = "";
   $("#strategy").textContent = "";
@@ -755,7 +783,7 @@ function renderResults(res) {
           + "see where."
         : "This is not evidence that the target was absent. It means no camera in "
           + "the searched set recorded a matching observation. The cameras that were "
-          + "searched, and those excluded, are listed below."));
+          + "searched, and those excluded, are summarised below."));
   }
 
   if (res.caveat) {
@@ -767,16 +795,30 @@ function renderResults(res) {
    * The government grid loops; saying so here is what stops a looping
    * publisher being read as a multi-camera route. */
   const sight = res.sighting;
+  /* With no exact read, every row is a different mark. "4 reads of this mark"
+   * then sat under the searched plate's card, so GJ05AB9999's reads read as
+   * sightings of GJ01ZZ9999. Name the mark that was actually read. */
+  const typed = String(res.target_plate || res.query?.plate || "").toUpperCase();
+  const nearMarks = typed && res.stage_counts && !res.stage_counts.exact
+    ? [...new Set(rows.map((c) => c.plate).filter((p) => p && p.toUpperCase() !== typed))]
+    : [];
   if (sight?.message) {
+    const who = nearMarks.length
+      ? `${nearMarks.join(", ")}, a near match to ${typed || "the searched mark"}` : "";
+    const text = !who ? sight.message
+      : sight.message.includes("of this mark")
+        ? sight.message.replace("of this mark", `of ${who}`)
+        : `Reads of ${who}: ${sight.message}`;
     box.append(el("div", {
       class: "notice" + (sight.cross_camera ? "" : " warn"),
     },
       el("strong", {
-        text: sight.cross_camera
+        text: nearMarks.length ? "Near match only — not the mark you searched"
+          : sight.cross_camera
           ? "Seen on more than one camera"
           : "One camera only",
       }),
-      sight.message));
+      text));
   }
 
   for (const c of rows) {
@@ -805,9 +847,11 @@ function renderResults(res) {
   const st = res.search_strategy;
   if (st) {
     const excluded = st.cameras_excluded || [];
+    // "STATE" is the server's code for statewide scope, not a place name.
     $("#strategy").textContent =
-      `Searched ${st.cameras_searched_count} camera(s) in `
-      + `${Array.isArray(st.jurisdiction) ? st.jurisdiction.join(", ") : st.jurisdiction}`
+      `Searched ${st.cameras_searched_count} camera(s) `
+      + (st.jurisdiction === "STATE" ? "statewide"
+        : `in ${Array.isArray(st.jurisdiction) ? st.jurisdiction.join(", ") : st.jurisdiction}`)
       + (excluded.length ? ` · ${excluded.length} excluded: `
         + [...new Set(excluded.map((x) => x.reason))].join(", ") : "");
     $("#strategy").title = excluded
@@ -1061,23 +1105,26 @@ async function nextCameras(c) {
     if (!res.suggestions.length) {
       body.append(el("div", { class: "notice neutral" }, res.note));
     } else {
-      const table = el("table", { class: "data" },
+      // Six columns were wider than the 400px detail column: Availability was
+      // cut to "STRE" and OWN-TRAFFIC broke over two lines. Transition and
+      // fit, the two terms behind Priority, move into the row's title, and
+      // the table scrolls in its own box if it still does not fit.
+      const table = el("table", { class: "data next-cams" },
         el("thead", {}, el("tr", {},
           el("th", { text: "Camera" }), el("th", { text: "Priority" }),
-          el("th", { text: "Transition" }), el("th", { text: "Fit" }),
           el("th", { text: "ANPR" }), el("th", { text: "Availability" }))));
       const tb = el("tbody");
       for (const s of res.suggestions) {
-        tb.append(el("tr", { title: s.explanation },
+        tb.append(el("tr", { title: [s.explanation,
+            `Transition ${num(s.transition_probability)} · travel-time fit ${num(s.travel_time_fit)}`]
+            .filter(Boolean).join("\n") },
           el("td", { class: "mono", text: s.camera_id }),
           el("td", { class: "num", text: num(s.priority_score) }),
-          el("td", { class: "num", text: num(s.transition_probability) }),
-          el("td", { class: "num", text: num(s.travel_time_fit) }),
           el("td", {}, gradeChip(s.capability.anpr, "")),
-          el("td", { text: s.availability })));
+          el("td", { text: String(s.availability || "").replace(/_/g, " ").toLowerCase() })));
       }
       table.append(tb);
-      body.append(table);
+      body.append(el("div", { class: "wrap-scroll" }, table));
       body.append(el("div", { class: "section-note", style: "padding:8px 0 0",
                               text: res.note }));
     }
@@ -1098,8 +1145,11 @@ async function loadTrajectory(plate) {
     renderTrajectory();
     await drawTrajectoryOnMap(plate, 0);
   } catch (err) {
+    // err.message is the sentence, with the request id when there is one;
+    // "INTERNAL_ERROR:" in front of it told the officer nothing.
     $("#traj-body").replaceChildren(
-      el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
+      el("div", { class: "notice bad" },
+        el("strong", { text: "The route could not be built" }), err.message));
   }
 }
 
@@ -1110,14 +1160,21 @@ async function followVehicle(plate) {
       clear(body);
       body.append(el("div", { class: "notice" },
         el("strong", { text: `Follow vehicle · ${plate}` }),
-        `${res.route_confidence?.confirmed_sightings || 0} confirmed sighting(s), `
-        + `${res.candidates?.length || 0} ranked follow-up lead(s).`));
+        (() => {
+          // "Confirmed" is agreed across two or more frames, as on the trace
+          // report; the rest of the plate sightings are single-frame leads.
+          const rc = res.route_confidence || {};
+          const seen = rc.plate_sightings ?? rc.confirmed_sightings ?? 0;
+          return `${seen} plate sighting(s): ${rc.confirmed_sightings || 0} confirmed across `
+            + `frames, ${rc.single_frame_leads ?? 0} single-frame lead(s). `
+            + `${res.candidates?.length || 0} ranked follow-up lead(s).`;
+        })()));
       const visibleCandidates = (res.candidates || []).slice(0, 5);
       for (const c of visibleCandidates) {
         body.append(el("div", { class: "result" },
           el("div", { class: "top" },
             el("span", { class: "plate", text: c.camera_id }),
-            el("span", { class: "chip verify", text: c.status }),
+            statusChip(c.status),
             el("span", { class: "time", text: fmtClock(c.t_norm) })),
           el("div", { class: "meta" },
             el("span", { text: `score ${num(c.score)}` }),
@@ -1147,14 +1204,21 @@ async function followVehicle(plate) {
           }
         }
       }
+      /* Each of these pairs one of the target's reads with some other read
+       * that followed too soon to be the same vehicle. It is a lead the
+       * follow-up rejected, not a fault in the target's route, so it is not
+       * red and not "ROUTE_CONTRADICTION". The reason already states distance,
+       * time and speed; the numbers are added only when it does not. */
       const visibleContradictions = [...contradictions.values()].slice(0, 3);
       for (const x of visibleContradictions) {
-        body.append(el("div", { class: "notice bad" },
-          el("strong", { text: "ROUTE_CONTRADICTION" }),
-          `${x.from_camera} → ${x.to_camera}: ${x.reason}. `
-          + `Distance ${Math.round(x.distance_m)} m, elapsed ${Math.round(x.elapsed_s)} s, `
-          + `implied ${Math.round(x.implied_speed_kmh)} km/h.`
-          + (x.count > 1 ? ` ${x.count} observations collapsed into this transition.` : "")));
+        const numbers = /km\/h/.test(x.reason || "") || x.implied_speed_kmh == null ? ""
+          : ` ${(x.distance_m / 1000).toFixed(2)} km in ${Math.round(x.elapsed_s)} s, `
+            + `${Math.round(x.implied_speed_kmh)} km/h.`;
+        body.append(el("div", { class: "notice neutral" },
+          el("strong", { text: "Rejected lead: impossible transition" }),
+          `${x.from_camera} → ${x.to_camera}: ${x.reason}.${numbers} `
+          + `A read on ${x.to_camera} that soon cannot be this vehicle.`
+          + (x.count > 1 ? ` ${x.count} pairings like this are folded into this line.` : "")));
       }
       if (contradictions.size > visibleContradictions.length) {
         body.append(el("div", { class: "section-note", text:
@@ -1289,6 +1353,7 @@ async function drawTrajectoryOnMap(plate, index) {
   try {
     const geo = await api(
       `/gis/trajectory/${encodeURIComponent(plate)}?hypothesis=${index}`);
+    state.trajectoryBbox = geo.geometry?.bbox || null;
     if (map1) {
       map1.set("trajectory", geo.geometry);
       if (geo.geometry && geo.geometry.bbox) map1.fit(geo.geometry.bbox, 0.6);
@@ -1427,7 +1492,12 @@ function fillRegistryStill(img, id) {
     try {
       const res = await fetch(`/cameras/${encodeURIComponent(id)}/snapshot`,
                               { headers: authHeaders(), signal: ctl.signal });
-      if (!res.ok) return;
+      // A 503 NO_FRAME left the <img> with no source, which draws its alt
+      // text over a broken-image glyph. Say plainly that there is no still.
+      if (!res.ok) {
+        img.replaceWith(thumbPlaceholder("No still — camera not answering"));
+        return;
+      }
       const blob = await res.blob();
       if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
       const url = URL.createObjectURL(blob);
@@ -1604,9 +1674,23 @@ $("#btn-fit2").addEventListener("click", async () => {
   const ext = await api("/gis/extent");
   if (ext.extent) map2.fit(ext.extent);
 });
+/* Focus the vehicle the Movement header names. This needed a card from Track,
+ * so after an ordinary search with a confirmed route it only said "Track a
+ * target first" — and a card left from an earlier Track would have focused a
+ * different vehicle. */
 $("#btn-focus-target")?.addEventListener("click", () => {
-  if (lastTrackCard && map1) map1.focusTarget(lastTrackCard.hops || []);
-  else toast("Track a target first");
+  const plate = state.target;
+  const card = lastTrackCard
+    && String(lastTrackCard.identifier || "").toUpperCase() === String(plate || "").toUpperCase()
+    ? lastTrackCard : null;
+  if (!map1) return;
+  if (state.trajectoryBbox) return map1.fit(state.trajectoryBbox, 0.6);
+  if (card) return map1.focusTarget(card.hops || []);
+  if (!plate) return toast("Search a vehicle first");
+  const cams = [...new Set((state.trajectory?.observations || []).map((o) => o.camera_id))];
+  toast(cams.length
+    ? `${plate} was read only on ${cams.join(", ")}, which ${cams.length === 1 ? "has" : "have"} no map position`
+    : `No located sighting of ${plate} to focus on`);
 });
 
 async function onMapSelect(hit, map) {
@@ -5665,6 +5749,15 @@ async function openCase(caseId) {
   const box = $("#case-detail");
   try {
     const res = await api(`/cases/${encodeURIComponent(caseId)}`);
+    // Opening a case is choosing to work on it. Only creating one filled the
+    // header, so an officer who opened FIR-214/2026 from the list still had
+    // blank Case and Purpose fields and every search was refused. A closed
+    // case is shown but not bound to new searches.
+    if (res.case.status === "OPEN") {
+      $("#case-id").value = res.case.case_id;
+      $("#purpose").value = res.case.purpose || "";
+      syncPurpose();
+    }
     clear(box);
     box.append(el("dl", { class: "kv" },
       dt("Case"), dd(res.case.case_id),
@@ -5764,7 +5857,9 @@ loaders.audit = async () => {
     box.append(auditTable(res.entries));
   } catch (err) {
     clear(box);
-    box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
+    // err.message is already the server's sentence for a person; the code in
+    // front of it ("PERMISSION_DENIED: …") was for the log.
+    box.append(el("div", { class: "notice bad" }, err.message));
   }
 };
 
@@ -5831,7 +5926,7 @@ loaders.evidence = async () => {
     box.append(table);
   } catch (err) {
     clear(box);
-    box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
+    box.append(el("div", { class: "notice bad" }, err.message));
   }
 };
 
@@ -5874,7 +5969,9 @@ const COPILOT_PROMPTS = [
   ["Unlocated", "Which cameras are in the registry but have no coordinates?"],
   ["Timebase cam01+cam21", "May cam01 and cam21 share a timeline?"],
   ["Timebase cam01+cam04", "May cam01 and cam04 share a timeline?"],
-  ["Find GJ32AG0028", "Find GJ32AG0028 and say which cameras it appears on."],
+  // GJ32AG0028 is not in the demonstration store, so this chip answered "no
+  // observations". GJ18JX7786 is there, and it is a fictional mark.
+  ["Find GJ18JX7786", "Find GJ18JX7786 and say which cameras it appears on."],
   ["Enhance a still", "Enhance this still and sharpen the plate so I can read it."],
 ];
 
@@ -5962,8 +6059,45 @@ async function describeStill(id, host) {
     note.textContent = `${id} · ${a.model || "gemini"} · FRAME LEFT THE DEPLOYMENT · not evidence. ${a.description || ""}`;
   } catch (err) {
     note.classList.add("warn");
-    note.textContent = `${err.code || "ERROR"}: ${err.message}`;
+    note.textContent = err.message;
   }
+}
+
+/* The model answers in Markdown, and its marks were printed literally:
+ * "* **Camera:** `OWN-MUM-QUEUE`". Only the few it uses are read — bullets,
+ * **bold**, `code`, # headings — and each becomes a DOM node built with
+ * textContent. Model text never reaches innerHTML, so a "<b>" in an answer
+ * stays three characters. */
+function copilotInline(s) {
+  const out = [];
+  const re = /\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`/g;
+  let last = 0;
+  for (let m = re.exec(s); m; m = re.exec(s)) {
+    if (m.index > last) out.push(s.slice(last, m.index));
+    out.push(m[3] != null ? el("code", { text: m[3] }) : el("b", { text: m[1] ?? m[2] }));
+    last = re.lastIndex;
+  }
+  if (last < s.length) out.push(s.slice(last));
+  return out;
+}
+
+function copilotProse(text) {
+  const box = el("div", { class: "md" });
+  let list = null;
+  for (const line of String(text ?? "").split("\n")) {
+    const item = line.match(/^\s*[*\-•]\s+(.*)$/);
+    if (item) {
+      if (!list) box.append(list = el("ul"));
+      list.append(el("li", {}, copilotInline(item[1])));
+      continue;
+    }
+    list = null;
+    if (!line.trim()) continue;
+    const head = line.match(/^\s*#{1,6}\s+(.*)$/);
+    box.append(head ? el("p", {}, el("b", {}, copilotInline(head[1])))
+                    : el("p", {}, copilotInline(line)));
+  }
+  return box;
 }
 
 $("#chat-form").addEventListener("submit", async (e) => {
@@ -5983,7 +6117,7 @@ $("#chat-form").addEventListener("submit", async (e) => {
     pending.remove();
     markSpecialists(["coordinator", ...(a.specialists || [])]);
     const msg = el("div", { class: `msg bot${a.grounded ? "" : " withheld"}` },
-      el("div", { text: a.answer }));
+      copilotProse(a.answer));
     if (a.specialists && a.specialists.length) {
       msg.append(el("div", { class: "tools",
         text: `Specialists: ${a.specialists.join(" · ")}` }));
@@ -6008,7 +6142,7 @@ $("#chat-form").addEventListener("submit", async (e) => {
     log.append(msg);
   } catch (err) {
     pending.remove();
-    log.append(el("div", { class: "msg bot withheld", text: `${err.code}: ${err.message}` }));
+    log.append(el("div", { class: "msg bot withheld", text: err.message }));
   }
   log.scrollTop = log.scrollHeight;
 });
@@ -6386,10 +6520,16 @@ async function jumpObservation(oid, cameraId) {
     const eventEl = $("#jump-event-time");
     const liveEl = $("#jump-live-pos");
     const noteEl = $("#jump-note");
+    // Name the camera Open camera will open: it is the read's camera, which
+    // need not be the one printed on the alert card.
+    const camEl = $("#jump-camera");
+    const camName = j.camera_name || j.signal;
+    if (camEl) camEl.textContent = `CAMERA: ${camName ? `${camName} (${j.camera_id})` : j.camera_id}`;
     if (eventEl) eventEl.textContent = `EVENT TIMESTAMP: ${fmtTime(j.event_timestamp || j.event_time)}`;
     if (liveEl) {
+      // Not "own-feed": a government camera replaying a local file seeks too.
       liveEl.textContent = j.playback?.seekable
-        ? `REPLAY POSITION: seek to ${j.pts_s ?? "—"}s on own-feed recording`
+        ? `REPLAY POSITION: seek to ${j.pts_s ?? "—"}s in the recording`
         : `CURRENT LIVE POSITION: live WHEP cannot seek to this event`;
     }
     if (noteEl) noteEl.textContent = j.note || j.playback?.note || "";
@@ -7318,11 +7458,16 @@ function resetInvestigation(plate) {
   if (tgt) tgt.textContent = plate || "";
   const status = $("#traj-status");
   if (status) status.textContent = "";
+  // The previous vehicle's hypothesis tab outlived it: after a plate with no
+  // sighting, "A · 0.77" stayed in the header, and clicking it threw on the
+  // null trajectory and blanked the no-sighting guidance.
+  $("#hyp-tabs")?.replaceChildren();
   const detail = $("#detail");
   if (detail) clear(detail);
   const sel = $("#sel-id");
   if (sel) sel.textContent = "";
   state.trajectory = null;
+  state.trajectoryBbox = null;
   if (map1) {
     map1.selected = null;
     try { map1.set("trajectory", null); } catch { map1.draw(); }
@@ -7473,7 +7618,9 @@ function renderNoSighting(res, plate) {
       + "the vehicle has not passed a camera that can read plates, or it was "
       + "read with different characters." }),
     el("div", { class: "no-sighting-actions" },
-      act("Try near matches (OCR confusions)", () => {
+      // Not "OCR confusions": the near-match search also returns marks that
+      // differ in characters no OCR confuses (GJ05AB9999 for GJ01ZZ9999).
+      act("Try similar plates (near matches)", () => {
         $("#q-fuzzy").checked = true;
         $("#search-form").requestSubmit();
       }),
@@ -7650,9 +7797,11 @@ async function transitionIncident(g, action, extra = {}) {
   const res = await api("/alerts/transition", { method: "POST", body: JSON.stringify({
     alert_ids: g.alert_ids, action, group_id: g.group_id, ...extra }) });
   // {action, status, changed: [alert ids], skipped: [{alert_id, why}], by, at_us}
+  // `changed` counts alert rows, not reads: the card said "7 reads" and the
+  // toast "(1 reads)" for the same vehicle.
   const done = (res.changed || []).length;
   toast(`${action === "resolve" ? "Resolved" : action === "investigate" ? "Under investigation"
-    : "Acknowledged"}: ${g.plate}${done ? ` (${done} reads)` : ""}`);
+    : "Acknowledged"}: ${g.plate}${done ? ` (${done} alert${done === 1 ? "" : "s"})` : ""}`);
   loaders.alerts();
 }
 

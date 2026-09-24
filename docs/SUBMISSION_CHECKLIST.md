@@ -13,8 +13,8 @@ quote them on the portal.
 
 | # | What the challenge asks for | File | Verified |
 |---|---|---|---|
-| 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` (17.7 MB) and `var/demo/SAAKSHYA_deck.pdf` (9.0 MB) | **34 slides**, 16:9. Upload the PPTX if the field wants PowerPoint; attach the PDF as well so nothing depends on their renderer. |
-| 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | Includes §15 disaster recovery, §16 statewide rollout with exit gates, §17 an indicative cost model with its workings shown, §18 the cybersecurity architecture with every control marked IMPLEMENTED or SPECIFIED, §19 the claims this proposal declines to make. |
+| 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` and `var/demo/SAAKSHYA_deck.pdf` | **37 slides**, 16:9, rendered from the repository (`tools/demo/render_submission_deck.py`) so no claim lives only on a slide. Adds the measured GPU speed-up with its parity check, the vehicle trace report, the evidence chain and own-feed screens from the current build; the films page reads each film's length off the file. Upload the PPTX if the field wants PowerPoint; attach the PDF as well. |
+| 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | §4.2 the models and why each (tiled plate search, on-device OCR, position typing, restricted-zone rules), §4.5 the printable trace, §4.9 the Gemini copilot over all four models with its gates, §15 disaster recovery, §16 statewide rollout with exit gates, §17 the cost model with **S measured** (2.0× whole pipeline on a laptop GPU, 3.4× detector, identical outputs), §18 the cybersecurity architecture, §19 the claims this proposal declines to make. |
 | 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 53 s** · 2560×1440 · 98 MB · narrated, captioned. Eleven beats, all driven cleanly. Licensed Mumbai street footage with heads blurred. An estate administrator onboards a camera through the portal form (validated before it writes) and hands over to the investigating officer. Both feeds play at 30 fps with this platform's boxes on every frame and plates drawn once the vote holds; the live AI worker analyses them on the GPU during the take (AI ACTIVE · OCR ACTIVE, measured inference figures on screen). MH02GB4920, read off the footage and agreed across 267 frames, is searched and shown CONFIRMED BY PLATE. The watchlist hit and its trace report are on fictional plates. |
 | 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **4 m 41 s** · 2560×1440 @ 30 fps · 95.6 MB (1080p copy: `government_feed_1080.mp4`, 20.8 MB, upload this one if the portal caps size). Report: **178 plate reads across 9 government cameras**, each with UTC timestamp, camera id, camera name, district, department, object type and vote count. |
 
@@ -122,6 +122,23 @@ by them in questions.
   have their top quarter pixelated and held for three frames either side.
   Checked by eye; a person the detector never found is not blurred, and at the
   distances in these clips such a figure is a few pixels high.
+- **Plates on the government grid are hard.** Every government view is graded
+  unsuitable or unknown for plate reading from its own stream, and no plate in
+  the replayed window repeats across two government cameras, so a
+  cross-camera government route cannot be shown - that is the data, not the
+  platform. Cross-camera tracing is shown on the own/synthetic store and
+  labelled as such. On the own footage, marks are read by an on-device text
+  recogniser and voted across frames; the ones checked by eye are right, and
+  misread duplicates of the same car on a fragmented track exist (MN22GB4920
+  beside MH02GB4920, with 3 votes against 267).
+- **The local relay can crash-loop.** On this laptop the relay's per-camera
+  transcode hit decoder errors and reconnected fast enough that the grid
+  counted the dead sessions and refused the account for a while. The
+  government film uses direct WebRTC from the grid through the proxy, which
+  opens one session per visible tile and decodes nothing locally.
+- **The restricted-zone rule on the government grid is a demonstration rule**,
+  set by the estate administrator for this evaluation and labelled so. The
+  entries it reports are real sightings on that camera.
 - **The store is SQLite**, not the PostgreSQL + PostGIS deployment the
   challenge suggests. The store abstracts its backend; that migration has not
   been exercised and is not claimed.

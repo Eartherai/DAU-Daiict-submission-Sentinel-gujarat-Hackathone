@@ -773,6 +773,8 @@ def limits() -> Image.Image:
         "GJ1VV0119 is one camera (cam07), looping. That is not a multi-camera government route.",
         "Cross-camera plates on C-014 and C-021 are the own/synthetic store, labelled as such.",
         "Person boxes are presence. There is no face identification on government data.",
+        "Own-feed footage is published with heads blurred from the person detector's boxes. A person it never found is not blurred.",
+        "The GPU speed-up is measured on a laptop's integrated GPU. The target accelerator's is not quoted until it is run.",
         "Copilot is read-only. It will not enhance a still, invent a plate, or join clocks the timebase refuses.",
         "DINOv2 appearance ranking is measured unfit to lead. It is not shown as a tracker.",
         "Watchlist on the government grid is representative. One live alert: GJ38BH5815.",
@@ -789,18 +791,41 @@ def limits() -> Image.Image:
     return img
 
 
+def _film_meta(path: Path) -> str:
+    """Length and size read off the file, so the slide cannot carry a stale take.
+
+    This slide once described a 1:03 silent 1080p own-feed film two takes after
+    it had become a narrated 1440p one.
+    """
+    import json
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width,height,codec_type",
+             "-of", "json", str(path)], capture_output=True, text=True, check=True).stdout
+        j = json.loads(out)
+        secs = float(j["format"]["duration"])
+        v = next(s for s in j["streams"] if s.get("codec_type") == "video")
+        audio = any(s.get("codec_type") == "audio" for s in j["streams"])
+        return (f"{int(secs) // 60}:{int(secs) % 60:02d}  ·  {v['width']}×{v['height']}"
+                f"  ·  {'narrated, captioned' if audio else 'silent'}")
+    except Exception:
+        return "not rendered on this host"
+
+
 def films() -> Image.Image:
     img, d = canvas(True)
     rail(img, d, "FILMS", "23", dark=True)
     kicker(d, "What to play, in this pack", dark=True, y=64)
-    title(d, "Two films. One overlay log. No mock-ups.", dark=True, y=108, size=44)
+    title(d, "Two films. One plate report. No mock-ups.", dark=True, y=108, size=44)
     cards = [
-        ("1.mp4  ·  own feed", "1:03  ·  1080p30  ·  silent",
-         "Own cameras. GJ05AB1234 on C-014 then C-021. Person presence on OWN-PEOPLE. Watchlist GJ05AB1234 and GJ15NT6564."),
-        ("2.mp4  ·  government workspace", "12:42  ·  1080p12  ·  narrated",
-         "30-camera live wall, detection boxes, GJ1VV0119 one-camera find, lookalike, alerts, Copilot refuse and timebase."),
-        ("government_feed.mp4 + CSV", "analytics overlay",
-         "Decoded government clips with detector boxes. Paired CSV is the log. Not a substitute for the dashboard film."),
+        ("own_feed.mp4  ·  own feed, under three minutes", _film_meta(ROOT / "var/demo/own_feed.mp4"),
+         "Licensed Mumbai street footage, heads blurred. A camera onboarded through the registry "
+         "form; live detection on the GPU; a plate read off the footage, searched; a fictional "
+         "watchlist hit; the trace report; sealed evidence; the audit log."),
+        ("government_feed.mp4 + ANPR report CSV", _film_meta(ROOT / "var/demo/government_feed.mp4"),
+         "The government grid: live wall, detections drawn on the frame that produced them, plate "
+         "reads with timestamps. The CSV lists every read the film shows."),
     ]
     y = 280
     for head, meta, body in cards:
@@ -815,6 +840,36 @@ def films() -> Image.Image:
            "Only metadata moves. Video stays where it is. Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
            dark=True)
     return img
+
+
+def gpu_measured() -> Image.Image:
+    """Only the hardware should be the bottleneck; this is the measurement."""
+    import json
+    det = json.loads((ROOT / "var/reports/detector_device.json").read_text())
+    pipe = json.loads((ROOT / "var/reports/pipeline_device.json").read_text())
+    return table_page(
+        "Performance  ·  measured on the development laptop's GPU",
+        "The software is not the bottleneck. The hardware is.",
+        ["WHAT WAS TIMED", "CPU", "APPLE GPU (MPS)", "SPEED-UP", "SAME OUTPUT?"],
+        [
+            [("Detector alone, 2560×1440 frame", None),
+             (f"{det['cpu']['ms_median']:.0f} ms", None), (f"{det['mps']['ms_median']:.0f} ms", "green"),
+             (f"{det['speedup_median']}×", "green"),
+             (f"{det['parity']['cpu_detections']:,} of {det['parity']['cpu_detections']:,} boxes at IoU ≥ 0.9"
+              if det['parity']['cpu_unmatched_on_gpu'] == 0 else "no", None)],
+            [("Whole pipeline: detect, track, plate, OCR", None),
+             (f"{pipe['cpu']['ms_median']:.0f} ms", None), (f"{pipe['mps']['ms_median']:.0f} ms", "green"),
+             (f"{pipe['speedup_median']}×", "green"),
+             ("same observations, same plates" if pipe["same_plates"] and pipe["same_observation_count"]
+              else "no", None)],
+            [("A GPU sync per detected box", None), ("—", None), ("175 ms of 261", "red"),
+             ("fixed", "gold"), ("software, not hardware: one copy per tensor now", None)],
+        ],
+        "tools/bench/detector_device.py · MEASURED · an integrated laptop GPU, not the target accelerator; "
+        "the same command gives its row. Plate models stay on CPU (CoreML fails their dynamic shapes).",
+        "21b",
+        col_w=[ML, ML + 640, ML + 860, ML + 1120, ML + 1320],
+    )
 
 
 def close() -> Image.Image:
@@ -884,15 +939,15 @@ def build() -> list[Image.Image]:
             "Detection is drawn on the frame that produced it",
             "From government_feed overlay log. Night views publish 0 marks — the ANPR grade predicted that.",
             "20"),
-        shot_page(DETECT / "own_film_t18.jpg",
-                  "Own feed  ·  labelled demonstration",
-                  "Person boxes are presence, not identity",
-                  "OWN-PEOPLE on the demonstration store. No face identification on government data. Same rule here.",
+        shot_page(SHOTS / "own_intel.png",
+                  "Own feed  ·  licensed Mumbai street footage, 2560×1440",
+                  "Every box is this platform's pipeline, on that exact frame",
+                  "Heads blurred from the person detector's boxes — no face detector exists. Live AI plane figures are measured, on the GPU.",
                   "16"),
         shot_page(SHOTS / "own_find.png",
-                  "Own feed  ·  designated vehicle",
-                  "GJ05AB1234 on two cameras: C-014 then C-021",
-                  "Timebase RESTRICTED until both clocks are measured sound. Cross-camera plates are claimed only on this store.",
+                  "Investigate  ·  designated vehicle (fictional plate)",
+                  "GJ18JX7786: on the watchlist, said first. Then where it went.",
+                  "Read at C-014, then C-021 five minutes later. Every read here is a single-frame lead, and the page says so. Cross-camera routes are claimed only on this store.",
                   "17"),
         shot_page(SHOTS / "gov_find_gj1vv0119.jpg",
                   "Investigate  ·  government grid",
@@ -910,10 +965,20 @@ def build() -> list[Image.Image]:
                   "A hit is a row with a camera, not a video dump. Alert and sighting commit together, or neither does.",
                   "20"),
         shot_page(SHOTS / "own_alerts.png",
-                  "Watchlist  ·  own feed",
-                  "GJ05AB1234 and GJ15NT6564 on C-014",
-                  "There is no delete — dismissed is a status. Cross-camera watchlist hits are claimed only on this store.",
+                  "Watchlist  ·  one decision per vehicle",
+                  "Seven reads of one car are one incident, not seven cards",
+                  "The read beside the listed plate, character by character; first and last sighting from the reads themselves. Fictional plates only: no real vehicle is put on a watchlist for a demonstration.",
                   "20b"),
+        shot_page(SHOTS / "own_trace_report.png",
+                  "Investigate  ·  vehicle trace report",
+                  "The route leaves the screen as a page an officer can sign",
+                  "Every read, each leg timed and checked for an impossible speed, sealed stills re-hashed, case and purpose, a digest over the rows.",
+                  "20c"),
+        shot_page(SHOTS / "own_evidence.png",
+                  "Evidence  ·  hash-chained records",
+                  "What each sealed record is, and the link that binds it",
+                  "Camera, capture time, still sealed or not, and the previous record's hash. Out-of-jurisdiction content is withheld; integrity is not.",
+                  "20d"),
         shot_page(SHOTS / "gov_cameras_film.jpg",
                   "Capability  ·  measured per camera",
                   "ANPR 28 UNSUITABLE, 2 UNKNOWN. That is the finding.",
@@ -935,6 +1000,7 @@ def build() -> list[Image.Image]:
                   "REFUSED: cam21 has unreliable timing (PTS regression). Clocks are not joined by narrative.",
                   "25"),
         measured(),
+        gpu_measured(),
         limits(),
         films(),
         close(),

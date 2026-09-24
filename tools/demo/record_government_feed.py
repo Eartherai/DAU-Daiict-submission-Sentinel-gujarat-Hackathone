@@ -52,34 +52,110 @@ class Beat:
     title: str
     dwell_s: float
     action: Callable[[], None] = lambda: None
+    #: The narrator's line. Its measured length can extend the beat, never
+    #: shorten it, so the voice always finishes over its own screen.
+    say: str = ""
     ok: bool = True
     err: str = ""
     at: float = field(default=0.0)
+    say_s: float = 0.0
+    audio: Path | None = None
 
 
-def build(page, plate: str) -> list[Beat]:
+def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> list[Beat]:
+    """Every capability, on the government store and the live grid.
+
+    The first cut of this film was ten silent beats. The challenge leaves the
+    government demonstration without a length limit, so this one shows the
+    whole platform on the organisers' own cameras - registry and onboarding,
+    GIS, live viewing, detection, the designated-vehicle trace and its report,
+    alerts, evidence, the copilot over each model, role separation and the
+    audit trail - and says what each screen is while it is on it.
+    """
+    def use_token(token: str):
+        def go():
+            if not token:
+                return
+            page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
+            page.reload(wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+        return go
+
+    def close_modals():
+        if page.evaluate("!!document.querySelector('#report-dialog')?.open"):
+            page.click("#report-close")
+            page.wait_for_timeout(300)
+
     def nav(view: str, settle: float = 2.0):
         def go():
+            close_modals()
             page.click(f'button[data-view="{view}"]')
             page.wait_for_timeout(int(settle * 1000))
         return go
 
     def onboarded():
         """The government cameras as the registry holds them."""
+        close_modals()
         page.click('button[data-view="cameras"]')
         page.wait_for_timeout(4000)
-        page.mouse.wheel(0, 500)
+        page.mouse.wheel(0, 700)
         page.wait_for_timeout(2500)
+        page.mouse.wheel(0, -700)
+
+    def bulk_validate():
+        """Bulk onboarding, validated first: the dry run writes nothing."""
+        page.click("#btn-onboard-toggle")
+        page.wait_for_timeout(600)
+        page.click('[data-onboard="bulk"]')
+        page.wait_for_timeout(600)
+        csv_path = Path(__file__).resolve().parents[2] / "reports" / "sample_camera_metadata.csv"
+        try:
+            text = csv_path.read_text(encoding="utf-8")
+            page.fill("#ob-csv", "\n".join(text.splitlines()[:8]))
+            page.wait_for_timeout(900)
+            page.click("#btn-ob-bulk-dry")
+        except Exception:
+            pass
+        page.wait_for_timeout(3000)
+
+    def gaps_and_copilot():
+        """Model 1 gap report, then the copilot asked about it from the screen."""
+        try:
+            page.click("#btn-onboard-toggle")
+        except Exception:
+            pass
+        page.wait_for_timeout(600)
+        page.mouse.wheel(0, 400)
+        page.wait_for_timeout(2500)
+        _ask(lambda: page.click('button[data-ask-model="m1"]'))
+
+    def _answers() -> int:
+        return page.evaluate(
+            "() => document.querySelectorAll('#chat-log .msg.bot:not(.dim)').length")
+
+    def _ask(click, timeout_ms: int = 90000):
+        """Click, then wait for a new answer - not the 'working' placeholder."""
+        before = _answers()
+        click()
+        try:
+            page.wait_for_function(
+                "n => document.querySelectorAll('#chat-log .msg.bot:not(.dim)').length > n",
+                arg=before, timeout=timeout_ms)
+        except Exception:
+            pass
+        page.wait_for_timeout(1500)
+
+    def estate_map():
+        close_modals()
+        page.click('button[data-view="map"]')
+        page.wait_for_timeout(5000)
 
     def live_wall():
         page.click('button[data-view="live"]')
         page.wait_for_selector("#live .live-tile", timeout=60000)
-        # Wait for real decoded frames, not merely attached elements.
-        # Four decoding tiles was a quorum, not a wall. Wait for most of the
-        # session budget to be delivering pictures, and for every visible tile
-        # to be showing *something* — a decoded frame or its cached still —
-        # so the recording does not open on black boxes. If the grid cannot
-        # get there, film it as it is rather than waiting for ever.
+        # Wait for real decoded frames, not merely attached elements, and for
+        # every visible tile to show something; if the grid cannot get there,
+        # film it as it is rather than waiting for ever.
         ready = """() => {
           const vs=[...document.querySelectorAll('#live-grid video')];
           const decoding=vs.filter(v=>v.readyState>=2&&v.videoWidth>16).length;
@@ -98,29 +174,33 @@ def build(page, plate: str) -> list[Beat]:
         try:
             page.wait_for_function(ready, timeout=110000)
         except Exception:
-            pass  # filmed as it is, however it is
+            pass
 
-    def wall_12():
+    def wall_size(n: int):
+        def go():
+            try:
+                page.click(f'[data-live-wall="{n}"]', timeout=8000)
+            except Exception:
+                pass
+            page.wait_for_timeout(6000)
+        return go
+
+    def focus_camera():
+        """One camera, full quality, with the analytics overlay drawn on it."""
         try:
-            page.click('[data-live-wall="12"]', timeout=8000)
+            page.click('[data-live-wall="12"]', timeout=6000)
+            page.wait_for_timeout(3000)
+            page.click("#live-grid .live-tile >> nth=0", timeout=6000)
         except Exception:
             pass
-        page.wait_for_timeout(8000)
-
-    def scroll_wall():
-        try:
-            page.hover("#live-grid", timeout=5000)
-        except Exception:
-            pass
-        for _ in range(4):
-            page.mouse.wheel(0, 380)
-            page.wait_for_timeout(2200)
+        page.wait_for_timeout(9000)
 
     def trace():
+        close_modals()
         page.click('button[data-view="investigate"]')
         page.wait_for_timeout(2000)
-        # Without a case and a stated purpose the search is refused and the
-        # screen shows PURPOSE_REQUIRED. Both are written into the audit log.
+        # A search is refused without a case and a stated purpose, and both
+        # are written into the audit log with the search.
         for sel, value in (("#case-id", "FIR-000/2026"),
                            ("#purpose", "tracing a designated vehicle")):
             try:
@@ -128,36 +208,152 @@ def build(page, plate: str) -> list[Beat]:
             except Exception:
                 continue
         page.wait_for_timeout(600)
-        for sel in ('#q-plate', '#q', 'input[name="q"]', '.search input'):
-            try:
-                page.fill(sel, plate, timeout=2500)
-                page.press(sel, "Enter")
-                break
-            except Exception:
-                continue
-        page.wait_for_timeout(5000)
-
-    def route_on_map():
-        """Step 4 asks for the route visualised on GIS, not only listed.
-
-        The trace above establishes where the mark was seen and when; this is
-        the same movement shown geographically, which is what an officer
-        directing a response actually reads.
-        """
-        page.click('button[data-view="map"]')
+        page.fill("#q-plate", plate, timeout=4000)
+        page.press("#q-plate", "Enter")
         page.wait_for_timeout(6000)
 
+    def follow_and_next():
+        """Where the vehicle could have gone next, and why."""
+        for sel in ('button:has-text("Follow vehicle")', 'button:has-text("Where to look next")'):
+            try:
+                page.click(sel, timeout=3000)
+                page.wait_for_timeout(4500)
+            except Exception:
+                continue
+
+    def trace_report():
+        try:
+            page.click("#btn-trace-report", timeout=5000)
+            page.wait_for_function(
+                "() => (document.querySelector('#report-frame')?.srcdoc || '').length > 1000",
+                timeout=15000)
+        except Exception:
+            return
+        page.wait_for_timeout(2200)
+        for y in (500, 1100, 1900):
+            page.evaluate("y => document.querySelector('#report-frame')"
+                          ".contentWindow.scrollTo({top: y, behavior: 'smooth'})", y)
+            page.wait_for_timeout(1600)
+
+    def copilot_model(model: str):
+        def go():
+            close_modals()
+            page.click('button[data-view="copilot"]')
+            page.wait_for_timeout(1500)
+            _ask(lambda: page.click(f'#prompt-chips button:has-text("{model.upper()} ·")',
+                                    timeout=4000))
+        return go
+
+    def copilot_refuse():
+        close_modals()
+        page.click('button[data-view="copilot"]')
+        page.wait_for_timeout(800)
+        _ask(lambda: page.click('#prompt-chips button:has-text("Enhance a still")',
+                                timeout=4000))
+
+    def system_view():
+        close_modals()
+        page.click('button[data-view="system"]')
+        page.wait_for_timeout(4000)
+        for _ in range(3):
+            page.mouse.wheel(0, 650)
+            page.wait_for_timeout(1500)
+
+    def admin_refused():
+        """Role separation, shown: the administrator may not search plates."""
+        page.click('button[data-view="investigate"]')
+        page.wait_for_timeout(1500)
+        for sel, value in (("#case-id", "FIR-000/2026"),
+                           ("#purpose", "checking the registry")):
+            try:
+                page.fill(sel, value, timeout=3000)
+            except Exception:
+                continue
+        page.fill("#q-plate", plate, timeout=4000)
+        page.press("#q-plate", "Enter")
+        page.wait_for_timeout(3500)
+
     return [
-        Beat("Government cameras, onboarded and graded", 16, onboarded),
-        Beat("Live viewing — the government wall over direct WHEP", 30, live_wall),
-        Beat("Twelve up, at full quality", 26, wall_12),
-        Beat("Scrolling the wall", 18, scroll_wall),
-        Beat("Analytics output — what the estate produced", 20, nav("analytics", 2.5)),
-        Beat("Marks read, with camera and timestamp", 18, nav("overview", 2.5)),
-        Beat("The designated mark, traced across cameras", 20, trace),
-        Beat("The route, visualised on GIS", 20, route_on_map),
-        Beat("Watchlist match and the alert it fired", 18, nav("alerts", 2.0)),
-        Beat("Evidence, sealed against the observation", 14, nav("evidence", 2.0)),
+        Beat("The government grid, signed in as the estate administrator", 3,
+             use_token(admin_token),
+             say="This is the government grid: the organisers' cameras from five "
+                 "departments, replayed as live by their streaming middleware. The "
+                 "estate administrator signs in first."),
+        Beat("Model 1 — every camera onboarded, and graded", 12, onboarded,
+             say="Every government camera sits in one registry: department, codec, "
+                 "resolution and location. Capability is measured from each "
+                 "camera's own stream. Where a view cannot read plates, the "
+                 "registry says so, instead of promising it."),
+        Beat("Bulk onboarding, validated before it writes", 10, bulk_validate,
+             say="A department onboards in bulk from its own spreadsheet. "
+                 "Validation runs first and writes nothing. Cameras already on the "
+                 "registry are reported, not duplicated."),
+        Beat("What the registry does not know — asked of Gemini", 14, gaps_and_copilot,
+             say="The gap report names what no department has supplied yet. The "
+                 "Gemini copilot sits over the registry as well: asked from this "
+                 "screen, it answers from the gap analysis, and every figure is "
+                 "checked against it before it is shown."),
+        Beat("GIS — the estate on the map", 10, estate_map,
+             say="On the map, each camera is coloured by measured health, and "
+                 "cameras without a surveyed position are listed, never placed "
+                 "where they are not."),
+        Beat("Role separation: the administrator may not search vehicles", 6,
+             admin_refused,
+             say="Running the estate and searching for people are different jobs. "
+                 "Asked for a vehicle, the administrator is refused, in plain "
+                 "words, and the refusal is audited."),
+        Beat("Handing over to the investigating officer", 3, use_token(officer_token),
+             say="The investigating officer takes over."),
+        Beat("Model 2 — live viewing over direct WebRTC", 22, live_wall,
+             say="Live viewing is direct WebRTC from the grid, twelve sessions at "
+                 "a time. Video is not re-recorded centrally; the detection "
+                 "overlay is drawn beside it, from metadata."),
+        Beat("Thirty cameras on one wall", 14, wall_size(30),
+             say="Thirty cameras on one wall. Tiles beyond the live budget show "
+                 "the last analysed still, and say so."),
+        Beat("One camera, with the AI overlay", 16, focus_camera,
+             say="One camera, at full quality, with vehicles, people and plates "
+                 "from this platform's own detector drawn on the frame."),
+        Beat("What the analytics produced", 14, nav("analytics", 3.0),
+             say="Everything the pipeline produced on these cameras, counted from "
+                 "the store: marks read, vehicles and people by class, and each "
+                 "camera's measured plate-reading grade."),
+        Beat("Every mark read, with camera and time", 12, nav("overview", 3.0),
+             say="Every registration mark read, with its camera and time, is on "
+                 "the overview, and in the ANPR report that ships beside this film."),
+        Beat("The designated vehicle, traced", 18, trace,
+             say="Given a designated vehicle, the search runs under a case number "
+                 "and a stated purpose. The card says first whether the vehicle is "
+                 "wanted. Then every read, its time, its camera, and the route."),
+        Beat("Where it could have gone next", 12, follow_and_next,
+             say="The platform ranks where to look next, from travel times and each "
+                 "camera's ability to read a plate, and rejects any transition a "
+                 "vehicle could not have driven."),
+        Beat("The trace, as a report an officer can sign", 12, trace_report,
+             say="The trace becomes a page an officer can print and sign: every "
+                 "read, each leg timed, and a digest over the rows."),
+        Beat("Watchlist match, and the alert it fired", 14, nav("alerts", 3.0),
+             say="Watchlist hits arrive as one decision per vehicle, with the read "
+                 "set beside the listed plate, character by character, and a "
+                 "single-frame read marked for verification."),
+        Beat("Evidence, sealed and hash-chained", 10, nav("evidence", 3.0),
+             say="Evidence is sealed as it is captured and chained by hash, so a "
+                 "removed or altered record is detectable."),
+        Beat("Model 4 — Gemini over the alert queue", 12, copilot_model("m4"),
+             say="Asked about the alert queue, the copilot answers from it, and "
+                 "withholds anything it cannot verify."),
+        Beat("Model 2 — Gemini over camera health", 12, copilot_model("m2"),
+             say="And about camera health, from what ingest last measured."),
+        Beat("The copilot refuses to fabricate", 10, copilot_refuse,
+             say="Asked to enhance a still, it refuses. That would be fabricating "
+                 "evidence."),
+        Beat("Model 3, health and roles — the system view", 14, system_view,
+             say="The system view shows each subsystem's measured health, how "
+                 "Gujarat's ranks map onto the platform's roles, and the VMS "
+                 "systems the federation layer connects."),
+        Beat("Every query attributed", 10, nav("audit", 3.0),
+             say="And every query is attributed: who searched, for which vehicle, "
+                 "when, and why, in a log whose entries are chained by hash."),
     ]
 
 
@@ -228,7 +424,23 @@ def prewarm_stills(base: str, token: str, cameras: int = 14) -> dict:
     return {"ok": True, "asked": len(ids), "warmed": got}
 
 
-def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
+def narrate(beats: list[Beat], work: Path, voice: str) -> float:
+    """Synthesise every line first; its length sets the beat's dwell."""
+    import narration
+
+    if not narration.available():
+        raise SystemExit("narration needs macOS `say`, ffmpeg and ffprobe")
+    projected = 0.0
+    for i, b in enumerate(beats):
+        if b.say:
+            b.audio = work / f"line_{i:02d}.wav"
+            b.say_s = narration.synth(b.say, b.audio, voice=voice)
+        projected += max(b.dwell_s + 2.5, b.say_s + 0.6)
+    return projected
+
+
+def record(base: str, token: str, plate: str, out_dir: Path,
+           admin_token: str = "", voice: str | None = "Aman") -> list[Beat]:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:                                # pragma: no cover
@@ -240,16 +452,15 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
             browser = p.chromium.launch(channel="chrome", headless=True)
         except Exception:
             browser = p.chromium.launch(headless=True)
-        ctx = browser.new_context(
-            viewport={"width": VIEW_W, "height": VIEW_H})
+        ctx = browser.new_context(viewport={"width": VIEW_W, "height": VIEW_H})
         page = ctx.new_page()
         page.goto(f"{base}/ui/", wait_until="domcontentloaded")
-        page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
+        page.evaluate("t => sessionStorage.setItem('saakshya.token', t)",
+                      admin_token or token)
         page.reload(wait_until="domcontentloaded")
         page.wait_for_timeout(5000)
         try:
-            page.wait_for_selector('button[data-view="live"]',
-                                   state="visible", timeout=20000)
+            page.wait_for_selector('button[data-view="live"]', state="visible", timeout=20000)
         except Exception:
             ctx.close()
             browser.close()
@@ -258,31 +469,61 @@ def record(base: str, token: str, plate: str, out_dir: Path) -> list[Beat]:
                 "  python tools/admin/users.py --db sqlite:///var/live.db "
                 "token --user supervisor.live --days 7")
 
-        beats = build(page, plate)
+        beats = build(page, plate, admin_token=admin_token, officer_token=token)
         mp4 = Path(str(out_dir) + ".mp4")
+        work = out_dir / "narration"
+        work.mkdir(parents=True, exist_ok=True)
+        if voice:
+            projected = narrate(beats, work, voice)
+            print(f"  narration synthesised; take projects to {projected / 60:.1f} min")
+        silent = Path(str(out_dir) + "_silent.mp4") if voice else mp4
         with Screencast(page, out_dir / "frames", width=VIEW_W,
                         height=VIEW_H, quality=98) as cast:
             t0 = time.time()
             for b in beats:
                 b.at = time.time() - t0
-                print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}",
-                      flush=True)
+                print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}", flush=True)
+                started = time.time()
                 try:
                     b.action()
                 except Exception as exc:
                     b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
-                page.wait_for_timeout(int(b.dwell_s * 1000))
-        res = cast.write(mp4, crf=15, fps=30)
+                spent = time.time() - started
+                hold = max(b.dwell_s, b.say_s + 0.6 - spent)
+                page.wait_for_timeout(int(max(0.0, hold) * 1000))
+            first = cast.first_timestamp()
+            offset = (first - t0) if first else 0.0
+        res = cast.write(silent, crf=15, fps=30)
         cast.cleanup()
         if not res.get("ok"):
             print(f"  capture FAILED: {res.get('why')}")
         else:
             print(f"  captured {res['frames']} frames at "
                   f"{res['captured_fps']} fps -> {res['mb']} MB")
-
+            if voice:
+                _finish_narrated(beats, silent, mp4, work, max(0.0, offset or 0.0))
+                print(f"  narrated and captioned -> {mp4}")
         ctx.close()
         browser.close()
         return beats
+
+
+def _finish_narrated(beats: list[Beat], silent: Path, out: Path, work: Path,
+                     offset_s: float) -> None:
+    import narration
+
+    total = narration.probe_duration(silent)
+    lines, chapters = [], []
+    for i, b in enumerate(beats):
+        start = max(0.0, b.at - offset_s)
+        if b.audio:
+            lines.append(narration.Line(start, b.say, b.audio, b.say_s))
+        nxt = (beats[i + 1].at - offset_s) if i + 1 < len(beats) else total
+        chapters.append((start, min(start + 3.2, nxt), b.title))
+    track = narration.build_track(lines, total, work / "narration.wav")
+    ass = narration.write_ass(lines, work / "captions.ass",
+                              width=VIEW_W, height=VIEW_H, chapter=chapters)
+    narration.finish(silent, track, ass, out)
 
 
 def main() -> None:
@@ -290,8 +531,11 @@ def main() -> None:
     ap.add_argument("--base", default="http://127.0.0.1:8083")
     ap.add_argument("--token")
     ap.add_argument("--token-file")
-    ap.add_argument("--plate", default="GJ18X6705")
+    ap.add_argument("--plate", default="GJ11S7924")
     ap.add_argument("--out", default="var/demo/government_feed")
+    ap.add_argument("--admin-token-file",
+                    help="the estate administrator's token, for the onboarding beats")
+    ap.add_argument("--voice", default="Aman", help="macOS voice; 'none' records silently")
     a = ap.parse_args()
 
     if a.token_file:
@@ -309,7 +553,10 @@ def main() -> None:
     warm = prewarm_stills(a.base, token)
     print(f"  pre-warmed stills: {warm.get('warmed')}/{warm.get('asked')}"
           if warm.get("ok") else f"  pre-warm skipped ({warm.get('why')})")
-    beats = record(a.base, token, a.plate, out_dir)
+    admin = Path(a.admin_token_file).read_text(encoding="ascii").strip() \
+        if a.admin_token_file else ""
+    beats = record(a.base, token, a.plate, out_dir, admin_token=admin,
+                   voice=None if a.voice.lower() == "none" else a.voice)
     ok = mp4.exists()
 
     # The report is half the deliverable, so fetch it from the same store the

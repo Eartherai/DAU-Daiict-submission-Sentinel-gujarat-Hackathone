@@ -100,6 +100,33 @@ Tier is selected from measured capability, observation quality, event priority
 and resource pressure. **Priority never overrides a capability ceiling**: asking
 harder does not make an unreadable plate readable.
 
+The models, and what each is for: **RT-DETRv2-R18** (Apache-2.0) detects vehicles
+and people in one pass, on the GPU where there is one; **ByteTrack** holds them
+across frames; a **YOLOv9 plate detector** (MIT, ONNX) finds plates; a text
+recogniser reads them; and marks are **voted per track** across frames before
+anything is published.
+
+*Finding plates.* A camera whose frame is wider than 1920 px is searched in
+**overlapping full-resolution tiles** as well as whole: the detector's input is
+640 px, and a 2560 px frame had reached it at a quarter scale. On the Mumbai
+signal-queue footage that took a 40-frame sample from 0 valid plates to 20, at
+0.28 s a frame instead of 0.05 s.
+
+*Reading them.* The portable OCR (CCT, ONNX) was trained on plates from about
+sixty regions, not including India; on 21 plate crops read by eye from the
+same footage it read 1 exactly, with 49% of characters wrong. On the
+development hardware the recogniser is **Apple Vision, on device** (5 of 21, 25%
+of characters wrong, 19 ms a crop, no pixel leaves the host); elsewhere the
+ONNX model is the fallback, and an **Indian-trained recogniser is what the
+target GPU servers should carry** - a model choice, measured by the same 21-crop
+check. Every read is interpreted against the **positions of the Indian format**:
+an O where the RTO must be a digit is 0, an 8 where a series letter must be is
+B; only forced, unambiguous pairs, at most two, stated in the read, with the raw
+OCR kept. End to end on 20 s of the queue, the published marks checked by eye
+went from 0 of 9 correct to at least 7 correct. What remains is recognition
+quality at 40-50 px of plate, which better optics or a larger, India-trained
+model buy; the pipeline no longer throws information away.
+
 ### 4.3 Retrieval — graph-first
 ```
 structured prune → graph prune → candidate scoring → decomposed rerank

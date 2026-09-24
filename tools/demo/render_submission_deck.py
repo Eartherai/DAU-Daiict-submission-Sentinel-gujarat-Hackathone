@@ -777,7 +777,7 @@ def limits() -> Image.Image:
         "The GPU speed-up is measured on a laptop's integrated GPU. The target accelerator's is not quoted until it is run.",
         "Copilot is read-only. It will not enhance a still, invent a plate, or join clocks the timebase refuses.",
         "DINOv2 appearance ranking is measured unfit to lead. It is not shown as a tracker.",
-        "Watchlist on the government grid is representative. One live alert: GJ38BH5815.",
+        "Government-grid watchlist entries are designated evaluation marks, filed as such — never as stolen: nothing is known about those vehicles but a camera read.",
     ]
     y = 240
     for p in points:

@@ -2381,8 +2381,11 @@ loaders.analytics = async () => {
 
   const cap = mk("Capability across the estate");
   const yieldPanel = mk("What analytics produced");
+  const zones = mk("Restricted-zone entries · department rules");
+  zones.classList.add("wide");
   const timebase = mk("Timebase clusters");
   timebase.classList.add("wide");
+  fillZoneEntries(zones.body);
   cap.body.append(loadingNote());
   yieldPanel.body.append(loadingNote());
   timebase.body.append(loadingNote());
@@ -2406,6 +2409,54 @@ loaders.analytics = async () => {
   fillAnalyticsYield(yieldPanel.body, c, o);
   await tbP;
 };
+
+/* A department draws a zone on a camera's frame and says when it applies;
+ * the platform reports the sightings inside it in those hours. The rule is
+ * the judgement - the platform never calls anyone an intruder on its own. */
+async function fillZoneEntries(body) {
+  clear(body);
+  let rules;
+  try {
+    rules = (await api("/zones")).rules || [];
+  } catch (err) {
+    body.append(el("div", { class: "notice bad" }, err.message));
+    return;
+  }
+  if (!rules.length) {
+    body.append(el("div", { class: "section-note", style: "padding:10px 14px",
+      text: "No department has set a restricted-zone rule yet. A rule is a zone on "
+        + "one camera's frame, the hours it applies and the classes it concerns; "
+        + "entries against it are reported here." }));
+    return;
+  }
+  for (const r of rules) {
+    const hours = r.active_from ? `${r.active_from}–${r.active_to} IST` : "at all hours";
+    const row = el("div", { class: "zone-rule" },
+      el("div", { class: "zone-head" },
+        el("b", { text: r.name }),
+        el("span", { class: "muted", text: ` · ${r.camera_name || r.camera_id} · ${hours} · `
+          + `${(r.classes || []).join(", ")} · on the authority of ${r.authority}` })));
+    body.append(row);
+    try {
+      const e = await api(`/zones/${encodeURIComponent(r.rule_id)}/entries?limit=6`);
+      row.append(el("div", { class: "zone-count" },
+        el("span", { class: "n", text: Number(e.count).toLocaleString() }),
+        ` entr${e.count === 1 ? "y" : "ies"} in the zone during its hours, of `
+          + `${Number(e.examined).toLocaleString()} sightings on this camera`));
+      const list = el("div", { class: "zone-list" });
+      for (const x of e.entries || []) {
+        list.append(el("span", { class: "chip", text:
+          `${fmtTime(x.t_norm)} · ${x.object_type}${x.dwell_s ? ` · stayed ${Math.round(x.dwell_s)} s` : ""}` }));
+      }
+      row.append(list);
+    } catch (err) {
+      row.append(el("div", { class: "muted", text: err.message }));
+    }
+  }
+  body.append(el("div", { class: "section-note", style: "padding:8px 14px",
+    text: "Position is the bottom centre of the box - where feet or wheels meet the "
+      + "ground. An entry is a sighting against a rule, not an identity." }));
+}
 
 /* ─── system ──────────────────────────────────────────────────────────────
  * Whether the machinery is sound, with the evidence each verdict rests on.

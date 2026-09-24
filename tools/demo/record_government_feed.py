@@ -145,6 +145,16 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
             pass
         page.wait_for_timeout(1500)
 
+    def analytics_view():
+        close_modals()
+        page.click('button[data-view="analytics"]')
+        page.wait_for_timeout(4500)
+        try:
+            page.locator(".zone-rule").first.scroll_into_view_if_needed(timeout=6000)
+        except Exception:
+            page.mouse.wheel(0, 700)
+        page.wait_for_timeout(2500)
+
     def estate_map():
         close_modals()
         page.click('button[data-view="map"]')
@@ -316,10 +326,12 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
         Beat("One camera, with the AI overlay", 16, focus_camera,
              say="One camera, at full quality, with vehicles, people and plates "
                  "from this platform's own detector drawn on the frame."),
-        Beat("Analytics output — what the pipeline produced here", 14, nav("analytics", 3.0),
+        Beat("Analytics output — what the pipeline produced here", 14, analytics_view,
              say="Everything the pipeline produced on these cameras, counted from "
-                 "the store: marks read, vehicles and people by class, and each "
-                 "camera's measured plate-reading grade."),
+                 "the store: marks read, vehicles and people by class, each "
+                 "camera's measured plate-reading grade, and restricted-zone "
+                 "entries: a department draws the zone and sets the hours, and "
+                 "the platform reports every sighting inside it."),
         Beat("Every mark read, with camera and timestamp", 12, nav("overview", 3.0),
              say="Every registration mark read, with its camera and time, is on "
                  "the overview, and in the ANPR report that ships beside this film."),

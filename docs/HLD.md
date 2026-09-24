@@ -106,6 +106,17 @@ across frames; a **YOLOv9 plate detector** (MIT, ONNX) finds plates; a text
 recogniser reads them; and marks are **voted per track** across frames before
 anything is published.
 
+*Restricted-zone entries (intrusion, by rule).* The platform does not call a
+person an intruder on its own: whether someone may stand somewhere is a matter
+of permission, and permission is the department's to state. A department sets
+a rule - a polygon on one camera's frame, the IST hours it applies, the classes
+it concerns, the authority it rests on - and the platform reports every stored
+sighting whose ground point (the bottom centre of its box) falls inside it in
+those hours, with how long the person stayed (`/zones`, admin:write to set,
+alert:read to read, both audited). On the government grid, a rule on the toll
+lane at Tri Mandir Adalaj reports 142 of 1,533 person sightings on the lane's
+carriageway.
+
 *Finding plates.* A camera whose frame is wider than 1920 px is searched in
 **overlapping full-resolution tiles** as well as whole: the detector's input is
 640 px, and a 2560 px frame had reached it at a quarter scale. On the Mumbai

@@ -383,6 +383,23 @@ evidence = Table(
     Column("created_at_us", Integer),
 )
 
+#: A department's rule for a camera: a zone drawn on its frame, the hours it
+#: applies and the classes it concerns. "Intrusion" is a judgement about
+#: permission this platform cannot make on its own; a rule is the department
+#: making it, and the platform reports entries against the rule it was given.
+zone_rules = Table(
+    "zone_rules", metadata,
+    Column("rule_id", String(40), primary_key=True),
+    Column("camera_id", String(64), ForeignKey("cameras.camera_id"), index=True),
+    Column("name", String(120)),
+    Column("polygon", Text),                               # JSON [[x, y], ...] in frame pixels
+    Column("active_from", String(5)), Column("active_to", String(5)),   # IST HH:MM, or null = always
+    Column("classes", Text),                               # JSON ["person"] / ["vehicle"]
+    Column("reason", Text), Column("authority", Text),
+    Column("status", String(16), default="ACTIVE"),
+    Column("created_by", String(120)), Column("created_at_us", Integer),
+)
+
 audit_log = Table(
     "audit_log", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),

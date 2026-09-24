@@ -50,7 +50,7 @@ def frame_with_plate(w: int, h: int, x: int, y: int) -> np.ndarray:
 def test_a_small_plate_is_found_in_a_tile_and_mapped_back() -> None:
     img = frame_with_plate(2560, 1440, 1700, 1100)
     fake = FakePlates((1700, 1100), 2560, 1440)
-    eng = AnprEngine(AnprConfig(), backend=fake)
+    eng = AnprEngine(AnprConfig(ocr_engine="onnx"), backend=fake)
     reads = eng.read_frame(img, 0.0)
     assert len(reads) == 1, "a plate visible in two overlapping tiles is one plate"
     x1, y1, x2, y2 = reads[0].box
@@ -61,5 +61,5 @@ def test_a_small_plate_is_found_in_a_tile_and_mapped_back() -> None:
 def test_a_frame_below_the_threshold_is_not_tiled() -> None:
     img = frame_with_plate(1280, 720, 600, 500)
     fake = FakePlates((600, 500), 1280, 720)
-    AnprEngine(AnprConfig(), backend=fake).read_frame(img, 0.0)
+    AnprEngine(AnprConfig(ocr_engine="onnx"), backend=fake).read_frame(img, 0.0)
     assert fake.calls == [(1280, 720)]

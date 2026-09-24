@@ -107,6 +107,74 @@ def parse(raw: str) -> PlateRead:
     return PlateRead(canon, raw, True, "standard", state, "valid standard format")
 
 
+#: What a glyph must be when its position in the mark forces a digit or a
+#: letter. Only unambiguous pairs: "0" in a letter slot could be O, D or Q,
+#: so it is not typed at all, and such a read stays invalid.
+_AS_DIGIT = {"O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "Z": "2",
+             "S": "5", "G": "6", "B": "8"}
+#: No 1->I or 0->O: series letters avoid I and O precisely because they are
+#: read as 1 and 0, so typing a digit into one would invent an unlikely mark.
+_AS_LETTER = {"2": "Z", "5": "S", "6": "G", "8": "B"}
+
+
+def slot_typed(raw: str, max_forced: int = 2) -> PlateRead:
+    """Read a mark against the positions of the Indian format.
+
+    A plate font draws O and 0, I and 1, B and 8 almost alike, and a general
+    text recogniser returns "MHO1EA4753" for MH01EA4753. Where the format
+    fixes a position's class - the RTO and the last four are digits, the state
+    and series are letters - a glyph of the other class is read as its twin.
+    That is a reading of the characters, not a repair of the mark: nothing is
+    changed that the position does not force, at most ``max_forced`` glyphs
+    are typed, a split of the string that needs fewer is always preferred, and
+    two different splits needing the same fewest leave the read invalid. What
+    was typed is stated in ``reason``, and ``raw`` keeps what the OCR said.
+    A valid read is returned untouched.
+    """
+    direct = parse(raw)
+    canon = normalise(raw)
+    if direct.valid or not (8 <= len(canon) <= 11):
+        return direct
+    best: list[tuple[int, str, list[str]]] = []
+    # RTO codes are two digits everywhere but Delhi (DL 1C, DL 3S). Allowing a
+    # one-digit RTO elsewhere let "MHOLCT3466" type as MH 0 LCT 3466 with one
+    # edit, over the right reading MH 01 CT 3466 with two.
+    rtos = (1, 2) if canon[:2] == "DL" else (2,)
+    for rto in rtos:
+        series = len(canon) - 2 - rto - 4
+        if not 0 <= series <= 3:
+            continue
+        classes = "LL" + "D" * rto + "L" * series + "DDDD"
+        out, notes = [], []
+        for i, (ch, cls) in enumerate(zip(canon, classes, strict=True)):
+            if cls == "D" and not ch.isdigit():
+                alt = _AS_DIGIT.get(ch)
+            elif cls == "L" and ch.isdigit():
+                alt = _AS_LETTER.get(ch)
+            else:
+                out.append(ch)
+                continue
+            if alt is None:
+                break
+            out.append(alt)
+            notes.append(f"{ch}->{alt} at {i}")
+        else:
+            cand = "".join(out)
+            if len(notes) <= max_forced and parse(cand).valid:
+                best.append((len(notes), cand, notes))
+    if not best:
+        return direct
+    best.sort()
+    fewest = [b for b in best if b[0] == best[0][0]]
+    if len({b[1] for b in fewest}) > 1:
+        return PlateRead(canon, raw, False, "invalid", None,
+                         "two readings of the positions fit equally; not typed")
+    n, cand, notes = fewest[0]
+    pr = parse(cand)
+    return PlateRead(pr.canonical, raw, True, pr.scheme, pr.state_code,
+                     "position-typed: " + ", ".join(notes))
+
+
 def repair_candidates(raw: str, max_edits: int = 1) -> list[PlateRead]:
     """Plates that are within ``max_edits`` OCR confusions of being valid.
 

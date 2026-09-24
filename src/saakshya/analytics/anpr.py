@@ -35,7 +35,7 @@ from typing import Any
 
 import numpy as np
 
-from saakshya.analytics.plates import PlateRead, parse
+from saakshya.analytics.plates import PlateRead, parse, slot_typed
 from saakshya.models.registry import ANPR_CPU, ModelRecord
 from saakshya.runtime.backend import BACKENDS, InferenceBackend
 
@@ -107,6 +107,10 @@ class AnprConfig:
     tile_min_width: int = 1920
     tiles: tuple[int, int] = (3, 2)
     tile_overlap: float = 0.15
+    #: Which recogniser reads the crops: "auto" uses Apple Vision where the
+    #: hardware has it (see analytics/ocr_vision.py for the measurement) and
+    #: the portable ONNX model elsewhere. SAAKSHYA_OCR overrides it.
+    ocr_engine: str = "auto"
 
     #: A single frame never *confirms* a plate. Reads are accumulated per track
     #: and voted; this is the minimum agreeing frames for a CONFIRMED read.
@@ -215,10 +219,26 @@ class AnprEngine:
             self._backend = BACKENDS.get(self.record)
         return self._backend
 
+    @property
+    def ocr_backend(self) -> Any:
+        """The recogniser for plate crops; the detection backend's by default."""
+        if getattr(self, "_ocr", None) is None:
+            choice = (os.environ.get("SAAKSHYA_OCR") or self.cfg.ocr_engine).strip().lower()
+            self._ocr = self.backend
+            if choice in ("auto", "apple-vision"):
+                from saakshya.analytics import ocr_vision
+                if ocr_vision.available():
+                    self._ocr = ocr_vision.AppleVisionOcr()
+                elif choice == "apple-vision":
+                    raise RuntimeError("SAAKSHYA_OCR=apple-vision, but Apple Vision is "
+                                       "not available on this host")
+        return self._ocr
+
     def provenance(self) -> dict:
         """Written into every event this engine contributes to."""
         p = self.record.provenance()
         p["backend"] = self.backend.name
+        p["ocr"] = getattr(self.ocr_backend, "name", p["backend"])
         return p
 
     def _scaled(self, image: np.ndarray) -> tuple[np.ndarray, float]:
@@ -285,7 +305,7 @@ class AnprEngine:
             crop = prepare_ocr_crop(
                 image[y1:y2, x1:x2], min_height=self.cfg.ocr_min_height)
             try:
-                res = self.backend.ocr(crop)
+                res = self.ocr_backend.ocr(crop)
             except (ValueError, RuntimeError, IndexError):
                 # Deliberately narrow. A malformed crop is expected and skippable;
                 # an AttributeError or TypeError here is a *bug in this code* and
@@ -335,7 +355,9 @@ class PlateVoter:
 
         valid: list[tuple[PlateRead, RawRead]] = []
         for r in reads:
-            pr = parse(r.text)
+            # Read against the positions of the format; the raw OCR text is
+            # kept on the PlateRead and what was typed is in its reason.
+            pr = slot_typed(r.text)
             if pr.valid:
                 valid.append((pr, r))
             else:
@@ -391,7 +413,7 @@ class PlateVoter:
         reads = self._reads.get(track_key, [])
         if not reads:
             return []
-        valid = [(parse(r.text), r) for r in reads]
+        valid = [(slot_typed(r.text), r) for r in reads]
         valid = [(pr, r) for pr, r in valid if pr.valid]
         if not valid:
             return []

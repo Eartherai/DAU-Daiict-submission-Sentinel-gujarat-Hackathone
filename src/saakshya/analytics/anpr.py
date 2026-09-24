@@ -67,6 +67,24 @@ def prepare_ocr_crop(crop: np.ndarray, *, min_height: int = 48) -> np.ndarray:
     return np.asarray(rgb)[:, :, ::-1].copy()
 
 
+def _suppress(found: list[tuple[tuple[int, int, int, int], float]]
+              ) -> list[tuple[tuple[int, int, int, int], float]]:
+    """One box per plate: the largest, when boxes overlap by 30% of the smaller."""
+    keep: list[tuple[tuple[int, int, int, int], float]] = []
+    for box, score in sorted(found, key=lambda f: -((f[0][2] - f[0][0]) * (f[0][3] - f[0][1]))):
+        x1, y1, x2, y2 = box
+        area = max(1, (x2 - x1) * (y2 - y1))
+        dup = False
+        for (k1, l1, k2, l2), _ in keep:
+            inter = max(0, min(x2, k2) - max(x1, k1)) * max(0, min(y2, l2) - max(y1, l1))
+            if inter >= 0.3 * area:
+                dup = True
+                break
+        if not dup:
+            keep.append((box, score))
+    return keep
+
+
 @dataclass(slots=True)
 class AnprConfig:
     """Analytics-layer configuration.
@@ -80,6 +98,15 @@ class AnprConfig:
     #: Frames are scaled so the longest side is at most this, before detection.
     detection_max_width: int = 1280
     detector_conf: float = 0.40
+    #: Frames at least this wide are also searched in overlapping tiles at full
+    #: resolution. The plate detector's input is 640 px, so a 2560 px frame
+    #: reached it at a quarter scale and a 100 px plate arrived as 25 px.
+    #: Measured on 40 frames of the Mumbai signal queue: the downscaled pass
+    #: found 32 plate boxes and no valid plate; tiles found 578 boxes and 20
+    #: distinct valid plates, at 0.28 s a frame instead of 0.05 s.
+    tile_min_width: int = 1920
+    tiles: tuple[int, int] = (3, 2)
+    tile_overlap: float = 0.15
 
     #: A single frame never *confirms* a plate. Reads are accumulated per track
     #: and voted; this is the minimum agreeing frames for a CONFIRMED read.
@@ -210,17 +237,43 @@ class AnprEngine:
             (nw, nh), Image.BILINEAR)  # type: ignore[attr-defined]
         return np.asarray(small)[:, :, ::-1].copy(), scale
 
+    def _tile_boxes(self, W: int, H: int) -> list[tuple[int, int, int, int]]:
+        nx, ny = self.cfg.tiles
+        tw, th = W / nx, H / ny
+        ox, oy = tw * self.cfg.tile_overlap, th * self.cfg.tile_overlap
+        return [(max(0, int(i * tw - ox)), max(0, int(j * th - oy)),
+                 min(W, int((i + 1) * tw + ox)), min(H, int((j + 1) * th + oy)))
+                for j in range(ny) for i in range(nx)]
+
+    def detect_plates(self, image: np.ndarray) -> list[tuple[tuple[int, int, int, int], float]]:
+        """Plate boxes in full-frame pixels, with their detector scores.
+
+        The whole frame, downscaled, finds the large near-field plates; on a
+        high-resolution frame, overlapping full-resolution tiles find the small
+        ones. Where the two passes, or two tiles, find the same plate, the
+        larger box is kept.
+        """
+        H, W = image.shape[:2]
+        found: list[tuple[tuple[int, int, int, int], float]] = []
+        det_img, scale = self._scaled(image)
+        inv = 1.0 / scale
+        for d in self.backend.detect(det_img):
+            bx1, by1, bx2, by2 = d.box
+            found.append(((int(bx1 * inv), int(by1 * inv), int(bx2 * inv), int(by2 * inv)),
+                          float(d.score)))
+        if W >= self.cfg.tile_min_width:
+            for tx1, ty1, tx2, ty2 in self._tile_boxes(W, H):
+                for d in self.backend.detect(image[ty1:ty2, tx1:tx2]):
+                    bx1, by1, bx2, by2 = d.box
+                    found.append(((bx1 + tx1, by1 + ty1, bx2 + tx1, by2 + ty1), float(d.score)))
+        return _suppress(found)
+
     def read_frame(self, image: np.ndarray, pts_s: float) -> list[RawRead]:
         """Detect plates in one frame and OCR each, at full resolution."""
-        det_img, scale = self._scaled(image)
         out: list[RawRead] = []
         H, W = image.shape[:2]
 
-        for d in self.backend.detect(det_img):
-            bx1, by1, bx2, by2 = d.box
-            inv = 1.0 / scale
-            x1, y1 = int(bx1 * inv), int(by1 * inv)
-            x2, y2 = int(bx2 * inv), int(by2 * inv)
+        for (x1, y1, x2, y2), score in self.detect_plates(image):
             # Small pad; plate detectors often crop the border characters tight.
             pad_x = max(2, int((x2 - x1) * 0.04))
             pad_y = max(2, int((y2 - y1) * 0.10))
@@ -246,7 +299,7 @@ class AnprEngine:
                 continue
             out.append(RawRead(
                 text=res.text, confidence=res.confidence,
-                box=(x1, y1, x2, y2), det_confidence=d.score, pts_s=pts_s,
+                box=(x1, y1, x2, y2), det_confidence=score, pts_s=pts_s,
             ))
         return out
 

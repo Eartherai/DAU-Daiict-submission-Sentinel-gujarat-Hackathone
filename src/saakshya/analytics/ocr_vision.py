@@ -9,9 +9,10 @@ the positions of an Indian mark resolve (`plates.slot_typed`).
 
 It runs on the machine's Neural Engine and GPU; no pixel leaves the host, so
 the rule that detection and ANPR stay on the deployment's own hardware holds.
-It exists only on macOS, which makes it the development hardware's OCR, not
-the target's: on a Linux GPU server the ONNX model remains the fallback, and
-an Indian-trained recogniser is what that hardware should carry.
+It exists only on macOS. The pipeline now prefers the Indian-trained
+recogniser (`ocr_indian`, 17 of 21 on the same crops) wherever its weights
+are installed; this is the fallback on a Mac without them, and the ONNX model
+is the fallback everywhere else.
 
 The recogniser is a small Swift program (`tools/ocr/vision_ocr.swift`), built
 on first use with the system compiler and kept running: one process, crops

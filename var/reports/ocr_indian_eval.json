@@ -1,0 +1,69 @@
+{
+ "what": "Plate recognisers compared on this deployment's own footage (licensed Mumbai signal-queue clip, 2560x1440). Plate strings are not reproduced here.",
+ "crop_level": {
+  "set": "21 plate crops read by eye, plus 2 a person could not read; crops as the pipeline hands them to OCR",
+  "tool": "tools/bench/ocr_compare.py",
+  "results": {
+   "awiros": {
+    "exact": 17,
+    "exact_after_typing": 17,
+    "labelled": 21,
+    "cer": 0.024,
+    "invented_on_unreadable": 2,
+    "unreadable": 2,
+    "ms_per_crop": 14.8
+   },
+   "apple-vision": {
+    "exact": 2,
+    "exact_after_typing": 5,
+    "labelled": 21,
+    "cer": 0.248,
+    "invented_on_unreadable": 0,
+    "unreadable": 2,
+    "ms_per_crop": 13.8
+   },
+   "cct-onnx": {
+    "exact": 1,
+    "exact_after_typing": 2,
+    "labelled": 21,
+    "cer": 0.486,
+    "invented_on_unreadable": 0,
+    "unreadable": 2,
+    "ms_per_crop": 7.6
+   }
+  },
+  "note": "The Indian model's reads on the 2 unreadable crops scored 0.725 and 0.805, under the 0.82 bar a single-frame read must clear to publish.",
+  "preprocessing": "Padded as the weights' published inference script pads (black, before scaling): 6/21 exact. Padded as PaddleOCR's resize_norm_img pads in training (grey, after): 17/21."
+ },
+ "port_parity": "PyTorch port vs PaddlePaddle forward pass on the 23 crops: max probability difference 7.45e-06, same text 23/23 (tools/bench/ocr_compare.py --parity).",
+ "latency_ms_per_plate": {
+  "awiros_pytorch_mps_single": 14.2,
+  "awiros_pytorch_mps_batched": 6.6,
+  "awiros_paddlepaddle_cpu": 50.0,
+  "apple_vision": 13.8,
+  "cct_onnx_cpu": 7.5
+ },
+ "clip_level": {
+  "clip": "OWN-MUM-QUEUE, 57 s, 1,716 frames, the full production pipeline (tools/demo/analyse_own_feed.py)",
+  "hand_read_plates_published_exactly": {
+   "awiros": "12/20",
+   "apple_vision": "5/20"
+  },
+  "published_marks_checked_by_eye": {
+   "method": "each published mark's largest vehicle box, plate re-detected and enlarged; a mark counts only where the crop settles it",
+   "awiros": {
+    "published": 83,
+    "correct": 47,
+    "wrong": 13,
+    "cannot_tell": 23
+   },
+   "apple_vision": {
+    "published": 29,
+    "correct": 17,
+    "wrong": 6,
+    "cannot_tell": 6
+   }
+  },
+  "reading": "2.8x the correct marks at the same or slightly lower error rate among marks that could be checked (22% vs 26%). Most wrong marks are one character from a real plate on the same clip; a one-vote read is published as a lead requiring verification, never a confirmation."
+ }
+}

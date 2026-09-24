@@ -107,9 +107,12 @@ class AnprConfig:
     tile_min_width: int = 1920
     tiles: tuple[int, int] = (3, 2)
     tile_overlap: float = 0.15
-    #: Which recogniser reads the crops: "auto" uses Apple Vision where the
-    #: hardware has it (see analytics/ocr_vision.py for the measurement) and
-    #: the portable ONNX model elsewhere. SAAKSHYA_OCR overrides it.
+    #: Which recogniser reads the crops. "auto" uses the Indian-trained model
+    #: where its weights are installed (analytics/ocr_indian.py: 17 of 21
+    #: plates exact on this footage, against 5 for Apple Vision and 2 for the
+    #: ONNX model), then Apple Vision where the hardware has it, then the
+    #: portable ONNX model. SAAKSHYA_OCR = indian | apple-vision | onnx
+    #: overrides it.
     ocr_engine: str = "auto"
 
     #: A single frame never *confirms* a plate. Reads are accumulated per track
@@ -225,6 +228,14 @@ class AnprEngine:
         if getattr(self, "_ocr", None) is None:
             choice = (os.environ.get("SAAKSHYA_OCR") or self.cfg.ocr_engine).strip().lower()
             self._ocr = self.backend
+            if choice in ("auto", "indian"):
+                from saakshya.analytics import ocr_indian
+                if ocr_indian.available():
+                    self._ocr = ocr_indian.IndianPlateOcr()
+                    return self._ocr
+                if choice == "indian":
+                    raise RuntimeError("SAAKSHYA_OCR=indian, but the Indian plate model is not "
+                                       "installed (tools/models/fetch_indian_ocr.sh)")
             if choice in ("auto", "apple-vision"):
                 from saakshya.analytics import ocr_vision
                 if ocr_vision.available():
@@ -281,7 +292,7 @@ class AnprEngine:
             bx1, by1, bx2, by2 = d.box
             found.append(((int(bx1 * inv), int(by1 * inv), int(bx2 * inv), int(by2 * inv)),
                           float(d.score)))
-        if W >= self.cfg.tile_min_width:
+        if self.cfg.tile_min_width <= W:
             for tx1, ty1, tx2, ty2 in self._tile_boxes(W, H):
                 for d in self.backend.detect(image[ty1:ty2, tx1:tx2]):
                     bx1, by1, bx2, by2 = d.box
@@ -293,6 +304,7 @@ class AnprEngine:
         out: list[RawRead] = []
         H, W = image.shape[:2]
 
+        boxes, crops = [], []
         for (x1, y1, x2, y2), score in self.detect_plates(image):
             # Small pad; plate detectors often crop the border characters tight.
             pad_x = max(2, int((x2 - x1) * 0.04))
@@ -301,20 +313,39 @@ class AnprEngine:
             x2, y2 = min(W, x2 + pad_x), min(H, y2 + pad_y)
             if x2 - x1 < 8 or y2 - y1 < 5:
                 continue
+            boxes.append(((x1, y1, x2, y2), score))
+            crops.append(prepare_ocr_crop(
+                image[y1:y2, x1:x2], min_height=self.cfg.ocr_min_height))
+        if not crops:
+            return out
 
-            crop = prepare_ocr_crop(
-                image[y1:y2, x1:x2], min_height=self.cfg.ocr_min_height)
+        many = getattr(self.ocr_backend, "ocr_many", None)
+        results: list[Any]
+        if many is not None:
+            # A recogniser that reads a frame's plates in one pass (on a GPU,
+            # 6.6 ms a plate batched against 14 ms one at a time).
             try:
-                res = self.ocr_backend.ocr(crop)
+                results = many(crops)
             except (ValueError, RuntimeError, IndexError):
-                # Deliberately narrow. A malformed crop is expected and skippable;
-                # an AttributeError or TypeError here is a *bug in this code* and
-                # must surface loudly. An earlier version caught bare Exception
-                # and silently swallowed a refactor error, turning a broken
-                # pipeline into "zero detections" with no diagnostic.
-                log.debug("OCR rejected crop at %s", (x1, y1, x2, y2), exc_info=True)
-                self.ocr_crop_failures += 1
-                continue
+                log.debug("OCR rejected a frame's crops", exc_info=True)
+                self.ocr_crop_failures += len(crops)
+                return out
+        else:
+            results = []
+            for (box, _), crop in zip(boxes, crops, strict=True):
+                try:
+                    results.append(self.ocr_backend.ocr(crop))
+                except (ValueError, RuntimeError, IndexError):
+                    # Deliberately narrow. A malformed crop is expected and
+                    # skippable; an AttributeError or TypeError here is a *bug
+                    # in this code* and must surface loudly. An earlier version
+                    # caught bare Exception and silently swallowed a refactor
+                    # error, turning a broken pipeline into "zero detections"
+                    # with no diagnostic.
+                    log.debug("OCR rejected crop at %s", box, exc_info=True)
+                    self.ocr_crop_failures += 1
+                    results.append(None)
+        for ((x1, y1, x2, y2), score), res in zip(boxes, results, strict=True):
             if res is None or not res.text:
                 continue
             out.append(RawRead(

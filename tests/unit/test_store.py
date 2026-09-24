@@ -232,3 +232,23 @@ def test_a_change_that_cannot_be_applied_in_place_is_reported(tmp_path):
             "an inapplicable schema change was silently skipped")
     finally:
         S.observations._columns.remove(new)
+
+
+def test_a_nul_held_as_its_stand_in_still_verifies_and_nothing_else_does(store):
+    # A store written before the API refused NUL, copied to PostgreSQL, holds
+    # U+2400 where the NUL was. The entry must verify against the hash made
+    # when it was written - and no other substitute may.
+    from sqlalchemy import text
+
+    from saakshya.store.repository import NUL_STAND_IN
+    store.audit("sup.live", "search_plate", case_id="FIR-1",
+                purpose="security scorecard", target="\x00'\"", result_count=0)
+    store.audit("sup.live", "search_plate", case_id="FIR-1", target="GJ05AB1234")
+    with store.engine.begin() as c:
+        c.execute(text("UPDATE audit_log SET target=:t WHERE id=1"),
+                  {"t": NUL_STAND_IN + "'\""})
+    assert store.verify_audit_chain() == (True, None)
+    with store.engine.begin() as c:
+        c.execute(text("UPDATE audit_log SET target=:t WHERE id=1"), {"t": "?'\""})
+    ok, err = store.verify_audit_chain()
+    assert not ok and "id=1" in err

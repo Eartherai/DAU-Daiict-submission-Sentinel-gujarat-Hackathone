@@ -28,6 +28,7 @@ from sqlalchemy import select
 from saakshya.common.paths import display
 from saakshya.store import Store
 from saakshya.store import schema as S
+from saakshya.store.provenance import redacted
 from saakshya.store.repository import to_us
 
 #: A plan line containing any of these means the query is reading more rows than
@@ -136,7 +137,7 @@ def main() -> int:
 
     args.json.parent.mkdir(parents=True, exist_ok=True)
     args.json.write_text(json.dumps({
-        "database": args.db,
+        "database": redacted(args.db),
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "row_counts": store.stats(),
         "checks": checks,

@@ -32,6 +32,7 @@ from saakshya.api.app import create_app
 from saakshya.api.deps import AppState
 from saakshya.common.paths import display
 from saakshya.security import Role, TokenService
+from saakshya.store.provenance import redacted
 
 
 def percentiles(samples: list[float]) -> dict[str, float]:
@@ -51,6 +52,8 @@ def main() -> int:
     ap.add_argument("--db", default=os.environ.get("SAAKSHYA_DB",
                                                    "sqlite:///var/demo.db"))
     ap.add_argument("--iterations", type=int, default=60)
+    ap.add_argument("--plate", help="the plate every plate endpoint asks about "
+                    "(default: the first in sorted order, so two engines ask the same)")
     ap.add_argument("--json", type=Path,
                     default=ROOT / "var" / "reports" / "api_latency.json")
     args = ap.parse_args()
@@ -66,7 +69,7 @@ def main() -> int:
                "X-Purpose": "latency measurement harness"}
 
     plates = [p for p in state.store.distinct_plates() if p]
-    plate = plates[0] if plates else "GJ01AA0000"
+    plate = args.plate or (sorted(plates)[0] if plates else "GJ01AA0000")
     cams = [c["camera_id"] for c in state.store.list_cameras()]
     cam = cams[0] if cams else "NONE"
     obs = state.store.search_plate(plate)
@@ -131,7 +134,7 @@ def main() -> int:
 
     args.json.parent.mkdir(parents=True, exist_ok=True)
     args.json.write_text(json.dumps({
-        "database": args.db,
+        "database": redacted(args.db),
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "iterations": args.iterations,
         "scale": counts,

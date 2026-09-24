@@ -121,7 +121,7 @@ def test_zone_rule_on_postgresql(world):
         camera_id="CAM-A", pts_s=0.0, t_norm=t, t_ingest=t, dedup_key="pg-zone",
         track_id="Z1", segment_id="S", object_type="person",
         bbox=(100.0, 100.0, 140.0, 300.0), detection_confidence=0.9,
-        district="Ahmedabad", model_versions={"dwell_s": 9.0})])
+        district="Ahmedabad", model_versions={"dwell_s": 9.0, "dwell_exceeded": True})])
     r = c.post("/zones", headers=h(world, "adm"), json={
         "camera_id": "CAM-A", "name": "Carriageway",
         "polygon": [[0, 200], [400, 200], [400, 400], [0, 400]],
@@ -155,3 +155,49 @@ def test_viewport_query_matches_lat_lon_ranges(world):
     box = s.cameras_in_bbox(south=23.0, west=72.55, north=23.05, east=72.60)
     inside = {c["camera_id"] for c in box}
     assert inside == {"CAM-A", "CAM-B"}
+
+
+@pytest.mark.parametrize("evil", ["GJ01AA1111\x00", "\x00'\"", "GJ\x1b[2J01"])
+def test_control_characters_are_audited_not_a_server_error(world, evil):
+    # The security scorecard's probe. SQLite once stored it verbatim in the
+    # audit log; PostgreSQL text cannot hold NUL.
+    c = world["client"]
+    r = c.get("/search", params={"plate": evil}, headers=h(world, "sup", **PURPOSE))
+    assert r.status_code in (200, 400, 422), r.text[:200]
+    audit = c.get("/audit?limit=5", headers=h(world, "sup")).json()
+    assert audit["chain_verified"], audit["chain_error"]
+
+
+def test_a_nul_in_a_json_body_is_refused_not_a_server_error(world):
+    c = world["client"]
+    r = c.post("/zones", headers=h(world, "adm"), json={
+        "camera_id": "CAM-A", "name": "Zone\u0000X",
+        "polygon": [[0, 0], [10, 0], [10, 10]], "classes": ["person"],
+        "reason": "nul probe", "authority": "test"})
+    r2 = c.post("/cases", headers=h(world, "sup"), json={
+        "case_id": "CASE-NUL-1", "title": "a\u0000b", "purpose": "probing nul handling"})
+    assert r.status_code == r2.status_code == 400
+    assert r.json()["detail"]["code"] == "NUL_CHARACTER" and r.headers.get("X-Request-Id")
+    for path in ("/cameras/CAM%00A", "/observations/OB%00"):
+        assert c.get(path, headers=h(world, "sup")).status_code == 400
+    ok = c.post("/cases", headers=h(world, "sup"), json={
+        "case_id": "CASE-NUL-2", "title": "spelled \\u0000 as text",
+        "purpose": "probing nul handling"})
+    assert ok.status_code in (200, 201), ok.text[:200]
+
+
+def test_overview_counts_on_postgresql(world):
+    # stats() counted long-stay people with SQLite's json_extract.
+    r = world["client"].get("/overview", headers=h(world, "sup"))
+    assert r.status_code == 200, r.text[:200]
+    assert world["state"].store.stats()["observations_person_long_stay"] >= 1
+
+
+def test_the_index_walk_gives_what_distinct_gives(world):
+    s: Store = world["state"].store
+    with s.engine.connect() as c:
+        cams = {r[0] for r in c.execute(text("SELECT DISTINCT camera_id FROM observations"))}
+        plates = {r[0] for r in c.execute(text(
+            "SELECT DISTINCT plate FROM observations WHERE plate IS NOT NULL"))}
+    assert s.observed_camera_ids() == cams and len(cams) >= 2
+    assert set(s.distinct_plates()) == plates and len(plates) >= 2

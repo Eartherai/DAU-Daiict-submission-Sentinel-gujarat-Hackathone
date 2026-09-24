@@ -41,6 +41,10 @@ from saakshya.store import schema as S
 
 log = logging.getLogger(__name__)
 
+#: How a NUL is stored where the database cannot hold one: U+2400 SYMBOL FOR
+#: NULL. The API refuses NUL, so only a copy of an older store carries it.
+NUL_STAND_IN = "\u2400"
+
 EPOCH_US = 1_000_000
 
 
@@ -565,9 +569,32 @@ class Store:
         predates the write. Treating a missing health row as "never ingested"
         is then a lie.
         """
+        if self.engine.dialect.name == "postgresql":
+            return set(self._distinct_by_index("camera_id"))
         with self.engine.connect() as c:
             return {r[0] for r in c.execute(
                 select(S.observations.c.camera_id).distinct())}
+
+    def _distinct_by_index(self, column: str) -> list[str]:
+        """The distinct non-null values of an indexed observations column.
+
+        PostgreSQL answers SELECT DISTINCT by reading every row: 90-100 ms on
+        1.16 million observations for 56 cameras, which put the map's camera
+        layer at 104 ms against SQLite's 8. Walking the index from one value
+        to the next - one probe per distinct value - is the same answer from
+        the index that already leads with the column.
+        """
+        assert column in ("camera_id", "plate")
+        sql = text(
+            f"WITH RECURSIVE v AS ("
+            f" (SELECT {column} AS x FROM observations WHERE {column} IS NOT NULL"
+            f"  ORDER BY {column} LIMIT 1)"
+            f" UNION ALL"
+            f" SELECT (SELECT o.{column} FROM observations o WHERE o.{column} > v.x"
+            f"         ORDER BY o.{column} LIMIT 1) FROM v WHERE v.x IS NOT NULL)"
+            f" SELECT x FROM v WHERE x IS NOT NULL")
+        with self.engine.connect() as c:
+            return [r[0] for r in c.execute(sql)]
 
     def plate_publication_by_camera(self) -> dict[str, dict[str, int]]:
         """Live-store plate identity per camera, not the capability sample.
@@ -909,6 +936,8 @@ class Store:
             return [VehicleObservation.from_row(r) for r in c.execute(q)]
 
     def distinct_plates(self, camera_id: str | None = None) -> list[str]:
+        if camera_id is None and self.engine.dialect.name == "postgresql":
+            return [p for p in self._distinct_by_index("plate") if p]
         q = select(S.observations.c.plate).where(
             S.observations.c.plate.isnot(None)).distinct()
         if camera_id:
@@ -1131,19 +1160,23 @@ class Store:
             persons = c.execute(
                 select(func.count()).select_from(S.observations)
                 .where(S.observations.c.object_type == "person")).scalar_one()
-            # JSON true extracts as 1 on SQLite. This is a duration on one
-            # camera, not an identity and not an intrusion judgement.
-            dwell_flag = func.json_extract(
-                S.observations.c.model_versions, "$.dwell_exceeded")
+            # A duration on one camera, not an identity and not an intrusion
+            # judgement. The flag lives in the model_versions JSON text: JSON
+            # true extracts as 1 on SQLite, as the text 'true' on PostgreSQL.
+            if self.engine.dialect.name == "postgresql":
+                dwell_long: Any = text(
+                    "(observations.model_versions::jsonb ->> 'dwell_exceeded') "
+                    "IN ('true', '1')")
+            else:
+                dwell_long = func.json_extract(
+                    S.observations.c.model_versions, "$.dwell_exceeded").in_((1, True))
             person_long_stay = c.execute(
                 select(func.count()).select_from(S.observations).where(
-                    S.observations.c.object_type == "person",
-                    dwell_flag.in_((1, True)),
+                    S.observations.c.object_type == "person", dwell_long,
                 )).scalar_one()
             cameras_person_long_stay = c.execute(
                 select(func.count(func.distinct(S.observations.c.camera_id)))
-                .where(S.observations.c.object_type == "person",
-                       dwell_flag.in_((1, True)))).scalar_one()
+                .where(S.observations.c.object_type == "person", dwell_long)).scalar_one()
             cameras_with_plate = c.execute(
                 select(func.count(func.distinct(S.observations.c.camera_id)))
                 .where(S.observations.c.plate.isnot(None))).scalar_one()
@@ -1257,20 +1290,37 @@ class Store:
         self._stats_cache = None
 
     def verify_audit_chain(self) -> tuple[bool, str | None]:
+        """Recompute every entry's hash and its link to the one before.
+
+        An entry whose text held a NUL - possible only in a store written
+        before the API refused the character - was copied to PostgreSQL with
+        each NUL as NUL_STAND_IN, since PostgreSQL text cannot hold one. Such
+        an entry verifies only if its hash matches once the stand-in is turned
+        back into NUL: the original bytes are recovered exactly, so the chain
+        proves what it always proved.
+        """
         import hashlib
+
+        def digest(m: Any, prev: str | None, restore: bool) -> str:
+            def f(k: str) -> Any:
+                v = m[k]
+                return v.replace(NUL_STAND_IN, "\x00") if restore and isinstance(v, str) else v
+            payload = json.dumps({
+                "actor": f("actor"), "role": f("role"), "action": f("action"),
+                "case_id": f("case_id"), "purpose": f("purpose"), "target": f("target"),
+                "result_count": m["result_count"], "jurisdiction": f("jurisdiction"),
+                "t": m["t_us"], "prev": prev,
+            }, sort_keys=True)
+            return hashlib.sha256(payload.encode()).hexdigest()
 
         with self.engine.connect() as c:
             rows = list(c.execute(select(S.audit_log).order_by(S.audit_log.c.id)))
         prev = None
         for r in rows:
             m = r._mapping
-            payload = json.dumps({
-                "actor": m["actor"], "role": m["role"], "action": m["action"],
-                "case_id": m["case_id"], "purpose": m["purpose"], "target": m["target"],
-                "result_count": m["result_count"], "jurisdiction": m["jurisdiction"],
-                "t": m["t_us"], "prev": prev,
-            }, sort_keys=True)
-            if hashlib.sha256(payload.encode()).hexdigest() != m["entry_hash"]:
+            if digest(m, prev, False) != m["entry_hash"] and not (
+                    any(isinstance(v, str) and NUL_STAND_IN in v for v in m.values())
+                    and digest(m, prev, True) == m["entry_hash"]):
                 return False, f"audit chain broken at id={m['id']}"
             prev = m["entry_hash"]
         return True, None

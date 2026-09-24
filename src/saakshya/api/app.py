@@ -8,6 +8,7 @@ Middleware order is deliberate and reads outermost-first:
 2. **Metrics and access log** — records the outcome of everything inside it,
    including refusals, which are the interesting ones.
 3. **Security headers** — applied on the way out regardless of the path taken.
+4. **NUL refusal** — innermost, so its 400 still carries the three above.
 
 Errors are mapped once, centrally. An access failure returns the same shaped
 body whether it came from a route guard or from deep inside the service layer,
@@ -29,8 +30,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from saakshya.api import (
     routes_command,
@@ -42,6 +43,7 @@ from saakshya.api import (
 from saakshya.api.deps import AppState, AuthDep, StateDep, access_error
 from saakshya.obs import METRICS, actor_var, configure_logging, request_id_var
 from saakshya.security import AccessError, Permission
+from saakshya.store.provenance import redacted
 
 log = logging.getLogger("saakshya.api")
 
@@ -125,7 +127,7 @@ async def lifespan(app: FastAPI):
         state.hub = getattr(state, "hub", None)
         state.relay = getattr(state, "relay", None)
     log.info("saakshya api starting", extra={"extra_fields": {
-        "db": state.db_url, "auth_required": state.require_auth,
+        "db": redacted(state.db_url), "auth_required": state.require_auth,
         "cameras": len(state.store.list_cameras()),
         "hub": bool(getattr(state, "hub", None)),
         "relay": bool(getattr(state, "relay", None)),
@@ -172,6 +174,30 @@ def create_app(state: AppState | None = None, *,
     app.state.saakshya = state or AppState()
 
     # -- middleware ---------------------------------------------------------- #
+    # Registered first, so it runs innermost: its refusal still passes through
+    # the request-id and security-header middleware below.
+    @app.middleware("http")
+    async def refuse_nul(request: Request, call_next: Callable[..., Awaitable[Any]]):
+        """A NUL character in a path, query or JSON body is refused, on every engine.
+
+        PostgreSQL text cannot hold NUL. On PostgreSQL a NUL in a case title or
+        a zone name reached the write and failed as a 500; SQLite stored it
+        without complaint, which is how four such strings sat in an audit log
+        until the store was copied to PostgreSQL. No field in this API has a
+        use for the character, so it is refused where the request arrives
+        rather than wherever it would next reach a query.
+        """
+        bad = "\x00" in request.url.path or "%00" in request.url.query
+        if not bad and "json" in request.headers.get("content-type", ""):
+            body = await request.body()
+            if b"\\u0000" in body or b"\x00" in body:
+                bad = _json_has_nul(body)
+        if bad:
+            return JSONResponse(status_code=400, content={"detail": {
+                "code": "NUL_CHARACTER",
+                "message": "a NUL character is not accepted in a request"}})
+        return await call_next(request)
+
     @app.middleware("http")
     async def correlate(request: Request, call_next: Callable[..., Awaitable[Any]]):
         rid = request.headers.get("X-Request-Id") or uuid.uuid4().hex[:16]
@@ -332,8 +358,13 @@ def create_app(state: AppState | None = None, *,
     app.include_router(routes_system.router)
     app.include_router(routes_command.router)
 
-    from saakshya.api import (routes_admin, routes_copilot, routes_edge,
-                              routes_registry, routes_zones)
+    from saakshya.api import (
+        routes_admin,
+        routes_copilot,
+        routes_edge,
+        routes_registry,
+        routes_zones,
+    )
     app.include_router(routes_registry.router)
     app.include_router(routes_zones.router)
     app.include_router(routes_edge.router)
@@ -414,6 +445,33 @@ def _origin_of(url: str) -> str | None:
     except ValueError:
         return None
     return f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else None
+
+
+def _json_has_nul(body: bytes) -> bool:
+    """Whether any key or string in a JSON body contains NUL.
+
+    Called only when the raw bytes contain one or its escape, so a body that
+    merely spells the six characters backslash-u-0-0-0-0 as text is parsed
+    rather than refused. A body that is not JSON is left to the route.
+    """
+    import json
+
+    try:
+        doc = json.loads(body)
+    except ValueError:
+        return b"\x00" in body
+    stack = [doc]
+    while stack:
+        v = stack.pop()
+        if isinstance(v, str):
+            if "\x00" in v:
+                return True
+        elif isinstance(v, dict):
+            stack.extend(v.keys())
+            stack.extend(v.values())
+        elif isinstance(v, list):
+            stack.extend(v)
+    return False
 
 
 def _tile_origin(template: str) -> str | None:

@@ -236,6 +236,22 @@ def test_injection_payloads_are_inert(world, evil):
     assert world["state"].store.stats()["observations"] >= 2
 
 
+def test_a_nul_anywhere_in_a_request_is_refused(world):
+    # PostgreSQL text cannot hold NUL; SQLite would store it. Refused at the
+    # door on both, with the request id still attached.
+    c = world["client"]
+    r = c.post("/cases", headers=hdr(world, "sup.1"), json={
+        "case_id": "CASE-NUL-9", "title": "a\u0000b", "purpose": "probing nul handling"})
+    assert r.status_code == 400 and r.json()["detail"]["code"] == "NUL_CHARACTER"
+    assert r.headers.get("X-Request-Id") and r.headers.get("X-Content-Type-Options")
+    assert c.get("/search?plate=GJ01%00AA", headers=hdr(world, "inv.a")).status_code == 400
+    assert c.get("/cameras/CAM%00001", headers=hdr(world, "inv.a")).status_code == 400
+    ok = c.post("/cases", headers=hdr(world, "sup.1"), json={
+        "case_id": "CASE-NUL-10", "title": "the text \\u0000, spelled out",
+        "purpose": "probing nul handling"})
+    assert ok.status_code in (200, 201), ok.text
+
+
 @pytest.mark.parametrize("path", [
     "/evidence/..%2F..%2Fetc%2Fpasswd/frame",
     "/evidence/../../../etc/passwd/frame",

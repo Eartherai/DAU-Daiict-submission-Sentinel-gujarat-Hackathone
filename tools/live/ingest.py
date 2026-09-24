@@ -58,7 +58,7 @@ from saakshya.live.credentials import credentialed, redact
 from saakshya.live.preview import write_preview
 from saakshya.runtime.backend import quiet_transformers
 from saakshya.store import Store
-from saakshya.store.provenance import refuses_live_writes, store_name
+from saakshya.store.provenance import redacted, refuses_live_writes, store_name
 
 av.logging.set_level(av.logging.FATAL)
 log = logging.getLogger("saakshya.live.ingest")
@@ -999,7 +999,7 @@ def main() -> int:
     report = {
         "provenance": PROVENANCE,
         "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
-        "database": args.db,
+        "database": redacted(args.db),
         "camera_source": source,
         "tiers": by_tier,
         "stages": results,

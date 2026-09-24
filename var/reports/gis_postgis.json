@@ -1,0 +1,31 @@
+{
+ "cameras": 80000,
+ "points": 20,
+ "reps_per_point": 15,
+ "postgis": "3.6.4",
+ "mean_cameras_in_viewport": 81,
+ "mean_cameras_within_radius": 9,
+ "results": {
+  "viewport_0.1deg": {
+   "sqlite": {
+    "p50_ms": 1.08,
+    "p95_ms": 1.56
+   },
+   "postgis": {
+    "p50_ms": 1.3,
+    "p95_ms": 1.9
+   }
+  },
+  "near_2000m": {
+   "sqlite": {
+    "p50_ms": 0.35,
+    "p95_ms": 0.55
+   },
+   "postgis": {
+    "p50_ms": 0.66,
+    "p95_ms": 0.88
+   }
+  }
+ },
+ "answers_identical_at": "20/20 points"
+}

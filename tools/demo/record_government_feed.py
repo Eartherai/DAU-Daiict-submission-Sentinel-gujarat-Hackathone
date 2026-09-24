@@ -62,6 +62,15 @@ class Beat:
     audio: Path | None = None
 
 
+#: The questions behind the copilot's model chips, as the interface asks them.
+MODEL_QUESTIONS = {
+    "m2": "How many cameras are streaming right now, and which are not? Give the last "
+          "error for each one that is not.",
+    "m4": "Summarise the open watchlist alerts: which vehicles, where each was last seen, "
+          "and which need verifying first.",
+}
+
+
 def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> list[Beat]:
     """Every capability, on the government store and the live grid.
 
@@ -155,6 +164,15 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
             page.mouse.wheel(0, 700)
         page.wait_for_timeout(2500)
 
+    def evidence_view():
+        close_modals()
+        page.click('button[data-view="evidence"]')
+        try:
+            page.wait_for_selector("#evidence-chain table", timeout=45000)
+        except Exception:
+            pass
+        page.wait_for_timeout(1500)
+
     def estate_map():
         close_modals()
         page.click('button[data-view="map"]')
@@ -247,21 +265,30 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
                           ".contentWindow.scrollTo({top: y, behavior: 'smooth'})", y)
             page.wait_for_timeout(1600)
 
+    def _chip_or_type(label: str, question: str):
+        """Click the suggestion; if it is not drawn yet, ask the same question."""
+        def go():
+            try:
+                page.click(f'#prompt-chips button:has-text("{label}")', timeout=12000)
+            except Exception:
+                page.fill("#chat-input", question)
+                page.press("#chat-input", "Enter")
+        return go
+
     def copilot_model(model: str):
         def go():
             close_modals()
             page.click('button[data-view="copilot"]')
             page.wait_for_timeout(1500)
-            _ask(lambda: page.click(f'#prompt-chips button:has-text("{model.upper()} ·")',
-                                    timeout=4000))
+            _ask(_chip_or_type(f"{model.upper()} ·", MODEL_QUESTIONS[model]))
         return go
 
     def copilot_refuse():
         close_modals()
         page.click('button[data-view="copilot"]')
         page.wait_for_timeout(800)
-        _ask(lambda: page.click('#prompt-chips button:has-text("Enhance a still")',
-                                timeout=4000))
+        _ask(_chip_or_type("Enhance a still",
+                           "Enhance this still and sharpen the plate so I can read it."))
 
     def system_view():
         close_modals()
@@ -350,7 +377,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
              say="Watchlist hits arrive as one decision per vehicle, with the read "
                  "set beside the listed plate, character by character, and a "
                  "single-frame read marked for verification."),
-        Beat("Evidence, sealed and hash-chained", 10, nav("evidence", 3.0),
+        Beat("Evidence, sealed and hash-chained", 10, evidence_view,
              say="Evidence is sealed as it is captured and chained by hash, so a "
                  "removed or altered record is detectable."),
         Beat("Model 4 — Gemini over the alert queue", 12, copilot_model("m4"),
@@ -390,6 +417,24 @@ def fetch_report(base: str, token: str, out: Path, limit: int = 1000) -> dict:
     cams = {r.get("camera_id") for r in rows if r.get("camera_id")}
     return {"ok": True, "rows": len(rows), "plates": len(plates),
             "cameras": len(cams)}
+
+
+def prewarm_chain(base: str, token: str) -> dict:
+    """Run the full evidence-chain verification once before filming.
+
+    On the government store it takes about a minute; the Evidence page then
+    shows that run, and says when it was made, instead of a minute of
+    "Recomputing manifests" in the middle of the film.
+    """
+    req = urllib.request.Request(f"{base}/evidence/chain/verify?fresh=1",
+                                 headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            body = json.loads(r.read().decode("utf-8"))
+        return {"ok": True, "verified": body.get("verified"),
+                "records": body.get("records_in_chain")}
+    except Exception as exc:
+        return {"ok": False, "why": type(exc).__name__}
 
 
 def prewarm_stills(base: str, token: str, cameras: int = 14) -> dict:
@@ -564,6 +609,8 @@ def main() -> None:
     report = Path(str(out_dir) + "_anpr_report.csv")
 
     print(f"recording the government-feed demonstration -> {mp4}")
+    chain = prewarm_chain(a.base, token)
+    print(f"  evidence chain verified before filming: {chain}")
     warm = prewarm_stills(a.base, token)
     print(f"  pre-warmed stills: {warm.get('warmed')}/{warm.get('asked')}"
           if warm.get("ok") else f"  pre-warm skipped ({warm.get('why')})")

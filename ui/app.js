@@ -5934,7 +5934,9 @@ loaders.evidence = async () => {
       " The table below appears when the full chain recompute returns."));
   }).catch(() => {});
   try {
-    const v = normaliseVerification(await api("/evidence/chain/verify"));
+    const raw = await api(`/evidence/chain/verify${box.dataset.fresh ? "?fresh=1" : ""}`);
+    delete box.dataset.fresh;
+    const v = normaliseVerification(raw);
     clear(box);
     /* Cautions must appear here too. This is the screen an officer opens before
      * relying on a record; a defect reported only in the single-record panel is
@@ -5959,6 +5961,13 @@ loaders.evidence = async () => {
       box.append(el("div", { class: "notice warn" },
         el("strong", { class: "mono", text: c.name }), c.detail));
     }
+    // When this was verified, and a way to do it again now. A full run
+    // re-hashes every record; a reused one says so and how old it is.
+    const again = el("button", { class: "ghost", type: "button", text: "Verify now" });
+    again.addEventListener("click", () => { box.dataset.fresh = "1"; loaders.evidence(); });
+    box.append(el("div", { class: "section-note ev-when" },
+      `${raw.reused ? "Last full verification" : "Verified just now"}: ${fmtTime(raw.verified_at)}`
+        + ` · ${Number(raw.records_in_chain || 0).toLocaleString()} records in the chain `, again));
     if ((v.records || []).length) {
       box.append(evidenceRecordsTable(v.records));
       const broken = (v.checks || []).filter((x) => !x.ok && !x.caution);
@@ -6044,6 +6053,18 @@ const COPILOT_PROMPTS = [
 ];
 
 loaders.copilot = async () => {
+  // The suggestions need nothing from the server. They were drawn only after
+  // /copilot/describe returned, which on a busy live server took 11 s, and an
+  // officer opening Copilot saw an empty page for that long.
+  const chips = $("#prompt-chips");
+  if (chips && !chips.dataset.ready) {
+    chips.dataset.ready = "1";
+    for (const [label, q] of COPILOT_PROMPTS) {
+      const b = el("button", { type: "button", text: label });
+      b.addEventListener("click", () => askCopilot(q));
+      chips.append(b);
+    }
+  }
   try {
     const d = await api("/copilot/describe");
     $("#copilot-state").textContent = d.available
@@ -6063,15 +6084,6 @@ loaders.copilot = async () => {
                                 "data-specialist": s.id,
                                 title: s.role,
                                 text: s.role || s.id }));
-      }
-    }
-    const chips = $("#prompt-chips");
-    if (chips && !chips.dataset.ready) {
-      chips.dataset.ready = "1";
-      for (const [label, q] of COPILOT_PROMPTS) {
-        const b = el("button", { type: "button", text: label });
-        b.addEventListener("click", () => askCopilot(q));
-        chips.append(b);
       }
     }
   } catch { /* unauthenticated */ }

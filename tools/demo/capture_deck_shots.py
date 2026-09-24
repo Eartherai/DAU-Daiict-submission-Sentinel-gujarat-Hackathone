@@ -32,6 +32,8 @@ def main() -> int:
     ap.add_argument("--plate", default="GJ18JX7786")
     ap.add_argument("--government", action="store_true",
                     help="capture the government-store pages instead (live grid)")
+    ap.add_argument("--wall-from", help="government film to take the live-wall frame from")
+    ap.add_argument("--wall-at", type=float, default=185.0, help="seconds into that film")
     a = ap.parse_args()
     if a.government:
         return government(a)
@@ -92,35 +94,42 @@ def government(a) -> int:
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_page(viewport={"width": 2560, "height": 1440})
-        pg.goto(f"{a.base}/ui/")
+        # A live page never fires "load": map tiles and streams keep arriving.
+        pg.goto(f"{a.base}/ui/", wait_until="domcontentloaded")
         pg.evaluate("t => { sessionStorage.clear(); sessionStorage.setItem('saakshya.token', t) }", token)
-        pg.reload()
-        pg.wait_for_timeout(4000)
-        for view, name, settle in (("overview", "gov_overview.png", 6000),
-                                   ("alerts", "gov_alerts_film.jpg", 4000),
-                                   ("cameras", "gov_cameras_film.jpg", 5000),
-                                   ("map", "gov_map_film.jpg", 7000)):
+        pg.reload(wait_until="domcontentloaded")
+        pg.wait_for_timeout(5000)
+        # Wait for each page's own content, not a fixed time: on a loaded
+        # server the first capture filmed four "Loading..." screens.
+        ready = {
+            "overview": "() => !document.querySelector('#view-overview')?.innerText.includes('Loading')"
+                        " && document.querySelector('#view-overview')?.innerText.length > 400",
+            "alerts": "() => document.querySelectorAll('#alerts .incident').length > 0",
+            "cameras": "() => document.querySelectorAll('#view-cameras table tbody tr').length > 5",
+            "map": "() => !!document.querySelector('#view-map .gmap-host, #view-map canvas')",
+        }
+        for view, name, settle in (("overview", "gov_overview.png", 3000),
+                                   ("alerts", "gov_alerts_film.jpg", 2000),
+                                   ("cameras", "gov_cameras_film.jpg", 2500),
+                                   ("map", "gov_map_film.jpg", 9000)):
             pg.click(f'button[data-view="{view}"]')
+            try:
+                pg.wait_for_function(ready[view], timeout=90000)
+            except Exception:
+                print(f"  {view}: content did not appear; captured as it was")
             pg.wait_for_timeout(settle)
             path = OUT / name
             pg.screenshot(path=str(path), type="jpeg" if name.endswith(".jpg") else "png",
                           **({"quality": 92} if name.endswith(".jpg") else {}))
             shots[name] = path
-        pg.click('button[data-view="live"]')
-        try:
-            pg.click('[data-live-wall="12"]', timeout=8000)
-        except Exception:
-            pass
-        try:
-            pg.wait_for_function("() => [...document.querySelectorAll('#live-grid video')]"
-                                 ".filter(v => v.readyState >= 2 && v.videoWidth > 16).length >= 6",
-                                 timeout=60000)
-        except Exception:
-            pass
-        pg.wait_for_timeout(3000)
-        pg.screenshot(path=str(OUT / "gov_live_grid.png"))
-        shots["gov_live_grid.png"] = OUT / "gov_live_grid.png"
         b.close()
+    # The live wall is taken from the government film itself: a frame of the
+    # recorded take, not a second set of grid sessions opened for a still.
+    if a.wall_from:
+        import subprocess
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(a.wall_at), "-i", a.wall_from,
+                        "-frames:v", "1", str(OUT / "gov_live_grid.png")], check=True)
+        shots["gov_live_grid.png"] = OUT / "gov_live_grid.png"
     for n in shots:
         print(f"  wrote {(OUT / n).relative_to(ROOT)}")
     return 0

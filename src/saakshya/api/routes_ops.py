@@ -650,14 +650,62 @@ async def evidence_export(state: StateDep, ctx: AuthDep, evidence_id: str
     return pkg
 
 
+#: The last full verification, keyed by the chain's head. On the government
+#: store a full recompute took 65.6 s, and the Evidence page showed
+#: "Recomputing manifests" for over a minute every time it was opened.
+_CHAIN_CACHE: dict[str, Any] = {}
+#: How long a verification may be reused while the head is unchanged. The page
+#: says when it was verified; ?fresh=1 always recomputes.
+CHAIN_CACHE_S = 600.0
+
+
+def _chain_head(state: Any) -> tuple[int, str]:
+    from sqlalchemy import func, select
+
+    from saakshya.store import schema as S
+    with state.store.engine.connect() as c:
+        n = c.execute(select(func.count()).select_from(S.evidence)).scalar() or 0
+        last = c.execute(select(S.evidence.c.entry_hash)
+                         .order_by(S.evidence.c.created_at_us.desc()).limit(1)).scalar()
+    return int(n), str(last or "")
+
+
 @router.get("/evidence/chain/verify", summary="Verify the whole evidence chain")
-async def evidence_chain(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
+async def evidence_chain(state: StateDep, ctx: AuthDep, fresh: bool = False) -> dict[str, Any]:
+    """Every record re-hashed and every link re-walked, or the last such run.
+
+    A run is reused only while the chain's head - record count and last hash -
+    is unchanged and it is under ten minutes old; the answer carries when it
+    was verified and whether it was reused, and ``fresh=1`` always recomputes.
+    A record added or removed changes the head and forces a new run.
+    """
+    import time
+
+    from saakshya.common.ist import iso_ist
     try:
         ctx.principal.require(Permission.EVIDENCE_READ)
     except AccessError as exc:
         raise access_error(exc) from exc
-    res = state.evidence.verify_chain().to_dict()
+    head = _chain_head(state)
+    key = f"{id(state.store)}:{head[0]}:{head[1]}"
+    hit = _CHAIN_CACHE.get(key)
+    now = time.time()
+    if not fresh and hit and now - hit["at"] < CHAIN_CACHE_S:
+        res = dict(hit["result"])
+        res["reused"] = True
+    else:
+        import asyncio
+        result = (await asyncio.to_thread(state.evidence.verify_chain)).to_dict()
+        _CHAIN_CACHE.clear()
+        _CHAIN_CACHE[key] = {"at": now, "result": result}
+        res = dict(result)
+        res["reused"] = False
+    from datetime import UTC, datetime
+    res["verified_at"] = iso_ist(datetime.fromtimestamp(_CHAIN_CACHE[key]["at"], tz=UTC))
+    res["records_in_chain"] = head[0]
     res["records"] = _chain_records(state, ctx, res)
+    ctx.audit(state.store, "evidence_chain_verify", target="chain",
+              result_count=head[0])
     return res
 
 

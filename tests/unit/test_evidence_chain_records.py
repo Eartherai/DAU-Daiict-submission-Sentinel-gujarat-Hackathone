@@ -64,3 +64,31 @@ def test_the_page_keeps_the_records_the_server_sends() -> None:
     norm = norm[:norm.index("\n}\n")]
     assert "records: v.records" in norm
     assert "evidenceRecordsTable(v.records)" in app
+
+
+def test_a_verification_is_reused_only_while_the_chain_is_unchanged(tmp_path):
+    """A full recompute took 65.6 s on the government store. It is reused while
+    the head is unchanged, says so and when, and a new record forces a rerun."""
+    state = AppState(f"sqlite:///{tmp_path / 'c.db'}", evidence_root=tmp_path / "ev")
+    state.require_auth = True
+    s = state.store
+    s.upsert_camera({"camera_id": "CAM-A", "name": "A", "district": "Ahmedabad",
+                     "tier": "A", "enabled": True})
+    a = make_observation("CAM-A", plate="GJ01EV0003", offset_s=0, district="Ahmedabad")
+    b = make_observation("CAM-A", plate="GJ01EV0004", offset_s=30, district="Ahmedabad",
+                         track="T9")
+    s.add_observations([a, b])
+    frame = np.zeros((32, 32, 3), dtype=np.uint8)
+    state.evidence.create(a, frame=frame)
+    ts = TokenService(s)
+    ts.upsert_user("sup", Role.SUPERVISOR)
+    c = TestClient(create_app(state), raise_server_exceptions=False)
+    h = {"Authorization": f"Bearer {ts.mint('sup')}"}
+    first = c.get("/evidence/chain/verify", headers=h).json()
+    again = c.get("/evidence/chain/verify", headers=h).json()
+    assert first["reused"] is False and again["reused"] is True
+    assert again["verified_at"] == first["verified_at"] and again["records_in_chain"] == 1
+    assert c.get("/evidence/chain/verify?fresh=1", headers=h).json()["reused"] is False
+    state.evidence.create(b, frame=frame)
+    after = c.get("/evidence/chain/verify", headers=h).json()
+    assert after["reused"] is False and after["records_in_chain"] == 2

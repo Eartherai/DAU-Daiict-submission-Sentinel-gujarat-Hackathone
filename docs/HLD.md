@@ -172,12 +172,27 @@ Four independent gates: authentication, role permission, jurisdiction scope,
 purpose binding. ADMIN holds no search permission — running the estate and
 investigating people are different jobs.
 
-### 4.9 Copilot (optional)
-One orchestrator, sixteen **read-only** tools over the same service the interface
-calls (including estate list, timebase check, and `refuse_imagery`). Injection
-detection on camera-derived text; mechanical grounding verification of every
-factual token. Absent from the mandatory chain. Gemini, when configured, is a
-coordinator over those tools — not a detector.
+### 4.9 Copilot — Gemini over all four models (optional)
+One orchestrator, twenty **read-only** tools over the same services the interface
+calls, and at least one for each reference model the platform combines:
+
+| Model | Tools | Asked from |
+|---|---|---|
+| **M1** registry & GIS | `registry_gaps`, `list_estate`, `get_camera_context`, `get_camera_capability` | Cameras view |
+| **M2** viewing & health | `estate_health`, `get_camera_neighbors` | Live view |
+| **M3** federation | `connected_systems`, `list_timebase`, `check_timebase` | System view |
+| **M4** intelligence | `alert_queue`, `search_plate`, `build_trajectory`, `query_watchlist`, `get_evidence`, `verify_evidence`, `draft_report` … | Alerts view, Investigate |
+
+Every tool keeps the gate of the screen it serves (an auditor is refused the
+alert queue, with the reason); every factual token in an answer is checked
+against the tool results before the answer is shown, and an unverifiable answer
+is withheld with the results left for the officer to read directly. Injection
+detection runs on camera-derived text. `refuse_imagery` always refuses to
+enhance or invent a still. Gemini, when configured, is a coordinator over those
+tools — never a detector and never a source of a plate: detection and ANPR stay
+on the deployment's own hardware. Measured on the film store, all four model
+questions came back grounded. The copilot is absent from the mandatory chain;
+the platform works in full without it.
 
 ## 5. Technology
 

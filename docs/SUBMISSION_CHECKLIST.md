@@ -98,10 +98,16 @@ Ignore the older `var/demo/PORTAL_PACK/` and `PORTAL_PACK.zip` — they are the
 These are the honest limits. Stating them first is cheaper than being caught
 by them in questions.
 
-- **The AI plane runs four cameras, CPU-only** — roughly 1.4 fps each, ~5.6 fps
-  aggregate, P50 around 170 ms and P95 up to 1.5 s. Statewide inference needs
-  GPU capacity; the registry numbers say nothing about it and the load-test
-  report says so in its own words.
+- **The AI plane runs on one laptop.** The detector now uses the machine's GPU
+  (Apple MPS); plate detection and OCR stay on CPU. Measured on the same
+  2560×1440 frames: the whole per-frame pipeline 598 → 293 ms (2.0×), the
+  detector alone 448 → 133 ms (3.4×), with identical outputs
+  (`var/reports/pipeline_device.json`, `detector_device.json`). In the own-feed
+  film the live worker analyses both feeds at about 2 frames per second each —
+  a sampling policy, not a ceiling. The earlier four-camera government figure
+  (~1.4 fps each, P50 ~170 ms) was CPU-only. Statewide inference needs
+  data-centre GPU capacity; HLD §17 shows how the target accelerator's speed-up
+  is measured with the same command, and does not quote a rupee figure.
 - **94% of registry metadata is unpopulated** on five fields. That is the point
   of the gap report rather than a defect in it: the platform holds what
   departments have supplied and names what they have not, and it does not
@@ -111,6 +117,11 @@ by them in questions.
   another is not something this estate has yet shown; the cross-camera trace
   in the own-feed film is on our own corpus, and the film says so. `docs/HLD.md`
   §19 states the same thing.
+- **Footage published here has heads blurred, without a face detector.** The
+  person detector's boxes, found on the whole frame and on overlapping tiles,
+  have their top quarter pixelated and held for three frames either side.
+  Checked by eye; a person the detector never found is not blurred, and at the
+  distances in these clips such a figure is a few pixels high.
 - **The store is SQLite**, not the PostgreSQL + PostGIS deployment the
   challenge suggests. The store abstracts its backend; that migration has not
   been exercised and is not claimed.

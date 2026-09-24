@@ -45,6 +45,12 @@ ITEMS: list[tuple[str, str, bool]] = [
     ("05_REGISTRY_API.md", "reports/REGISTRY_API.md", True),
     ("05_sample_camera_metadata.csv", "reports/sample_camera_metadata.csv", True),
     ("05_SCALE_80K_LOAD_TEST.md", "reports/SCALE_80K_LOAD_TEST.md", True),
+    # The test case's expected output is "the complete route traversed by the
+    # designated vehicle, with a timestamped and location-wise movement
+    # history". This is that, as the platform prints it, for the designated
+    # vehicle the government film traces.
+    ("06_designated_vehicle_trace_report.html", "var/demo/designated_vehicle_trace.html", False),
+    ("06_own_feed_trace_report.html", "var/demo/own_feed_trace.html", False),
 ]
 
 

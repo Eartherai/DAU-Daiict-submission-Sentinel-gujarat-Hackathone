@@ -271,6 +271,18 @@ def test_bad_bbox_is_rejected(world):
         assert r.status_code == 400, f"bbox {bad!r} was accepted"
 
 
+def test_nearby_cameras_stay_inside_the_officers_districts(world):
+    # 30 km around CAM-001 reaches CAM-002 (about 20 km off, another district).
+    q = "/gis/near?lat=23.03&lon=72.58&radius_m=30000"
+    sup = world["client"].get(q, headers=hdr(world, "sup.1")).json()
+    assert {c["camera_id"] for c in sup["cameras"]} == {"CAM-001", "CAM-002"}
+    a = world["client"].get(q, headers=hdr(world, "inv.a")).json()
+    assert [c["camera_id"] for c in a["cameras"]] == ["CAM-001"]
+    for bad in ("lat=91&lon=72&radius_m=10", "lat=23&lon=72&radius_m=900000"):
+        assert world["client"].get(f"/gis/near?{bad}",
+                                   headers=hdr(world, "inv.a")).status_code == 422
+
+
 def test_unknown_ids_return_404_not_500(world):
     for path in ("/observations/OB-nope", "/cameras/NOPE-999",
                  "/evidence/EV-nope", "/cases/NOPE"):

@@ -21,14 +21,19 @@ Deliberate choices:
 """
 from __future__ import annotations
 
+# Timestamps are microseconds since the epoch, about 1.8e15 today: a SQLite
+# INTEGER holds that and a PostgreSQL INTEGER (32-bit) does not. They are
+# BigInteger, which SQLite stores exactly as before. BLOB was SQLite's own
+# type; LargeBinary is BLOB there and BYTEA on PostgreSQL.
 from sqlalchemy import (
-    BLOB,
+    BigInteger,
     Boolean,
     Column,
     Float,
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Table,
@@ -81,7 +86,7 @@ cameras = Table(
     Column("access_state", String(40)),
     #: GOVERNMENT | OWN_FEED | SYNTHETIC_CONTROL — never implied by silence.
     Column("source_domain", String(32)),
-    Column("created_at_us", Integer), Column("updated_at_us", Integer),
+    Column("created_at_us", BigInteger), Column("updated_at_us", BigInteger),
 )
 
 camera_health = Table(
@@ -96,8 +101,8 @@ camera_health = Table(
     Column("warmup_frames_suppressed", Integer, default=0),
     Column("open_failures", Integer, default=0),
     Column("measured_fps", Float), Column("clock_drift_s", Float, default=0.0),
-    Column("last_seen_us", Integer), Column("last_error", Text),
-    Column("updated_at_us", Integer),
+    Column("last_seen_us", BigInteger), Column("last_error", Text),
+    Column("updated_at_us", BigInteger),
 )
 
 #: Capability is per camera *and per time band* — a camera that reads plates at
@@ -131,7 +136,7 @@ camera_timebase = Table(
     #: disagreement is itself operational information.
     Column("overlay_clock", String(16), default="UNKNOWN"),
     Column("overlay_reading", String(64)),
-    Column("overlay_read_at_us", Integer),
+    Column("overlay_read_at_us", BigInteger),
     #: Seconds the scene clock leads or lags the cluster reference, where it
     #: could be read at all. Diagnostic only.
     Column("scene_offset_s", Float),
@@ -140,7 +145,7 @@ camera_timebase = Table(
     Column("time_cluster", String(40)),
     Column("cluster_confidence", String(16), default="UNKNOWN"),
     Column("evidence", Text),
-    Column("updated_at_us", Integer),
+    Column("updated_at_us", BigInteger),
 )
 
 time_clusters = Table(
@@ -155,7 +160,7 @@ time_clusters = Table(
     Column("member_count", Integer, default=0),
     Column("max_skew_s", Float),
     Column("note", Text),
-    Column("created_at_us", Integer), Column("updated_at_us", Integer),
+    Column("created_at_us", BigInteger), Column("updated_at_us", BigInteger),
 )
 
 camera_capability = Table(
@@ -179,10 +184,10 @@ camera_capability = Table(
     #: use when the other two are UNSUITABLE.
     Column("presence_grade", String(12), default="UNKNOWN"),
     Column("evidence", Text),                            # JSON: why this grade
-    Column("first_sample_us", Integer), Column("last_sample_us", Integer),
+    Column("first_sample_us", BigInteger), Column("last_sample_us", BigInteger),
     Column("overall", Float),
     Column("usable_for", Text),                          # JSON array
-    Column("updated_at_us", Integer),
+    Column("updated_at_us", BigInteger),
 )
 
 # --------------------------------------------------------------------------- #
@@ -203,8 +208,8 @@ observations = Table(
     Column("segment_id", String(40)),
 
     Column("pts_s", Float, nullable=False),
-    Column("t_norm_us", Integer, nullable=False),        # normalised timeline
-    Column("t_ingest_us", Integer, nullable=False),      # arrival; diagnostics only
+    Column("t_norm_us", BigInteger, nullable=False),        # normalised timeline
+    Column("t_ingest_us", BigInteger, nullable=False),      # arrival; diagnostics only
 
     Column("lat", Float), Column("lon", Float),
 
@@ -223,7 +228,7 @@ observations = Table(
     Column("direction_deg", Float),
 
     #: float16 bytes. Exact scan at PoC scale; ANN index at pilot scale.
-    Column("embedding", BLOB),
+    Column("embedding", LargeBinary),
     Column("embedding_dim", Integer),
     Column("embedding_model", String(80)),
 
@@ -239,7 +244,7 @@ observations = Table(
 
     Column("model_versions", Text),                       # JSON
     Column("evidence_ref", String(40)),
-    Column("created_at_us", Integer),
+    Column("created_at_us", BigInteger),
     UniqueConstraint("dedup_key", name="uq_observations_dedup"),
 )
 
@@ -264,7 +269,7 @@ plate_reads = Table(
     Column("track_id", String(64)),
     Column("segment_id", String(40)),
     Column("pts_s", Float, nullable=False),
-    Column("t_norm_us", Integer, nullable=False),
+    Column("t_norm_us", BigInteger, nullable=False),
     Column("raw_text", String(48)),
     Column("canonical", String(24)),
     Column("valid", Boolean, default=False),
@@ -272,7 +277,7 @@ plate_reads = Table(
     Column("ocr_confidence", Float),
     Column("det_confidence", Float),
     Column("plate_pixel_width", Float),
-    Column("created_at_us", Integer),
+    Column("created_at_us", BigInteger),
 )
 Index("ix_reads_track", plate_reads.c.camera_id, plate_reads.c.track_id)
 Index("ix_reads_canon_time", plate_reads.c.canonical, plate_reads.c.t_norm_us)
@@ -292,7 +297,7 @@ camera_transitions = Table(
     Column("gis_distance_m", Float),
     Column("confidence", Float, default=0.0),
     Column("source", String(24), default="observed"),     # observed | gis_seed
-    Column("updated_at_us", Integer),
+    Column("updated_at_us", BigInteger),
 )
 Index("ix_trans_from", camera_transitions.c.from_camera,
       camera_transitions.c.support_count)
@@ -306,8 +311,8 @@ transition_samples = Table(
     Column("to_camera", String(64), nullable=False),
     Column("plate", String(24)),
     Column("dt_s", Float, nullable=False),
-    Column("t_norm_us", Integer),
-    Column("created_at_us", Integer),
+    Column("t_norm_us", BigInteger),
+    Column("created_at_us", BigInteger),
 )
 Index("ix_tsamples_pair", transition_samples.c.from_camera,
       transition_samples.c.to_camera)
@@ -326,13 +331,13 @@ watchlist = Table(
     Column("reason", Text, nullable=False),               # why it exists
     Column("priority", String(16), default="MEDIUM"),
     Column("jurisdiction", String(120)),
-    Column("valid_from_us", Integer), Column("valid_until_us", Integer),
+    Column("valid_from_us", BigInteger), Column("valid_until_us", BigInteger),
     Column("version", Integer, default=1),
     Column("status", String(16), default="ACTIVE"),       # ACTIVE | REVOKED | EXPIRED
     Column("source_system", String(60), default="REPRESENTATIVE"),
     Column("created_by", String(120)), Column("approved_by", String(120)),
     Column("revoked_by", String(120)), Column("revoked_reason", Text),
-    Column("created_at_us", Integer), Column("updated_at_us", Integer),
+    Column("created_at_us", BigInteger), Column("updated_at_us", BigInteger),
 )
 
 alerts = Table(
@@ -348,10 +353,10 @@ alerts = Table(
     Column("match_reason", Text),                         # JSON decomposition
     Column("recommended_action", Text),
     Column("status", String(24), default="OPEN"),         # OPEN|ACK|CLEARED|FALSE_POSITIVE
-    Column("acknowledged_by", String(120)), Column("acknowledged_at_us", Integer),
+    Column("acknowledged_by", String(120)), Column("acknowledged_at_us", BigInteger),
     Column("cleared_reason", Text),
-    Column("t_norm_us", Integer, index=True),
-    Column("created_at_us", Integer),
+    Column("t_norm_us", BigInteger, index=True),
+    Column("created_at_us", BigInteger),
     # The lifecycle beyond "acknowledged". Officers could acknowledge an alert
     # and nothing else: the Resolved tab could never fill, and nothing recorded
     # whether a closed hit was a real vehicle, a misread or a lawful owner.
@@ -359,7 +364,7 @@ alerts = Table(
     Column("disposition", String(24)),       # confirmed | false_positive | cleared
     Column("case_id", String(80)),           # attached when marked investigating
     Column("lifecycle", Text),               # JSON list: who did what, when, why
-    Column("updated_at_us", Integer),
+    Column("updated_at_us", BigInteger),
 )
 
 # --------------------------------------------------------------------------- #
@@ -370,7 +375,7 @@ evidence = Table(
     Column("evidence_id", String(40), primary_key=True),
     Column("observation_id", String(40), index=True),
     Column("camera_id", String(64)),
-    Column("pts_s", Float), Column("t_norm_us", Integer),
+    Column("pts_s", Float), Column("t_norm_us", BigInteger),
     Column("frame_path", Text), Column("frame_sha256", String(64)),
     Column("clip_path", Text), Column("clip_sha256", String(64)),
     Column("pipeline_version", String(80)),
@@ -380,7 +385,7 @@ evidence = Table(
     Column("source_quality", Float),
     Column("prev_hash", String(64)), Column("entry_hash", String(64)),
     Column("bsa_s63_status", String(32), default="DRAFT_PENDING_SIGNATURE"),
-    Column("created_at_us", Integer),
+    Column("created_at_us", BigInteger),
 )
 
 #: A department's rule for a camera: a zone drawn on its frame, the hours it
@@ -393,11 +398,12 @@ zone_rules = Table(
     Column("camera_id", String(64), ForeignKey("cameras.camera_id"), index=True),
     Column("name", String(120)),
     Column("polygon", Text),                               # JSON [[x, y], ...] in frame pixels
-    Column("active_from", String(5)), Column("active_to", String(5)),   # IST HH:MM, or null = always
+    # IST HH:MM, or null = always
+    Column("active_from", String(5)), Column("active_to", String(5)),
     Column("classes", Text),                               # JSON ["person"] / ["vehicle"]
     Column("reason", Text), Column("authority", Text),
     Column("status", String(16), default="ACTIVE"),
-    Column("created_by", String(120)), Column("created_at_us", Integer),
+    Column("created_by", String(120)), Column("created_at_us", BigInteger),
 )
 
 audit_log = Table(
@@ -412,7 +418,7 @@ audit_log = Table(
     Column("result_count", Integer),
     Column("jurisdiction", String(120)),
     Column("prev_hash", String(64)), Column("entry_hash", String(64)),
-    Column("t_us", Integer, nullable=False),
+    Column("t_us", BigInteger, nullable=False),
 )
 Index("ix_audit_actor_time", audit_log.c.actor, audit_log.c.t_us)
 # Added after `make queryplan` showed the case-file export falling back to a
@@ -452,7 +458,7 @@ users = Table(
     Column("districts", Text),
     Column("badge_no", String(60)),
     Column("enabled", Boolean, default=True),
-    Column("created_at_us", Integer), Column("updated_at_us", Integer),
+    Column("created_at_us", BigInteger), Column("updated_at_us", BigInteger),
 )
 
 api_tokens = Table(
@@ -461,9 +467,9 @@ api_tokens = Table(
     Column("user_id", String(64), ForeignKey("users.user_id"), nullable=False),
     Column("token_sha256", String(64), nullable=False, unique=True),
     Column("label", String(120)),
-    Column("issued_at_us", Integer), Column("expires_at_us", Integer),
+    Column("issued_at_us", BigInteger), Column("expires_at_us", BigInteger),
     Column("revoked", Boolean, default=False),
-    Column("last_used_at_us", Integer),
+    Column("last_used_at_us", BigInteger),
 )
 Index("ix_tokens_user", api_tokens.c.user_id)
 
@@ -483,7 +489,7 @@ cases = Table(
     Column("opened_by", String(64), nullable=False),
     Column("purpose", Text, nullable=False),
     Column("closed_by", String(64)), Column("closed_reason", Text),
-    Column("created_at_us", Integer), Column("updated_at_us", Integer),
+    Column("created_at_us", BigInteger), Column("updated_at_us", BigInteger),
 )
 
 case_items = Table(
@@ -495,7 +501,7 @@ case_items = Table(
     Column("item_ref", String(80), nullable=False),
     Column("payload", Text),                               # JSON snapshot
     Column("added_by", String(64)), Column("note", Text),
-    Column("created_at_us", Integer),
+    Column("created_at_us", BigInteger),
     UniqueConstraint("case_id", "item_type", "item_ref", name="uq_case_item"),
 )
 Index("ix_case_items", case_items.c.case_id, case_items.c.item_type)
@@ -506,7 +512,7 @@ case_notes = Table(
     Column("case_id", String(60), ForeignKey("cases.case_id"), nullable=False),
     Column("author", String(64), nullable=False),
     Column("body", Text, nullable=False),
-    Column("created_at_us", Integer),
+    Column("created_at_us", BigInteger),
 )
 Index("ix_case_notes", case_notes.c.case_id, case_notes.c.created_at_us)
 
@@ -529,13 +535,13 @@ edge_queue = Table(
     Column("pts_s", Float),
     Column("dedup_key", String(160), nullable=False),
     Column("payload", Text, nullable=False),               # JSON
-    Column("created_at_us", Integer, nullable=False),
+    Column("created_at_us", BigInteger, nullable=False),
     #: PENDING | ACKED | FAILED. Never deleted on send — acknowledged, so a lost
     #: acknowledgement replays rather than silently dropping the event.
     Column("state", String(16), default="PENDING"),
     Column("attempts", Integer, default=0),
     Column("last_error", Text),
-    Column("acked_at_us", Integer),
+    Column("acked_at_us", BigInteger),
     UniqueConstraint("node_id", "sequence", name="uq_edge_seq"),
 )
 Index("ix_edge_state", edge_queue.c.state, edge_queue.c.sequence)
@@ -545,11 +551,11 @@ edge_nodes = Table(
     Column("node_id", String(64), primary_key=True),
     Column("site", String(160)),
     Column("district", String(120)),
-    Column("last_sync_us", Integer),
+    Column("last_sync_us", BigInteger),
     Column("last_ack_sequence", Integer, default=0),
     Column("watchlist_version", String(40)),
     Column("state", String(24), default="UNKNOWN"),
-    Column("updated_at_us", Integer),
+    Column("updated_at_us", BigInteger),
 )
 
 

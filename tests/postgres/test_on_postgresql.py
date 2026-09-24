@@ -1,0 +1,157 @@
+"""The platform on PostgreSQL + PostGIS, end to end.
+
+The store was described as "SQLite <-> PostgreSQL, same schema" and had never
+run on PostgreSQL. It could not have: microsecond timestamps (1.8e15) were
+32-bit INTEGER columns there, and the embedding column used SQLite's BLOB.
+These tests run the flows an officer depends on against a real PostgreSQL with
+PostGIS, in a throwaway schema, and are skipped when no server is configured:
+
+    tools/db/setup_postgres.sh
+    SAAKSHYA_TEST_PG_URL="$(cat var/pg/url)" pytest tests/postgres
+"""
+from __future__ import annotations
+
+import os
+import uuid
+
+import numpy as np
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, make_url, text
+
+from saakshya.store import Store
+from tests.conftest import make_observation
+
+BASE = os.environ.get("SAAKSHYA_TEST_PG_URL", "").strip()
+pytestmark = pytest.mark.skipif(not BASE, reason="SAAKSHYA_TEST_PG_URL not set")
+
+
+@pytest.fixture(scope="module")
+def pg_url():
+    # A database of its own, not a schema: PostGIS lives in `public`, and with
+    # `public` on the search path SQLAlchemy finds the main database's tables
+    # there and creates nothing in the test schema.
+    name = f"saakshya_t_{uuid.uuid4().hex[:10]}"
+    admin = create_engine(BASE, isolation_level="AUTOCOMMIT")
+    with admin.connect() as c:
+        c.execute(text(f"CREATE DATABASE {name}"))
+    url = make_url(BASE).set(database=name)
+    yield url.render_as_string(hide_password=False)
+    with admin.connect() as c:
+        c.execute(text(f"DROP DATABASE {name} WITH (FORCE)"))
+    admin.dispose()
+
+
+@pytest.fixture(scope="module")
+def world(pg_url, tmp_path_factory):
+    from saakshya.api.app import create_app
+    from saakshya.api.deps import AppState
+    from saakshya.security import Role, TokenService
+    tmp = tmp_path_factory.mktemp("pg")
+    state = AppState(pg_url, evidence_root=tmp / "ev")
+    state.require_auth = True
+    s = state.store
+    for cid, name, lat, lon in (("CAM-A", "Paldi", 23.0100, 72.5600),
+                                ("CAM-B", "Ashram Rd", 23.0300, 72.5700),
+                                ("CAM-C", "Far away", 23.2100, 72.6300)):
+        s.upsert_camera({"camera_id": cid, "name": name, "district": "Ahmedabad",
+                         "lat": lat, "lon": lon, "tier": "A", "enabled": True})
+    ts = TokenService(s)
+    ts.upsert_user("sup", Role.SUPERVISOR)
+    ts.upsert_user("adm", Role.ADMIN)
+    tok = {u: ts.mint(u) for u in ("sup", "adm")}
+    return {"state": state, "client": TestClient(create_app(state), raise_server_exceptions=False),
+            "tok": tok}
+
+
+def h(world, user, **extra):
+    return {"Authorization": f"Bearer {world['tok'][user]}", **extra}
+
+
+PURPOSE = {"X-Case-Id": "CASE-PG-1", "X-Purpose": "tracing a vehicle on postgresql"}
+
+
+def test_postgis_column_and_indexes_exist(world):
+    s: Store = world["state"].store
+    assert s.postgis, "PostGIS was not enabled on this PostgreSQL"
+    with s.engine.connect() as c:
+        idx = {r[0] for r in c.execute(text(
+            "SELECT indexname FROM pg_indexes WHERE tablename = 'cameras'"))}
+        geom = c.execute(text(
+            "SELECT ST_AsText(geom) FROM cameras WHERE camera_id = 'CAM-A'")).scalar()
+    assert {"ix_cameras_geom", "ix_cameras_geog"} <= idx
+    assert geom == "POINT(72.56 23.01)"
+
+
+def test_microsecond_timestamps_survive(world):
+    s: Store = world["state"].store
+    s.add_observations([make_observation("CAM-A", plate="GJ01PG1111", offset_s=0)])
+    o = s.search_plate("GJ01PG1111")[0]
+    assert o.t_norm.year >= 2026
+
+
+def test_search_trajectory_alert_evidence_audit(world):
+    c = world["client"]
+    s: Store = world["state"].store
+    a = make_observation("CAM-A", plate="GJ01PG2222", offset_s=100, track="T1")
+    b = make_observation("CAM-B", plate="GJ01PG2222", offset_s=400, track="T2")
+    s.add_observations([a, b])
+    world["state"].investigation.refresh()
+    r = c.get("/search?plate=GJ01PG2222", headers=h(world, "sup", **PURPOSE))
+    assert r.status_code == 200 and len(r.json()["candidates"]) == 2
+    tr = c.get("/trajectory/GJ01PG2222", headers=h(world, "sup", **PURPOSE))
+    assert tr.status_code == 200, tr.text[:300]
+    ev = world["state"].evidence.create(a, frame=np.zeros((24, 24, 3), dtype=np.uint8))
+    chain = c.get("/evidence/chain/verify?fresh=1", headers=h(world, "sup")).json()
+    assert chain["verified"] and any(r["evidence_id"] == ev.evidence_id for r in chain["records"])
+    rep = c.get("/reports/vehicle/GJ01PG2222.html", headers=h(world, "sup", **PURPOSE))
+    assert rep.status_code == 200 and "Paldi" in rep.text
+    audit = c.get("/audit?limit=200", headers=h(world, "sup")).json()
+    assert audit["chain_verified"], audit["chain_error"]
+
+
+def test_zone_rule_on_postgresql(world):
+    c = world["client"]
+    s: Store = world["state"].store
+    from datetime import UTC, datetime
+
+    from saakshya.store import VehicleObservation
+    t = datetime(2026, 9, 1, 18, 0, tzinfo=UTC)
+    s.add_observations([VehicleObservation(
+        camera_id="CAM-A", pts_s=0.0, t_norm=t, t_ingest=t, dedup_key="pg-zone",
+        track_id="Z1", segment_id="S", object_type="person",
+        bbox=(100.0, 100.0, 140.0, 300.0), detection_confidence=0.9,
+        district="Ahmedabad", model_versions={"dwell_s": 9.0})])
+    r = c.post("/zones", headers=h(world, "adm"), json={
+        "camera_id": "CAM-A", "name": "Carriageway",
+        "polygon": [[0, 200], [400, 200], [400, 400], [0, 400]],
+        "classes": ["person"], "reason": "pedestrians off the carriageway",
+        "authority": "test rule"})
+    assert r.status_code == 201, r.text[:300]
+    got = c.get(f"/zones/{r.json()['rule_id']}/entries", headers=h(world, "sup")).json()
+    assert got["count"] >= 1
+
+
+def test_nearby_cameras_use_postgis_and_agree_with_haversine(world, tmp_path):
+    c = world["client"]
+    r = c.get("/gis/near?lat=23.0100&lon=72.5600&radius_m=5000", headers=h(world, "sup")).json()
+    assert r["engine"].startswith("postgis")
+    ids = [x["camera_id"] for x in r["cameras"]]
+    assert ids[:2] == ["CAM-A", "CAM-B"] and "CAM-C" not in ids     # CAM-C is ~23 km away
+    lite = Store(f"sqlite:///{tmp_path / 'l.db'}")
+    lite.create_all()
+    for cam in world["state"].store.list_cameras():
+        lite.upsert_camera({k: cam[k] for k in
+                            ("camera_id", "name", "district", "lat", "lon", "tier")})
+    h2 = lite.cameras_near(23.0100, 72.5600, 5000)
+    assert h2["engine"].startswith("haversine")
+    by = {x["camera_id"]: x["distance_m"] for x in h2["cameras"]}
+    for x in r["cameras"]:
+        assert abs(x["distance_m"] - by[x["camera_id"]]) < 10.0   # geodesic vs sphere
+
+
+def test_viewport_query_matches_lat_lon_ranges(world):
+    s: Store = world["state"].store
+    box = s.cameras_in_bbox(south=23.0, west=72.55, north=23.05, east=72.60)
+    inside = {c["camera_id"] for c in box}
+    assert inside == {"CAM-A", "CAM-B"}

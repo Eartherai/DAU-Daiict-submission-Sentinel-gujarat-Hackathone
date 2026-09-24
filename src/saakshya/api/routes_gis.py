@@ -61,6 +61,26 @@ async def registry_gaps(state: StateDep, ctx: AuthDep) -> dict[str, Any]:
         raise access_error(exc) from exc
 
 
+@router.get("/near", summary="Cameras within a radius of a point, nearest first")
+async def near(state: StateDep, ctx: AuthDep,
+               lat: Annotated[float, Query(ge=-90, le=90)],
+               lon: Annotated[float, Query(ge=-180, le=180)],
+               radius_m: Annotated[float, Query(gt=0, le=200_000)] = 2000.0,
+               limit: Annotated[int, Query(ge=1, le=500)] = 50) -> dict[str, Any]:
+    """Which cameras could have seen something at this point.
+
+    Geodesic metres from PostGIS (ST_DWithin on geography, indexed) where the
+    store is PostgreSQL, and a haversine otherwise; the answer names the
+    engine. Scoped to the caller's jurisdiction like every camera list.
+    """
+    try:
+        ctx.principal.require(Permission.CAMERA_READ)
+    except AccessError as exc:
+        raise access_error(exc) from exc
+    return state.store.cameras_near(lat, lon, radius_m, limit=limit,
+                                    districts=ctx.principal.scope_filter())
+
+
 @router.get("/cameras", summary="Camera locations, health and capability")
 async def cameras(state: StateDep, ctx: AuthDep, bbox: BBoxQuery = None,
                   zoom: ZoomQuery = 11.0, district: str | None = None,

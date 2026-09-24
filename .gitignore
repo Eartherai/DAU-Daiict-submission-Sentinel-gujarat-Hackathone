@@ -55,3 +55,9 @@ var/bin/
 # Generated detection reports
 var/submission/detections/
 var/reports/detections/
+
+# Downloaded runtimes and weights: never committed. Fetched by
+# tools/db/setup_postgres.sh and tools/models/fetch_indian_ocr.sh.
+var/models/
+var/pg/
+var/run/

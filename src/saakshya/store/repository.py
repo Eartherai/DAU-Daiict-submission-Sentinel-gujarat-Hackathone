@@ -31,6 +31,7 @@ from sqlalchemy import (
     insert,
     or_,
     select,
+    text,
     update,
 )
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -250,6 +251,8 @@ class Store:
             engine_kw["connect_args"] = {"timeout": 4.0, "check_same_thread": False}
         self.engine: Engine = create_engine(url, **engine_kw)
         self.is_sqlite = url.startswith("sqlite")
+        #: PostGIS version once create_all has checked; None means lat/lon queries.
+        self.postgis: str | None = None
         #: camera_id -> (district, department, lat, lon). Observations are
         #: denormalised against this at write time so district-scoped queries
         #: hit an index instead of a join — district scoping is an access-control
@@ -313,6 +316,36 @@ class Store:
         if added:
             log.info("schema: added %d missing column(s): %s",
                      len(added), ", ".join(added))
+        self.postgis = self._ensure_postgis()
+
+    def _ensure_postgis(self) -> str | None:
+        """On PostgreSQL, a camera's position as PostGIS geometry, indexed.
+
+        The column is generated from lat/lon, so it cannot drift from them and
+        nothing that writes a camera has to know it exists. Two GiST indexes:
+        the geometry for viewport queries, its geography cast for distances in
+        metres. Returns the PostGIS version, or None where there is none (and
+        on SQLite, where the same queries run on lat/lon).
+        """
+        if self.is_sqlite:
+            return None
+        try:
+            with self.engine.begin() as c:
+                c.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
+                c.exec_driver_sql(
+                    "ALTER TABLE cameras ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326) "
+                    "GENERATED ALWAYS AS (CASE WHEN lat IS NOT NULL AND lon IS NOT NULL "
+                    "THEN ST_SetSRID(ST_MakePoint(lon, lat), 4326) END) STORED")
+                c.exec_driver_sql(
+                    "CREATE INDEX IF NOT EXISTS ix_cameras_geom ON cameras USING GIST (geom)")
+                c.exec_driver_sql(
+                    "CREATE INDEX IF NOT EXISTS ix_cameras_geog ON cameras "
+                    "USING GIST ((geom::geography))")
+                return str(c.exec_driver_sql("SELECT postgis_lib_version()").scalar())
+        except Exception:
+            log.warning("PostGIS is not available on this PostgreSQL; spatial "
+                        "queries run on lat/lon", exc_info=True)
+            return None
 
     def _existing_columns(self, table: str) -> set[str]:
         with self.engine.connect() as c:
@@ -587,10 +620,17 @@ class Store:
         separately by `cameras_without_location`, because silently dropping them
         would make an incomplete map look complete.
         """
-        q = select(S.cameras).where(
-            S.cameras.c.lat.is_not(None), S.cameras.c.lon.is_not(None),
-            S.cameras.c.lat >= south, S.cameras.c.lat <= north,
-            S.cameras.c.lon >= west, S.cameras.c.lon <= east)
+        if getattr(self, "postgis", None):
+            # The GiST index answers the viewport; the result is the same set
+            # the lat/lon ranges select, since the envelope is in degrees.
+            q = select(S.cameras).where(text(
+                "cameras.geom && ST_MakeEnvelope(:w, :s, :e, :n, 4326)").bindparams(
+                w=west, s=south, e=east, n=north))
+        else:
+            q = select(S.cameras).where(
+                S.cameras.c.lat.is_not(None), S.cameras.c.lon.is_not(None),
+                S.cameras.c.lat >= south, S.cameras.c.lat <= north,
+                S.cameras.c.lon >= west, S.cameras.c.lon <= east)
         if districts:
             q = q.where(S.cameras.c.district.in_(list(districts)))
         if departments:
@@ -601,6 +641,59 @@ class Store:
             q = q.where(S.cameras.c.enabled.is_(True))
         with self.engine.connect() as c:
             return [dict(r._mapping) for r in c.execute(q.limit(limit))]
+
+    def cameras_near(self, lat: float, lon: float, radius_m: float, *,
+                     districts: Sequence[str] | None = None,
+                     limit: int = 50) -> dict[str, Any]:
+        """Cameras within ``radius_m`` metres of a point, nearest first.
+
+        On PostGIS this is ST_DWithin on geography - geodesic metres, answered
+        from the geography index. Elsewhere it is a haversine over the cameras
+        in a bounding box around the point. Both return the same shape and say
+        which engine answered.
+        """
+        import math
+        cols = ("camera_id", "name", "district", "lat", "lon")
+        if getattr(self, "postgis", None):
+            # The officer's district scope is part of the query, not a filter
+            # after it: filtering after LIMIT would let cameras outside their
+            # scope crowd out the ones inside it.
+            scope = "AND district = ANY(:districts) " if districts is not None else ""
+            sql = text(
+                "SELECT camera_id, name, district, lat, lon, "
+                "ST_Distance(geom::geography, p.g) AS d FROM cameras, "
+                "(SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography AS g) p "
+                "WHERE geom IS NOT NULL AND ST_DWithin(geom::geography, p.g, :r) "
+                f"{scope}ORDER BY d LIMIT :lim")
+            params: dict[str, Any] = {"lat": lat, "lon": lon, "r": radius_m, "lim": limit}
+            if districts is not None:
+                params["districts"] = list(districts)
+            with self.engine.connect() as c:
+                rows = [(dict(zip(cols, r[:5], strict=True)), float(r[5]))
+                        for r in c.execute(sql, params)]
+            engine = f"postgis {self.postgis} ST_DWithin (geography)"
+        else:
+            if districts is not None and not districts:
+                return {"cameras": [], "count": 0, "radius_m": radius_m,
+                        "engine": "haversine over a bounding box (no PostGIS on this store)"}
+            dlat = radius_m / 111_320.0
+            dlon = radius_m / (111_320.0 * max(0.01, math.cos(math.radians(lat))))
+            box = self.cameras_in_bbox(south=lat - dlat, north=lat + dlat,
+                                       west=lon - dlon, east=lon + dlon,
+                                       districts=districts, limit=20_000)
+            rows = []
+            for cam in box:
+                p1, p2 = math.radians(lat), math.radians(cam["lat"])
+                h = (math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2)
+                     * math.sin(math.radians(cam["lon"] - lon) / 2) ** 2)
+                d = 2 * 6_371_008.8 * math.asin(min(1.0, math.sqrt(h)))
+                if d <= radius_m:
+                    rows.append(({k: cam[k] for k in cols}, d))
+            rows.sort(key=lambda x: x[1])
+            rows = rows[:limit]
+            engine = "haversine over a bounding box (no PostGIS on this store)"
+        out = [{**cam, "distance_m": round(d, 1)} for cam, d in rows]
+        return {"cameras": out, "count": len(out), "radius_m": radius_m, "engine": engine}
 
     def cameras_unlocated(self, districts: Sequence[str] | None = None,
                           limit: int = 20_000) -> list[dict[str, Any]]:

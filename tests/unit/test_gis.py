@@ -247,3 +247,29 @@ def test_unsuitable_camera_still_reports_published_marks(maps, store):
     assert row["published_leads"] == 1
     empty = next(f for f in cap["features"] if f["camera_id"] == "MAP-01")
     assert empty["published_marks"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# Nearby cameras
+# --------------------------------------------------------------------------- #
+def test_nearby_cameras_are_nearest_first_within_the_radius(maps, store):
+    got = store.cameras_near(AHM[0], AHM[1], 1500)
+    assert got["engine"].startswith("haversine")          # SQLite: no PostGIS
+    ids = [c["camera_id"] for c in got["cameras"]]
+    # MAP-i sits i * ~600 m up the diagonal; 1.5 km reaches MAP-00..MAP-02.
+    assert ids == ["MAP-00", "MAP-01", "MAP-02"]
+    d = [c["distance_m"] for c in got["cameras"]]
+    assert d[0] == 0.0 and d == sorted(d) and d[-1] <= 1500
+    assert "MAP-NOLOC" not in ids
+
+
+def test_nearby_cameras_respect_the_officers_districts(maps, store):
+    ids = [c["camera_id"] for c in store.cameras_near(
+        AHM[0] + 0.03, AHM[1] + 0.03, 3000, districts=("Gandhinagar",))["cameras"]]
+    assert ids and all(int(i[-2:]) >= 8 for i in ids)
+    assert store.cameras_near(AHM[0], AHM[1], 3000, districts=())["cameras"] == []
+
+
+def test_nearby_cameras_are_limited_after_ordering(maps, store):
+    got = store.cameras_near(AHM[0], AHM[1], 50_000, limit=2)
+    assert [c["camera_id"] for c in got["cameras"]] == ["MAP-00", "MAP-01"]

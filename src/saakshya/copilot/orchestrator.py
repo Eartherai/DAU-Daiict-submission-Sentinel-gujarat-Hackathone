@@ -217,7 +217,8 @@ class Copilot:
                     }
                 performed.append({"tool": call.name, "arguments": call.arguments,
                                   "refused": bool(result.get("refused")),
-                                  "error": result.get("error")})
+                                  "error": result.get("error"),
+                                  "reason": result.get("human")})
                 tool_results.append(result)
                 assistant_blocks.append({
                     "type": "tool_use", "id": call.id,

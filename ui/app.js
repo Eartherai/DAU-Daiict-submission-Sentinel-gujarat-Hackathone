@@ -6127,7 +6127,7 @@ $("#chat-form").addEventListener("submit", async (e) => {
       msg.append(el("div", { class: "tools" },
         "Queries run: ",
         ...a.tool_calls.map((t) => el("code", {
-          text: `${t.tool}${t.refused ? " (refused)" : ""} ` })),
+          text: `${t.tool}${t.refused ? ` (refused${t.reason ? ` — ${t.reason}` : ""})` : ""} ` })),
         a.grounding && a.grounding.tokens_checked
           ? ` · ${a.grounding.tokens_checked} facts checked against results` : ""));
     }

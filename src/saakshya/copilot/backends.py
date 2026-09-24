@@ -788,7 +788,10 @@ class RuleBackend:
             if not isinstance(r, dict):
                 continue
             if r.get("refused"):
-                lines.append(f"{name}: refused — {r.get('reason', 'not permitted')}")
+                # An access refusal carries `human`, not `reason`; reading
+                # only `reason` printed "not permitted" and never said why.
+                why = r.get("human") or r.get("reason") or "not permitted"
+                lines.append(f"{name}: refused — {why}")
                 continue
             if r.get("error"):
                 lines.append(f"{name}: {r['error']}")

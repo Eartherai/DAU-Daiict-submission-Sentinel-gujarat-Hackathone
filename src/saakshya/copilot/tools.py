@@ -558,8 +558,10 @@ class ToolRegistry:
             result = tool.handler(ctx, **args)
         except AccessError as exc:
             # Surfaced as data, so the model can explain the refusal rather than
-            # inventing a reason for the empty result.
-            return {"error": exc.code, "message": str(exc), "refused": True}
+            # inventing a reason for the empty result. `human` is what the
+            # officer reads: the chat said only "(refused)", never why.
+            return {"error": exc.code, "message": str(exc), "refused": True,
+                    "human": _refusal_words(exc)}
         except TypeError as exc:
             return {"error": "BAD_ARGUMENTS", "message": str(exc),
                     "expected": tool.parameters}
@@ -582,6 +584,16 @@ class ToolRegistry:
             raise RuntimeError(
                 f"copilot tool registry contains mutating tools: {mutating}. "
                 "The copilot is read-only by design.")
+
+
+def _refusal_words(exc: AccessError) -> str:
+    """The next step, in words. PURPOSE_REQUIRED's own message names HTTP
+    headers (X-Case-Id), which mean nothing on the Copilot screen."""
+    from saakshya.security.access import PurposeRequired, refusal_sentence
+    if isinstance(exc, PurposeRequired):
+        return ("Fill in the case and purpose at the top of the screen first; "
+                "every plate query is recorded against them.")
+    return refusal_sentence(exc)
 
 
 def compact(value: Any, *, limit: int = 6000) -> str:

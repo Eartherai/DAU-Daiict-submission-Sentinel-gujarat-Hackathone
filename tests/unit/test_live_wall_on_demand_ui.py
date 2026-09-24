@@ -196,7 +196,7 @@ def test_wall_count_states_indexed_with_bounded_previews(app: str) -> None:
 #: The content each cache-busting marker was last bumped for. Editing an asset
 #: changes its hash, which fails this test and forces the version alongside it.
 ASSET_VERSIONS = {
-    "app.js": ("cr156", "5778b50edf48d6d7"),
+    "app.js": ("cr157", "70362d27d8f2a9b2"),
     "style.css": ("cr124", "db37677108b4d3f9"),
 }
 

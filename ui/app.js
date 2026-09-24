@@ -339,6 +339,7 @@ function show(view) {
   });
   if (loaders[view]) loaders[view]();
   if (view !== "live") {
+    applyCommandChrome();
     stopLiveRefresh(); stopWallHeartbeat();
     closeLive(); closeTileWhepAll(); closeTileHlsAll();
     liveObserver?.disconnect(); liveObserver = null;
@@ -557,6 +558,10 @@ async function applyDeploymentConfig(cfg) {
   state.liveConfig = cfg.live || { whep: false };
   state.simulationConfig = cfg.simulation || { enabled: false, available: false, proxy: false,
                                                catalog_count: 30, ready_count: 0, label: "" };
+  /* Offered only where the replay plane is running. Elsewhere the button
+   * could do nothing but report that it is unavailable. */
+  const simButton = $('[data-live-domain="simulation"]');
+  if (simButton) simButton.hidden = !state.simulationConfig.available;
   state.dataHolds = cfg.data?.holds || "";
   state.copilotConfig = cfg.copilot || { available: false, gemini: false };
   if (state.copilotConfig.gemini && sessionStorage.getItem("saakshya.gemini") == null) {
@@ -1742,12 +1747,17 @@ loaders.overview = async () => {
   const box = $("#overview");
   clear(box);
   box.append(el("div", { class: "ov-page" }, loadingNote("Loading the shift picture…")));
+  let marksPay = { marks: [] };
   try {
-    const [o, marksPay, cmd] = await Promise.all([
-      api("/overview"),
+    /* /overview failing used to reject the whole Promise.all and throw away
+     * the marks that had loaded beside it. Keep them for the failure page. */
+    const [o, marksRes, cmd] = await Promise.all([
+      api("/overview").catch((err) => err),
       api("/marks").catch(() => ({ marks: [] })),
       api("/command/summary").catch(() => null),
     ]);
+    marksPay = marksRes;
+    if (o instanceof Error) throw o;
     const copy = situationCopy(o);
     const hour = o.observations.marks_last_hour || {};
     const located = (o.cameras.by_state && true);
@@ -1871,10 +1881,48 @@ loaders.overview = async () => {
     loadHealthPanel(el("div")); // keep sys-dot updated
     paintCommandStatus(cmd, o);
   } catch (err) {
-    clear(box);
-    box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
+    await paintOverviewFailure(box, err, marksPay);
   }
 };
+
+/* The landing page depended on one call: when /overview failed the officer got
+ * a single red line and no way forward, although alerts and marks were
+ * readable. Say what failed, offer Retry, and show what did load, labelled. */
+async function paintOverviewFailure(box, err, marksPay) {
+  const retry = el("button", { type: "button", class: "btn small", text: "Retry",
+                               onclick: () => loaders.overview() });
+  const page = el("div", { class: "ov-page" },
+    el("p", { class: "ov-kicker" },
+      el("strong", { text: "Overview" }), "estate health, capability and open alerts"),
+    el("div", { class: "notice bad" },
+      el("strong", { text: "The shift picture did not load. " }),
+      err?.message || "", " ", retry),
+    dutyBrief());
+  clear(box);
+  box.append(page);
+  const open = await api("/alerts?status=OPEN&limit=4")
+    .then((res) => res.alerts || []).catch(() => null);
+  if (open) {
+    page.append(el("div", { class: "ov-card" },
+      el("h3", { text: "Open alerts" }),
+      el("p", { class: "lede", text: "Read from the alert queue directly; the estate figures above did not load." }),
+      open.length
+        ? el("div", { class: "alert-list" },
+            ...open.map((a) => el("div", { class: "alert-hit" },
+              el("div", { class: "pl plate-read", text: a.plate || "—" }),
+              el("div", { class: "tm", text: fmtAlertClock(a) }),
+              el("div", { class: "meta", text:
+                `${String(a.category || "watchlist").replace(/_/g, " ")} · ${a.camera_id || ""} · ${a.priority || ""}` }))))
+        : el("div", { class: "cap-note", text: "No open alert." })));
+  }
+  const marks = preferUsableStills(marksPay?.marks || []).slice(0, 12);
+  if (marks.length) {
+    page.append(el("div", { class: "ov-card" },
+      el("h3", { text: "Marks, with location" }),
+      el("p", { class: "lede", text: "Distinct registration marks as last published, read from the mark index directly." }),
+      el("div", { class: "plate-gallery" }, ...marks.map(plateCard))));
+  }
+}
 
 function preferUsableStills(marks) {
   const rows = Array.isArray(marks) ? marks.slice() : [];
@@ -1919,18 +1967,25 @@ function plateRead(plate) {
   return el("div", { class: "plate-read", text: String(plate || "—").replace(/\s+/g, "").toUpperCase() });
 }
 
+/* A mark with no still is a compact text card: plate, where, when, and a line
+ * saying no still was captured. It used to keep a dark 16:9 box holding the
+ * plate, then print the same plate again under it, so a gallery with no
+ * stills was sixteen black boxes of repeated text. */
 function plateCard(m) {
   const showStill = m.still_ok !== false && !directGovernmentOnDemand();
   const img = el("img", { alt: m.plate });
-  const still = el("div", { class: "still" }, showStill ? img : plateRead(m.plate));
+  const still = showStill ? el("div", { class: "still" }, img) : null;
+  const noStill = () => el("div", { class: "no-still", text: "mark read here · no still captured" });
   const card = el("button", { class: "plate-card", type: "button" },
     still,
     el("div", { class: "read" }, plateRead(m.plate)),
     el("div", { class: "where", text:
-      `${m.camera_id} · ${m.name || ""} · ${m.district || "location unknown"} · ${fmtClock(m.t)}` }));
+      `${m.camera_id} · ${m.name || ""} · ${m.district || "location unknown"} · ${fmtClock(m.t)}` }),
+    showStill ? null : noStill());
   if (showStill) {
     refreshTile(img, m.camera_id).catch(() => {
-      still.replaceChildren(plateRead(m.plate));
+      still.remove();
+      card.append(noStill());
     });
   }
   card.addEventListener("click", () => {
@@ -2547,6 +2602,10 @@ let liveCaptureEnabled = true;
 let liveLayout = "grid";
 let liveDistrict = "all";
 let liveCamsAll = [];
+/* The last load's failure, kept because the wall-size, priority and analytics
+ * controls repaint the wall: repainting the empty list wiped the error and
+ * left "0 government cameras indexed" over a blank grid. */
+let liveLoadError = null;
 let liveLoadGeneration = 0;
 /* All thirty cameras are on the wall, but the default Grid layout shows them
  * as a scrolling column of large tiles rather than thirty thumbnails: only the
@@ -2604,7 +2663,13 @@ function scheduleTileWhepSync() {
  * fully usable with the command bar hidden, which is the default. */
 let commandBarOpen = false;
 function applyCommandChrome() {
-  document.body.classList.toggle("wall-focus", !commandBarOpen);
+  /* Command mode belongs to the wall. It was only ever switched on, so after
+   * one visit to Live every later view kept the icon rail and lost the
+   * handling band. The async wall painter calls this too, possibly after the
+   * operator has left, so it reads the view rather than trusting its caller. */
+  const onLive = !!$("#view-live")?.classList.contains("active");
+  document.body.classList.toggle("wall-focus", onLive && !commandBarOpen);
+  document.body.classList.toggle("wall-bar", onLive && commandBarOpen);
   const b = $("#btn-command-bar");
   if (b) b.setAttribute("aria-pressed", commandBarOpen ? "true" : "false");
 }
@@ -3023,6 +3088,7 @@ function liveProgress() {
   const failed = n("failed");
   if (failed) parts.push(`${failed} unavailable`);
   box.textContent = parts.join(" · ");
+  box.title = box.textContent;
 }
 
 /* A tile's frame area always states where it actually is. It must never read
@@ -3077,9 +3143,16 @@ function renderLiveCount(cams) {
     node.textContent =
       `${cams.length} government cameras indexed · wall ${liveWallMode} · `
       + "BOUNDED PREVIEWS — cached stills rotate across the wall; select one camera for verified WHEP";
+  } else if (liveDomain === "intelligence") {
+    /* No Domain button names this wall (INTELLIGENCE DEMO left that group),
+     * so the status line does. */
+    node.textContent = `${cams.length} own intelligence feed${cams.length === 1 ? "" : "s"} · `
+      + `wall ${liveWallMode} · not the government estate`;
   } else {
     node.textContent = `${cams.length} cameras · wall ${liveWallMode}`;
   }
+  /* A narrow screen truncates the line; the whole disclosure stays readable. */
+  node.title = node.textContent;
 }
 
 /* The isolated demo simulation catalog (CAM-001..CAM-030, ARCHIVAL_REPLAY)
@@ -3096,17 +3169,19 @@ async function loadSimulationWall(box) {
     payload = await api("/demo-simulation/cameras");
   } catch (err) {
     liveCamsAll = [];
+    liveLoadError = err;
     $("#live-count").textContent =
       "LIVE SIMULATION / ARCHIVAL REPLAY · 12h virtual window · repeated 4-minute assets · unavailable on this process";
+    $("#live-count").title = $("#live-count").textContent;
+    $("#live-progress").textContent = "";
     $("#n-live").textContent = "0";
     labelCount("#n-live", "cameras on the wall");
-    box.append(el("div", { class: "notice warn" },
-      el("strong", { text: "LIVE SIMULATION / ARCHIVAL REPLAY is not available here." }),
-      el("div", { text: err.message || "the isolated demo simulation plane is disabled on this process" })));
-    paintLiveFilters([]);
+    box.append(liveFailureNotice(err));
+    clear($("#live-filters"));
     return;
   }
   const cams = (payload.cameras || []).filter((c) => c.enabled !== false);
+  liveLoadError = null;
   liveCamsAll = cams;
   renderLiveCount(cams);
   $("#n-live").textContent = String(cams.length);
@@ -3125,6 +3200,7 @@ loaders.live = async () => {
    * available connection while the request below waits for one. */
   abortSnapshots();
   startTelemetry();
+  syncLiveDomainButtons();
   const box = $("#live");
   clear(box);
   liveLayout = liveLayout || "grid";
@@ -3152,7 +3228,16 @@ loaders.live = async () => {
     try {
       cams = (await api(`/gis/capability`)).features || [];
     } catch (err) {
-      box.append(el("div", { class: "notice bad" }, `${err.code}: ${err.message}`));
+      if (generation !== liveLoadGeneration) return;
+      liveCamsAll = [];
+      liveLoadError = err;
+      const count = $("#live-count");
+      count.textContent = `camera list did not load · wall ${liveWallMode} · nothing on this wall is indexed or live`;
+      count.title = count.textContent;
+      $("#live-progress").textContent = "";
+      $("#n-live").textContent = "";
+      clear($("#live-filters"));
+      box.append(liveFailureNotice(err));
       return;
     }
   }
@@ -3161,6 +3246,7 @@ loaders.live = async () => {
    * the peer connections owned by the current request. */
   if (generation !== liveLoadGeneration
       || !$("#view-live")?.classList.contains("active")) return;
+  liveLoadError = null;
   cams.sort((a, b) => String(a.camera_id).localeCompare(String(b.camera_id)));
   cams = cams.filter((c) => c.enabled !== false);
   const demoWall = state.dataHolds === "DEMONSTRATION";
@@ -3305,6 +3391,41 @@ function scheduleFitWall() {
 }
 window.addEventListener("resize", scheduleFitWall);
 
+function liveFailureNotice(err) {
+  const retry = el("button", { type: "button", class: "btn small", text: "Retry",
+                               onclick: () => loaders.live() });
+  if (liveDomain === "simulation") {
+    return el("div", { class: "notice warn live-empty" },
+      el("strong", { text: "LIVE SIMULATION / ARCHIVAL REPLAY is not available here." }),
+      el("div", { text: err?.message || "the isolated demo simulation plane is disabled on this process" }),
+      retry);
+  }
+  return el("div", { class: "notice bad live-empty" },
+    el("strong", { text: "The camera list did not load. " }),
+    err?.message || "", " ", retry);
+}
+
+/* An empty wall says why it is empty: the load failed, a filter matches no
+ * camera, or this store holds no camera in the chosen domain. Those are three
+ * different facts and none of them is a blank grid under "0 cameras". */
+function liveEmptyNotice() {
+  if (liveLoadError) return liveFailureNotice(liveLoadError);
+  if (liveCamsAll.length) {
+    const why = [];
+    if (livePriority !== "all") why.push(`priority ${livePriority}`);
+    if (liveDistrict !== "all") why.push(`district ${liveDistrict}`);
+    return el("div", { class: "notice live-empty", text:
+      `No camera on this wall matches ${why.join(" and ") || "the current filter"}. `
+      + `Choose All to see the ${liveCamsAll.length} camera${liveCamsAll.length === 1 ? "" : "s"} in this domain.` });
+  }
+  const domain = {
+    government: "No government camera is indexed in this store.",
+    intelligence: "Neither own intelligence feed (OWN-PEOPLE, OWN-TRAFFIC) is onboarded in this store.",
+    simulation: "The simulation plane returned no enabled camera.",
+  }[liveDomain] || "No camera is onboarded in this store.";
+  return el("div", { class: "notice live-empty", text: domain });
+}
+
 function paintLiveWorkspace(all) {
   const box = $("#live");
   if (!box) return;
@@ -3414,6 +3535,7 @@ function paintLiveWorkspace(all) {
   }
 
   box.append(focus, grid, strip, tab, plates);
+  if (!cams.length) box.prepend(liveEmptyNotice());
   /* Two frames: the grid has no measurable height until it has been laid out. */
   requestAnimationFrame(() => requestAnimationFrame(fitWall));
   /* Populate the complete 30-camera control-room wall.  The queue contains
@@ -4017,10 +4139,15 @@ async function refreshTile(img, id, attempt = 1) {
      * Retrying it four times opens nothing and fills the wall with "retrying".
      * The 20 s refresh will ask again once a JPEG exists. */
     const unpublished = (err.why || "").includes("has not published a still");
-    const retryable = err.message === "503" && attempt < 4 && !unpublished;
+    /* Also a 503, but not a busy grid: this process holds no grid credential,
+     * and no retry changes that. Every tile read "grid busy — retrying". */
+    const noCredential = (err.why || "").includes("no credential is configured");
+    const retryable = err.message === "503" && attempt < 4 && !unpublished && !noCredential;
     setTileState(id, unpublished ? "waiting" : (retryable ? "capturing" : "failed"),
       unpublished
         ? "waiting for ingest to publish a still"
+        : noCredential
+          ? "no still — this process holds no grid credential"
         : retryable
           ? `grid busy — retrying (${attempt} of 3)`
           : err.why
@@ -5181,18 +5308,24 @@ function resyncAfterRepaint() {
   }
 }
 
+/* After a failed load there is no list to repaint. Load again instead, which
+ * shows the current error, or the wall if the store has since answered. */
+function repaintLiveWall() {
+  if (!$("#view-live")?.classList.contains("active")) return;
+  if (liveLoadError) { loaders.live(); return; }
+  paintLiveWorkspace(liveCamsAll);
+  resyncAfterRepaint();
+}
+
 $$("[data-live-wall]").forEach((b) => b.addEventListener("click", () => {
   liveWallMode = Number(b.dataset.liveWall) || 9;
-  renderLiveCount(liveCamsAll);
+  if (!liveLoadError) renderLiveCount(liveCamsAll);
   $$("[data-live-wall]").forEach((x) => {
     const active = x === b;
     x.classList.toggle("on", active);
     x.setAttribute("aria-pressed", active ? "true" : "false");
   });
-  if ($("#view-live")?.classList.contains("active")) {
-    paintLiveWorkspace(liveCamsAll);
-    resyncAfterRepaint();
-  }
+  repaintLiveWall();
 }));
 
 $$("[data-live-priority]").forEach((b) => b.addEventListener("click", () => {
@@ -5202,10 +5335,7 @@ $$("[data-live-priority]").forEach((b) => b.addEventListener("click", () => {
     x.classList.toggle("on", active);
     x.setAttribute("aria-pressed", active ? "true" : "false");
   });
-  if ($("#view-live")?.classList.contains("active")) {
-    paintLiveWorkspace(liveCamsAll);
-    resyncAfterRepaint();
-  }
+  repaintLiveWall();
 }));
 
 $("#masthead-search")?.addEventListener("submit", (e) => {
@@ -6077,7 +6207,8 @@ $$("[data-preset]").forEach((b) => b.addEventListener("click", () => {
     "control-room": { wall: 12, mode: "video", view: "live" },
     "overview-30": { wall: 30, mode: "video", view: "live", domain: "government" },
     "overview-50": { wall: 50, mode: "video", view: "live", domain: "fifty" },
-    "government": { wall: 30, mode: "video", view: "live", domain: "government" },
+    /* No GOVERNMENT MODE preset: it was 30-CAMERA OVERVIEW under another name
+     * and repeated the Domain button beside it. */
     "intelligence-demo": { wall: 2, mode: "full", view: "intelligence", domain: "intelligence" },
     "traffic": { wall: 12, mode: "anpr", view: "live" },
     "person-search": { wall: 9, mode: "people", view: "live" },
@@ -6367,17 +6498,23 @@ $$("[data-product]").forEach((b) => b.addEventListener("click", () => {
   show(dest);
 }));
 
-$$("[data-live-domain]").forEach((b) => b.addEventListener("click", () => {
-  liveDomain = b.dataset.liveDomain;
+/* The Domain group says what the wall is showing. Several paths change the
+ * domain without touching these buttons (the INTELLIGENCE mode, the
+ * Intelligence view's "open on the wall"), so the wall loader re-states it. */
+function syncLiveDomainButtons() {
   $$("[data-live-domain]").forEach((x) => {
     const on = x.dataset.liveDomain === liveDomain;
     x.classList.toggle("on", on);
     x.setAttribute("aria-pressed", String(on));
   });
-  if (liveDomain === "intelligence") {
-    show("intelligence");
-    return;
-  }
+}
+
+/* INTELLIGENCE DEMO is not in this group any more: as a domain toggle it moved
+ * the officer to the Intelligence page and stayed lit over the government
+ * wall. The Intelligence nav entry and the INTELLIGENCE DEMO preset go there. */
+$$("[data-live-domain]").forEach((b) => b.addEventListener("click", () => {
+  liveDomain = b.dataset.liveDomain;
+  syncLiveDomainButtons();
   if (liveDomain === "fifty") liveWallMode = 50;
   /* The government catalogue is exactly thirty indexed cameras. Carrying a
    * larger wall size over from the 50-slot overview would pad it with CONTROL
@@ -6409,14 +6546,16 @@ $$("[data-wl-cat]").forEach((b) => b.addEventListener("click", () => {
   loaders.intelligence?.();
 }));
 
+/* The domain is set before show(): the wall loader lights its Domain button as
+ * it starts, and would otherwise light the previous one. */
 $("#intel-open-a")?.addEventListener("click", () => {
-  show("live");
   liveDomain = "intelligence";
+  show("live");
   openLive($(`.live-tile[data-camera="${intelStageCamera("a")}"]`) || el("div"), intelStageCamera("a"));
 });
 $("#intel-open-b")?.addEventListener("click", () => {
-  show("live");
   liveDomain = "intelligence";
+  show("live");
   openLive($(`.live-tile[data-camera="${intelStageCamera("b")}"]`) || el("div"), intelStageCamera("b"));
 });
 $("#intel-plate-form")?.addEventListener("submit", async (e) => {

@@ -24,10 +24,14 @@
       </span>
     </div>
 
+    <!-- The box runs a vehicle search and nothing else. It used to offer
+         "cameras, plates, cases": a camera id or a case number typed here ran
+         a plate search for that text, and at 1366 the promise was cut to
+         "Search cameras, plates, c". -->
     <form class="masthead-search" id="masthead-search" role="search">
-      <label class="sr-only" for="masthead-q">Search cameras, plates, cases</label>
+      <label class="sr-only" for="masthead-q">Search a vehicle registration mark</label>
       <span class="masthead-search-ico" aria-hidden="true">⌕</span>
-      <input id="masthead-q" placeholder="Search cameras, plates, cases"
+      <input id="masthead-q" placeholder="Search a plate"
              autocomplete="off" spellcheck="false">
     </form>
 
@@ -315,18 +319,20 @@
             <span class="media-policy" id="media-policy" data-policy="optimized"
                   title="Which media policy is in force. Never switched silently.">OPTIMIZED VIEW</span>
             <span class="live-control-label">Wall</span>
+            <button type="button" data-live-wall="4" aria-pressed="false">4</button>
+            <button type="button" data-live-wall="9" aria-pressed="false">9</button>
             <button type="button" class="on" data-live-wall="12" aria-pressed="true">12</button>
             <button type="button" data-live-wall="16" aria-pressed="false" title="4×4">16</button>
             <button type="button" data-live-wall="25" aria-pressed="false" title="5×5">25</button>
             <button type="button" data-live-wall="30" aria-pressed="false" title="6×5">30</button>
             <button type="button" data-live-wall="50" aria-pressed="false" title="10×5 logical wall">50</button>
-            <button type="button" data-live-wall="9" aria-pressed="false">9</button>
-            <button type="button" data-live-wall="4" aria-pressed="false">4</button>
+            <!-- Each Domain button changes what the wall shows and nothing else.
+                 LIVE SIMULATION stays hidden until /config reports the plane
+                 running; offered on a process without it, it could only fail. -->
             <span class="live-control-label">Domain</span>
             <button type="button" data-live-domain="government" aria-pressed="false">GOVERNMENT MODE</button>
-            <button type="button" data-live-domain="intelligence" aria-pressed="false">INTELLIGENCE DEMO</button>
             <button type="button" data-live-domain="fifty" aria-pressed="false">50-CAMERA</button>
-            <button type="button" data-live-domain="simulation" aria-pressed="false"
+            <button type="button" data-live-domain="simulation" aria-pressed="false" hidden
                     title="Isolated 30-channel archival replay demo — never the government relay">LIVE SIMULATION</button>
             <button type="button" class="on" data-live-domain="all" aria-pressed="true">ALL</button>
             <span class="live-control-label live-priority-label">Priority</span>
@@ -375,7 +381,6 @@
           <button type="button" data-preset="control-room">CONTROL ROOM</button>
           <button type="button" data-preset="overview-30">30-CAMERA OVERVIEW</button>
           <button type="button" data-preset="overview-50">50-CAMERA WALL</button>
-          <button type="button" data-preset="government">GOVERNMENT MODE</button>
           <button type="button" data-preset="intelligence-demo">INTELLIGENCE DEMO</button>
           <button type="button" data-preset="traffic">TRAFFIC INTELLIGENCE</button>
           <button type="button" data-preset="person-search">PERSON SEARCH</button>

@@ -269,8 +269,9 @@ def build(page, plate: str, case_id: str = "FIR-000/2026",
              say="Detections become counts and read rates, measured from the "
                  "store rather than declared."),
         Beat("The mark, traced across the estate", 15, search_plate,
-             say="A plate read off that footage is now searchable. Every search "
-                 "carries a case number and a stated purpose, or it does not run."),
+             say="A plate read off that footage, agreed across hundreds of frames, "
+                 "is now searchable. Every search carries a case number and a "
+                 "stated purpose, or it does not run."),
         Beat("Watchlist match, and the alert it fired", 16, watchlist_hit,
              say="Watchlist correlation is shown on fictional plates. We do not "
                  "put a real person's vehicle on a watchlist for a "
@@ -436,7 +437,7 @@ def main() -> None:
                     help="ADMIN token. Onboarding needs admin:write, which "
                          "SUPERVISOR does not hold; without this the "
                          "onboarding beat films a refusal.")
-    ap.add_argument("--plate", default="GJ18X6705")
+    ap.add_argument("--plate", default="MH02GB4920")
     ap.add_argument("--out", default="var/demo/own_feed")
     a = ap.parse_args()
 

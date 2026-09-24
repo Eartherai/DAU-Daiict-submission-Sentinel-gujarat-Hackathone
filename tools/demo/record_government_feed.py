@@ -171,8 +171,10 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
           }).length;
           return decoding>=8 && shown===vis.length;
         }"""
+        # At most a minute. The first take waited 110 s on a grid that was
+        # refusing sessions and filmed two minutes of "reconnecting".
         try:
-            page.wait_for_function(ready, timeout=110000)
+            page.wait_for_function(ready, timeout=60000)
         except Exception:
             pass
 
@@ -314,11 +316,11 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "") -> l
         Beat("One camera, with the AI overlay", 16, focus_camera,
              say="One camera, at full quality, with vehicles, people and plates "
                  "from this platform's own detector drawn on the frame."),
-        Beat("What the analytics produced", 14, nav("analytics", 3.0),
+        Beat("Analytics output — what the pipeline produced here", 14, nav("analytics", 3.0),
              say="Everything the pipeline produced on these cameras, counted from "
                  "the store: marks read, vehicles and people by class, and each "
                  "camera's measured plate-reading grade."),
-        Beat("Every mark read, with camera and time", 12, nav("overview", 3.0),
+        Beat("Every mark read, with camera and timestamp", 12, nav("overview", 3.0),
              say="Every registration mark read, with its camera and time, is on "
                  "the overview, and in the ANPR report that ships beside this film."),
         Beat("The designated vehicle, traced", 18, trace,

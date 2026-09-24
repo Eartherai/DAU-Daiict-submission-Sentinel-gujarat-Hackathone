@@ -385,9 +385,12 @@ class SnapshotService:
                     return rs
                 # Relay owns the stream. Do not open a second Sentinel RTSP grab.
                 if relay._slots.get(camera_id) is not None:
+                    # Shown on the tile. It said "a second Sentinel capture is
+                    # not opened. JPEG is PREVIEW fallback only" - accurate, and
+                    # not something an officer watching the wall could read.
                     self.last_error[camera_id] = (
-                        "local relay has this camera; a second Sentinel capture "
-                        "is not opened. JPEG is PREVIEW fallback only.")
+                        "relay connecting — waiting for its first frame "
+                        "(no second grid session is opened for a still)")
                     self.stats["failed"] += 1
                     return None
         except Exception:

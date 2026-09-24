@@ -16,7 +16,7 @@ quote them on the portal.
 | 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` and `var/demo/SAAKSHYA_deck.pdf` | **37 slides**, 16:9, rendered from the repository (`tools/demo/render_submission_deck.py`) so no claim lives only on a slide. Adds the measured GPU speed-up with its parity check, the vehicle trace report, the evidence chain and own-feed screens from the current build; the films page reads each film's length off the file. Upload the PPTX if the field wants PowerPoint; attach the PDF as well. |
 | 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | §4.2 the models and why each (tiled plate search, on-device OCR, position typing, restricted-zone rules), §4.5 the printable trace, §4.9 the Gemini copilot over all four models with its gates, §15 disaster recovery, §16 statewide rollout with exit gates, §17 the cost model with **S measured** (2.0× whole pipeline on a laptop GPU, 3.4× detector, identical outputs), §18 the cybersecurity architecture, §19 the claims this proposal declines to make. |
 | 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 53 s** · 2560×1440 · 98 MB · narrated, captioned. Eleven beats, all driven cleanly. Licensed Mumbai street footage with heads blurred. An estate administrator onboards a camera through the portal form (validated before it writes) and hands over to the investigating officer. Both feeds play at 30 fps with this platform's boxes on every frame and plates drawn once the vote holds; the live AI worker analyses them on the GPU during the take (AI ACTIVE · OCR ACTIVE, measured inference figures on screen). MH02GB4920, read off the footage and agreed across 267 frames, is searched and shown CONFIRMED BY PLATE. The watchlist hit and its trace report are on fictional plates. |
-| 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **4 m 41 s** · 2560×1440 @ 30 fps · 95.6 MB (1080p copy: `government_feed_1080.mp4`, 20.8 MB, upload this one if the portal caps size). Report: **178 plate reads across 9 government cameras**, each with UTC timestamp, camera id, camera name, district, department, object type and vote count. |
+| 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **8 m 10 s** · 2560×1440 · 67 MB · narrated, captioned (1080p copy: `government_feed_1080.mp4`, 32 MB). Twenty-two chapters on the organisers' own cameras and store: registry and bulk onboarding validated before it writes, the gap report asked of Gemini, GIS, the administrator refused a plate search, the live wall over direct WebRTC (23 of 30 tiles showing a frame), one camera with the overlay, analytics with a restricted-zone rule, marks with timestamps, the designated vehicle GJ11S7924 traced, followed and printed, alerts, evidence, Gemini over Models 2 and 4, its refusal to fabricate, system health with the federated VMS, the audit log. **One splice, stated:** chapters 18–20 (the three Gemini beats, 55 s) come from the take recorded 80 minutes earlier on the same build, because in the final take the suggestion chips had not drawn when clicked (fixed since). Report: **901 government reads, 178 distinct marks, 9 government cameras, 474 confirmed across frames**, each with UTC and IST time, camera, district, confidence, format check and evidence id. Own-feed rows that the live store also held are excluded. |
 
 The recorder refuses to finish an own-feed film over three minutes rather than
 producing something an assessor will have cut off. That check passed.
@@ -47,13 +47,16 @@ drifted the first time a report was regenerated.
 
 ```
 00_CHECKLIST.md
-01_SAAKSHYA_deck.pptx              01_SAAKSHYA_deck.pdf
-02_HLD.md                          02_HLD_diagrams.pdf
-03_own_feed_2m27_1440p.mp4
-04_government_feed_4m42_1440p.mp4  04_government_feed_1080p.mp4
-04_government_feed_anpr_report.csv
-05_MODEL1_GAP_ANALYSIS.md          05_REGISTRY_API.md
-05_SCALE_80K_LOAD_TEST.md          05_sample_camera_metadata.csv
+01_SAAKSHYA_deck.pptx                    01_SAAKSHYA_deck.pdf
+02_HLD.md   02_HLD_diagrams.pdf   02_SECURITY.md
+03_own_feed.mp4                          2 m 53 s · 2560×1440
+04_government_feed.mp4                   8 m 10 s · 2560×1440
+04_government_feed_1080p.mp4             8 m 10 s · 1920×1080
+04_government_feed_anpr_report.csv       901 reads · 178 marks · 9 cameras
+05_MODEL1_GAP_ANALYSIS.md   05_REGISTRY_API.md
+05_SCALE_80K_LOAD_TEST.md   05_sample_camera_metadata.csv
+06_designated_vehicle_trace_report.html  GJ11S7924: 52 reads, 24 sealed stills re-verified
+06_own_feed_trace_report.html            GJ18JX7786: C-014 then C-021
 ```
 
 Ignore the older `var/demo/PORTAL_PACK/` and `PORTAL_PACK.zip` — they are the

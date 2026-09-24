@@ -168,7 +168,9 @@ def test_compare_hud_claims_ai_only_from_persisted_detections(app: str) -> None:
 def test_government_wall_is_exactly_thirty(app: str) -> None:
     assert 'if (liveDomain === "government") liveWallMode = 30;' in app
     assert "Math.max(liveWallMode, 30)" not in app
-    assert '"government": { wall: 30, mode: "video", view: "live", domain: "government" },' in app
+    # The GOVERNMENT MODE preset was removed as a duplicate of the Domain
+    # button; the preset that reaches the government wall is still thirty.
+    assert '"overview-30": { wall: 30, mode: "video", view: "live", domain: "government" },' in app
 
 
 def test_thirty_camera_overview_preset_is_wired(app: str) -> None:

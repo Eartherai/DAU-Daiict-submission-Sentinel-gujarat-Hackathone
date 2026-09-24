@@ -110,7 +110,8 @@ Run the feature's own tests directly:
 
 The UI's Live tab has a **LIVE SIMULATION** domain button
 (`ui/index.html`, `data-live-domain="simulation"`) alongside GOVERNMENT MODE /
-INTELLIGENCE DEMO / 50-CAMERA / ALL. Selecting it calls
+50-CAMERA / ALL. It is shown only when `/config` reports
+`simulation.available` (the plane is running on this process). Selecting it calls
 `GET /demo-simulation/cameras` (never merged with GIS/store rows — see the
 comment above `loadSimulationWall` in `ui/app.js`), then opens one WHEP
 session per visible tile against `POST

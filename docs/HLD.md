@@ -125,18 +125,32 @@ signal-queue footage that took a 40-frame sample from 0 valid plates to 20, at
 
 *Reading them.* The portable OCR (CCT, ONNX) was trained on plates from about
 sixty regions, not including India; on 21 plate crops read by eye from the
-same footage it read 1 exactly, with 49% of characters wrong. On the
-development hardware the recogniser is **Apple Vision, on device** (5 of 21, 25%
-of characters wrong, 19 ms a crop, no pixel leaves the host); elsewhere the
-ONNX model is the fallback, and an **Indian-trained recogniser is what the
-target GPU servers should carry** - a model choice, measured by the same 21-crop
-check. Every read is interpreted against the **positions of the Indian format**:
+same footage it read 1 exactly, with 49% of characters wrong. Apple Vision, on
+device, read 5 (25% of characters wrong). The recogniser the pipeline now
+carries is **Awiros-ANPR-OCR** (Apache-2.0): PP-OCRv5's recogniser fine-tuned
+on 558,767 Indian plates, single- and dual-row, trained to abstain on an
+unreadable plate. On the same crops it reads **17 of 21 exactly, with 2.4% of
+characters wrong** - once it is fed as it was trained. The inference script
+published with the weights pads a crop with black before scaling; PaddleOCR
+trains with grey padding after scaling, and with black the model read the edge
+as characters (6 of 21). Its framework has no Metal backend and runs on one CPU
+core here (50 ms a plate), so the network is **restated in PyTorch** with the
+checkpoint's own layer names; the published weights load unchanged and match
+PaddlePaddle's forward pass to 7.5×10⁻⁶ with identical text on every crop. On
+the GPU it takes 14 ms a plate, 6.6 ms when a frame's plates go as one batch;
+on CUDA the authors measure 5 ms. Over a whole 57-second clip it published 83
+marks against Vision's 29: checked by eye, 47 correct against 17, at a similar
+error rate where a crop could settle it (22% against 26%), and 12 of the 20
+hand-read plates exactly against 5 (`var/reports/ocr_indian_eval.json`).
+Apple Vision and the ONNX model remain the fallbacks where the weights are not
+installed. Every read is interpreted against the **positions of the Indian format**:
 an O where the RTO must be a digit is 0, an 8 where a series letter must be is
 B; only forced, unambiguous pairs, at most two, stated in the read, with the raw
 OCR kept. End to end on 20 s of the queue, the published marks checked by eye
-went from 0 of 9 correct to at least 7 correct. What remains is recognition
-quality at 40-50 px of plate, which better optics or a larger, India-trained
-model buy; the pipeline no longer throws information away.
+went from 0 of 9 correct to at least 7 correct. Most wrong marks that remain
+are one character from a real plate on the same clip, at 40-50 px of plate;
+better optics buy the rest, and a one-vote read is published only as a lead
+requiring verification.
 
 ### 4.3 Retrieval — graph-first
 ```
@@ -205,14 +219,44 @@ on the deployment's own hardware. Measured on the film store, all four model
 questions came back grounded. The copilot is absent from the mandatory chain;
 the platform works in full without it.
 
+### 4.10 Store — SQLite and PostgreSQL + PostGIS, both exercised
+
+One SQLAlchemy Core schema serves both. SQLite carries a laptop or an edge
+node; PostgreSQL 18 with PostGIS 3.6 carries a district or the centre
+(`tools/db/setup_postgres.sh` installs it into the project, bound to
+127.0.0.1, with a generated password). On PostgreSQL the store adds a
+generated geometry column on cameras with GiST indexes on it and on its
+geography cast: the map's viewport query uses the index, and `GET /gis/near`
+answers "which cameras are within r metres of this point" with `ST_DWithin`
+on the spheroid, nearest first, inside the officer's districts.
+
+It is exercised, not claimed. `tools/db/migrate.py` copied the government
+store - 1,191,681 rows, 1.16 million observations - in 84 s, counted every
+table on both sides, and verified the 1,239-entry audit chain and the
+213-record evidence chain on PostgreSQL. The same API then ran against it:
+heavy aggregates are faster there (the overview 2.50 s → 0.97 s, a camera's
+page 876 → 183 ms), point lookups pay a few milliseconds of client round trip
+(`var/reports/store_engines.json`). On 80,000 cameras viewport and radius
+queries take about 1 ms on either engine and return the same cameras at 20 of
+20 points (`var/reports/gis_postgis.json`). `tests/postgres/` runs search,
+trajectory, evidence, audit, zone rules, the trace report and `/gis/near` on a
+fresh database each run.
+
+Running on PostgreSQL found four defects SQLite had hidden: 32-bit timestamp
+columns and a SQLite-only BLOB type; a count that used SQLite's
+`json_extract`; a NUL character in a request, which PostgreSQL text cannot
+hold and which failed as a 500 (it is now refused at the door on every
+engine); and a `SELECT DISTINCT` that read every observation, now an index
+walk. Each has a test.
+
 ## 5. Technology
 
 | Layer | Choice | Licence | Why |
 |---|---|---|---|
 | Decode | PyAV | BSD-3 | Real PTS access |
-| Detection / OCR | ONNX Runtime + open models | MIT / Apache-2.0 | Portable, pinned by weight hash |
+| Detection / OCR | PyTorch (RT-DETRv2, Awiros-ANPR-OCR port) + ONNX Runtime (plate detector, fallbacks) | BSD-3 / MIT / Apache-2.0 | GPU where present, CPU path always; weights pinned by hash |
 | Tracking | ByteTrack, own implementation | — | Upstream is neither PTS- nor segment-aware |
-| Store | SQLAlchemy Core · SQLite → PostgreSQL + PostGIS + pgvector | MIT / PostgreSQL | One interface, two dialects |
+| Store | SQLAlchemy Core · SQLite → PostgreSQL 18 + PostGIS 3.6 (+ pgvector planned) | MIT / PostgreSQL / GPL-2.0 (PostGIS, unmodified server extension) | One interface, two dialects, both exercised (§4.10) |
 | API | FastAPI + Uvicorn | MIT / BSD-3 | OpenAPI generated from routes |
 | Interface | Vanilla ES modules, hand-written canvas map | — | **No third-party asset**: runs with no internet route |
 | Replica | MediaMTX | MIT | Mirrors the organiser's sandbox |
@@ -495,9 +539,11 @@ ratio:
 
 Source: `var/reports/detector_device.json`, `var/reports/pipeline_device.json`.
 The whole-pipeline ratio is the one to read into §17.3, and it is lower than
-the detector's because the plate detector and OCR are ONNX models kept on CPU
-(CoreML fails on their zero-element dynamic shapes, recorded in
-`runtime/profile.py`). The first GPU measurement was 201 ms, not 133: a
+the detector's because the plate detector is an ONNX model kept on CPU
+(CoreML fails on its zero-element dynamic shapes, recorded in
+`runtime/profile.py`). It was measured with the earlier CPU recogniser; the
+Indian recogniser that replaced it (§4.2) runs on the GPU, a frame's plates in
+one batch, and this table has not been re-run since. The first GPU measurement was 201 ms, not 133: a
 post-processing loop synced the GPU once per detected box. That was software,
 and it is fixed; what remains is the model on the device. **S = 2.0 is a
 laptop's integrated GPU.** It says the method works and the pipeline is not
@@ -566,6 +612,15 @@ centre never dials the edge. A compromised centre therefore cannot reach into
 district infrastructure, and an edge node behind carrier NAT needs no inbound
 firewall rule. The cost is that commands to an edge node are pulled on its own
 schedule rather than pushed, which §15 already assumes for recovery.
+
+**Nor does a library make a call of its own.** ONNX Runtime 1.29 starts
+Microsoft's usage-telemetry client on import and uploads a queue it keeps in
+the user's Library folder; on the development machine it had been doing so
+for four weeks. It was found from a crash report - its worker thread aborted
+interpreter shutdown about one run in four - not from a review, which is the
+lesson: an edge node's egress should be denied by default at the host
+firewall, so a dependency that phones home fails closed. The package now sets
+`ORT_DISABLE_TELEMETRY` before the runtime can load, and a test holds it.
 
 ### 18.2 Encryption in transit
 

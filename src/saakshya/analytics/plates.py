@@ -56,6 +56,8 @@ _STRIP = re.compile(r"[^A-Z0-9]")
 #: some - fills them with zeros: "MH01EK0000", with three agreeing frames at
 #: 0.85, where the number was not visible at all.
 _NO_ZERO_NUMBER = "number 0000 is never issued"
+#: RTO codes start at 1 (DL3, GJ01). "KA0S2836" is an S read into the RTO.
+_NO_ZERO_RTO = "RTO code 0 is never issued"
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +116,8 @@ def parse(raw: str) -> PlateRead:
                          f"'{state}' is not a valid state/UT code")
     if m.group(4) == "0000":
         return PlateRead(canon, raw, False, "invalid", state, _NO_ZERO_NUMBER)
+    if int(m.group(2)) == 0:
+        return PlateRead(canon, raw, False, "invalid", state, _NO_ZERO_RTO)
     return PlateRead(canon, raw, True, "standard", state, "valid standard format")
 
 
@@ -179,7 +183,7 @@ def slot_typed(raw: str, max_forced: int = 2) -> PlateRead:
     if len({b[1] for b in fewest}) > 1:
         return PlateRead(canon, raw, False, "invalid", None,
                          "two readings of the positions fit equally; not typed")
-    n, cand, notes = fewest[0]
+    _, cand, notes = fewest[0]
     pr = parse(cand)
     return PlateRead(pr.canonical, raw, True, pr.scheme, pr.state_code,
                      "position-typed: " + ", ".join(notes))

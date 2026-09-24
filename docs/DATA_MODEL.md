@@ -1,14 +1,20 @@
 # Data model
 
-18 tables, one schema, two dialects. SQLite is the development store because
-PostgreSQL cannot run on this machine; PostgreSQL + PostGIS + pgvector is the
-deployment store. Everything above `saakshya.store` talks to the repository
-interface and never to a dialect.
+21 tables, one schema, two dialects, both exercised. SQLite is the
+development and edge store; PostgreSQL 18 + PostGIS 3.6 is the district and
+central store (`tools/db/setup_postgres.sh`; pgvector is planned for the
+appearance index). The government store was copied to PostgreSQL with counts
+matching and both hash chains verifying (`tools/db/migrate.py`), and
+`tests/postgres/` runs the main flows there. Everything above `saakshya.store`
+talks to the repository interface; the few places a dialect differs - upserts,
+a JSON flag, a distinct-values walk, the PostGIS geometry - are inside it.
 
 Three decisions run through the whole schema and are worth stating before the
 tables:
 
-**Times are epoch microseconds (INTEGER), not strings.** Ordering and range
+**Times are epoch microseconds (BIGINT), not strings.** About 1.8e15 today:
+SQLite's INTEGER holds that and PostgreSQL's 32-bit INTEGER does not, which is
+why the columns are BIGINT. Ordering and range
 scans are the hot path, and dialect-dependent timestamp parsing is a reliable
 source of subtle, late-discovered bugs across SQLite and PostgreSQL.
 

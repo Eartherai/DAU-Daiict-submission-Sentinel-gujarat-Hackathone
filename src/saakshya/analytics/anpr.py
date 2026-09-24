@@ -227,7 +227,7 @@ class AnprEngine:
         """The recogniser for plate crops; the detection backend's by default."""
         if getattr(self, "_ocr", None) is None:
             choice = (os.environ.get("SAAKSHYA_OCR") or self.cfg.ocr_engine).strip().lower()
-            self._ocr = self.backend
+            self._ocr: Any = self.backend
             if choice in ("auto", "indian"):
                 from saakshya.analytics import ocr_indian
                 if ocr_indian.available():

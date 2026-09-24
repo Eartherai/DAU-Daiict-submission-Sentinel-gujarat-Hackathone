@@ -222,7 +222,7 @@ Metadata moves. Video stays where it is.
 
 ```
 RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track → T2 ANPR)
-        →  EDGE (local store, queue, watchlist)  →  STORE (SQLite ⇄ PostgreSQL)
+        →  EDGE (local store, queue, watchlist)  →  STORE (SQLite ⇄ PostgreSQL + PostGIS)
         →  search / graph / trajectory / alerts / evidence / investigation workspace
 ```
 
@@ -235,7 +235,7 @@ The chain runs **with no language model in the loop** — a test fails if one is
 | Framework ask | This design |
 |---|---|
 | Central / regional / edge | **Edge / district:** ingest + analytics + local store + durable queue (~2–3k cameras / node, **MODELLED**). **Central:** aggregation, cross-district search, evidence chain, audit |
-| GPU | Default path is CPU (ONNX plate + RT-DETRv2 / MPS where available). GPU is optional acceleration, not a hard requirement for PoC |
+| GPU | The detector and the plate recogniser run on the GPU where there is one (Metal measured here; CUDA in deployment); plate detection stays on CPU (ONNX). Every stage has a CPU path, so a GPU is acceleration, not a requirement for the PoC |
 | Bandwidth | Video stays at the camera. Metadata ~400 B/observation. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why Model 4 is refused |
 | Storage | Hot metadata + sealed evidence centrally; video remains on departmental NVR/VMS |
 | HA / ops | Edge continues with uplink down; SERVICE token sync; reconnect with exponential backoff; credentials from environment only |
@@ -252,9 +252,9 @@ The chain runs **with no language model in the loop** — a test fails if one is
 |---|---|---|
 | Ingest | **PyAV** (real PTS) | Wall-clock / declared FPS rejected for evidence time |
 | Detect / track | **RT-DETRv2-R18** (Apache-2.0) on the GPU where there is one (Apple MPS measured 3.4×, same boxes) + ByteTrack + separate person pool | Persons never enter plate voting |
-| ANPR | YOLOv9 plate detector (MIT) on **full-resolution tiles** of ≥1920 px frames; OCR by **Apple Vision on device** where present, CCT ONNX elsewhere; Indian-format position typing; per-track vote | 0 → 20 valid plates on a 40-frame sample; published marks checked by eye 0/9 → 7+ correct; AGPL Ultralytics **rejected in code** |
+| ANPR | YOLOv9 plate detector (MIT) on **full-resolution tiles** of ≥1920 px frames; OCR by **Awiros-ANPR-OCR** (Apache-2.0, PP-OCRv5 fine-tuned on 558k Indian plates), **ported to PyTorch** so it runs on the GPU (6.6 ms a plate batched; matches PaddlePaddle to 7.5e-6); Apple Vision / CCT ONNX as fallbacks; Indian-format position typing; per-track vote | 17/21 hand-read plates exact against Vision's 5/21 and ONNX's 2/21; on a whole clip 47 published marks verified correct against 17 (`var/reports/ocr_indian_eval.json`); AGPL Ultralytics **rejected in code** |
 | API | **FastAPI** + generated OpenAPI | Contract cannot drift from routes |
-| Store | SQLAlchemy · SQLite ⇄ PostgreSQL | Same schema, two dialects |
+| Store | SQLAlchemy · SQLite ⇄ **PostgreSQL 18 + PostGIS 3.6** (`tools/db/setup_postgres.sh`) | Same schema, both exercised: the 1.19M-row government store copied with counts matching and both hash chains verifying; `/gis/near` on geography with a GiST index (`var/reports/store_engines.json`) |
 | UI | Static investigation workspace (`ui/`) | No third-party CDN required for core use |
 | Auth | Bearer `skv_…` + purpose headers | Case + purpose ≥ 12 chars on intrusive queries |
 | Optional copilot | **Gemini over M1–M4**: 20 read-only tools (registry gaps, camera health, federated VMS, alert queue, search, trajectory, evidence…) | Every factual token grounded against tool results or the answer is withheld; refuses to enhance / invent stills |
@@ -276,7 +276,11 @@ make install
 # uv venv --python 3.12 && uv pip install -e ".[dev,analytics]"
 
 cp .env.example .env   # never commit .env
+
+tools/models/fetch_indian_ocr.sh   # optional: the Indian plate recogniser (~150 MB, checksum-pinned)
 ```
+
+Without the Indian recogniser the pipeline falls back to Apple Vision (macOS) or the ONNX model.
 
 ### 2. Seed the demonstration store
 
@@ -319,6 +323,15 @@ Token stays in tab `sessionStorage` only. Case + purpose are written into a hash
 make precommit   # lint + typecheck + unit + secret scan
 make verify      # full blocking gate
 curl -s http://127.0.0.1:8080/healthz
+```
+
+### 6. Optional: PostgreSQL + PostGIS
+
+```bash
+tools/db/setup_postgres.sh                                   # PostgreSQL 18 + PostGIS 3.6 in var/pg/, no admin rights, 127.0.0.1 only
+python tools/db/migrate.py --from var/demo.db --to "$(cat var/pg/url)"   # copies, counts, verifies both hash chains
+make serve DEMO_DB="$(cat var/pg/url)"                      # the same API on PostgreSQL
+SAAKSHYA_TEST_PG_URL="$(cat var/pg/url)" pytest tests/postgres
 ```
 
 ---

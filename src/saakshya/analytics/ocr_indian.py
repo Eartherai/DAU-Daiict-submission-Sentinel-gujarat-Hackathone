@@ -212,6 +212,7 @@ def paddle_reference() -> Any:
     def run(x: np.ndarray) -> np.ndarray:
         with paddle.no_grad():
             p = model(paddle.to_tensor(x))
-        return (p.get("ctc") if isinstance(p, dict) else p).numpy()
+        out = p["ctc"] if isinstance(p, dict) else p
+        return np.asarray(out.numpy())
 
     return run

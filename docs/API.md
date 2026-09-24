@@ -5,7 +5,7 @@ definitions, not maintained beside them, so this document cannot drift into
 describing a system that does not exist. Live schema: `GET /openapi.json`,
 interactive at `/docs`.
 
-37 endpoints. Everything below is implemented and covered by tests.
+83 operations on 80 paths (counted from the generated OpenAPI). Everything below is implemented and covered by tests; the live schema is the complete list.
 
 ---
 

@@ -67,3 +67,10 @@ def test_number_0000_is_never_a_mark() -> None:
         assert not r.valid and "0000" in r.reason, mark
         assert not slot_typed(mark).valid, mark
     assert parse("MH01EK0001").valid and parse("22BH0001A").valid
+
+
+def test_rto_zero_is_never_a_mark() -> None:
+    from saakshya.analytics.plates import parse
+    for mark in ("KA0S2836", "GJ00AB1234"):
+        assert not parse(mark).valid, mark
+    assert parse("DL3CAB1234").valid and parse("GJ01AB1234").valid

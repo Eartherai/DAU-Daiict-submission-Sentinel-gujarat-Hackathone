@@ -101,8 +101,8 @@ Ignore the older `var/demo/PORTAL_PACK/` and `PORTAL_PACK.zip` — they are the
 These are the honest limits. Stating them first is cheaper than being caught
 by them in questions.
 
-- **The AI plane runs on one laptop.** The detector now uses the machine's GPU
-  (Apple MPS); plate detection and OCR stay on CPU. Measured on the same
+- **The AI plane runs on one laptop.** The detector and the plate recogniser
+  use the machine's GPU (Apple MPS); plate detection stays on CPU. Measured on the same
   2560×1440 frames: the whole per-frame pipeline 598 → 293 ms (2.0×), the
   detector alone 448 → 133 ms (3.4×), with identical outputs
   (`var/reports/pipeline_device.json`, `detector_device.json`). In the own-feed
@@ -142,9 +142,16 @@ by them in questions.
 - **The restricted-zone rule on the government grid is a demonstration rule**,
   set by the estate administrator for this evaluation and labelled so. The
   entries it reports are real sightings on that camera.
-- **The store is SQLite**, not the PostgreSQL + PostGIS deployment the
-  challenge suggests. The store abstracts its backend; that migration has not
-  been exercised and is not claimed.
+- **The films were recorded on SQLite.** PostgreSQL 18 + PostGIS 3.6 is
+  exercised, not only designed: the government store (1.19M rows) was copied
+  with every table's count matching and both hash chains verifying, the API
+  served it (`var/reports/store_engines.json`), and `tests/postgres/` runs the
+  main flows there. What is not claimed is a PostgreSQL deployment at district
+  scale, replication, or failover.
+- **ONNX Runtime had been sending Microsoft usage telemetry** from the
+  development machine (it is on by default in 1.29, and it was found from a
+  crash report). It is switched off at import now; say so if asked about
+  outbound calls, and say a deployment should also deny egress at the host.
 - **Two government cameras show corrupted colour** in the film — Dethali Char
   Rasta green, O.N.G.C. Office orange. Both artifacts are present in the
   upstream feed; they are not produced by anything here.

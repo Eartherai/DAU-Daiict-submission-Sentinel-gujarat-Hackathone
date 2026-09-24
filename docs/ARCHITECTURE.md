@@ -55,7 +55,7 @@ recording) is rejected on arithmetic, not left unfinished.
                                           │ replay, idempotent by dedup_key
                        ┌──────────────────▼──────────────────────┐
                        │  STORE           store/                 │
-                       │  18 tables · SQLite ⇄ PostgreSQL        │
+                       │  21 tables · SQLite ⇄ PostgreSQL+PostGIS│
                        └──────────────────┬──────────────────────┘
         ┌──────────────┬──────────────────┼───────────────┬────────────────┐
         ▼              ▼                  ▼               ▼                ▼
@@ -65,7 +65,7 @@ recording) is rejected on arithmetic, not left unfinished.
         └──────────────┴──────────────────┼───────────────┴────────────────┘
                                           ▼
                     ┌─────────────────────────────────────────┐
-                    │  API  api/ · 37 endpoints · 4 auth gates│
+                    │  API  api/ · 83 operations · 4 gates    │
                     │  ui/  investigation workspace           │
                     │  copilot/ · read-only tools             │
                     └─────────────────────────────────────────┘
@@ -165,7 +165,7 @@ cannot, and cannot skip an authorisation check" true by construction.
 
 ### API and UI — `api/`, `ui/`
 
-Four authorisation gates (`docs/SECURITY.md`), 37 endpoints, OpenAPI generated
+Four authorisation gates (`docs/SECURITY.md`), 83 operations on 80 paths, OpenAPI generated
 from the routes. The workspace is vanilla ES modules with a hand-written canvas
 map — **no third-party asset of any kind**, which is what lets it run on a
 network with no internet route and makes a strict CSP enforceable.

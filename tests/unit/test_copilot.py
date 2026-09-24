@@ -73,7 +73,23 @@ def test_expected_tools_are_present(service, store):
         "get_camera_neighbors", "get_camera_capability", "build_trajectory",
         "validate_trajectory", "query_watchlist", "get_evidence",
         "verify_evidence", "explain_match", "draft_report",
-        "list_estate", "list_timebase", "check_timebase", "refuse_imagery"}
+        "list_estate", "list_timebase", "check_timebase", "refuse_imagery",
+        # One read-only tool per reference model the copilot sits over.
+        "registry_gaps", "estate_health", "connected_systems", "alert_queue"}
+
+
+def test_the_model_layer_tools_answer_and_keep_their_gates(service, store):
+    """M1-M4 each have a tool; each is refused to a role that may not see it."""
+    from saakshya.security import AuthContext, Principal, Role
+    reg = build(service, store, []).registry
+    sup = AuthContext(principal=Principal(user_id="s", role=Role.SUPERVISOR))
+    for name, key in (("registry_gaps", "cameras"), ("estate_health", "by_state"),
+                      ("connected_systems", "contract"), ("alert_queue", "incidents")):
+        out = reg.call(name, {}, sup)
+        assert key in out and not out.get("refused"), (name, out)
+    auditor = AuthContext(principal=Principal(user_id="a", role=Role.AUDITOR))
+    refused = reg.call("alert_queue", {}, auditor)
+    assert refused.get("refused") and refused.get("human")
 
 
 def test_copilot_absent_model_degrades_cleanly(service, store, ctx):

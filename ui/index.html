@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr124">
+<link rel="stylesheet" href="/ui/style.css?v=cr125">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -313,6 +313,7 @@
             <span class="n" id="live-count"></span>
             <span class="n" id="live-progress" role="status" aria-live="polite"></span>
           </div>
+          <button class="ghost ask-copilot" type="button" data-ask-model="m2">Ask Copilot</button>
           <div class="live-layouts" role="tablist" aria-label="Live layout">
             <button type="button" id="btn-command-bar" aria-pressed="false"
                     title="Show or hide filters, presets and analytics. The wall is usable with them hidden.">COMMAND BAR</button>
@@ -523,6 +524,7 @@
       <div style="display:flex;flex-direction:column;height:100%">
         <div class="col-head">Alerts
           <div style="margin-left:auto;display:flex;gap:4px">
+            <button class="ghost ask-copilot" type="button" data-ask-model="m4">Ask Copilot</button>
             <button class="ghost on" data-alert-status="OPEN">New</button>
             <button class="ghost" data-alert-status="ACKNOWLEDGED">Acknowledged</button>
             <button class="ghost" data-alert-status="INVESTIGATING">Investigating</button>
@@ -544,6 +546,7 @@
             <button class="ghost" id="btn-onboard-toggle" aria-expanded="false"
                     aria-controls="onboard-panel">Onboard a camera</button>
             <button class="ghost" id="btn-regrade">Re-grade from stored observations</button>
+            <button class="ghost ask-copilot" type="button" data-ask-model="m1">Ask Copilot</button>
           </div>
         </div>
 
@@ -853,7 +856,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr157"></script>
+<script type="module" src="/ui/app.js?v=cr158"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

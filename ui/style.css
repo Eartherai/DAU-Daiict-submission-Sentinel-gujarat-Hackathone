@@ -2937,3 +2937,7 @@ body.wall-focus #live-progress {
 .bars .b .fill { display: block; }
 .bars { padding: 4px 14px 10px; }
 .bars .b .num { min-width: 64px; }
+
+/* The copilot, offered on each model's own screen. */
+.ask-copilot { border-color: var(--accent); color: var(--accent); white-space: nowrap; }
+.ask-copilot::before { content: "✦ "; }

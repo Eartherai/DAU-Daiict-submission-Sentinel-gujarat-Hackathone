@@ -2480,7 +2480,9 @@ loaders.system = async () => {
       }
       table.append(tb);
       box.append(el("div", { class: "panel", style: "margin-top:14px" },
-        el("div", { class: "panel-head" }, el("h3", { text: "Connected systems · DEMO / TEST" })),
+        el("div", { class: "panel-head" }, el("h3", { text: "Connected systems · DEMO / TEST" }),
+          el("button", { class: "ghost ask-copilot", type: "button", "data-ask-model": "m3",
+                         text: "Ask Copilot" })),
         el("div", { class: "section-note", text: `${sys.label || "DEMO / TEST"} · ${sys.provenance}` }),
         table));
     } catch { /* command systems optional */ }
@@ -5963,7 +5965,22 @@ function evidenceRecordsTable(records) {
 }
 
 /* ─── copilot ────────────────────────────────────────────────────────────── */
+//: One question per reference model the platform combines. The copilot sits
+//: over all four: the registry (M1), viewing and health (M2), federation (M3)
+//: and central intelligence (M4). Each is answered from a tool whose result
+//: is checked against the answer before it is shown.
+const COPILOT_MODEL_PROMPTS = {
+  m1: "What does the camera registry not yet know, and which expected department has no camera onboarded?",
+  m2: "How many cameras are streaming right now, and which are not? Give the last error for each one that is not.",
+  m3: "Which VMS systems are connected through the federation layer, over which protocols, and is each one healthy?",
+  m4: "Summarise the open watchlist alerts: which vehicles, where each was last seen, and which need verifying first.",
+};
+
 const COPILOT_PROMPTS = [
+  ["M1 · Registry gaps", COPILOT_MODEL_PROMPTS.m1],
+  ["M2 · Camera health", COPILOT_MODEL_PROMPTS.m2],
+  ["M3 · Connected VMS", COPILOT_MODEL_PROMPTS.m3],
+  ["M4 · Open alerts", COPILOT_MODEL_PROMPTS.m4],
   ["Infrared cameras", "Show me the infrared cameras and pin their stills."],
   ["Cannot read plates", "Which cameras are graded UNSUITABLE for ANPR?"],
   ["Unlocated", "Which cameras are in the registry but have no coordinates?"],
@@ -6020,6 +6037,17 @@ function askCopilot(q) {
   input.value = q;
   $("#chat-form").requestSubmit();
 }
+
+// "Ask Copilot" on a model's own screen: the same question as its chip,
+// asked from where the officer already is.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-ask-model]");
+  if (!b) return;
+  const q = COPILOT_MODEL_PROMPTS[b.dataset.askModel];
+  if (!q) return;
+  show("copilot");
+  askCopilot(q);
+});
 
 function copilotCameraWall(ids, host) {
   if (!ids || !ids.length) return;

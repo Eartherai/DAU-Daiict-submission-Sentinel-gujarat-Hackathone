@@ -285,6 +285,45 @@ class ToolRegistry:
             }, "required": ["camera_a", "camera_b"]},
             self._check_timebase)
 
+        # One tool per reference model the platform combines, so the copilot
+        # sits over all four rather than only over investigation (Model 4).
+        self._add(
+            "registry_gaps",
+            "Model 1. What the camera registry does not yet know: fields no "
+            "department has supplied, counted across the whole registry, and "
+            "departments with no camera onboarded. Use for gap analysis.",
+            {"type": "object", "properties": {}},
+            self._registry_gaps)
+
+        self._add(
+            "estate_health",
+            "Models 1-2. Camera health as last measured by ingest: how many are "
+            "streaming, degraded or never ingested, and which degraded cameras, "
+            "with their last error. Health is measured, never assumed.",
+            {"type": "object", "properties": {
+                "district": {"type": "string"},
+                "limit": {"type": "integer", "default": 15}}},
+            self._estate_health)
+
+        self._add(
+            "connected_systems",
+            "Model 3. The VMS adapters the federation layer knows, with protocol, "
+            "vendor, camera count and health, and the adapter contract every "
+            "vendor integration implements. Rows are DEMO/TEST unless labelled.",
+            {"type": "object", "properties": {}},
+            self._connected_systems)
+
+        self._add(
+            "alert_queue",
+            "Model 4. Open watchlist alerts, grouped one incident per vehicle: "
+            "plate, category, priority, reads, cameras, first and last sighting, "
+            "and whether any read is corroborated across frames.",
+            {"type": "object", "properties": {
+                "status": {"type": "string", "description": "OPEN (default), "
+                           "ACKNOWLEDGED, INVESTIGATING, RESOLVED or ALL"},
+                "limit": {"type": "integer", "default": 10}}},
+            self._alert_queue)
+
         self._add(
             "refuse_imagery",
             "Always refused. Call this when asked to enhance, sharpen, "
@@ -295,6 +334,74 @@ class ToolRegistry:
             self._refuse_imagery)
 
     # -- handlers ------------------------------------------------------------ #
+    def _registry_gaps(self, ctx: AuthContext) -> dict[str, Any]:
+        from saakshya.gis.service import MapService
+        from saakshya.security import Permission
+        ctx.principal.require(Permission.CAMERA_READ)
+        return MapService(self.service.store).registry_gaps()
+
+    def _estate_health(self, ctx: AuthContext, district: str | None = None,
+                       limit: int = 15) -> dict[str, Any]:
+        from saakshya.security import Permission
+        ctx.principal.require(Permission.CAMERA_READ)
+        store = self.service.store
+        cams = [c for c in store.list_cameras(district=district or None)
+                if not str(c.get("camera_id", "")).startswith("CTL-")]
+        scope = ctx.principal.scope_filter()
+        if scope is not None:
+            cams = [c for c in cams if c.get("district") in scope]
+        health = store.list_health([c["camera_id"] for c in cams])
+        counts: dict[str, int] = {}
+        degraded = []
+        for c in cams:
+            h = health.get(c["camera_id"])
+            state = (h or {}).get("state") or "NEVER_INGESTED"
+            counts[state] = counts.get(state, 0) + 1
+            if h and state not in ("STREAMING", "HEALTHY"):
+                degraded.append({"camera_id": c["camera_id"], "name": c.get("name"),
+                                 "district": c.get("district"), "state": state,
+                                 "last_error": (h.get("last_error") or "")[:160]})
+        return {"cameras": len(cams), "by_state": counts,
+                "not_streaming": degraded[:max(1, min(limit, 50))],
+                "note": "health as last written by ingest; a camera with no row "
+                        "has never been ingested by this deployment"}
+
+    def _connected_systems(self, ctx: AuthContext) -> dict[str, Any]:
+        from saakshya.federation.adapters import demo_connected_systems
+        from saakshya.security import Permission
+        ctx.principal.require(Permission.CAMERA_READ)
+        return {"systems": demo_connected_systems(), "label": "DEMO / TEST",
+                "provenance": "DEMO/TEST adapter rows - not government VMS integrations",
+                "contract": ["discover_cameras", "get_camera_status", "get_stream_url",
+                             "get_metadata", "subscribe_events", "health_check"]}
+
+    def _alert_queue(self, ctx: AuthContext, status: str | None = None,
+                     limit: int = 10) -> dict[str, Any]:
+        from saakshya.security import Permission
+        from saakshya.watchlist import AlertEngine
+        from saakshya.watchlist.incidents import enrich, group
+        ctx.principal.require(Permission.ALERT_READ)
+        store = self.service.store
+        rows = [dict(r) for r in AlertEngine(store).list_alerts()]
+        want = (status or "OPEN").upper()
+        if want == "RESOLVED":
+            rows = [r for r in rows if r.get("status") in ("CLEARED", "FALSE_POSITIVE")]
+        elif want != "ALL":
+            rows = [r for r in rows if r.get("status") == want]
+        allowed = set(self.service._scoped_cameras(ctx))
+        rows = [r for r in rows if r.get("camera_id") in allowed]
+        from datetime import UTC, datetime
+        for r in rows:
+            for f in [k for k in r if k.endswith("_us") and isinstance(r[k], int)]:
+                r[f[:-3]] = datetime.fromtimestamp(r[f] / 1e6, tz=UTC).isoformat()
+        out = []
+        for g in group(enrich(store, rows))[:max(1, min(limit, 30))]:
+            out.append({k: g.get(k) for k in (
+                "plate", "category", "display_priority", "reads", "camera_count",
+                "cameras", "first_seen", "last_seen", "latest_camera_id",
+                "latest_camera_name", "plate_votes", "open", "recommended_action")})
+        return {"status": want, "incidents": out, "count": len(out)}
+
     def _camera_context(self, ctx: AuthContext, camera_id: str) -> dict[str, Any]:
         from saakshya.security import Permission
         ctx.principal.require(Permission.CAMERA_READ)

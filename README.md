@@ -241,7 +241,7 @@ The chain runs **with no language model in the loop** — a test fails if one is
 | HA / ops | Edge continues with uplink down; SERVICE token sync; reconnect with exponential backoff; credentials from environment only |
 | Cost | Quantities from [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md); procurement rates not invented |
 
-**MEASURED:** 30 simultaneous government cameras; 50 concurrent mixed-codec load with 0 decoder errors; analytics ~11 cameras saturating one CPU process.  
+**MEASURED:** 30 simultaneous government cameras; 50 concurrent mixed-codec load with 0 decoder errors; whole per-frame pipeline 598 → 293 ms at 2560×1440 on the laptop's GPU (2.0×, identical outputs; `var/reports/pipeline_device.json`).  
 **MODELLED:** ~33 district nodes for 80k. Never quoted as tested.
 
 ---
@@ -251,13 +251,14 @@ The chain runs **with no language model in the loop** — a test fails if one is
 | Layer | Choice | Why |
 |---|---|---|
 | Ingest | **PyAV** (real PTS) | Wall-clock / declared FPS rejected for evidence time |
-| Detect / track | Motion + vehicle detector + separate person pool | Persons never enter plate voting |
-| ANPR | **fast-alpr** + **open-image-models** yolo-v9-t + cct-s-v2 OCR | MIT; 10-slot OCR for Indian marks; AGPL Ultralytics **rejected in code** |
+| Detect / track | **RT-DETRv2-R18** (Apache-2.0) on the GPU where there is one (Apple MPS measured 3.4×, same boxes) + ByteTrack + separate person pool | Persons never enter plate voting |
+| ANPR | YOLOv9 plate detector (MIT) on **full-resolution tiles** of ≥1920 px frames; OCR by **Apple Vision on device** where present, CCT ONNX elsewhere; Indian-format position typing; per-track vote | 0 → 20 valid plates on a 40-frame sample; published marks checked by eye 0/9 → 7+ correct; AGPL Ultralytics **rejected in code** |
 | API | **FastAPI** + generated OpenAPI | Contract cannot drift from routes |
 | Store | SQLAlchemy · SQLite ⇄ PostgreSQL | Same schema, two dialects |
 | UI | Static investigation workspace (`ui/`) | No third-party CDN required for core use |
 | Auth | Bearer `skv_…` + purpose headers | Case + purpose ≥ 12 chars on intrusive queries |
-| Optional copilot | 16 read-only tools · Gemini off by default | Refuses to enhance / invent government stills |
+| Optional copilot | **Gemini over M1–M4**: 20 read-only tools (registry gaps, camera health, federated VMS, alert queue, search, trajectory, evidence…) | Every factual token grounded against tool results or the answer is withheld; refuses to enhance / invent stills |
+| Beyond ANPR | Person long-stay reports; **restricted-zone entries** against a department's rule (polygon, IST hours, authority); printable **vehicle trace report** with sealed stills and a row digest | The platform never calls anyone an intruder on its own; the rule is the department's |
 
 ---
 

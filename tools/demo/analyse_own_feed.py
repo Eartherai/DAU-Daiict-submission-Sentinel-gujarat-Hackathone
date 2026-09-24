@@ -59,8 +59,8 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
 
     PlateVoter.resolve counts its rejections, so calling it every frame would
     distort those counters; this repeats its acceptance rule side-effect free:
-    at least `min_votes` agreeing valid reads with mean OCR confidence at or
-    above `min_confidence`.
+    at least `min_votes` agreeing valid reads, holding `min_agreement` of the
+    track's valid reads, with mean OCR confidence at or above `min_confidence`.
     """
     from collections import Counter
 
@@ -81,6 +81,8 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
         # (MH46Z0518) was drawn and then replaced (MH46Z8518) as reads came in.
         # What the store records is still decided at the end of the track.
         if votes < max(3, anpr_cfg.min_votes) or votes < runner + 2:
+            continue
+        if votes < anpr_cfg.min_agreement * len(valid):
             continue
         conf = sum(r.confidence for p, r in valid if p.canonical == best) / votes
         if conf >= anpr_cfg.min_confidence:

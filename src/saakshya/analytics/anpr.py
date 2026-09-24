@@ -120,6 +120,14 @@ class AnprConfig:
     min_votes: int = 2
     #: Minimum mean OCR confidence for a voted (>=min_votes) read to publish.
     min_confidence: float = 0.55
+    #: The winning reading must hold at least this share of the track's valid
+    #: reads, and be strictly ahead of the runner-up. Frames of a readable
+    #: plate converge; frames of an unreadable one scatter. A plate whose
+    #: digits the licensed footage blurs came back as MH01EX0900 x3, EK0900
+    #: x4, EX0800 x2, EK9900 x2, EK0800 x2 and four singles - some single
+    #: reads at 0.98 - so no per-read confidence separates it, and "two
+    #: agreeing reads" published an invented mark. Agreement does.
+    min_agreement: float = 0.5
 
     #: When a track yields only one valid read — which is the common case at the
     #: per-camera frame rate a large estate can afford — that read is published
@@ -370,6 +378,7 @@ class PlateVoter:
         self.rejected_invalid = 0
         self.rejected_low_votes = 0
         self.rejected_low_conf = 0
+        self.rejected_disagreement = 0
 
     def add(self, track_key: str, reads: list[RawRead]) -> None:
         if not reads:
@@ -397,11 +406,19 @@ class PlateVoter:
             return None
 
         counts = Counter(pr.canonical for pr, _ in valid)
-        best, votes = counts.most_common(1)[0]
+        ranked = counts.most_common(2)
+        best, votes = ranked[0]
         members = [(pr, r) for pr, r in valid if pr.canonical == best]
         conf = float(np.mean([r.confidence for _, r in members]))
 
         provisional = False
+        if votes >= self.cfg.min_votes and (
+                votes < self.cfg.min_agreement * len(valid)
+                or (len(ranked) > 1 and ranked[1][1] == votes)):
+            # The frames do not agree on this plate. A scattered or tied vote
+            # is an unreadable plate, not a close call to be settled here.
+            self.rejected_disagreement += 1
+            return None
         if votes < self.cfg.min_votes:
             # Not corroborated. Publish as a lead only if it is a single dominant
             # read that clears the higher single-read bar; otherwise reject.

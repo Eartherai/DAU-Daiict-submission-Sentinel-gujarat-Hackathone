@@ -74,3 +74,30 @@ def test_rto_zero_is_never_a_mark() -> None:
     for mark in ("KA0S2836", "GJ00AB1234"):
         assert not parse(mark).valid, mark
     assert parse("DL3CAB1234").valid and parse("GJ01AB1234").valid
+
+
+def _reads(*texts: str) -> list[RawRead]:
+    return [RawRead(t, 0.95, (0, 0, 10, 5), 0.9, i * 0.1) for i, t in enumerate(texts)]
+
+
+def test_a_scattered_vote_is_an_unreadable_plate() -> None:
+    # A plate whose digits are blurred: some single reads at 0.98, no two
+    # frames agreeing on much. Two agreeing reads must not publish a mark
+    # that holds a minority of the track's reads.
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH01EX0900", "MH01EX0900", "MH01EX0900", "MH01EK0900",
+                       "MH01EK0900", "MH01EX0800", "MH01EK9900", "MH01EK8100"))
+    assert v.resolve("T1") is None and v.rejected_disagreement == 1
+
+
+def test_a_tied_vote_is_not_settled_by_order() -> None:
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH02FX5860", "MH02FX5960", "MH02FX5860", "MH02FX5960"))
+    assert v.resolve("T1") is None
+
+
+def test_a_converged_vote_still_publishes_with_its_stragglers() -> None:
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads(*(["MH02GB4920"] * 9), "MN22GB4920", "MH02GB4926"))
+    best = v.resolve("T1")
+    assert best is not None and best.plate.canonical == "MH02GB4920" and best.votes == 9

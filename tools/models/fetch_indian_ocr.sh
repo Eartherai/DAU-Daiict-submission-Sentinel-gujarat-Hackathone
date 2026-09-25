@@ -6,9 +6,10 @@
 #                                                 # tools/bench/ocr_compare.py --parity
 #
 # The pipeline runs the weights under PyTorch (src/saakshya/analytics/ocr_indian_net.py);
-# PaddlePaddle is needed only for the parity check. Every file is checked against the
-# SHA-256 it had when the port was verified, so a changed upstream file is refused
-# rather than silently loaded.
+# PaddlePaddle is needed only for the parity check. The weights, dictionary and licence
+# are each checked against the SHA-256 they had when the port was verified, and ppocr/
+# is checked out at the PaddleOCR commit it was verified against, so a changed upstream
+# file is refused rather than silently loaded - or, for ppocr/, imported and run.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DEST="$ROOT/var/models/awiros-anpr-ocr"
@@ -35,10 +36,25 @@ fetch LICENSE           c09023910f2bb42a4063d6c09e3301d44773cd9dd0a21b6a3bf61ad6
 
 if [ "${1:-}" = "--parity" ]; then
   P="$ROOT/var/models/PaddleOCR"
-  if [ ! -d "$P/ppocr" ]; then
-    git clone --depth 1 --filter=blob:none --sparse https://github.com/PaddlePaddle/PaddleOCR.git "$P"
+  # The commit the PyTorch port was checked against. The parity check imports and runs
+  # ppocr/ from here, so it is this commit or nothing - never the default branch's HEAD.
+  PPOCR_COMMIT=dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf
+  if [ ! -d "$P/.git" ]; then
+    git init -q "$P"
+    git -C "$P" remote add origin https://github.com/PaddlePaddle/PaddleOCR.git
     git -C "$P" sparse-checkout set ppocr
   fi
-  echo "  PaddleOCR ppocr/ at $P (pip install paddlepaddle to run the parity check)"
+  if [ "$(git -C "$P" rev-parse -q --verify HEAD || true)" != "$PPOCR_COMMIT" ]; then
+    git -C "$P" fetch -q --depth 1 --filter=blob:none origin "$PPOCR_COMMIT"
+    git -C "$P" -c advice.detachedHead=false checkout -q "$PPOCR_COMMIT"
+  fi
+  got="$(git -C "$P" rev-parse HEAD)"
+  if [ "$got" != "$PPOCR_COMMIT" ]; then
+    echo "  PaddleOCR at $got, expected $PPOCR_COMMIT - refused" >&2; exit 1
+  fi
+  if [ -n "$(git -C "$P" status --porcelain --untracked-files=no -- ppocr)" ]; then
+    echo "  PaddleOCR ppocr/ differs from $PPOCR_COMMIT - refused" >&2; exit 1
+  fi
+  echo "  PaddleOCR ppocr/ at $P, commit $PPOCR_COMMIT (pip install paddlepaddle to run the parity check)"
 fi
 echo "Indian plate OCR ready: $DEST"

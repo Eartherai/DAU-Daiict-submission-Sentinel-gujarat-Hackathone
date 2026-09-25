@@ -34,6 +34,7 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from saakshya.common.ids import new_id
@@ -326,14 +327,40 @@ class Store:
         constraint is not handled here and must not be: those need a real
         migration tool with a downgrade path, and pretending otherwise would be
         worse than the gap. `pending_migrations()` reports anything it cannot
-        apply rather than proceeding.
+        apply rather than proceeding. (The one other in-place change removes a
+        constraint rather than adding one: `_drop_observation_camera_fk`.)
         """
         S.metadata.create_all(self.engine)
         added = self._add_missing_columns()
         if added:
             log.info("schema: added %d missing column(s): %s",
                      len(added), ", ".join(added))
+        self._drop_observation_camera_fk()
         self.postgis = self._ensure_postgis()
+
+    def _drop_observation_camera_fk(self) -> None:
+        """Drop the observations -> cameras foreign key from an older PostgreSQL store.
+
+        The one other change applied in place, and it only loosens: the schema
+        no longer declares the key (see `schema.observations`), and a database
+        created while it did still enforces it. There one row from an
+        unregistered camera lost its whole batch of observations, and
+        `delete_camera` failed on any camera that had been seen. SQLite never
+        enforced the key, so this makes PostgreSQL do what SQLite always did.
+        """
+        if self.engine.dialect.name != "postgresql":
+            return
+        with self.engine.begin() as c:
+            # Found by what it joins, not by name: PostgreSQL named it
+            # observations_camera_id_fkey, but nothing guarantees that.
+            held = [r[0] for r in c.exec_driver_sql(
+                "SELECT conname FROM pg_constraint WHERE contype = 'f' "
+                "AND conrelid = 'observations'::regclass "
+                "AND confrelid = 'cameras'::regclass")]
+            for name in held:
+                c.exec_driver_sql(f'ALTER TABLE observations DROP CONSTRAINT "{name}"')
+                log.info("schema: dropped %s; observations from unregistered or "
+                         "removed cameras are kept, as on SQLite", name)
 
     def _ensure_postgis(self) -> str | None:
         """On PostgreSQL, a camera's position as PostGIS geometry, indexed.
@@ -854,7 +881,15 @@ class Store:
         """Idempotent bulk insert. Returns the number actually written.
 
         Duplicates are dropped silently by `dedup_key`, which is what makes
-        offline replay safe.
+        offline replay safe. Only duplicates: any other failure raises and
+        writes nothing, on either engine.
+
+        PostgreSQL used to insert row by row inside one transaction and
+        swallow each error. The first duplicate aborted the transaction, every
+        later row failed with it, and the commit became a rollback, so
+        replaying [new, already-stored, new] stored nothing and returned 1.
+        The edge receiver acknowledges every event it is sent, so the node was
+        told to purge two observations the centre never stored.
         """
         if not obs:
             return 0
@@ -877,12 +912,13 @@ class Store:
                 res = c.execute(stmt, rows)
                 written = res.rowcount if res.rowcount is not None else len(rows)
             else:
-                for r in rows:
-                    try:
-                        c.execute(insert(S.observations).values(**r))
-                        written += 1
-                    except Exception:
-                        pass
+                # The same statement, counted by what PostgreSQL says it wrote:
+                # RETURNING yields a row per insert and none for a skipped
+                # duplicate.
+                counted = pg_insert(S.observations).on_conflict_do_nothing(
+                    index_elements=["dedup_key"]).returning(
+                    S.observations.c.observation_id)
+                written = len(c.execute(counted, rows).all())
         self._stats_cache = None
         self._chroma_cache = None
         self._pub_cache = None

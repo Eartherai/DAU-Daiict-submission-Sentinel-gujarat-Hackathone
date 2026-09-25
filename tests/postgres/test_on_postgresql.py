@@ -201,3 +201,77 @@ def test_the_index_walk_gives_what_distinct_gives(world):
             "SELECT DISTINCT plate FROM observations WHERE plate IS NOT NULL"))}
     assert s.observed_camera_ids() == cams and len(cams) >= 2
     assert set(s.distinct_plates()) == plates and len(plates) >= 2
+
+
+def _observations(s: Store) -> int:
+    with s.engine.connect() as c:
+        return int(c.execute(text("SELECT count(*) FROM observations")).scalar() or 0)
+
+
+def test_a_replayed_batch_keeps_every_new_observation(world):
+    """PostgreSQL inserted row by row in one transaction and swallowed errors.
+    The first duplicate aborted the transaction and the commit became a
+    rollback: [new, already stored, new] stored nothing and reported 1 written.
+    The same went for one row from a camera the registry does not hold, which
+    PostgreSQL refused by foreign key and SQLite has always stored."""
+    s: Store = world["state"].store
+    a = make_observation("CAM-A", plate="GJ01PG9001", offset_s=9001)
+    b = make_observation("CAM-A", plate="GJ01PG9002", offset_s=9002)
+    c = make_observation("CAM-B", plate="GJ01PG9003", offset_s=9003)
+    n0 = _observations(s)
+    assert s.add_observations([a]) == 1
+    assert s.add_observations([b, a, c]) == 2 and _observations(s) == n0 + 3
+    stray = make_observation("CAM-UNREGISTERED", plate="GJ01PG9004", offset_s=9004)
+    e = make_observation("CAM-B", plate="GJ01PG9005", offset_s=9005)
+    assert s.add_observations([e, stray]) == 2 and _observations(s) == n0 + 5
+    assert s.search_plate("GJ01PG9004")[0].camera_id == "CAM-UNREGISTERED"
+    # And a camera that has been seen can be removed; its observations stay.
+    s.upsert_camera({"camera_id": "CAM-GONE", "district": "Ahmedabad",
+                     "lat": 23.02, "lon": 72.58})
+    s.add_observations([make_observation("CAM-GONE", plate="GJ01PG9006", offset_s=9006)])
+    assert s.delete_camera("CAM-GONE")
+    assert s.search_plate("GJ01PG9006")[0].camera_id == "CAM-GONE"
+
+
+def test_an_edge_replay_stores_what_it_acknowledges(world):
+    """The receiver acknowledges every event it is sent, so the node purges
+    them; a replay whose new events were rolled back lost them for good."""
+    from saakshya.edge.queue import CentralReceiver
+    s: Store = world["state"].store
+
+    def event(i: int) -> dict:
+        o = make_observation("CAM-A", plate=f"GJ01PG81{i:02d}", offset_s=8100 + i)
+        return {"event_id": f"pg-edge-{i}", "event_type": "observation",
+                "dedup_key": o.dedup_key, "sequence": i,
+                "payload": {"camera_id": o.camera_id, "pts_s": o.pts_s,
+                            "t_norm": o.t_norm.isoformat(),
+                            "t_ingest": o.t_ingest.isoformat(),
+                            "observation_id": o.observation_id, "plate": o.plate}}
+
+    rx = CentralReceiver(s)
+    e1, e2, e3 = event(1), event(2), event(3)
+    assert rx.receive("pg-node", [e1]).applied == 1
+    n0 = _observations(s)
+    res = rx.receive("pg-node", [e1, e2, e3])          # the lost-ack resend
+    assert (res.applied, res.duplicates) == (2, 1)
+    assert sorted(res.acknowledged) == ["pg-edge-1", "pg-edge-2", "pg-edge-3"]
+    assert _observations(s) == n0 + 2
+
+
+def test_a_database_made_with_the_camera_foreign_key_loses_it(world):
+    """create_all removes observations -> cameras from a PostgreSQL store made
+    while the schema declared it (under the name PostgreSQL gave it); the other
+    tables' keys to cameras stay."""
+    s: Store = world["state"].store
+    q = text("SELECT conrelid::regclass::text, conname FROM pg_constraint "
+             "WHERE contype = 'f' AND confrelid = 'cameras'::regclass")
+    with s.engine.begin() as c:
+        before = set(c.execute(q).all())
+        assert "observations" not in {t for t, _ in before}
+        assert {"camera_health", "camera_capability"} <= {t for t, _ in before}
+        c.execute(text(
+            "ALTER TABLE observations ADD CONSTRAINT observations_camera_id_fkey "
+            "FOREIGN KEY (camera_id) REFERENCES cameras (camera_id) NOT VALID"))
+    s.create_all()
+    with s.engine.connect() as c:
+        assert set(c.execute(q).all()) == before

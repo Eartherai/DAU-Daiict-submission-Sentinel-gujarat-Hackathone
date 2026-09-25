@@ -198,7 +198,13 @@ observations = Table(
     Column("observation_id", String(40), primary_key=True),
     #: Idempotency. camera:segment:sequence — see CanonicalEvent.dedup_key().
     Column("dedup_key", String(160), nullable=False),
-    Column("camera_id", String(64), ForeignKey("cameras.camera_id"), nullable=False),
+    #: Not a foreign key. An observation is a fact about what a camera saw and
+    #: need not have a registry row: it arrives from cameras not yet onboarded
+    #: (stored with no district, see `Store._cam_ctx`) and stays when a camera
+    #: is removed (`Store.delete_camera`). SQLite never enforced the key that
+    #: was declared here; PostgreSQL did, and lost a whole batch for one such
+    #: row. `Store.create_all` drops it from a database made while it was.
+    Column("camera_id", String(64), nullable=False),
     Column("department", String(120)),
     Column("district", String(120)),
 

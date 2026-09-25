@@ -125,11 +125,16 @@ signal-queue footage that took a 40-frame sample from 0 valid plates to 20, at
 
 *Reading them.* The portable OCR (CCT, ONNX) was trained on plates from about
 sixty regions, not including India; on 21 plate crops read by eye from the
-same footage it read 1 exactly, with 49% of characters wrong. Apple Vision, on
-device, read 5 (25% of characters wrong). The recogniser the pipeline now
+same footage it read 1 exactly (2 once the positions of the format are typed),
+with 49% of characters wrong. Apple Vision, on device, read 2 exactly and 5
+after typing (25% of characters wrong). The recogniser the pipeline now
 carries is **Awiros-ANPR-OCR** (Apache-2.0): PP-OCRv5's recogniser fine-tuned
-on 558,767 Indian plates, single- and dual-row, trained to abstain on an
-unreadable plate. On the same crops it reads **17 of 21 exactly, with 2.4% of
+on 558,767 Indian plates, single- and dual-row. Its authors trained it to
+abstain on an unreadable plate; here it did not always - on the 2 crops a
+person could not read it returned a valid-looking mark both times (at 0.73 and
+0.81, under the 0.82 single-read bar), and on a car whose digits the footage
+blurs it returned a spread of confident marks, which is why the vote now asks
+the frames to agree (below). On the same crops it reads **17 of 21 exactly, with 2.4% of
 characters wrong** - once it is fed as it was trained. The inference script
 published with the weights pads a crop with black before scaling; PaddleOCR
 trains with grey padding after scaling, and with black the model read the edge

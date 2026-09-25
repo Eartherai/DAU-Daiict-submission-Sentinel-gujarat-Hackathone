@@ -103,9 +103,13 @@ by them in questions.
 
 - **The AI plane runs on one laptop.** The detector and the plate recogniser
   use the machine's GPU (Apple MPS); plate detection stays on CPU. Measured on the same
-  2560×1440 frames: the whole per-frame pipeline 598 → 293 ms (2.0×), the
-  detector alone 448 → 133 ms (3.4×), with identical outputs
-  (`var/reports/pipeline_device.json`, `detector_device.json`). In the own-feed
+  2560×1440 frames, before the Indian recogniser replaced the CPU one: the
+  whole per-frame pipeline 598 → 293 ms (2.0×), the detector alone
+  448 → 133 ms (3.4×), with identical outputs
+  (`var/reports/pipeline_device.json`, `detector_device.json`). The recogniser
+  on its own takes 6.6 ms a plate batched on the GPU against 50 ms on one CPU
+  core (`var/reports/ocr_indian_eval.json`); the whole-pipeline figure has not
+  been re-measured with it. In the own-feed
   film the live worker analyses both feeds at about 2 frames per second each —
   a sampling policy, not a ceiling. The earlier four-camera government figure
   (~1.4 fps each, P50 ~170 ms) was CPU-only. Statewide inference needs

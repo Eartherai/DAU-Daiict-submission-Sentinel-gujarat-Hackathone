@@ -79,8 +79,8 @@ Notable columns:
 | `embedding` | BLOB + dim + model name. Nullable and usually null |
 
 Vectors are stored as bytes rather than a native vector type. At this scale an
-exact numpy scan is sub-millisecond and *more* accurate than an ANN index; the
-pgvector path exists behind the same interface.
+exact numpy scan is sub-millisecond and *more* accurate than an ANN index.
+A pgvector column is planned for the scale at which it is not; it is not built.
 
 ### `plate_reads`
 Every individual OCR attempt, including rejected ones with `reject_reason`.

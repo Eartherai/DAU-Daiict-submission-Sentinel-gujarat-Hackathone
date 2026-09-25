@@ -187,8 +187,10 @@ does not detect, OCR, or enhance a government still.
 - **NATS JetStream** as the event bus between edge and centre. The queue and
   replay semantics are implemented and tested; the transport is currently HTTP
   and in-process.
-- **PostgreSQL + PostGIS + pgvector** deployment store. One interface, two
-  dialects; the migration is untested at scale.
+- **pgvector** for the appearance index. PostgreSQL 18 + PostGIS 3.6 is built
+  and exercised (the government store copied and served, `tests/postgres/`);
+  what is not built is a district-scale PostgreSQL deployment with
+  replication and failover.
 - **Retention enforcement.** `retention_days` is in the registry; no job acts on it.
 - **PKI.** Evidence and watchlist integrity are content hashes, and every
   surface that reports them says so.

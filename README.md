@@ -329,7 +329,7 @@ curl -s http://127.0.0.1:8080/healthz
 
 ```bash
 tools/db/setup_postgres.sh                                   # PostgreSQL 18 + PostGIS 3.6 in var/pg/, no admin rights, 127.0.0.1 only
-python tools/db/migrate.py --from var/demo.db --to "$(cat var/pg/url)"   # copies, counts, verifies both hash chains
+python tools/db/migrate.py --from var/demo.db --to "$(cat var/pg/url)" --evidence-root var/demo_evidence   # copies, counts, verifies both hash chains
 make serve DEMO_DB="$(cat var/pg/url)"                      # the same API on PostgreSQL
 SAAKSHYA_TEST_PG_URL="$(cat var/pg/url)" pytest tests/postgres
 ```

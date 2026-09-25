@@ -140,7 +140,16 @@ def onnxruntime_offline() -> None:
     thread dispatched an HTTP response after the logger it reports to had been
     destroyed ("recursive_mutex lock failed", about one test run in five; the
     macOS crash report names the telemetry client's HttpClientManager).
+
+    The one exception is an operator who set ORT_DISABLE_TELEMETRY to 0: that
+    is a call somebody configured, and saakshya/__init__.py promises to leave
+    it alone. This switch used to ignore the variable, so the 0 held only
+    until the first model load or provider probe - and not even then as off,
+    since the variable had already let the client start at import. Only an
+    explicit 0 counts; unset, 1 or anything else is switched off here.
     """
+    if os.environ.get("ORT_DISABLE_TELEMETRY") == "0":
+        return
     if importlib.util.find_spec("onnxruntime") is None:
         return
     try:

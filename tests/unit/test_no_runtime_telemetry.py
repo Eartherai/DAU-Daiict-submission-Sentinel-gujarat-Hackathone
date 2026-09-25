@@ -9,6 +9,10 @@ session.
 Both tests here first read only os.environ in a subprocess that never imports
 onnxruntime, so removing the runtime switch changed nothing they could see.
 The switch itself is now exercised against a stand-in module.
+
+The package promises an operator who sets the variable to 0 that the choice
+stands, but the runtime switch never read it and turned telemetry off at the
+first model load anyway. It now honours an explicit 0, and nothing else.
 """
 from __future__ import annotations
 
@@ -31,9 +35,8 @@ def test_importing_the_package_switches_runtime_telemetry_off() -> None:
 
 
 def test_the_import_leaves_an_operators_own_setting_alone() -> None:
-    # This is all the variable shows. onnxruntime_offline() does not read it:
-    # it switches telemetry off on every model load and provider probe, so an
-    # operator's 0 holds only until a model loads.
+    # The runtime switch's half of that promise is held by the stand-in tests
+    # below: an explicit 0 leaves disable_telemetry_events() uncalled.
     env = {**os.environ, "ORT_DISABLE_TELEMETRY": "0"}
     out = subprocess.run(
         [sys.executable, "-c",
@@ -42,7 +45,11 @@ def test_the_import_leaves_an_operators_own_setting_alone() -> None:
     assert out.stdout.strip() == "0"
 
 
-def _stand_in_onnxruntime(monkeypatch) -> list[str]:
+def _stand_in_onnxruntime(monkeypatch, setting: str | None = "1") -> list[str]:
+    if setting is None:
+        monkeypatch.delenv("ORT_DISABLE_TELEMETRY", raising=False)
+    else:
+        monkeypatch.setenv("ORT_DISABLE_TELEMETRY", setting)
     calls: list[str] = []
     ort = types.ModuleType("onnxruntime")
     ort.__spec__ = importlib.machinery.ModuleSpec("onnxruntime", loader=None)
@@ -64,3 +71,24 @@ def test_the_provider_probe_turns_the_client_off_before_it_asks(monkeypatch) -> 
     calls = _stand_in_onnxruntime(monkeypatch)
     assert hardware._onnx_providers() == ("CPUExecutionProvider",)
     assert calls == ["disable_telemetry_events", "providers"]
+
+
+def test_the_switch_fails_closed_without_an_explicit_zero(monkeypatch) -> None:
+    # Unset, empty, or any spelling but 0 is not an operator's choice of
+    # telemetry, and the switch turns the client off.
+    for setting in (None, "", "false", "00"):
+        calls = _stand_in_onnxruntime(monkeypatch, setting)
+        hardware.onnxruntime_offline()
+        assert calls == ["disable_telemetry_events"], setting
+
+
+def test_an_operators_zero_survives_the_runtime_switch(monkeypatch) -> None:
+    calls = _stand_in_onnxruntime(monkeypatch, "0")
+    hardware.onnxruntime_offline()
+    assert calls == []
+
+
+def test_an_operators_zero_survives_the_provider_probe(monkeypatch) -> None:
+    calls = _stand_in_onnxruntime(monkeypatch, "0")
+    assert hardware._onnx_providers() == ("CPUExecutionProvider",)
+    assert calls == ["providers"]

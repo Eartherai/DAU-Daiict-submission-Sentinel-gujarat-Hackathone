@@ -7,7 +7,8 @@ import os as _os
 # hardware, and a police host should make no call nobody configured. Its
 # worker thread also crashed interpreter shutdown about one run in four. The
 # switch is read at import, so it is set before any module can import the
-# runtime; an operator who wants telemetry can still set it to 0.
+# runtime; an operator who wants telemetry can still set it to 0, and
+# hardware.onnxruntime_offline() then leaves the runtime's own switch alone.
 _os.environ.setdefault("ORT_DISABLE_TELEMETRY", "1")
 
 __version__ = "0.1.0"

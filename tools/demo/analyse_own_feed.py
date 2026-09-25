@@ -22,7 +22,8 @@ over a different picture.
 What is drawn is presentation of what the pipeline saw, and the output says so:
 track ids are renumbered #1, #2… because a 28-character ULID over a car reads to
 an officer like a garbage number plate, and a plate appears only once the
-pipeline's own vote has accepted it.
+pipeline's own vote has accepted it - and stays on the film only if it is the
+plate the track ended up publishing, the one the store records.
 """
 from __future__ import annotations
 
@@ -90,11 +91,32 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
     return out
 
 
+def _settle_drawn_plates(frames: list[list], track_of: dict[int, str],
+                         final_plate: dict[str, str]) -> int:
+    """Blank every drawn plate its track did not end up publishing.
+
+    A plate is drawn from the frame on which the vote would accept it, but the
+    vote can withdraw that acceptance as reads come in: a blurred plate read
+    MH01EX0900 three times was drawn from the third read on, the scattered
+    reads after it made the agreement rule refuse it, and the store recorded no
+    plate for the track - while the film went on showing the invented mark.
+    Once the file has been read, a box may carry only the plate the store holds
+    for its track. Returns how many boxes lost a plate.
+    """
+    cleared = 0
+    for _, boxes in frames:
+        for box in boxes:
+            if box[7] and box[7] != final_plate.get(track_of.get(box[5], "")):
+                box[7] = ""
+                cleared += 1
+    return cleared
+
+
 def analyse(camera_id: str, *, max_seconds: float | None = None,
             tidy: bool = True, record: str | None = None) -> dict:
     import av
-
     from render_demo_video import Row, _tidy_drawn  # reuse the render's filter
+
     from saakshya.analytics.pipeline import CameraPipeline, PipelineConfig
     from saakshya.ingest.frame import Frame
 
@@ -201,7 +223,7 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
                 classes[kind] = classes.get(kind, 0) + 1
                 x1, y1, x2, y2 = r.box
                 boxes.append([x1, y1, x2, y2, TYPE_CODE.get(kind, "v"), num,
-                              int(round(r.score * 100)), r.plate or "",
+                              round(r.score * 100), r.plate or "",
                               1 if r.confirmed else 0])
             frames.append([round(pts, 3), boxes])
             n += 1
@@ -218,6 +240,7 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
             recorded.append(ob)
     if store is not None and recorded:
         n_recorded += store.add_observations(recorded) or len(recorded)
+    _settle_drawn_plates(frames, {num: tid for tid, num in short_id.items()}, final_plate)
 
     duration = len(frames) / fps if fps else 0.0
     # The plates a track ended with - the published result - not every value

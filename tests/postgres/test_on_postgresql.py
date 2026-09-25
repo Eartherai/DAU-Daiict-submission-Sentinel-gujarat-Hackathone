@@ -119,13 +119,27 @@ def test_search_trajectory_alert_evidence_audit(world):
     assert chain["verified"] and any(r["evidence_id"] == ev.evidence_id for r in chain["records"])
     rep = c.get("/reports/vehicle/GJ01PG2222.html", headers=h(world, "sup", **PURPOSE))
     assert rep.status_code == 200 and "Paldi" in rep.text
+    # The alert: a watchlist entry through the API, the sighting matched and
+    # raised as the worker does, and the alert listed back.
+    wl = c.post("/watchlist", headers=h(world, "sup", **PURPOSE), json={
+        "plate": "GJ01PG2222", "category": "stolen_vehicle",
+        "authority": "SP Ahmedabad, FIR 1/2026 (test)",
+        "reason": "reported stolen, for the postgresql test", "priority": "HIGH",
+        "jurisdiction": "Ahmedabad"})
+    assert wl.status_code == 201, wl.text[:300]
+    inv = world["state"].investigation
+    raised = [inv.alerts.process(m) for m in inv.watchlist.match(b)]
+    assert len(raised) == 1 and raised[0] is not None
+    listed = c.get("/alerts?plate=GJ01PG2222", headers=h(world, "sup")).json()
+    assert [(x["alert_id"], x["watchlist_id"]) for x in listed["alerts"]] == [
+        (raised[0].alert_id, wl.json()["watchlist_id"])]
     audit = c.get("/audit?limit=200", headers=h(world, "sup")).json()
     assert audit["chain_verified"], audit["chain_error"]
 
 
-def test_zone_rule_on_postgresql(world):
-    c = world["client"]
-    s: Store = world["state"].store
+def _long_stay_person(s: Store) -> None:
+    """A person held past the dwell limit on CAM-A. Idempotent (one dedup key),
+    so each test that needs it writes it rather than relying on another."""
     from datetime import UTC, datetime
 
     from saakshya.store import VehicleObservation
@@ -135,6 +149,11 @@ def test_zone_rule_on_postgresql(world):
         track_id="Z1", segment_id="S", object_type="person",
         bbox=(100.0, 100.0, 140.0, 300.0), detection_confidence=0.9,
         district="Ahmedabad", model_versions={"dwell_s": 9.0, "dwell_exceeded": True})])
+
+
+def test_zone_rule_on_postgresql(world):
+    c = world["client"]
+    _long_stay_person(world["state"].store)
     r = c.post("/zones", headers=h(world, "adm"), json={
         "camera_id": "CAM-A", "name": "Carriageway",
         "polygon": [[0, 200], [400, 200], [400, 400], [0, 400]],
@@ -151,6 +170,10 @@ def test_nearby_cameras_use_postgis_and_agree_with_haversine(world, tmp_path):
     assert r["engine"].startswith("postgis")
     ids = [x["camera_id"] for x in r["cameras"]]
     assert ids[:2] == ["CAM-A", "CAM-B"] and "CAM-C" not in ids     # CAM-C is ~23 km away
+    # From CAM-B the nearest camera is the one stored second: an answer in
+    # storage order passes the query above and fails this one.
+    back = c.get("/gis/near?lat=23.0300&lon=72.5700&radius_m=5000", headers=h(world, "sup"))
+    assert [x["camera_id"] for x in back.json()["cameras"]][:2] == ["CAM-B", "CAM-A"]
     lite = Store(f"sqlite:///{tmp_path / 'l.db'}")
     lite.create_all()
     for cam in world["state"].store.list_cameras():
@@ -180,6 +203,31 @@ def test_viewport_query_matches_lat_lon_ranges(world):
             south=23.4, west=72.4, north=23.6, east=72.500001)] == ["CAM-EDGE"]
     finally:
         s.delete_camera("CAM-EDGE")
+
+
+def test_nearby_cameras_on_postgis_keep_to_the_officers_districts(world):
+    """The PostGIS query carries the district scope; only SQLite's was tested.
+    A Gandhinagar camera 300 m from the point must not reach an Ahmedabad
+    investigator, and an empty scope sees nothing."""
+    from saakshya.security import Role, TokenService
+    c = world["client"]
+    s: Store = world["state"].store
+    ts = TokenService(s)
+    ts.upsert_user("inv.ahd", Role.INVESTIGATOR, districts=("Ahmedabad",))
+    world["tok"]["inv.ahd"] = ts.mint("inv.ahd")
+    s.upsert_camera({"camera_id": "CAM-GNR", "name": "over the line",
+                     "district": "Gandhinagar", "lat": 23.0127, "lon": 72.5600})
+    try:
+        url = "/gis/near?lat=23.0100&lon=72.5600&radius_m=5000"
+        every = [x["camera_id"] for x in c.get(url, headers=h(world, "sup")).json()["cameras"]]
+        mine = c.get(url, headers=h(world, "inv.ahd")).json()
+        assert every[:3] == ["CAM-A", "CAM-GNR", "CAM-B"]
+        assert mine["engine"].startswith("postgis")
+        assert [x["camera_id"] for x in mine["cameras"]][:2] == ["CAM-A", "CAM-B"]
+        assert {x["district"] for x in mine["cameras"]} == {"Ahmedabad"}
+        assert s.cameras_near(23.01, 72.56, 5000, districts=())["cameras"] == []
+    finally:
+        s.delete_camera("CAM-GNR")
 
 
 @pytest.mark.parametrize("evil", ["GJ01AA1111\x00", "\x00'\"", "GJ\x1b[2J01"])
@@ -233,7 +281,9 @@ def test_a_nul_in_a_json_body_is_refused_not_a_server_error(world):
 
 
 def test_overview_counts_on_postgresql(world):
-    # stats() counted long-stay people with SQLite's json_extract.
+    # stats() counted long-stay people with SQLite's json_extract. The person
+    # is written here, not left behind by the zone test, so this runs alone.
+    _long_stay_person(world["state"].store)
     r = world["client"].get("/overview", headers=h(world, "sup"))
     assert r.status_code == 200, r.text[:200]
     assert world["state"].store.stats()["observations_person_long_stay"] >= 1
@@ -241,6 +291,9 @@ def test_overview_counts_on_postgresql(world):
 
 def test_the_index_walk_gives_what_distinct_gives(world):
     s: Store = world["state"].store
+    # Two plates on two cameras of its own, so this runs alone too.
+    s.add_observations([make_observation("CAM-A", plate="GJ01PG7001", offset_s=7001),
+                        make_observation("CAM-B", plate="GJ01PG7002", offset_s=7002)])
     with s.engine.connect() as c:
         cams = {r[0] for r in c.execute(text("SELECT DISTINCT camera_id FROM observations"))}
         plates = {r[0] for r in c.execute(text(

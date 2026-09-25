@@ -261,6 +261,11 @@ def test_nearby_cameras_are_nearest_first_within_the_radius(maps, store):
     d = [c["distance_m"] for c in got["cameras"]]
     assert d[0] == 0.0 and d == sorted(d) and d[-1] <= 1500
     assert "MAP-NOLOC" not in ids
+    # From the far end the nearest camera is the one stored last, and last in
+    # the lat/lon index, so an answer in storage order fails here. From AHM
+    # alone, storage order and distance order were the same thing.
+    far = store.cameras_near(AHM[0] + 11 * 0.004, AHM[1] + 11 * 0.004, 1500)
+    assert [c["camera_id"] for c in far["cameras"]] == ["MAP-11", "MAP-10", "MAP-09"]
 
 
 def test_nearby_cameras_respect_the_officers_districts(maps, store):
@@ -273,6 +278,8 @@ def test_nearby_cameras_respect_the_officers_districts(maps, store):
 def test_nearby_cameras_are_limited_after_ordering(maps, store):
     got = store.cameras_near(AHM[0], AHM[1], 50_000, limit=2)
     assert [c["camera_id"] for c in got["cameras"]] == ["MAP-00", "MAP-01"]
+    far = store.cameras_near(AHM[0] + 11 * 0.004, AHM[1] + 11 * 0.004, 50_000, limit=2)
+    assert [c["camera_id"] for c in far["cameras"]] == ["MAP-11", "MAP-10"]
 
 
 def _destination(lat: float, lon: float, bearing_deg: float, d_m: float) -> tuple[float, float]:

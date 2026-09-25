@@ -693,17 +693,21 @@ class Store:
         separately by `cameras_without_location`, because silently dropping them
         would make an incomplete map look complete.
         """
+        ranges = (S.cameras.c.lat.is_not(None), S.cameras.c.lon.is_not(None),
+                  S.cameras.c.lat >= south, S.cameras.c.lat <= north,
+                  S.cameras.c.lon >= west, S.cameras.c.lon <= east)
         if getattr(self, "postgis", None):
-            # The GiST index answers the viewport; the result is the same set
-            # the lat/lon ranges select, since the envelope is in degrees.
+            # The GiST index finds the candidates and the lat/lon ranges then
+            # decide, so both engines return the same set. `&&` alone does not:
+            # it compares float4 boxes rounded outward (a camera at lon
+            # 72.500001 matched a box whose east edge is 72.5), and
+            # ST_MakeEnvelope sorts an inverted box's corners (west 73, east 72
+            # selected everything between them; the ranges select nothing).
             q = select(S.cameras).where(text(
                 "cameras.geom && ST_MakeEnvelope(:w, :s, :e, :n, 4326)").bindparams(
-                w=west, s=south, e=east, n=north))
+                w=west, s=south, e=east, n=north), *ranges)
         else:
-            q = select(S.cameras).where(
-                S.cameras.c.lat.is_not(None), S.cameras.c.lon.is_not(None),
-                S.cameras.c.lat >= south, S.cameras.c.lat <= north,
-                S.cameras.c.lon >= west, S.cameras.c.lon <= east)
+            q = select(S.cameras).where(*ranges)
         if districts:
             q = q.where(S.cameras.c.district.in_(list(districts)))
         if departments:

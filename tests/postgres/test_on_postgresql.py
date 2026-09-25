@@ -155,6 +155,18 @@ def test_viewport_query_matches_lat_lon_ranges(world):
     box = s.cameras_in_bbox(south=23.0, west=72.55, north=23.05, east=72.60)
     inside = {c["camera_id"] for c in box}
     assert inside == {"CAM-A", "CAM-B"}
+    # `&&` alone compared float4 boxes rounded outward, and ST_MakeEnvelope
+    # put an inverted box's corners in order. Neither is what the lat/lon
+    # ranges select, which is the SQLite answer.
+    s.upsert_camera({"camera_id": "CAM-EDGE", "district": "Ahmedabad",
+                     "lat": 23.5, "lon": 72.500001})
+    try:
+        assert s.cameras_in_bbox(south=23.4, west=72.4, north=23.6, east=72.5) == []
+        assert s.cameras_in_bbox(south=23.0, west=72.60, north=23.05, east=72.55) == []
+        assert [c["camera_id"] for c in s.cameras_in_bbox(
+            south=23.4, west=72.4, north=23.6, east=72.500001)] == ["CAM-EDGE"]
+    finally:
+        s.delete_camera("CAM-EDGE")
 
 
 @pytest.mark.parametrize("evil", ["GJ01AA1111\x00", "\x00'\"", "GJ\x1b[2J01"])

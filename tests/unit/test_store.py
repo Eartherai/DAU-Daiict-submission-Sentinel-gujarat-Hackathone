@@ -279,3 +279,28 @@ def test_a_nul_held_as_its_stand_in_still_verifies_and_nothing_else_does(store):
         c.execute(text("UPDATE audit_log SET target=:t WHERE id=1"), {"t": "?'\""})
     ok, err = store.verify_audit_chain()
     assert not ok and "id=1" in err
+
+
+def test_a_nul_beside_a_genuine_stand_in_still_verifies(store):
+    # Which U+2400s were NULs is not recorded. Turning every one back made an
+    # untampered copy of these entries fail as "audit chain broken", because
+    # each also held a real U+2400. Each choice is tried; a real edit still fails.
+    from sqlalchemy import text
+
+    from saakshya.store.repository import NUL_STAND_IN as SI
+    store.audit("sup.live", "search_plate", case_id="FIR-1",
+                purpose=f"probe of {SI} handling", target="\x00'\"", result_count=0)
+    store.audit("sup.live", "search_plate", case_id="FIR-1", target=f"\x00 and {SI}")
+    store.audit("sup.live", "search_plate", case_id="FIR-1", target="GJ05AB1234")
+    with store.engine.begin() as c:           # what tools/db/migrate.py writes
+        for i, t in list(c.execute(text("SELECT id, target FROM audit_log"))):
+            c.execute(text("UPDATE audit_log SET target=:t WHERE id=:i"),
+                      {"t": t.replace("\x00", SI), "i": i})
+        assert c.execute(text("SELECT count(*) FROM audit_log "
+                              "WHERE instr(target, :s) > 0"), {"s": SI}).scalar() == 2
+    assert store.verify_audit_chain() == (True, None)
+    with store.engine.begin() as c:
+        c.execute(text("UPDATE audit_log SET purpose=:p WHERE id=1"),
+                  {"p": "probe of ? handling"})
+    ok, err = store.verify_audit_chain()
+    assert not ok and "id=1" in err

@@ -42,6 +42,19 @@ def pg_url():
     admin.dispose()
 
 
+@pytest.fixture
+def fresh_pg():
+    """Another empty database, for a test that needs one of its own."""
+    name = f"saakshya_t_{uuid.uuid4().hex[:10]}"
+    admin = create_engine(BASE, isolation_level="AUTOCOMMIT")
+    with admin.connect() as c:
+        c.execute(text(f"CREATE DATABASE {name}"))
+    yield make_url(BASE).set(database=name).render_as_string(hide_password=False)
+    with admin.connect() as c:
+        c.execute(text(f"DROP DATABASE {name} WITH (FORCE)"))
+    admin.dispose()
+
+
 @pytest.fixture(scope="module")
 def world(pg_url, tmp_path_factory):
     from saakshya.api.app import create_app
@@ -170,13 +183,34 @@ def test_viewport_query_matches_lat_lon_ranges(world):
 
 
 @pytest.mark.parametrize("evil", ["GJ01AA1111\x00", "\x00'\"", "GJ\x1b[2J01"])
-def test_control_characters_are_audited_not_a_server_error(world, evil):
-    # The security scorecard's probe. SQLite once stored it verbatim in the
-    # audit log; PostgreSQL text cannot hold NUL.
+def test_control_characters_are_refused_not_a_server_error(world, evil):
+    # The security scorecard's probe. Each is refused with a 400 (two NUL, one
+    # bad pattern) before the search, so none reaches the audit log; this was
+    # called "audited" and allowed a 200. A NUL that does reach the audit log
+    # is the next test.
     c = world["client"]
     r = c.get("/search", params={"plate": evil}, headers=h(world, "sup", **PURPOSE))
-    assert r.status_code in (200, 400, 422), r.text[:200]
+    assert r.status_code == 400, r.text[:200]
     audit = c.get("/audit?limit=5", headers=h(world, "sup")).json()
+    assert audit["chain_verified"], audit["chain_error"]
+
+
+def test_a_nul_that_reaches_the_audit_log_is_kept_and_verifies(world):
+    """SQLite once stored the probe's NUL verbatim in the audit log. PostgreSQL
+    text cannot hold one, and the driver refused the row: the action went
+    unaudited behind a 500. It is now stored as U+2400 and hashed as given, as
+    a migrated entry is - here beside a genuine U+2400, which a verifier that
+    turned every stand-in back into NUL reported as a broken chain."""
+    from saakshya.store.repository import NUL_STAND_IN as SI
+    s: Store = world["state"].store
+    s.audit("sup", "search_plate", case_id="CASE-PG-1", target="\x00'\"",
+            purpose=f"probe of {SI} handling", result_count=0)
+    with s.engine.connect() as c:
+        target = c.execute(text(
+            "SELECT target FROM audit_log ORDER BY id DESC LIMIT 1")).scalar()
+    assert target == SI + "'\""
+    assert s.verify_audit_chain() == (True, None)
+    audit = world["client"].get("/audit?limit=5", headers=h(world, "sup")).json()
     assert audit["chain_verified"], audit["chain_error"]
 
 
@@ -309,3 +343,47 @@ def test_a_partial_health_write_merges_as_on_sqlite(world):
     s.upsert_transition({"from_camera": "CAM-A", "to_camera": "CAM-C", "support_count": 6})
     tr = next(t for t in s.get_transitions("CAM-A") if t["to_camera"] == "CAM-C")
     assert (tr["support_count"], tr["travel_p50_s"]) == (6, 600.0)
+
+
+def test_a_wal_store_migrates_to_postgresql(tmp_path, fresh_pg, capsys):
+    """tools/db/migrate.py into PostgreSQL, from a SQLite store still open with
+    rows in its WAL, an observation from an unregistered camera, and an audit
+    entry that holds a NUL beside a genuine U+2400 (written before the API
+    refused NUL). Everything is copied and both counts and the chain agree."""
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from saakshya.store.repository import NUL_STAND_IN as SI
+    spec = importlib.util.spec_from_file_location(
+        "db_migrate", Path(__file__).resolve().parents[2] / "tools/db/migrate.py")
+    mig = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mig
+    spec.loader.exec_module(mig)
+
+    path = tmp_path / "live.db"
+    src = Store(f"sqlite:///{path}")
+    src.create_all()
+    src.upsert_camera({"camera_id": "CAM-1", "district": "Ahmedabad",
+                       "lat": 23.0, "lon": 72.5})
+    src.add_observations([make_observation("CAM-1", plate="GJ01MG0001", offset_s=1)])
+    src.audit("sup", "search_plate", target="\x00'\"", purpose=f"probe of {SI}")
+    with src.engine.connect() as c:
+        c.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+    src.add_observations([make_observation("CAM-1", plate="GJ01MG0002", offset_s=2),
+                          make_observation("CAM-9", plate="GJ01MG0003", offset_s=3)])
+    src.audit("sup", "search_plate", target="GJ01MG0002")
+    assert (tmp_path / "live.db-wal").stat().st_size > 0
+    try:
+        assert mig.main(["--from", str(path), "--to", fresh_pg]) == 0
+    finally:
+        src.engine.dispose()
+    out = capsys.readouterr().out
+    assert "counts MATCH" in out and "audit chain on the destination: verified" in out
+    dst = Store(fresh_pg)
+    try:
+        assert dst.count_observations() == 3
+        assert dst.search_plate("GJ01MG0003")[0].camera_id == "CAM-9"
+        assert dst.verify_audit_chain() == (True, None)
+    finally:
+        dst.engine.dispose()

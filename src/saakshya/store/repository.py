@@ -1335,6 +1335,13 @@ class Store:
             return [dict(r._mapping) for r in c.execute(select(S.transition_samples))]
 
     # -- audit -------------------------------------------------------------- #
+    #: The hashed text columns of an audit entry.
+    _AUDIT_TEXT = ("actor", "role", "action", "case_id", "purpose", "target",
+                   "jurisdiction")
+    #: Stand-ins in one entry whose every NUL-or-not choice verification tries:
+    #: 4,096 hashes at most, and only for an entry that fails as stored.
+    _MAX_STAND_INS = 12
+
     def audit(self, actor: str, action: str, *, role: str | None = None,
               case_id: str | None = None, purpose: str | None = None,
               target: str | None = None, result_count: int | None = None,
@@ -1344,9 +1351,24 @@ class Store:
         Every search is recorded. The chain means a deleted or altered entry is
         detectable, which is what makes "all searches are audited" a claim we
         can support rather than assert.
+
+        The API refuses NUL, but should one reach here on PostgreSQL, whose
+        text cannot hold it, the entry is still written: hashed as given and
+        stored with NUL_STAND_IN in its place, exactly as tools/db/migrate.py
+        copies an older store's entries, and verified the same way. Before, the
+        driver refused the row and the action went unaudited behind a 500.
         """
         import hashlib
 
+        text_fields = {"actor": actor, "role": role, "action": action,
+                       "case_id": case_id, "purpose": purpose, "target": target,
+                       "jurisdiction": jurisdiction}
+        stored = text_fields
+        if not self.is_sqlite and any(isinstance(v, str) and "\x00" in v
+                                      for v in text_fields.values()):
+            log.warning("audit entry for %r held a NUL; stored as U+2400", action)
+            stored = {k: v.replace("\x00", NUL_STAND_IN) if isinstance(v, str) else v
+                      for k, v in text_fields.items()}
         with self.engine.begin() as c:
             prev = c.execute(select(S.audit_log.c.entry_hash)
                              .order_by(S.audit_log.c.id.desc()).limit(1)).scalar()
@@ -1355,16 +1377,12 @@ class Store:
             # chain fails verification on the very first entry.
             t = now_us()
             payload = json.dumps({
-                "actor": actor, "role": role, "action": action, "case_id": case_id,
-                "purpose": purpose, "target": target, "result_count": result_count,
-                "jurisdiction": jurisdiction, "t": t, "prev": prev,
+                **text_fields, "result_count": result_count, "t": t, "prev": prev,
             }, sort_keys=True)
             entry = hashlib.sha256(payload.encode()).hexdigest()
             c.execute(insert(S.audit_log).values(
-                actor=actor, role=role, action=action, case_id=case_id,
-                purpose=purpose, target=target, result_count=result_count,
-                jurisdiction=jurisdiction, prev_hash=prev, entry_hash=entry,
-                t_us=t))
+                **stored, result_count=result_count,
+                prev_hash=prev, entry_hash=entry, t_us=t))
         # `stats()` is cached for dashboard reads; an audit write must be
         # visible immediately to the same request/test process.
         self._stats_cache = None
@@ -1375,32 +1393,52 @@ class Store:
         An entry whose text held a NUL - possible only in a store written
         before the API refused the character - was copied to PostgreSQL with
         each NUL as NUL_STAND_IN, since PostgreSQL text cannot hold one. Such
-        an entry verifies only if its hash matches once the stand-in is turned
-        back into NUL: the original bytes are recovered exactly, so the chain
-        proves what it always proved.
+        an entry verifies only if its hash matches once the stand-ins that were
+        NULs are turned back: the original bytes are recovered exactly, so the
+        chain proves what it always proved.
+
+        Which stand-ins were NULs is not recorded, and a row may also hold a
+        genuine U+2400. Turning every one back failed such a row as broken on
+        an untampered copy, so each choice is tried, all of them first - up to
+        `_MAX_STAND_INS` in one row, beyond which only that one. Nothing is
+        accepted that differs from the hashed text by more than NUL written
+        as U+2400.
         """
         import hashlib
+        from itertools import product
 
-        def digest(m: Any, prev: str | None, restore: bool) -> str:
-            def f(k: str) -> Any:
-                v = m[k]
-                return v.replace(NUL_STAND_IN, "\x00") if restore and isinstance(v, str) else v
+        def digest(vals: dict[str, Any], m: Any, prev: str | None) -> str:
             payload = json.dumps({
-                "actor": f("actor"), "role": f("role"), "action": f("action"),
-                "case_id": f("case_id"), "purpose": f("purpose"), "target": f("target"),
-                "result_count": m["result_count"], "jurisdiction": f("jurisdiction"),
-                "t": m["t_us"], "prev": prev,
+                **vals, "result_count": m["result_count"], "t": m["t_us"], "prev": prev,
             }, sort_keys=True)
             return hashlib.sha256(payload.encode()).hexdigest()
+
+        def restores(vals: dict[str, Any], m: Any, prev: str | None) -> bool:
+            spots = [(k, i) for k, v in vals.items() if isinstance(v, str)
+                     for i, ch in enumerate(v) if ch == NUL_STAND_IN]
+            if not spots:
+                return False
+            choices = (product((True, False), repeat=len(spots))
+                       if len(spots) <= self._MAX_STAND_INS else [(True,) * len(spots)])
+            for pick in choices:
+                if not any(pick):
+                    continue                  # the text as stored; already tried
+                chars = {k: list(v) for k, v in vals.items() if isinstance(v, str)}
+                for (k, i), was_nul in zip(spots, pick, strict=True):
+                    if was_nul:
+                        chars[k][i] = "\x00"
+                if digest({**vals, **{k: "".join(v) for k, v in chars.items()}},
+                          m, prev) == m["entry_hash"]:
+                    return True
+            return False
 
         with self.engine.connect() as c:
             rows = list(c.execute(select(S.audit_log).order_by(S.audit_log.c.id)))
         prev = None
         for r in rows:
             m = r._mapping
-            if digest(m, prev, False) != m["entry_hash"] and not (
-                    any(isinstance(v, str) and NUL_STAND_IN in v for v in m.values())
-                    and digest(m, prev, True) == m["entry_hash"]):
+            vals = {k: m[k] for k in self._AUDIT_TEXT}
+            if digest(vals, m, prev) != m["entry_hash"] and not restores(vals, m, prev):
                 return False, f"audit chain broken at id={m['id']}"
             prev = m["entry_hash"]
         return True, None

@@ -252,6 +252,86 @@ def test_a_nul_anywhere_in_a_request_is_refused(world):
     assert ok.status_code in (200, 201), ok.text
 
 
+@pytest.mark.parametrize("content_type", [
+    "Application/JSON",
+    "APPLICATION/JSON; charset=utf-8",
+    "application/vnd.saakshya+JSON",
+])
+def test_a_nul_is_refused_whatever_the_case_of_the_json_media_type(
+        world, content_type):
+    # Media types are case-insensitive, and FastAPI parses all three as JSON.
+    # The refusal read the body only when the header held a lower-case
+    # "json", so these stored "a\x00b" as a case title (201 on SQLite, the
+    # old 500 on PostgreSQL). httpx's json= always sends the lower-case form,
+    # which is why the test above never saw it.
+    case_id = "CASE-NUL-CT-" + re.sub(r"[^A-Za-z0-9]", "", content_type)[:20]
+    body = json.dumps({"case_id": case_id, "title": "a\u0000b",
+                       "purpose": "probing nul handling"})
+    r = world["client"].post(
+        "/cases", content=body.encode(),
+        headers={**hdr(world, "sup.1"), "Content-Type": content_type})
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"]["code"] == "NUL_CHARACTER"
+    cases = world["client"].get("/cases", params={"limit": 500},
+                                headers=hdr(world, "sup.1")).json()["cases"]
+    assert case_id not in {c["case_id"] for c in cases}
+
+
+def test_a_nul_in_a_csv_registry_import_is_refused(world):
+    # The CSV import reads its body itself, as text/csv, and the csv module
+    # accepts NUL: the camera id "CAM\x00X" reached the cameras table and the
+    # audit log's target column. A raw NUL byte is refused in any body now.
+    c = world["client"]
+    audit_before = world["state"].store.stats()["audit_entries"]
+    r = c.post("/registry/cameras/import.csv", content=b"camera_id,name\nCAM\x00X,n\n",
+               headers={**hdr(world, "admin.1"), "Content-Type": "text/csv"})
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"]["code"] == "NUL_CHARACTER"
+    assert world["state"].store.get_camera("CAM\x00X") is None
+    assert all("\x00" not in (cam["camera_id"] + (cam.get("name") or ""))
+               for cam in world["state"].store.list_cameras())
+    assert world["state"].store.stats()["audit_entries"] == audit_before
+    # A CSV cell that spells the JSON escape as text is only text. The escape
+    # is looked for where FastAPI would parse JSON, and nowhere else.
+    ok = c.post("/registry/cameras/import.csv?dry_run=true",
+                content=b"camera_id,name\nCAM-TXT,the text \\u0000\n",
+                headers={**hdr(world, "admin.1"), "Content-Type": "text/csv"})
+    assert ok.status_code == 200, ok.text
+
+
+def test_a_nul_in_an_sdp_offer_is_refused_and_its_spelling_is_not(world):
+    # The WHEP routes forward the raw SDP body. RFC 4566 allows NUL in no SDP
+    # field, so the byte is refused; the six characters \u0000 are left alone.
+    c = world["client"]
+    h = {**hdr(world, "sup.1"), "Content-Type": "application/sdp"}
+    bad = c.post("/cameras/CAM-001/whep", content=b"v=0\r\ns=a\x00b\r\n", headers=h)
+    assert bad.status_code == 400
+    assert bad.json()["detail"]["code"] == "NUL_CHARACTER"
+    text = c.post("/cameras/CAM-001/whep", content=b"v=0\r\ns=\\u0000\r\n", headers=h)
+    assert text.status_code != 500
+    assert text.json()["detail"]["code"] != "NUL_CHARACTER"
+
+
+@pytest.mark.parametrize("method,path", [
+    ("GET", "/healthz"), ("POST", "/cases"), ("GET", "/no-such-route")])
+def test_json_too_deep_to_inspect_is_refused_not_a_server_error(world, method, path):
+    # 200,000 brackets around the escape made json.loads raise RecursionError,
+    # which is not a ValueError: it escaped the middleware as an
+    # unauthenticated 500, without the request id or the security headers.
+    deep = b"[" * 200_000 + b'"\\u0000"' + b"]" * 200_000
+    r = world["client"].request(method, path, content=deep,
+                                headers={"Content-Type": "application/json"})
+    assert r.status_code == 400, r.text[:200]
+    assert r.json()["detail"]["code"] == "NUL_CHARACTER"
+    assert r.headers.get("X-Request-Id") and r.headers.get("X-Content-Type-Options")
+    # Without the escape the middleware has nothing to look for, and the body
+    # is FastAPI's to refuse, as before: never a 500.
+    plain = world["client"].request(
+        method, path, content=b"[" * 200_000 + b"1" + b"]" * 200_000,
+        headers={"Content-Type": "application/json"})
+    assert plain.status_code < 500
+
+
 @pytest.mark.parametrize("path", [
     "/evidence/..%2F..%2Fetc%2Fpasswd/frame",
     "/evidence/../../../etc/passwd/frame",

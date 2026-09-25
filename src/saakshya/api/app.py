@@ -178,7 +178,7 @@ def create_app(state: AppState | None = None, *,
     # the request-id and security-header middleware below.
     @app.middleware("http")
     async def refuse_nul(request: Request, call_next: Callable[..., Awaitable[Any]]):
-        """A NUL character in a path, query or JSON body is refused, on every engine.
+        """A NUL character in a path, query or body is refused, on every engine.
 
         PostgreSQL text cannot hold NUL. On PostgreSQL a NUL in a case title or
         a zone name reached the write and failed as a 500; SQLite stored it
@@ -186,12 +186,25 @@ def create_app(state: AppState | None = None, *,
         until the store was copied to PostgreSQL. No field in this API has a
         use for the character, so it is refused where the request arrives
         rather than wherever it would next reach a query.
+
+        The body was first read only when the Content-Type header held the
+        lower-case text "json". FastAPI lower-cases the media type before it
+        decides to parse, so `Application/JSON` stored "a\\x00b" as a case
+        title, and the CSV registry import (text/csv) stored a NUL camera id
+        and wrote it into the audit log. Now a raw NUL byte is refused in any
+        body: the raw-body routes read CSV and SDP, and neither format allows
+        the byte (RFC 4566 excludes it from every SDP text field). The JSON
+        escape is looked for only where FastAPI would parse JSON, so a CSV
+        cell or an SDP line that spells backslash-u-0-0-0-0 as text still
+        passes.
         """
         bad = "\x00" in request.url.path or "%00" in request.url.query
-        if not bad and "json" in request.headers.get("content-type", ""):
+        if not bad:
             body = await request.body()
-            if b"\\u0000" in body or b"\x00" in body:
-                bad = _json_has_nul(body)
+            bad = b"\x00" in body or (
+                b"\\u0000" in body
+                and _is_json_media_type(request.headers.get("content-type"))
+                and _json_has_nul(body))
         if bad:
             return JSONResponse(status_code=400, content={"detail": {
                 "code": "NUL_CHARACTER",
@@ -447,19 +460,47 @@ def _origin_of(url: str) -> str | None:
     return f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else None
 
 
+def _is_json_media_type(content_type: str | None) -> bool:
+    """Whether FastAPI would parse a body with this Content-Type as JSON.
+
+    The same test FastAPI applies (fastapi/routing.py): the header is parsed
+    by email.message, which lower-cases the type, and application/json or any
+    application/*+json counts. A check of its own that disagreed with that is
+    what let `Application/JSON` past the NUL refusal.
+    """
+    if not content_type:
+        return False
+    import email.message
+
+    message = email.message.Message()
+    message["content-type"] = content_type
+    if message.get_content_maintype() != "application":
+        return False
+    subtype = message.get_content_subtype()
+    return subtype == "json" or subtype.endswith("+json")
+
+
 def _json_has_nul(body: bytes) -> bool:
     """Whether any key or string in a JSON body contains NUL.
 
-    Called only when the raw bytes contain one or its escape, so a body that
-    merely spells the six characters backslash-u-0-0-0-0 as text is parsed
-    rather than refused. A body that is not JSON is left to the route.
+    Called only when the raw bytes contain the escape, so a body that merely
+    spells the six characters backslash-u-0-0-0-0 as text is parsed rather
+    than refused. A body that is not JSON is left to the route, which refuses
+    it itself.
+
+    A body nested too deep to parse is refused rather than inspected: 200,000
+    brackets around the escape made json.loads raise RecursionError, which is
+    not a ValueError, and it escaped the middleware as an unauthenticated 500
+    on any path. FastAPI refuses the same body with a 400 of its own.
     """
     import json
 
     try:
         doc = json.loads(body)
     except ValueError:
-        return b"\x00" in body
+        return False
+    except RecursionError:
+        return True
     stack = [doc]
     while stack:
         v = stack.pop()

@@ -449,11 +449,15 @@ def boot_ai_worker(db_url: str, cameras: list[str] | None = None
     LOGS = ROOT / "var" / "logs"
     LOGS.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
+    # The store URL goes to the child in its environment, which main() reads
+    # when no --db is given. On the command line a PostgreSQL URL put the
+    # password of the cluster's superuser role in `ps -axww` for every local
+    # account; a process's environment is readable only by its owner.
+    env["SAAKSHYA_DB"] = db_url
     # Device: MPS when present, unless SAAKSHYA_FORCE_CPU=1 (see run()).
     logf = open(LOGS / "ai_worker.log", "ab")
     cmd = [
         sys.executable, "-m", "saakshya.analytics.worker",
-        "--db", db_url,
         "--cameras", ",".join(cameras),
     ]
     proc = subprocess.Popen(

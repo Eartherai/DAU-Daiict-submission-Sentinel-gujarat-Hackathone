@@ -67,7 +67,7 @@ from saakshya.live import GridConfig, LiveCamera
 from saakshya.live.credentials import configured as credential_configured
 from saakshya.live.credentials import needs_grid_credential, redact
 from saakshya.store import Store
-from saakshya.store.provenance import refuses_live_writes, store_name
+from saakshya.store.provenance import redacted, refuses_live_writes, store_name
 
 # The decode path, the consumer loop, the health writer and the tier table all
 # come from the ingest tool. Importing them is the point: this supervisor
@@ -647,7 +647,9 @@ def build_report(*, run: CollectionRun, cameras: Sequence[LiveCamera],
         "mode": "metadata-only bounded rotation",
         "generated_at": datetime.now(UTC).isoformat(),
         "executed": executed,
-        "store": db_url,
+        # The report is written under var/reports, and a PostgreSQL URL
+        # carries the password.
+        "store": redacted(db_url),
         "roster": {
             "source": roster_source.get("source"),
             "caveat": roster_source.get("caveat"),

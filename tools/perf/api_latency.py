@@ -99,7 +99,7 @@ def main() -> int:
          f"/targets/{plate}/observations"),
     ]
 
-    print(f"database   : {args.db}")
+    print(f"database   : {redacted(args.db)}")
     counts = state.store.stats()
     print(f"scale      : {counts['cameras']} cameras, "
           f"{counts['observations']} observations, "

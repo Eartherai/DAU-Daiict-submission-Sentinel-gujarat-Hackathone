@@ -48,6 +48,7 @@ from saakshya.live import (
     has_credential,
 )
 from saakshya.live.credentials import credentialed, redact
+from saakshya.store.provenance import redacted
 
 av.logging.set_level(av.logging.FATAL)
 
@@ -590,7 +591,7 @@ def main() -> int:
     # in the store rather than only in a report a human reads.
     if args.db:
         _persist_timebase(args.db, results)
-        print(f"timebase   : recorded for {len(results)} cameras in {args.db}")
+        print(f"timebase   : recorded for {len(results)} cameras in {redacted(args.db)}")
 
     report = {
         "provenance": PROVENANCE,

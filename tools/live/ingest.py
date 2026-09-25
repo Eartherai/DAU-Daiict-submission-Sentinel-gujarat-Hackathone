@@ -902,7 +902,7 @@ def main() -> int:
             row.update({"codec": p.get("codec"), "width": p.get("width"),
                         "height": p.get("height")})
         store.upsert_camera(row)
-    print(f"registry   : {len(cams)} cameras in {args.db}")
+    print(f"registry   : {len(cams)} cameras in {redacted(args.db)}")
 
     stages = ([int(x) for x in args.stages.split(",")] if args.stages
               else [len(cams_run) if args.only else args.cameras])

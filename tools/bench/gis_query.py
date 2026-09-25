@@ -51,7 +51,9 @@ def main() -> int:
     ap.add_argument("--json", type=Path)
     a = ap.parse_args()
 
-    lite = Store(f"sqlite:///file:{a.sqlite.resolve()}?mode=ro&immutable=1&uri=true")
+    # Read-only, and not `immutable`: that skips the write-ahead log, where a
+    # store's newest rows sit until a checkpoint (see tools/db/migrate.py).
+    lite = Store(f"sqlite:///file:{a.sqlite.resolve()}?mode=ro&uri=true")
     pg = Store(a.pg)
     pg.create_all()
     assert pg.postgis, "PostGIS is not enabled on the PostgreSQL store"

@@ -234,6 +234,33 @@ def test_a_change_that_cannot_be_applied_in_place_is_reported(tmp_path):
         S.observations._columns.remove(new)
 
 
+def test_a_read_only_uri_store_reads_the_file_and_makes_no_directories(tmp_path,
+                                                                      monkeypatch):
+    # tools/bench/gis_query.py opens its SQLite side this way. Store took the
+    # whole `file:/abs/...` string for a path and made its "parent", a relative
+    # `file:/<abs path>` tree, in whatever directory the bench ran from.
+    import sqlite3
+
+    db = tmp_path / "estate" / "x.db"
+    live = Store(f"sqlite:///{db}")
+    live.create_all()
+    live.upsert_camera({"camera_id": "C-1", "lat": 23.0, "lon": 72.5})
+    old = tmp_path / "old.db"                 # rollback journal, not WAL
+    w = sqlite3.connect(old)
+    w.execute("CREATE TABLE cameras (camera_id TEXT)")
+    w.commit()
+    w.close()
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    ro = Store(f"sqlite:///file:{db}?mode=ro&uri=true")
+    assert [c["camera_id"] for c in ro.list_cameras()] == ["C-1"]
+    assert list(cwd.iterdir()) == []
+    # Read-only cannot switch a rollback-journal file to WAL, and need not.
+    Store(f"sqlite:///file:{old}?mode=ro&uri=true")
+    assert list(cwd.iterdir()) == []
+
+
 def test_a_nul_held_as_its_stand_in_still_verifies_and_nothing_else_does(store):
     # A store written before the API refused NUL, copied to PostgreSQL, holds
     # U+2400 where the NUL was. The entry must verify against the hash made

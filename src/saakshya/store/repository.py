@@ -242,8 +242,19 @@ class Store:
     """SQLAlchemy-Core repository. Works on SQLite and PostgreSQL."""
 
     def __init__(self, url: str = "sqlite:///var/saakshya.db", echo: bool = False) -> None:
+        read_only = False
         if url.startswith("sqlite"):
             path = url.replace("sqlite:///", "")
+            if path.startswith("file:"):
+                # A URI filename, `file:/abs/x.db?mode=ro&uri=true`. The file is
+                # between `file:` and the query, and a read-only open creates
+                # nothing. Taken as a plain path, its "parent" was the relative
+                # directory `file:/abs`, and tools/bench/gis_query.py left an
+                # empty `file:/<abs path>/var` tree wherever it was run.
+                from urllib.parse import parse_qs, unquote
+                fs, _, query = path[len("file:"):].partition("?")
+                read_only = parse_qs(query).get("mode") == ["ro"]
+                path = "" if read_only else unquote(fs)
             if path and path != ":memory:":
                 Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.url = url
@@ -291,8 +302,10 @@ class Store:
         if self.is_sqlite:
             with self.engine.begin() as c:
                 # WAL lets the analytics writer and the API reader run
-                # concurrently, which the demo needs.
-                c.exec_driver_sql("PRAGMA journal_mode=WAL")
+                # concurrently, which the demo needs. A read-only open cannot
+                # set it, and reads a store in whichever mode it is.
+                if not read_only:
+                    c.exec_driver_sql("PRAGMA journal_mode=WAL")
                 c.exec_driver_sql("PRAGMA synchronous=NORMAL")
                 # 4s, not 60s: command APIs must not wait out a media writer.
                 c.exec_driver_sql("PRAGMA busy_timeout=4000")

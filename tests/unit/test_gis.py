@@ -273,3 +273,58 @@ def test_nearby_cameras_respect_the_officers_districts(maps, store):
 def test_nearby_cameras_are_limited_after_ordering(maps, store):
     got = store.cameras_near(AHM[0], AHM[1], 50_000, limit=2)
     assert [c["camera_id"] for c in got["cameras"]] == ["MAP-00", "MAP-01"]
+
+
+def _destination(lat: float, lon: float, bearing_deg: float, d_m: float) -> tuple[float, float]:
+    """The point d_m along a great circle, on the sphere the store measures on."""
+    import math
+    delta, th = d_m / 6_371_008.8, math.radians(bearing_deg)
+    p1, l1 = math.radians(lat), math.radians(lon)
+    p2 = math.asin(math.sin(p1) * math.cos(delta)
+                   + math.cos(p1) * math.sin(delta) * math.cos(th))
+    l2 = l1 + math.atan2(math.sin(th) * math.sin(delta) * math.cos(p1),
+                         math.cos(delta) - math.sin(p1) * math.sin(p2))
+    return math.degrees(p2), (math.degrees(l2) + 540) % 360 - 180
+
+
+def test_every_camera_inside_the_radius_is_found_to_the_edge(store):
+    """The prefilter box used 111,320 m per degree against a haversine of
+    111,195, so it reached 0.99888 of the radius: a camera 1,999.8 m due north
+    of the point, inside a 2 km radius by the store's own measure, was never
+    scored. A ring of cameras 0.2 m inside the radius must all come back, and
+    one 0.2 m outside must not."""
+    here = (23.0, 72.5)
+    for b in range(0, 360, 5):
+        for tag, d in (("IN", 1999.8), ("OUT", 2000.2)):
+            lat, lon = _destination(*here, b, d)
+            store.upsert_camera({"camera_id": f"{tag}-{b:03d}", "lat": lat, "lon": lon})
+    got = {c["camera_id"] for c in store.cameras_near(*here, 2000, limit=500)["cameras"]}
+    assert got == {f"IN-{b:03d}" for b in range(0, 360, 5)}
+
+
+@pytest.mark.parametrize("here,there,radius_m", [
+    ((89.99, 10.0), (89.995, -170.0), 5000),     # across the pole: ~1.7 km
+    ((0.0, 179.99), (0.0, -179.99), 5000),       # across the antimeridian: ~2.2 km
+])
+def test_a_nearby_camera_across_the_pole_or_the_date_line_is_found(store, here, there,
+                                                                   radius_m):
+    store.upsert_camera({"camera_id": "OVER", "lat": there[0], "lon": there[1]})
+    got = store.cameras_near(*here, radius_m)["cameras"]
+    assert [c["camera_id"] for c in got] == ["OVER"] and got[0]["distance_m"] < 2500
+
+
+def test_a_wide_radius_is_not_cut_before_the_distances_are_known(store):
+    """The candidates were capped at 20,000 rows in index order before any
+    distance was measured. With 25,000 cameras up a meridian and the point near
+    the northern end, the rows kept were the southern ones: the camera at 0 m
+    was dropped and the answer began 21.9 km away."""
+    from sqlalchemy import insert
+
+    from saakshya.store import schema as S
+    rows = [{"camera_id": f"M{i:05d}", "lat": 22.5 + i * 0.00008, "lon": 72.0}
+            for i in range(25_000)]
+    with store.engine.begin() as c:
+        c.execute(insert(S.cameras), rows)
+    got = store.cameras_near(22.5 + 23_000 * 0.00008, 72.0, 200_000, limit=3)["cameras"]
+    assert (got[0]["camera_id"], got[0]["distance_m"]) == ("M23000", 0.0)
+    assert {c["camera_id"] for c in got[1:]} == {"M22999", "M23001"}   # 8.9 m each way

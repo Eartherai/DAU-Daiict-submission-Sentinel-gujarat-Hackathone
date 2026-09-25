@@ -4,11 +4,15 @@
 #   tools/db/setup_postgres.sh          install (once), initialise, start
 #   tools/db/setup_postgres.sh stop     stop the server
 #
-# Installs micromamba and conda-forge `postgis` (which brings the PostgreSQL
-# it was built against) into var/pg/, initialises a cluster in var/pg/data
-# listening on 127.0.0.1 only, creates the `saakshya` database with the
-# PostGIS extension, and writes the connection URL to var/pg/url (mode 600).
-# Nothing here is committed: var/pg/ is gitignored.
+# Installs micromamba and conda-forge PostGIS 3.6.4 with PostgreSQL 18.6 into
+# var/pg/: the pair the docs name and var/reports/store_engines.json and
+# gis_postgis.json were measured on (conda-forge osx-arm64 builds postgis
+# hf8a3ce9_2, postgresql heca42e1_1). The versions are pinned because unpinned
+# `postgis` took whatever conda-forge had newest on the day, so a fresh
+# install could differ from what the docs describe. It then initialises a
+# cluster in var/pg/data listening on 127.0.0.1 only, creates the `saakshya`
+# database with the PostGIS extension, and writes the connection URL to
+# var/pg/url (mode 600). Nothing here is committed: var/pg/ is gitignored.
 set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PG="$ROOT/var/pg"
@@ -34,7 +38,8 @@ if [ ! -x "$BIN/postgres" ]; then
     curl -sSL --fail "https://micro.mamba.pm/api/micromamba/$PLAT/latest" -o "$PG/micromamba.tar.bz2"
     tar -xjf "$PG/micromamba.tar.bz2" -C "$PG" bin/micromamba
   fi
-  MAMBA_ROOT_PREFIX="$PG/mamba" "$PG/bin/micromamba" create -y -p "$ENV" -c conda-forge postgis
+  MAMBA_ROOT_PREFIX="$PG/mamba" "$PG/bin/micromamba" create -y -p "$ENV" -c conda-forge \
+    "postgis=3.6.4" "postgresql=18.6"
 fi
 
 if [ ! -f "$DATA/PG_VERSION" ]; then

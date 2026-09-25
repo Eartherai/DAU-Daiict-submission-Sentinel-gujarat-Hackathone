@@ -2,13 +2,23 @@
 
 ONNX Runtime 1.29 starts Microsoft's usage-telemetry client when it is
 imported and uploads a queue kept under ~/Library/Application Support. The
-package sets ORT_DISABLE_TELEMETRY before anything can import the runtime.
+package sets ORT_DISABLE_TELEMETRY before anything can import the runtime, and
+hardware.onnxruntime_offline() switches the client off before the first
+session.
+
+Both tests here first read only os.environ in a subprocess that never imports
+onnxruntime, so removing the runtime switch changed nothing they could see.
+The switch itself is now exercised against a stand-in module.
 """
 from __future__ import annotations
 
+import importlib.machinery
 import os
 import subprocess
 import sys
+import types
+
+from saakshya.runtime import hardware
 
 
 def test_importing_the_package_switches_runtime_telemetry_off() -> None:
@@ -20,10 +30,37 @@ def test_importing_the_package_switches_runtime_telemetry_off() -> None:
     assert out.stdout.strip() == "1"
 
 
-def test_an_operator_can_still_choose_otherwise() -> None:
+def test_the_import_leaves_an_operators_own_setting_alone() -> None:
+    # This is all the variable shows. onnxruntime_offline() does not read it:
+    # it switches telemetry off on every model load and provider probe, so an
+    # operator's 0 holds only until a model loads.
     env = {**os.environ, "ORT_DISABLE_TELEMETRY": "0"}
     out = subprocess.run(
         [sys.executable, "-c",
          "import saakshya, os; print(os.environ.get('ORT_DISABLE_TELEMETRY'))"],
         env=env, capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "0"
+
+
+def _stand_in_onnxruntime(monkeypatch) -> list[str]:
+    calls: list[str] = []
+    ort = types.ModuleType("onnxruntime")
+    ort.__spec__ = importlib.machinery.ModuleSpec("onnxruntime", loader=None)
+    ort.disable_telemetry_events = lambda: calls.append("disable_telemetry_events")
+    ort.get_available_providers = lambda: calls.append("providers") or [
+        "CPUExecutionProvider"]
+    monkeypatch.setitem(sys.modules, "onnxruntime", ort)
+    return calls
+
+
+def test_the_runtime_switch_turns_the_client_off(monkeypatch) -> None:
+    calls = _stand_in_onnxruntime(monkeypatch)
+    hardware.onnxruntime_offline()
+    assert calls == ["disable_telemetry_events"]
+
+
+def test_the_provider_probe_turns_the_client_off_before_it_asks(monkeypatch) -> None:
+    # The probe is the first thing on this host to touch the runtime.
+    calls = _stand_in_onnxruntime(monkeypatch)
+    assert hardware._onnx_providers() == ("CPUExecutionProvider",)
+    assert calls == ["disable_telemetry_events", "providers"]

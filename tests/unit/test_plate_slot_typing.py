@@ -111,3 +111,93 @@ def test_a_converged_vote_still_publishes_with_its_stragglers() -> None:
     v.add("T1", _reads(*(["MH02GB4920"] * 9), "MN22GB4920", "MH02GB4926"))
     best = v.resolve("T1")
     assert best is not None and best.plate.canonical == "MH02GB4920" and best.votes == 9
+
+
+def test_a_plate_read_first_then_withdrawn_is_refused() -> None:
+    # The blurred plate as the film saw it, one read a frame: three agreeing
+    # reads, then five scattered lookalikes. 3 of 8 is not agreement.
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH01EX0900", "MH01EX0900", "MH01EX0900", "MH01EK0900",
+                       "MH01EK0900", "MH01EX0800", "MH01EK9900", "MH01EK0800"))
+    assert v.resolve("T1") is None and v.rejected_disagreement == 1
+
+
+def test_zero_filled_reads_are_disagreement() -> None:
+    # The recogniser fills digits it cannot see with zeros. Three frames of
+    # MH01EK0000 say the number was not visible; the two that guessed 0900
+    # are not "2 of 2 agreeing frames".
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH01EK0000", "MH01EK0900", "MH01EK0000", "MH01EK0900", "MH01EK0000"))
+    assert v.resolve("T1") is None and v.rejected_disagreement == 1
+    assert v.rejected_invalid == 3                              # still never published
+
+
+def test_zero_filled_reads_compete_with_a_single_read_lead() -> None:
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH01EK0000", "MH01EK0000", "MH01EK0900", "MH01EK0000", "MH01EK0000"))
+    assert v.resolve("T1") is None and v.rejected_low_votes == 1
+
+
+def test_an_rto_zero_lookalike_ties_the_vote() -> None:
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("GJ00AB1234", "GJ01AB1234", "GJ00AB1234", "GJ01AB1234"))
+    assert v.resolve("T1") is None and v.rejected_disagreement == 1
+
+
+def test_a_zero_fill_with_a_mistyped_glyph_counts_the_same() -> None:
+    from saakshya.analytics.plates import NEVER_ISSUED
+
+    pr = slot_typed("MHO1EK0000")
+    assert not pr.valid and pr.canonical == "MH01EK0000" and pr.reason in NEVER_ISSUED
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MHO1EK0000", "MH01EK0900", "MHO1EK0000", "MH01EK0900", "MH01EK0000"))
+    assert v.resolve("T1") is None
+
+
+def test_unrelated_unreadable_reads_are_not_disagreement() -> None:
+    # Another vehicle's plate with its number smeared is not a reading of this one.
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads("MH03EG7361", "MH03EG7361", "MH03EG7361", "MH02ER0000",
+                       "MH02ER0000", "MH02ER0000", "MH02ER0000"))
+    best = v.resolve("T1")
+    assert best is not None and best.plate.canonical == "MH03EG7361" and best.total_reads == 3
+
+
+def test_a_published_plate_counts_its_unreadable_frames() -> None:
+    v = PlateVoter(AnprConfig())
+    v.add("T1", _reads(*(["MH01EK0900"] * 5), "MH01EK0000"))
+    best = v.resolve("T1")
+    assert best is not None and best.votes == 5 and best.total_reads == 6
+    assert "5/6 agreeing frames" in best.explain()
+
+
+@pytest.mark.parametrize("longer, shorter", [
+    ("GJ01AA1234", "GJ01A1234"),     # a doubled series letter merged by the CTC decode
+    ("MH11AB1234", "MH1AB1234"),     # a doubled RTO digit
+    ("GJ05A1234", "GJ051234"),       # a dropped series letter
+])
+def test_a_dropped_character_is_disagreement_not_order(longer, shorter) -> None:
+    # By position, one character fewer shifted every character after it, so
+    # the two readings never counted against each other and a 2-2 tie went
+    # to whichever frame came first.
+    for first, second in ((longer, shorter), (shorter, longer)):
+        v = PlateVoter(AnprConfig())
+        v.add("T1", _reads(first, second, first, second))
+        assert v.resolve("T1") is None and v.rejected_disagreement == 1, (first, second)
+
+
+def test_resemblance_is_edit_distance_over_length() -> None:
+    from saakshya.analytics.plates import agreement, resemblance
+
+    assert resemblance("GJ01AA1234", "GJ01A1234") == pytest.approx(0.9)
+    assert agreement("GJ01AA1234", "GJ01A1234") == pytest.approx(0.5)
+    assert resemblance("MH01EX0900", "MH01EK9900") == pytest.approx(0.8)
+    assert resemblance("MH02FX5860", "mh02-fx-5860") == 1.0
+    assert resemblance("", "MH02FX5860") == 0.0
+    # A substitution costs one edit as it costs one position.
+    for a, b in (("MH01EX0900", "MH01EK0800"), ("MH03EG7361", "MH02ER3645")):
+        assert resemblance(a, b) >= agreement(a, b)
+
+
+def test_the_vote_still_needs_two_frames() -> None:
+    assert AnprConfig().min_votes == 2

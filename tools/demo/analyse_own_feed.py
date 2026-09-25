@@ -58,23 +58,22 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
     """Plates the per-track vote would publish now, without resolving it.
 
     PlateVoter.resolve counts its rejections, so calling it every frame would
-    distort those counters; this repeats its acceptance rule side-effect free:
-    at least `min_votes` agreeing valid reads, holding `min_agreement` of the
-    track's valid reads, with mean OCR confidence at or above `min_confidence`.
+    distort those counters; this asks the voter's own side-effect-free parts
+    instead: at least `min_votes` agreeing valid reads, holding `min_agreement`
+    of the reads that look like the plate (never-issued lookalikes included)
+    and ahead of each of them, with mean OCR confidence at or above
+    `min_confidence`.
     """
     from collections import Counter
-
-    from saakshya.analytics.plates import agreement
-    from saakshya.analytics.plates import slot_typed as parse
 
     out: dict[str, str] = {}
     for track_id, voter in getattr(pipe, "_voters", {}).items():
         reads = voter._reads.get(track_id) or []
-        valid = [(parse(r.text), r) for r in reads]
-        valid = [(p, r) for p, r in valid if p.valid]
+        valid, unissued = voter.tally(reads)
         if not valid:
             continue
-        ranked = Counter(p.canonical for p, _ in valid).most_common(2)
+        counts = Counter(p.canonical for p, _ in valid)
+        ranked = counts.most_common(2)
         best, votes = ranked[0]
         runner = ranked[1][1] if len(ranked) > 1 else 0
         # Drawn on screen, a plate must hold: three agreeing reads and a clear
@@ -83,9 +82,7 @@ def _accepted_now(pipe, anpr_cfg) -> dict[str, str]:
         # What the store records is still decided at the end of the track.
         if votes < max(3, anpr_cfg.min_votes) or votes < runner + 2:
             continue
-        lookalikes = sum(1 for p, _ in valid
-                         if agreement(p.canonical, best) >= anpr_cfg.lookalike_agreement)
-        if votes < anpr_cfg.min_agreement * lookalikes:
+        if not voter.agreed(best, votes, counts, unissued):
             continue
         conf = sum(r.confidence for p, r in valid if p.canonical == best) / votes
         if conf >= anpr_cfg.min_confidence:

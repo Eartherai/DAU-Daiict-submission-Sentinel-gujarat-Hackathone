@@ -58,6 +58,12 @@ _STRIP = re.compile(r"[^A-Z0-9]")
 _NO_ZERO_NUMBER = "number 0000 is never issued"
 #: RTO codes start at 1 (DL3, GJ01). "KA0S2836" is an S read into the RTO.
 _NO_ZERO_RTO = "RTO code 0 is never issued"
+#: A read refused for one of these has the shape of a mark: it is never
+#: published, but it is still a frame's reading of the plate. The vote counts
+#: it as disagreement - a 0000 is the recogniser saying the number could not be
+#: read - where dropping it would leave the frames that did guess a number
+#: looking unanimous.
+NEVER_ISSUED: frozenset[str] = frozenset({_NO_ZERO_NUMBER, _NO_ZERO_RTO})
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,12 +150,17 @@ def slot_typed(raw: str, max_forced: int = 2) -> PlateRead:
     two different splits needing the same fewest leave the read invalid. What
     was typed is stated in ``reason``, and ``raw`` keeps what the OCR said.
     A valid read is returned untouched.
+
+    A read that types only to a mark never issued ("MHO1EK0000") stays
+    invalid, but is returned as that mark with the never-issued reason, as
+    "MH01EK0000" itself is: the vote counts both the same way.
     """
     direct = parse(raw)
     canon = normalise(raw)
     if direct.valid or not (8 <= len(canon) <= 11):
         return direct
     best: list[tuple[int, str, list[str]]] = []
+    unissued: list[tuple[int, str, list[str]]] = []
     # RTO codes are two digits everywhere but Delhi (DL 1C, DL 3S). Allowing a
     # one-digit RTO elsewhere let "MHOLCT3466" type as MH 0 LCT 3466 with one
     # edit, over the right reading MH 01 CT 3466 with two.
@@ -174,9 +185,18 @@ def slot_typed(raw: str, max_forced: int = 2) -> PlateRead:
             notes.append(f"{ch}->{alt} at {i}")
         else:
             cand = "".join(out)
-            if len(notes) <= max_forced and parse(cand).valid:
-                best.append((len(notes), cand, notes))
+            if len(notes) <= max_forced:
+                typed = parse(cand)
+                if typed.valid:
+                    best.append((len(notes), cand, notes))
+                elif typed.reason in NEVER_ISSUED:
+                    unissued.append((len(notes), cand, notes))
     if not best:
+        unissued.sort()
+        if (unissued and direct.reason not in NEVER_ISSUED
+                and len({u[1] for u in unissued if u[0] == unissued[0][0]}) == 1):
+            pr = parse(unissued[0][1])
+            return PlateRead(pr.canonical, raw, False, "invalid", pr.state_code, pr.reason)
         return direct
     best.sort()
     fewest = [b for b in best if b[0] == best[0][0]]
@@ -256,3 +276,31 @@ def agreement(a: str, b: str) -> float:
     # and far cheaper than edit distance in the hot retrieval path.
     same = sum(1 for i in range(min(len(x), len(y))) if x[i] == y[i])
     return same / n
+
+
+def resemblance(a: str, b: str) -> float:
+    """How alike two reads of one plate are, 0..1: one minus their edit
+    distance over the longer length.
+
+    The vote uses this, not `agreement`, to decide which readings are the same
+    plate read differently. By position, an inserted or dropped character
+    shifts everything after it: GJ01AA1234 against GJ01A1234 - a doubled
+    letter the recogniser's CTC decode merged - agrees 0.5 and MH11AB1234
+    against MH1AB1234 0.3, so neither counted against the other and a 2-2 tie
+    was settled by which frame came first. Here each is one edit, 0.9. A
+    substitution costs one edit as it costs one position, so every pair that
+    agreed by position resembles at least as much. Plates are at most eleven
+    characters and this runs once per distinct reading of a track.
+    """
+    x, y = normalise(a), normalise(b)
+    if not x or not y:
+        return 0.0
+    if x == y:
+        return 1.0
+    prev = list(range(len(y) + 1))
+    for i, cx in enumerate(x, 1):
+        cur = [i]
+        for j, cy in enumerate(y, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (cx != cy)))
+        prev = cur
+    return 1.0 - prev[-1] / max(len(x), len(y))

@@ -35,7 +35,13 @@ from typing import Any
 
 import numpy as np
 
-from saakshya.analytics.plates import PlateRead, agreement, parse, slot_typed
+from saakshya.analytics.plates import (
+    NEVER_ISSUED,
+    PlateRead,
+    parse,
+    resemblance,
+    slot_typed,
+)
 from saakshya.models.registry import ANPR_CPU, ModelRecord
 from saakshya.runtime.backend import BACKENDS, InferenceBackend
 
@@ -129,11 +135,36 @@ class AnprConfig:
     #: reads" published an invented mark. Only lookalikes count against the
     #: winner: a vehicle's track also collects other vehicles' plates
     #: (MH03EG7361 held 75 of 1,322 valid reads, the rest mostly other cars),
-    #: and those are not disagreement about this one.
-    min_agreement: float = 0.5
-    #: Two readings are the same plate read differently when at least this
-    #: share of their positions agree: at most two of ten characters differ.
-    lookalike_agreement: float = 0.8
+    #: and those are not disagreement about this one. A lookalike read refused
+    #: only because its number (0000) or RTO (0) is never issued counts too:
+    #: it is a frame saying the number could not be read.
+    #:
+    #: Both values were chosen on this deployment's own clips, against a by-eye
+    #: audit of one full run over three of them: 373 track decisions, 47 marks
+    #: checked right and 16 wrong, three of the wrong ones invented for the
+    #: blurred plate above (MH01EK0000, MH01EK9900, MH01EX0900). Distinct
+    #: marks published, min_votes 2 throughout:
+    #:
+    #:     lookalike rule           share   right  wrong  invented published
+    #:     none                        -      47     14   EK9900, EX0900
+    #:     by position >= 0.8        0.5      40      8   EK9900
+    #:     by position >= 0.7        0.4      41      7   -
+    #:     edit distance >= 0.7      0.35     42      4   -
+    #:     edit distance >= 0.7      0.38     41      4   -        (these)
+    #:     edit distance >= 0.7      0.5      34      4   -
+    #:
+    #: Every share from 0.34 to 0.5 publishes the same four wrong marks and
+    #: fewer right ones as it rises, so the share is the lowest that still
+    #: refuses the blurred plate read as EX0900 x3 against five scattered
+    #: lookalikes: 3 of 8 is 0.375, and 0.35 publishes it. These are one
+    #: clip set's audit, not a general calibration; measure again on footage
+    #: that differs.
+    min_agreement: float = 0.38
+    #: Two readings are the same plate read differently when they resemble at
+    #: least this much (`plates.resemblance`, by edit distance): at most three
+    #: edits in ten characters. An inserted or dropped character is one edit,
+    #: as it is on a plate; by position it shifted every character after it.
+    lookalike_agreement: float = 0.7
 
     #: When a track yields only one valid read — which is the common case at the
     #: per-camera frame rate a large estate can afford — that read is published
@@ -409,20 +440,32 @@ class PlateVoter:
         cutoff = max(r.pts_s for r in bucket) - self.cfg.vote_window_s
         self._reads[track_key] = [r for r in bucket if r.pts_s >= cutoff]
 
-    def resolve(self, track_key: str) -> VotedPlate | None:
-        reads = self._reads.get(track_key, [])
-        if not reads:
-            return None
+    @staticmethod
+    def tally(reads: list[RawRead]) -> tuple[list[tuple[PlateRead, RawRead]], Counter[str]]:
+        """The valid reads, and the marks of reads refused only as never issued.
 
+        Side-effect free, so the film overlay can ask what the vote would say
+        on every frame without counting rejections.
+        """
         valid: list[tuple[PlateRead, RawRead]] = []
+        unissued: Counter[str] = Counter()
         for r in reads:
             # Read against the positions of the format; the raw OCR text is
             # kept on the PlateRead and what was typed is in its reason.
             pr = slot_typed(r.text)
             if pr.valid:
                 valid.append((pr, r))
-            else:
-                self.rejected_invalid += 1
+            elif pr.reason in NEVER_ISSUED:
+                unissued[pr.canonical] += 1
+        return valid, unissued
+
+    def resolve(self, track_key: str) -> VotedPlate | None:
+        reads = self._reads.get(track_key, [])
+        if not reads:
+            return None
+
+        valid, unissued = self.tally(reads)
+        self.rejected_invalid += len(reads) - len(valid)
         if not valid:
             return None
 
@@ -430,9 +473,13 @@ class PlateVoter:
         best, votes = counts.most_common(1)[0]
         members = [(pr, r) for pr, r in valid if pr.canonical == best]
         conf = float(np.mean([r.confidence for _, r in members]))
+        # Frames that read this plate with a number never issued: disagreement
+        # about it, though they can never be published themselves.
+        unreadable = {c: n for c, n in unissued.items()
+                      if resemblance(c, best) >= self.cfg.lookalike_agreement}
 
         provisional = False
-        if votes >= self.cfg.min_votes and not self._agreed(best, votes, counts):
+        if votes >= self.cfg.min_votes and not self.agreed(best, votes, counts, unissued):
             # The frames do not agree on this plate. A scattered or tied vote
             # is an unreadable plate, not a close call to be settled here.
             self.rejected_disagreement += 1
@@ -440,7 +487,8 @@ class PlateVoter:
         if votes < self.cfg.min_votes:
             # Not corroborated. Publish as a lead only if it is a single dominant
             # read that clears the higher single-read bar; otherwise reject.
-            competing = any(n >= votes for c, n in counts.items() if c != best)
+            competing = any(n >= votes for c, n in {**counts, **unreadable}.items()
+                            if c != best)
             if (not self.cfg.enable_single_read_leads or competing
                     or conf < self.cfg.single_read_lead_confidence):
                 self.rejected_low_votes += 1
@@ -456,17 +504,27 @@ class PlateVoter:
             confidence=conf,
             votes=votes,
             provisional=provisional,
-            total_reads=len(valid),
+            # The frames that read this plate as never-issued are among its
+            # reads: "from 5/5 agreeing frames" would hide them.
+            total_reads=len(valid) + sum(unreadable.values()),
             first_pts_s=min(r.pts_s for _, r in members),
             last_pts_s=max(r.pts_s for _, r in members),
             best_box=best_read.box,
             runners_up=[(t, n) for t, n in counts.most_common()[1:4]],
         )
 
-    def _agreed(self, best: str, votes: int, counts: Counter[str]) -> bool:
-        """Whether the reads that look like `best` converge on it."""
-        family = {c: n for c, n in counts.items()
-                  if agreement(c, best) >= self.cfg.lookalike_agreement}
+    def agreed(self, best: str, votes: int, counts: Counter[str],
+               unissued: Counter[str] | None = None) -> bool:
+        """Whether the reads that look like `best` converge on it.
+
+        `counts` holds the valid readings, `unissued` the readings refused only
+        as never issued; a lookalike of either kind counts against `best`, and
+        a tie with either is not agreement.
+        """
+        # The two never share a key: one parses as a mark, the other does not.
+        readings = {**counts, **(unissued or {})}
+        family = {c: n for c, n in readings.items()
+                  if resemblance(c, best) >= self.cfg.lookalike_agreement}
         rival = max((n for c, n in family.items() if c != best), default=0)
         return votes >= self.cfg.min_agreement * sum(family.values()) and votes > rival
 

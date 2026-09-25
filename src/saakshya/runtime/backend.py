@@ -51,6 +51,12 @@ def _device_lock(device: str) -> Any:
     return _MPS_LOCK if device == "mps" else _NULL_LOCK
 
 
+#: The same lock, for a model that runs outside `InferenceBackend._timed` - the
+#: Indian plate recogniser. Every MPS call in the process has to take it, or
+#: the race above is back.
+device_lock = _device_lock
+
+
 #: A deployment on a government network has no route to huggingface.co, and this
 #: system is explicitly built to run without one. `from_pretrained` reaches for
 #: the hub before falling back to the cache, and when the host can open a socket

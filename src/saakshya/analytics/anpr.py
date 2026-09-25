@@ -245,9 +245,20 @@ class AnprEngine:
             if choice in ("auto", "indian"):
                 from saakshya.analytics import ocr_indian
                 if ocr_indian.available():
-                    self._ocr = ocr_indian.IndianPlateOcr()
-                    return self._ocr
-                if choice == "indian":
+                    indian = ocr_indian.IndianPlateOcr()
+                    try:
+                        # Loaded here, outside read_frame's per-crop net, so
+                        # a model that cannot load is said once and loudly.
+                        indian.load()
+                    except ocr_indian.LoadError as exc:
+                        if choice == "indian":
+                            raise RuntimeError(f"SAAKSHYA_OCR=indian, but {exc}") from exc
+                        log.warning("Indian plate OCR unavailable (%s); reading plates with "
+                                    "the next recogniser", exc)
+                    else:
+                        self._ocr = indian
+                        return self._ocr
+                elif choice == "indian":
                     raise RuntimeError("SAAKSHYA_OCR=indian, but the Indian plate model is not "
                                        "installed (tools/models/fetch_indian_ocr.sh)")
             if choice in ("auto", "apple-vision"):
@@ -334,17 +345,21 @@ class AnprEngine:
             return out
 
         many = getattr(self.ocr_backend, "ocr_many", None)
-        results: list[Any]
+        results: list[Any] | None = None
         if many is not None:
             # A recogniser that reads a frame's plates in one pass (on a GPU,
             # 6.6 ms a plate batched against 14 ms one at a time).
             try:
                 results = many(crops)
             except (ValueError, RuntimeError, IndexError):
-                log.debug("OCR rejected a frame's crops", exc_info=True)
-                self.ocr_crop_failures += len(crops)
-                return out
-        else:
+                # One malformed crop fails the whole batch. Read the frame's
+                # crops one at a time instead, so it costs that crop and not
+                # the other plates in the frame. The recogniser was loaded
+                # when it was chosen, so a model that cannot load never
+                # reaches this net.
+                log.debug("OCR refused a frame's batch; reading its crops singly",
+                          exc_info=True)
+        if results is None:
             results = []
             for (box, _), crop in zip(boxes, crops, strict=True):
                 try:

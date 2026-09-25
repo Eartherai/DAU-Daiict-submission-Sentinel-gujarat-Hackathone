@@ -16,7 +16,9 @@ uses - Metal here, CUDA in deployment - at 6.6 ms a plate when a frame's
 plates go as one batch, against 50 ms on one CPU core under PaddlePaddle.
 The weights are fetched once by `tools/models/fetch_indian_ocr.sh` into
 var/models/ (not committed); without them `available()` is False and the
-pipeline keeps its previous recogniser.
+pipeline keeps its previous recogniser. Weights that are present but will not
+load are reported once, at ERROR, and the pipeline does the same. The process
+holds one copy of the model per device, however many cameras read plates.
 
 The CTC decode is PaddleOCR's CTCLabelDecode: best class per step, repeats
 collapsed, blanks dropped, confidence the mean probability of the characters
@@ -33,6 +35,7 @@ from typing import Any
 
 import numpy as np
 
+from saakshya.runtime import backend as _backend
 from saakshya.runtime.backend import OcrResult
 
 log = logging.getLogger(__name__)
@@ -87,11 +90,63 @@ def _device(choice: str) -> str:
 
     if choice != "auto":
         return choice
+    # The switch that pins the detector to CPU pins this model too; an explicit
+    # SAAKSHYA_INDIAN_OCR_DEVICE still wins.
+    if os.environ.get("SAAKSHYA_FORCE_CPU", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return "cpu"
     if torch.cuda.is_available():
         return "cuda"
     if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
         return "mps"
     return "cpu"
+
+
+class LoadError(Exception):
+    """The weights are on this host but the model would not load from them.
+
+    Deliberately not a ValueError or RuntimeError: the ANPR engine skips a
+    crop on those, and a model that cannot load is not a bad crop. Caught as
+    one, a mis-shaped checkpoint or a device fault became zero plates on every
+    frame, logged at DEBUG, with the weights reloaded each time.
+    """
+
+
+#: One model per device for the whole process, not one per camera. Every
+#: camera pipeline builds its own ANPR engine, and each engine used to load its
+#: own copy of the 37M-parameter network - N copies on the GPU for N cameras.
+_MODELS: dict[str, Any] = {}
+#: A load that failed, kept so it is reported once and not retried per frame.
+_FAILED: dict[str, LoadError] = {}
+_LOAD_LOCK = threading.Lock()
+
+
+def _shared_model(device: str) -> Any:
+    """The process's one model on `device`, loaded the first time it is asked for."""
+    with _LOAD_LOCK:
+        if device in _MODELS:
+            return _MODELS[device]
+        if device in _FAILED:
+            # A fresh exception each time: re-raising one instance would grow
+            # its traceback on every call.
+            failed = _FAILED[device]
+            raise LoadError(*failed.args) from failed.__cause__
+        from saakshya.analytics import ocr_indian_net
+
+        try:
+            # Built and filled on the CPU, then moved: only the move is Metal
+            # work, and only it holds the lock the detector's calls wait on.
+            model = ocr_indian_net.load(WEIGHTS, "cpu")
+            with _backend.device_lock(device):
+                model = model.to(device)
+        except Exception as exc:
+            err = LoadError(f"Indian plate OCR did not load from {WEIGHTS} on {device}: "
+                            f"{type(exc).__name__}: {exc}")
+            _FAILED[device] = err
+            log.error("%s", err, exc_info=exc)
+            raise err from exc
+        _MODELS[device] = model
+        log.info("Indian plate OCR loaded on %s", device)
+        return model
 
 
 def preprocess(crop_bgr: np.ndarray) -> np.ndarray:
@@ -134,26 +189,29 @@ class IndianPlateOcr:
     """`ocr(crop) -> OcrResult | None`, the call the other recognisers answer.
 
     `ocr_many(crops)` reads a frame's plates in one pass; the ANPR engine uses
-    it when the recogniser has it.
+    it when the recogniser has it. Instances are cheap: every instance on a
+    device shares that device's one model.
     """
 
     name = "awiros-anpr-ocr"
 
     def __init__(self, device: str | None = None) -> None:
-        self._lock = threading.Lock()
         self._model: Any = None
         self._choice = device or os.environ.get("SAAKSHYA_INDIAN_OCR_DEVICE") or "auto"
         self.device = ""
         self.charset: list[str] = []
 
+    def load(self) -> None:
+        """Load now, so a model that cannot load says so here - raising
+        `LoadError` - rather than on the first frame that has a plate."""
+        self._ensure()
+
     def _ensure(self) -> Any:
         if self._model is None:
-            from saakshya.analytics import ocr_indian_net
-
-            self.device = _device(self._choice)
-            self._model = ocr_indian_net.load(WEIGHTS, self.device)
+            device = _device(self._choice)
+            model = _shared_model(device)
             self.charset = charset()
-            log.info("Indian plate OCR loaded on %s", self.device)
+            self.device, self._model = device, model
         return self._model
 
     def read(self, crops: list[np.ndarray]) -> list[tuple[str, float]]:
@@ -163,10 +221,14 @@ class IndianPlateOcr:
         if not crops:
             return []
         x = np.stack([preprocess(c) for c in crops])
-        with self._lock:
-            model = self._ensure()
-            with torch.inference_mode():
-                probs = model(torch.from_numpy(x).to(self.device)).float().cpu().numpy()
+        model = self._ensure()
+        # PyTorch's Metal shader cache is not thread-safe, and every camera's
+        # pipeline reads plates from its own thread: the copy in, the forward
+        # pass and the copy out all hold the process's one MPS lock, the lock
+        # the detector's calls take (runtime/backend.py). CPU and CUDA run
+        # concurrently, as the detector does there.
+        with _backend.device_lock(self.device), torch.inference_mode():
+            probs = model(torch.from_numpy(x).to(self.device)).float().cpu().numpy()
         return ctc_decode(probs, self.charset)
 
     def ocr_many(self, crops: list[np.ndarray]) -> list[OcrResult | None]:

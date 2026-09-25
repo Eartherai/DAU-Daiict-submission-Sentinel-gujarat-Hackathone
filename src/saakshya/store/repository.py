@@ -574,21 +574,27 @@ class Store:
         with self.engine.connect() as c:
             return [dict(r._mapping) for r in c.execute(q.order_by(S.cameras.c.camera_id))]
 
+    def _insert(self, table: Any) -> Any:
+        """INSERT with ON CONFLICT, in this store's dialect.
+
+        The upserts below merge: the columns a caller passes are replaced and
+        the rest keep their values. On PostgreSQL they used to delete the row
+        and insert only what was passed, so a health flush that sent state and
+        fps reset connects and decoder_errors to 0 and last_seen_us to NULL -
+        the same two calls left different rows on the two engines.
+        """
+        return (sqlite_insert if self.is_sqlite else pg_insert)(table)
+
     def upsert_health(self, camera_id: str, health: dict[str, Any]) -> None:
         row = {k: v for k, v in health.items()
                if k in S.camera_health.c and k != "camera_id"}
         row["camera_id"] = camera_id
         row["updated_at_us"] = now_us()
         with self.engine.begin() as c:
-            if self.is_sqlite:
-                stmt = sqlite_insert(S.camera_health).values(**row)
-                c.execute(stmt.on_conflict_do_update(
-                    index_elements=["camera_id"],
-                    set_={k: v for k, v in row.items() if k != "camera_id"}))
-            else:
-                c.execute(delete(S.camera_health).where(
-                    S.camera_health.c.camera_id == camera_id))
-                c.execute(insert(S.camera_health).values(**row))
+            stmt = self._insert(S.camera_health).values(**row)
+            c.execute(stmt.on_conflict_do_update(
+                index_elements=["camera_id"],
+                set_={k: v for k, v in row.items() if k != "camera_id"}))
 
     def list_health(self, camera_ids: Sequence[str] | None = None
                     ) -> dict[str, dict[str, Any]]:
@@ -807,17 +813,11 @@ class Store:
         vals.update({"camera_id": camera_id, "time_band": time_band,
                      "updated_at_us": now_us()})
         with self.engine.begin() as c:
-            if self.is_sqlite:
-                stmt = sqlite_insert(S.camera_capability).values(**vals)
-                c.execute(stmt.on_conflict_do_update(
-                    index_elements=["camera_id", "time_band"],
-                    set_={k: v for k, v in vals.items()
-                          if k not in ("camera_id", "time_band")}))
-            else:
-                c.execute(delete(S.camera_capability).where(
-                    S.camera_capability.c.camera_id == camera_id,
-                    S.camera_capability.c.time_band == time_band))
-                c.execute(insert(S.camera_capability).values(**vals))
+            stmt = self._insert(S.camera_capability).values(**vals)
+            c.execute(stmt.on_conflict_do_update(
+                index_elements=["camera_id", "time_band"],
+                set_={k: v for k, v in vals.items()
+                      if k not in ("camera_id", "time_band")}))
 
     def list_capability(self, camera_ids: Sequence[str] | None = None,
                         time_band: str | None = None) -> list[dict[str, Any]]:
@@ -1278,17 +1278,11 @@ class Store:
     def upsert_transition(self, row: dict[str, Any]) -> None:
         row = {**row, "updated_at_us": now_us()}
         with self.engine.begin() as c:
-            if self.is_sqlite:
-                stmt = sqlite_insert(S.camera_transitions).values(**row)
-                c.execute(stmt.on_conflict_do_update(
-                    index_elements=["from_camera", "to_camera"],
-                    set_={k: v for k, v in row.items()
-                          if k not in ("from_camera", "to_camera")}))
-            else:
-                c.execute(delete(S.camera_transitions).where(and_(
-                    S.camera_transitions.c.from_camera == row["from_camera"],
-                    S.camera_transitions.c.to_camera == row["to_camera"])))
-                c.execute(insert(S.camera_transitions).values(**row))
+            stmt = self._insert(S.camera_transitions).values(**row)
+            c.execute(stmt.on_conflict_do_update(
+                index_elements=["from_camera", "to_camera"],
+                set_={k: v for k, v in row.items()
+                      if k not in ("from_camera", "to_camera")}))
 
     def get_transitions(self, from_camera: str | None = None
                         ) -> list[dict[str, Any]]:

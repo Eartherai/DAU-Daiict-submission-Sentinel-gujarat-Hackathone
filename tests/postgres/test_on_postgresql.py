@@ -275,3 +275,25 @@ def test_a_database_made_with_the_camera_foreign_key_loses_it(world):
     s.create_all()
     with s.engine.connect() as c:
         assert set(c.execute(q).all()) == before
+
+
+def test_a_partial_health_write_merges_as_on_sqlite(world):
+    """PostgreSQL deleted the row and inserted only the fields passed, so a
+    flush of state and fps reset connects to 0 and last_seen_us to NULL."""
+    s: Store = world["state"].store
+    s.upsert_health("CAM-C", {"state": "STREAMING", "measured_fps": 12.5,
+                              "last_seen_us": 1_790_000_000_000_000, "connects": 3})
+    s.upsert_health("CAM-C", {"state": "DOWN", "last_error": "timeout"})
+    got = s.list_health(["CAM-C"])["CAM-C"]
+    assert (got["state"], got["last_error"]) == ("DOWN", "timeout")
+    assert (got["measured_fps"], got["last_seen_us"], got["connects"]) == (
+        12.5, 1_790_000_000_000_000, 3)
+    s.upsert_capability("CAM-C", "DAY", {"samples": 40, "sharpness": 61.0})
+    s.upsert_capability("CAM-C", "DAY", {"samples": 41})
+    cap = s.list_capability(["CAM-C"], "DAY")[0]
+    assert (cap["samples"], cap["sharpness"]) == (41, 61.0)
+    s.upsert_transition({"from_camera": "CAM-A", "to_camera": "CAM-C",
+                         "support_count": 5, "travel_p50_s": 600.0})
+    s.upsert_transition({"from_camera": "CAM-A", "to_camera": "CAM-C", "support_count": 6})
+    tr = next(t for t in s.get_transitions("CAM-A") if t["to_camera"] == "CAM-C")
+    assert (tr["support_count"], tr["travel_p50_s"]) == (6, 600.0)

@@ -12,6 +12,7 @@ A still older than that is PREVIEW. A still is never stamped LIVE.
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import logging
 import os
@@ -97,6 +98,8 @@ class HubSlot:
     running: bool = False
     #: When a still of this camera was last asked for (monotonic seconds).
     last_demand: float = 0.0
+    cancel: threading.Event = field(default_factory=threading.Event)
+    restart_requested: bool = False
     _fps_times: list[float] = field(default_factory=list)
 
 
@@ -151,32 +154,36 @@ class MediaHub:
                 return
             slot.last_demand = now
             if slot.running:
+                if slot.cancel.is_set():
+                    slot.restart_requested = True
                 return
+            slot.cancel.clear()
+            slot.restart_requested = False
             slot.running = True
             delay = max(0.0, self._next_start - now)
             self._next_start = max(now, self._next_start) + self._stagger_s
-        t = threading.Thread(target=self._run_camera, args=(camera_id, slot.url, delay),
-                             name=f"hub:{camera_id}", daemon=True)
-        t.start()
-        self._threads.append(t)
+            t = threading.Thread(target=self._run_camera, args=(camera_id, slot.url, delay),
+                                 name=f"hub:{camera_id}", daemon=True)
+            self._threads = [thread for thread in self._threads if thread.is_alive()]
+            self._threads.append(t)
+            t.start()
 
     def _always_open(self, slot: HubSlot) -> bool:
         return (not self.on_demand or slot.domain != "GOVERNMENT"
                 or slot.camera_id in self.ai_cameras)
 
     def reap_idle(self, now: float | None = None) -> list[str]:
-        """Close the sessions nothing has asked for in `idle_s`. Returns them."""
+        """Request shutdown for idle sessions; return their camera IDs."""
         now = time.monotonic() if now is None else now
         closed = []
         with self._lock:
             for cid, slot in self._slots.items():
-                if (slot.running and not self._always_open(slot)
+                if (slot.running and not slot.cancel.is_set() and not self._always_open(slot)
                         and now - slot.last_demand > self.idle_s):
+                    slot.cancel.set()
                     closed.append(cid)
-        for cid in closed:
-            self.mgr.remove(cid)
         if closed:
-            log.info("media hub closed idle upstream sessions: %s", ", ".join(closed))
+            log.info("media hub requested idle upstream shutdown: %s", ", ".join(closed))
         return closed
 
     def as_snapshot(self, camera_id: str) -> Snapshot | None:
@@ -292,7 +299,6 @@ class MediaHub:
         """
         self.ai_cameras = set(ai_ids or [])
         self._stagger_s = stagger_s
-        stagger = 0.0
         for cam in cameras:
             cid = cam.get("camera_id") or ""
             if not cid or str(cid).startswith("CTL-SLOT"):
@@ -308,14 +314,7 @@ class MediaHub:
                 self._slots[cid] = slot
             if not self._always_open(slot):
                 continue
-            slot.running = True
-            t = threading.Thread(
-                target=self._run_camera, args=(cid, url, stagger),
-                name=f"hub:{cid}", daemon=True)
-            t.start()
-            self._threads.append(t)
-            stagger += stagger_s
-        self._next_start = time.monotonic() + stagger
+            self.demand(cid)
         if self.ai_cameras:
             ai = threading.Thread(target=self._ai_loop, name="hub-ai", daemon=True)
             ai.start()
@@ -328,32 +327,42 @@ class MediaHub:
                  len(self._slots), sorted(self.ai_cameras))
 
     def stop(self) -> None:
-        self._stop.set()
-        self.mgr.stop_all()
-        try:
+        with self._lock:
+            self._stop.set()
+            for slot in self._slots.values():
+                slot.cancel.set()
+        with contextlib.suppress(queue.Full):
             self._ai_q.put_nowait(None)
-        except queue.Full:
-            pass
 
     def _run_camera(self, camera_id: str, url: str, delay: float) -> None:
+        slot = self._slots[camera_id]
+        worker = None
         try:
-            if delay and self._stop.wait(delay):
+            if slot.cancel.wait(delay):
                 return
-            worker = self.mgr.add(camera_id, url)
-            q = worker.subscribe("hub-jpeg")
-            while not self._stop.is_set():
+            with self._lock:
+                if self._stop.is_set() or slot.cancel.is_set():
+                    return
+                worker = self.mgr.add(camera_id, url)
+                q = worker.subscribe("hub-jpeg")
+            while not self._stop.is_set() and not slot.cancel.is_set():
                 try:
-                    frame = q.get(timeout=1.0)
+                    frame = q.get(timeout=0.2)
                 except queue.Empty:
                     continue
                 if frame is None:
                     return
                 self._on_frame(camera_id, frame)
         finally:
+            if worker is not None:
+                self.mgr.remove(camera_id)
+                # A stop sentinel precedes decoder/container shutdown. Retain
+                # slot ownership until that thread exits to avoid two RTSPs.
+                worker.join()
             with self._lock:
-                slot = self._slots.get(camera_id)
-                if slot is not None:
-                    slot.running = False
+                slot.running = False
+                if slot.restart_requested and not self._stop.is_set():
+                    self.demand(camera_id)
 
     def _on_frame(self, camera_id: str, frame: Frame) -> None:
         now = time.monotonic()

@@ -70,12 +70,14 @@ def parity(crops: list[Path]) -> int:
     import torch
 
     from saakshya.analytics import ocr_indian as oi
+    from saakshya.runtime.backend import device_lock
 
     x = np.stack([oi.preprocess(cv2.imread(str(f))) for f in crops])
     want = oi.paddle_reference()(x)
     rec = oi.IndianPlateOcr()
-    with torch.inference_mode():
-        got = rec._ensure()(torch.from_numpy(x).to(rec.device)).float().cpu().numpy()
+    model = rec._ensure()  # Warm-up takes the device lock itself; load before locking.
+    with device_lock(rec.device), torch.inference_mode():
+        got = model(torch.from_numpy(x).to(rec.device)).float().cpu().numpy()
     a, b = oi.ctc_decode(want, rec.charset), oi.ctc_decode(got, rec.charset)
     same = sum(p[0] == q[0] for p, q in zip(a, b, strict=True))
     diff = float(np.abs(want - got).max())

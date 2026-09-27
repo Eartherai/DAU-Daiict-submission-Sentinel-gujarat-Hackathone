@@ -400,11 +400,11 @@ class SnapshotService:
             from saakshya.live.hub import get_hub
             hub = get_hub()
             if hub is not None:
+                hub_owned = hub.owns(camera_id)
                 hs = hub.as_snapshot(camera_id)
                 if hs is not None:
                     self.stats["served_from_ingest"] += 1
                     return hs
-                hub_owned = hub.owns(camera_id)
         except Exception:
             pass
         live = self.selected.latest(camera_id)

@@ -308,7 +308,7 @@ def test_a_frames_plates_are_read_in_one_batch() -> None:
 
         def ocr_many(self, crops):
             calls.append(len(crops))
-            return [OcrResult("MH02EZ1785", 0.95), None]
+            return [OcrResult("MH02EZ1785", 0.95, weakest=0.41), None]
 
         def ocr(self, crop):                                   # pragma: no cover
             raise AssertionError("per-crop path used")
@@ -318,6 +318,7 @@ def test_a_frames_plates_are_read_in_one_batch() -> None:
     reads = eng.read_frame(np.zeros((100, 400, 3), dtype=np.uint8), 1.0)
     assert calls == [2]
     assert [r.text for r in reads] == ["MH02EZ1785"] and reads[0].box[0] < 10
+    assert reads[0].weakest == 0.41
 
 
 def test_a_model_that_loads_but_cannot_run_is_a_load_error(monkeypatch) -> None:
@@ -375,3 +376,83 @@ def test_a_lead_is_only_as_sure_as_its_weakest_character() -> None:
     legacy = PlateVoter(AnprConfig())                           # a recogniser with no weakest
     legacy.add("T1", [RawRead("GJ05AB1234", 0.9, (0, 0, 10, 5), 0.9, 0.0)])
     assert legacy.resolve("T1") is not None
+
+
+def test_explicit_failure_does_not_accumulate_tracebacks(monkeypatch) -> None:
+    import traceback
+
+    monkeypatch.setenv("SAAKSHYA_OCR", "indian")
+    monkeypatch.setattr(oi, "available", lambda: False)
+    eng = AnprEngine(AnprConfig(), backend=object())
+    depths = []
+    for _ in range(20):
+        with pytest.raises(RuntimeError) as caught:
+            _ = eng.ocr_backend
+        depths.append(len(traceback.extract_tb(caught.value.__traceback__)))
+    assert len(set(depths[1:])) == 1
+
+
+@pytest.mark.parametrize("vision", [False, True])
+def test_bad_dictionary_uses_auto_fallback(monkeypatch, vision) -> None:
+    from saakshya.analytics import ocr_vision
+
+    monkeypatch.delenv("SAAKSHYA_OCR", raising=False)
+    monkeypatch.setattr(oi, "available", lambda: True)
+    monkeypatch.setattr(oi, "_shared_model", lambda device: object())
+
+    def broken_charset():
+        raise UnicodeError("invalid dictionary encoding")
+
+    monkeypatch.setattr(oi, "charset", broken_charset)
+    monkeypatch.setattr(ocr_vision, "available", lambda: vision)
+    apple = object()
+    monkeypatch.setattr(ocr_vision, "AppleVisionOcr", lambda: apple)
+    eng = AnprEngine(AnprConfig(), backend=object())
+    assert eng.ocr_backend is (apple if vision else eng.backend)
+    monkeypatch.setenv("SAAKSHYA_OCR", "indian")
+    eng = AnprEngine(AnprConfig(), backend=object())
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="dictionary"):
+            _ = eng.ocr_backend
+
+
+def test_corroborated_reads_do_not_use_the_weakest_character_gate() -> None:
+    from saakshya.analytics.anpr import PlateVoter, RawRead
+
+    voter = PlateVoter(AnprConfig())
+    voter.add("T", [RawRead("GJ05AB1234", 0.9, (0, 0, 10, 5), 0.9, i, weakest=0.4)
+                    for i in (0.0, 0.1)])
+    result = voter.resolve("T")
+    assert result is not None and result.votes == 2 and not result.provisional
+
+
+def test_parity_inference_holds_device_lock_after_loading(monkeypatch, tmp_path) -> None:
+    import importlib.util
+    from pathlib import Path
+
+    import cv2
+
+    spec = importlib.util.spec_from_file_location(
+        "ocr_compare", Path(__file__).resolve().parents[2] / "tools/bench/ocr_compare.py")
+    bench = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bench)
+    lock = _RecordingLock()
+    _fake_weights(monkeypatch, lock=lock)
+    monkeypatch.setenv("SAAKSHYA_INDIAN_OCR_DEVICE", "cpu")
+    monkeypatch.setattr(rt, "device_lock", lock)
+    rec = oi.IndianPlateOcr(device="cpu")
+    original_ensure = rec._ensure
+
+    def ensure():
+        assert not lock.held                 # loading itself acquires the device lock
+        return original_ensure()
+
+    monkeypatch.setattr(rec, "_ensure", ensure)
+    monkeypatch.setattr(oi, "IndianPlateOcr", lambda: rec)
+    probs = np.zeros((1, 4, 3), dtype=np.float32)
+    probs[:, :, 0] = 1.0
+    monkeypatch.setattr(oi, "paddle_reference", lambda: lambda x: probs)
+    crop = tmp_path / "crop_01.png"
+    assert cv2.imwrite(str(crop), np.zeros((30, 100, 3), dtype=np.uint8))
+    assert bench.parity([crop]) == 0
+    assert rec._model.ran_under_lock == [True, True]

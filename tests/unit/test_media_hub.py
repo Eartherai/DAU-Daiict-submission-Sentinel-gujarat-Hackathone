@@ -8,9 +8,9 @@ from saakshya.live.hub import LIVE_AGE_S, MediaHub, _video_from_age
 from saakshya.store import Store
 
 
-def test_latest_jpeg_wins():
+def test_latest_jpeg_wins(monkeypatch):
     hub = MediaHub(store=None)
-    hub._slots["cam01"] = hub._slots.get("cam01")
+    monkeypatch.setattr(hub, "demand", lambda cid: None)
     from saakshya.live.hub import HubSlot
     hub._slots["cam01"] = HubSlot(camera_id="cam01", domain="GOVERNMENT", url="rtsp://x")
     hub._slots["cam01"].jpeg = b"aaaa"
@@ -59,6 +59,9 @@ class _FakeWorker:
         self.stats = type("S", (), {"state": "connecting", "measured_fps": None,
                                     "codec": None, "width": None, "height": None,
                                     "reconnects": 0, "frames": 0, "last_error": None})()
+
+    def join(self):
+        pass
 
     def subscribe(self, name):
         return self.q
@@ -157,5 +160,118 @@ def test_a_still_is_not_grabbed_beside_the_hubs_session(monkeypatch):
     try:
         assert svc.get("gov2", "rtsp://g/2") is None
         assert grabs == [] and "no second grid session" in svc.last_error["gov2"]
+    finally:
+        hub.stop()
+
+
+def test_reaped_staggered_start_never_opens():
+    hub = MediaHub(on_demand=True, idle_s=1)
+    hub.mgr = _FakeManager()
+    hub.start(_cams())
+    hub._next_start = time.monotonic() + 30
+    try:
+        hub.demand('gov1')
+        assert hub.reap_idle(time.monotonic() + 2) == ['gov1']
+        assert _wait(lambda: not hub._slots['gov1'].running)
+        assert hub.mgr.added == []
+    finally:
+        hub.stop()
+
+
+def test_demand_during_decoder_shutdown_waits_then_restarts():
+    import threading
+    hub = MediaHub(on_demand=True, idle_s=1)
+    hub.mgr = _FakeManager()
+    hub.start(_cams(), stagger_s=0)
+    joining, release = threading.Event(), threading.Event()
+    try:
+        hub.demand('gov1')
+        assert _wait(lambda: hub.mgr.get('gov1') is not None)
+        worker = hub.mgr.get('gov1')
+
+        def join():
+            joining.set()
+            assert release.wait(3)
+
+        worker.join = join
+        assert hub.reap_idle(time.monotonic() + 2) == ['gov1']
+        assert joining.wait(3)
+        hub.demand('gov1')
+        assert hub._slots['gov1'].running
+        assert hub.mgr.added == ['gov1']
+        release.set()
+        assert _wait(lambda: hub.mgr.added == ['gov1', 'gov1'])
+    finally:
+        release.set()
+        hub.stop()
+
+
+def test_consumer_failure_removes_decoder(monkeypatch):
+    hub = MediaHub(on_demand=True)
+    hub.mgr = _FakeManager()
+    hub.start(_cams(), stagger_s=0)
+    # Drive synchronously so the expected processing failure is observed.
+    import pytest
+    monkeypatch.setattr(hub, '_on_frame', lambda *args: 1 / 0)
+    original = hub.mgr.add
+
+    def add(cid, url):
+        worker = original(cid, url)
+        worker.q.put(object())
+        return worker
+
+    monkeypatch.setattr(hub.mgr, 'add', add)
+    try:
+        with pytest.raises(ZeroDivisionError):
+            hub._run_camera('gov1', 'rtsp://g/1', 0)
+        assert hub.mgr.get('gov1') is None
+        assert not hub._slots['gov1'].running
+    finally:
+        hub.stop()
+
+
+def test_snapshot_failure_does_not_open_second_session(monkeypatch):
+    from saakshya.live import hub as hub_mod
+    from saakshya.live.snapshot import SnapshotService
+    hub = MediaHub(on_demand=True)
+    hub.mgr = _FakeManager()
+    hub.start(_cams())
+    monkeypatch.setattr(hub_mod, '_HUB', hub)
+    monkeypatch.setattr(hub, 'as_snapshot', lambda cid: 1 / 0)
+    svc = SnapshotService()
+    grabs = []
+    monkeypatch.setattr(svc, '_lock_for', lambda cid: grabs.append(cid))
+    try:
+        assert svc.get('gov1', 'rtsp://g/1') is None
+        assert grabs == []
+        assert 'no second grid session' in svc.last_error['gov1']
+    finally:
+        hub.stop()
+
+
+def test_stop_cancels_pending_start_and_rejects_demand():
+    hub = MediaHub(on_demand=True)
+    hub.mgr = _FakeManager()
+    hub.start(_cams())
+    hub._next_start = time.monotonic() + 30
+    hub.demand('gov1')
+    hub.stop()
+    hub.demand('gov2')
+    assert _wait(lambda: not hub._slots['gov1'].running)
+    assert hub.mgr.added == []
+
+
+def test_idle_shutdown_does_not_depend_on_queue_sentinel():
+    hub = MediaHub(on_demand=True, idle_s=1)
+    hub.mgr = _FakeManager()
+    hub.start(_cams(), stagger_s=0)
+    try:
+        hub.demand('gov1')
+        assert _wait(lambda: hub.mgr.get('gov1') is not None)
+        # StreamWorker.stop can drop its sentinel when the queue is full.
+        hub.mgr.remove = lambda cid: hub.mgr.workers.pop(cid, None)
+        hub.reap_idle(time.monotonic() + 2)
+        assert _wait(lambda: not hub._slots['gov1'].running)
+        assert hub.mgr.get('gov1') is None
     finally:
         hub.stop()

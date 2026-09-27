@@ -291,7 +291,8 @@ class AnprEngine:
         """
         err = getattr(self, "_ocr_error", None)
         if err is not None:
-            raise err
+            # Reusing the exception adds this frame to its traceback per access.
+            raise RuntimeError(*err.args) from err.__cause__
         if getattr(self, "_ocr", None) is None:
             choice = (os.environ.get("SAAKSHYA_OCR") or self.cfg.ocr_engine).strip().lower()
             try:

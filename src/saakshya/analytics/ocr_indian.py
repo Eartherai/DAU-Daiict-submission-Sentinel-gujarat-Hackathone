@@ -135,8 +135,8 @@ def _shared_model(device: str) -> Any:
         from saakshya.analytics import ocr_indian_net
 
         try:
-            # Built and filled on the CPU, then moved: only the move is Metal
-            # work, and only it holds the lock the detector's calls wait on.
+            # Build on CPU; only the move and warm-up hold the Metal lock.
+            # Callers must load before taking device_lock: it is not reentrant.
             model = ocr_indian_net.load(WEIGHTS, "cpu")
             import torch
             with _backend.device_lock(device), torch.inference_mode():
@@ -232,7 +232,11 @@ class IndianPlateOcr:
         if self._model is None:
             device = _device(self._choice)
             model = _shared_model(device)
-            self.charset = charset()
+            try:
+                self.charset = charset()
+            except (OSError, UnicodeError) as exc:
+                raise LoadError(f"Indian plate OCR dictionary did not load from {DICT}: "
+                                f"{type(exc).__name__}: {exc}") from exc
             self.device, self._model = device, model
         return self._model
 

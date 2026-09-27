@@ -431,36 +431,287 @@ def bleed(path: Path, kicker_s: str, heading: str, caption: str, page: str) -> I
 
 def scenario() -> Image.Image:
     return table_page(
-        "The test scenario, on this platform",
-        "What the brief asks, and where it is",
-        ["ASKED", "WHERE", "WHAT YOU WILL SEE"],
+        "Evaluation  ·  requirement to evidence",
+        "Test scenario, answered",
+        ["BRIEF REQUIREMENT", "WHERE TO LOOK", "EVIDENCE AND BOUNDARY"],
         [
-            [("Onboard heterogeneous cameras", None),
-             ("Cameras · Model 1 registry", None),
-             ("30 of the issued grid. Mixed codec, resolution, department. Not 50, not 80.", None)],
-            [("Centralised monitoring", None),
-             ("Live wall · Model 2 stills", None),
-             ("Ingest JPEGs ~1 Hz. Extra decode on click. A 30-tile WebRTC wall is 30 extra copies.", None)],
-            [("AI-powered analytics", None),
-             ("Edge T0–T2 · Analytics", None),
-             ("Detection, tracking, ANPR with voting, person presence. No face identification.", None)],
-            [("Identify and trace a designated mark", None),
-             ("Investigate", None),
-             ("GJ1VV0119 on cam07 (one camera). Own-feed GJ05AB1234 on C-014 and C-021.", None)],
-            [("Complete route with timestamps", None),
-             ("Trajectory legs", None),
-             ("OBSERVED / UNOBSERVED / COVERAGE GAP. Timebase ALLOWED or REFUSED — never estimated.", None)],
-            [("Watchlist + automated alerts", None),
-             ("Alerts", None),
-             ("Live: GJ38BH5815 stolen_vehicle HIGH on cam21. Own feed: GJ05AB1234 and GJ15NT6564.", None)],
-            [("Scale toward 80,000", None),
-             ("MODELLED on district nodes", None),
-             ("Never quoted as tested. District edge + metadata to centre is the scale story.", None)],
+            [
+                ("~50 heterogeneous cameras onboarded", None),
+                ("Cameras / registry · Live wall", None),
+                (
+                    (
+                        "Evaluation baseline: 30 government + 2 own feeds + 18 synthetic "
+                        "controls. Controls are not live government cameras; additional "
+                        "onboarded cameras are retained."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Centralised monitoring + AI", None),
+                ("Overview · Live wall · Intelligence", None),
+                (
+                    (
+                        "Government RTSP / WebRTC and own feeds in one workspace; "
+                        "vehicle/person boxes and plate reads. Departmental systems remain "
+                        "in place."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Designated vehicle → route", None),
+                ("Investigate · Trajectory legs", None),
+                (
+                    (
+                        "Own-store GJ18JX7786: C-014 → C-021, five minutes apart "
+                        "(fictional plate). Government GJ1VV0119: cam07 only, not a "
+                        "cross-camera route."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Timestamped, location-wise history", None),
+                ("Vehicle trace report · 06_* reports", None),
+                (
+                    (
+                        "Camera/location, timestamped reads, timed legs, sealed stills and "
+                        "row digest. Coverage gaps stay explicit; unreliable shared clocks "
+                        "are REFUSED."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Continuous watchlist cross-reference", None),
+                ("Alerts · own/government films", None),
+                (
+                    (
+                        "Each ingested sighting is matched; hit and sighting commit "
+                        "together. Automated alerts show the read, priority and evidence; "
+                        "repeated reads form incidents."
+                    ),
+                    None,
+                ),
+            ],
         ],
-        "Output report lives in the portal pack: detections CSV, overlay log, and the two films.",
-        "08",
-        col_w=[ML, ML + 480, ML + 860],
+        (
+            "Baseline: command/domain.py enforce_evaluation_50. View names "
+            "identify evidence; film chapter timestamps are not recorded here."
+        ),
+        "10",
+        col_w=[ML, ML + 460, ML + 870],
     )
+
+
+def infrastructure() -> Image.Image:
+    return table_page(
+        "Deployment  ·  modelled unless marked measured",
+        "Infrastructure sizing and cost",
+        ["TIER / RESOURCE", "SIZING AND SUBMISSION BASIS"],
+        [
+            [
+                ("Edge / district / centre", None),
+                (
+                    (
+                        "Video at camera/NVR; district edge runs ingest, AI, local store, "
+                        "queue and alerts. ~33 districts x 2,000-3,000 cameras; centre: "
+                        "metadata, PostgreSQL/PostGIS, search and audit."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("GPU model: speedup S", None),
+                (
+                    (
+                        "At 2,500 cameras x 1 Hz: inference nodes/district = 2,500 / (5.6 "
+                        "x S). S=10: 45 nodes/district, 1,485 statewide (MODELLED). Target "
+                        "GPU must be benchmarked."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Measured accelerator boundary", None),
+                (
+                    (
+                        "Apple M5 integrated GPU: S=2.0 whole pipeline; 3.4 detector only. "
+                        "Earlier OCR pipeline; not re-run with the new recogniser. Not a "
+                        "target GPU procurement result."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Bandwidth / low connectivity", None),
+                (
+                    (
+                        "Metadata-only aggregation: ~400 B/observation, ~90-180 GB/day "
+                        "statewide with T0 gating. Avoids 160 Gbps continuous video; "
+                        "viewing/stills add traffic. Local queue replays after outages."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Hot / warm / cold storage", None),
+                (
+                    (
+                        "Hot: 30 days metadata + sealed evidence at node. Warm/cold: "
+                        "monthly observation partitions; retention policy still to be set. "
+                        "Video stays at NVR; ~52 PB central video store avoided."
+                    ),
+                    None,
+                ),
+            ],
+            [
+                ("Indicative implementation / operations cost", None),
+                (
+                    (
+                        "HLD §17.2-17.5: node counts depend on S; inference dominates "
+                        "operations. Unit prices and rupee totals NOT ESTIMATED. Benchmark "
+                        "target hardware and obtain procurement prices."
+                    ),
+                    None,
+                ),
+            ],
+        ],
+        (
+            "Sources: HLD §7, §12, §17.1-17.5; docs/SCALE_MODEL.md. HLD §20 is "
+            "not present in this revision. Statewide sizing is not a live 80k "
+            "test."
+        ),
+        "11",
+        col_w=[ML, ML + 500],
+    )
+
+
+def evaluation() -> Image.Image:
+    img, d = canvas(False)
+    rail(img, d, "EVALUATION", "38")
+    kicker(d, "Judging criteria  ·  evidence index")
+    title(d, "Evaluation framework, mapped", y=84, size=48)
+    groups = [
+        (
+            "SEVEN COMMON AREAS",
+            [
+                (
+                    "01 Government test case",
+                    (
+                        "Government film + ANPR CSV: camera and timestamp; no proven "
+                        "multi-camera government route."
+                    ),
+                ),
+                (
+                    "02 Presentation clarity / completeness",
+                    ("This deck: model, workflow, scenario, sizing, evidence and explicit limits."),
+                ),
+                (
+                    "03 Architecture / feasibility / security",
+                    "HLD diagrams + §10 adapters, §17 sizing, §18 security; SECURITY.md.",
+                ),
+                (
+                    "04 Working platform maturity",
+                    (
+                        "Own-feed and government films: onboarding, viewing, search, "
+                        "alerts and evidence."
+                    ),
+                ),
+                (
+                    "05 Analytics output quality",
+                    (
+                        "Intelligence overlays + plate CSV + trace reports. Person/vehicle "
+                        "detection; FRS gated, intrusion not established by these films."
+                    ),
+                ),
+                (
+                    "06 ~80k scale / PoC readiness",
+                    (
+                        "05_SCALE_80K_LOAD_TEST.md + HLD §17: registry load evidence; "
+                        "statewide live AI remains modelled."
+                    ),
+                ),
+                (
+                    "07 Accessible, consistent submission",
+                    (
+                        "FINAL_SUBMISSION.md + 00_CHECKLIST.md index docs, films and "
+                        "reports; public links/access need final verification."
+                    ),
+                ),
+            ],
+        ),
+        (
+            "SIX BONUS AREAS",
+            [
+                (
+                    "Hybrid architecture",
+                    (
+                        "Models 1 + 2 + 3 and selected-camera M4 analytics; HLD "
+                        "architecture diagrams."
+                    ),
+                ),
+                (
+                    "Cross-camera vehicle tracking",
+                    (
+                        "Investigate + own trace report, C-014 → C-021; controlled "
+                        "own-store route, not government proof."
+                    ),
+                ),
+                (
+                    "Reliable analytics beyond ANPR",
+                    (
+                        "Government detection overlays, person/vehicle boxes, tracking and "
+                        "measured capability grades; no face identity claim."
+                    ),
+                ),
+                (
+                    "Edge / bandwidth / low connectivity",
+                    (
+                        "HLD §6, §12 + SCALE_MODEL: durable queue, offline replay, "
+                        "metadata aggregation."
+                    ),
+                ),
+                (
+                    "Cybersecurity / privacy / audit / RBAC",
+                    (
+                        "SECURITY.md + Evidence and Audit views: hash chains, jurisdiction "
+                        "gates, blurred heads in own film."
+                    ),
+                ),
+                (
+                    "Dashboards / alerts / health / APIs",
+                    (
+                        "Overview, Alerts and Cameras views; 05_* registry API and "
+                        "gap-analysis material; HLD §10 adapters."
+                    ),
+                ),
+            ],
+        ),
+    ]
+    cw = (W - ML - MR - 48) // 2
+    for col, (heading, rows) in enumerate(groups):
+        x = ML + col * (cw + 48)
+        _text(d, (x, 180), heading, SANS(14), MUTED, spacing=2.4)
+        y = 220
+        for label, evidence in rows:
+            d.text((x, y), label, font=SANS_B(20), fill=INK)
+            y += 29
+            for line in wrap(d, evidence, SANS(18), cw):
+                d.text((x, y), line, font=SANS(18), fill=MUTED)
+                y += 24
+            y += 18
+            d.line([(x, y - 8), (x + cw, y - 8)], fill=RULE, width=1)
+    footer(
+        d,
+        (
+            "Evidence index, not a score claim. Film/report descriptions "
+            "follow docs/FINAL_SUBMISSION.md; delivery links are verified at "
+            "submission."
+        ),
+    )
+    return img
 
 
 def pipeline() -> Image.Image:
@@ -906,13 +1157,14 @@ def build() -> list[Image.Image]:
               "Ingest → analytics → edge → store → investigation",
               "Code paths are the boxes: ingest/stream.py, analytics/, edge/, store/ (21 tables), intelligence through investigation.",
               "09"),
+        scenario(),
+        infrastructure(),
         pipeline(),
         analytics(),
         watchlist_method(),
         stack(),
         scale_security(),
         benefits(),
-        scenario(),
         shot_page(SHOTS / "gov_overview.png",
                   "Workspace  ·  government grid  ·  24 Sep 2026",
                   "Overview is the shift picture, not a video wall",
@@ -1003,6 +1255,7 @@ def build() -> list[Image.Image]:
         gpu_measured(),
         limits(),
         films(),
+        evaluation(),
         close(),
     ]
     # Renumber rails after build — close is last; copilot used 21a. Fix page labels

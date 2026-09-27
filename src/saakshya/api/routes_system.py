@@ -73,16 +73,22 @@ def _feed_health(state: Any) -> dict[str, Any]:
     if hub is not None:
         snap = hub.snapshot()
         n = snap["upstream_sessions"]
+        idle = snap.get("idle", 0)
         streaming = snap["source_connected"]
         live = snap["browser_live"]
-        st = (HEALTHY if streaming == n and n else
+        # A camera nothing is watching is not opened (on-demand hub), so it is
+        # neither up nor down: with no session open there is nothing measured,
+        # and "FAILED" would be a claim about cameras nobody connected to.
+        st = (UNKNOWN if n == 0 else
+              HEALTHY if streaming == n else
               FAILED if streaming == 0 else DEGRADED)
         return _check(
             "feed", st,
-            (f"local hub: {streaming}/{n} upstream RTSP connected, "
+            (f"local hub: {streaming}/{n} open upstream RTSP sessions connected, "
+             f"{idle} idle until something asks for them, "
              f"{live} browser LIVE (hub JPEG age ≤ {4.0}s). "
              "Not per-tile Sentinel WHEP."),
-            cameras=n, streaming=streaming, browser_live=live,
+            cameras=n, streaming=streaming, browser_live=live, idle=idle,
             plane="local_hub")
     from sqlalchemy import select
 

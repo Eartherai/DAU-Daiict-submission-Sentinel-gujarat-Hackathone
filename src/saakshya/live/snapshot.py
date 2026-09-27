@@ -395,6 +395,7 @@ class SnapshotService:
                     return None
         except Exception:
             pass
+        hub_owned = False
         try:
             from saakshya.live.hub import get_hub
             hub = get_hub()
@@ -403,6 +404,7 @@ class SnapshotService:
                 if hs is not None:
                     self.stats["served_from_ingest"] += 1
                     return hs
+                hub_owned = hub.owns(camera_id)
         except Exception:
             pass
         live = self.selected.latest(camera_id)
@@ -442,6 +444,16 @@ class SnapshotService:
                 "ingest has not published a still for this camera yet. "
                 "A second RTSP session is not opened while the grid is "
                 "already being consumed.")
+            self.stats["failed"] += 1
+            return None
+
+        if hub_owned:
+            # The hub holds (or is opening, on demand) this camera's one
+            # session. A still grabbed beside it would be a second session to
+            # the same camera - what the organisers ask teams not to open.
+            self.last_error[camera_id] = (
+                "connecting — the hub is opening this camera for its first "
+                "frame (no second grid session is opened for a still)")
             self.stats["failed"] += 1
             return None
 

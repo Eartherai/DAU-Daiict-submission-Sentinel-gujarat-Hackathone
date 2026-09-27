@@ -25,13 +25,26 @@ import numpy as np
 from PIL import Image
 
 from saakshya.ingest.frame import Frame
-from saakshya.ingest.stream import StreamManager, StreamConfig
+from saakshya.ingest.stream import StreamConfig, StreamManager
 from saakshya.live.snapshot import Snapshot, local_media_url
 
 log = logging.getLogger("saakshya.live.hub")
 
 LIVE_AGE_S = 4.0
 PREVIEW_AGE_S = 12.0
+#: Open a government camera's upstream session only while something needs it.
+#: The hub used to hold one RTSP session to every government camera from start
+#: to shutdown, watched or not. The organisers' guidance for the shared sandbox
+#: is the opposite: keep open only the streams actively required, open them
+#: according to actual processing needs, stagger connections, and design for a
+#: camera count that is not fixed. A camera's session now opens when a still of
+#: it is asked for (a visible tile, a focused view) or when it is assigned to
+#: the AI worker, and closes after HUB_IDLE_S with no request. Own-feed files
+#: are local and cost the grid nothing, so they stay open.
+#: SAAKSHYA_HUB_ON_DEMAND=0 restores the always-open behaviour.
+HUB_ON_DEMAND = os.environ.get("SAAKSHYA_HUB_ON_DEMAND", "1").strip().lower() not in {
+    "0", "false", "off", "no"}
+HUB_IDLE_S = float(os.environ.get("SAAKSHYA_HUB_IDLE_S", "90"))
 JPEG_MIN_INTERVAL_S = 0.09  # ~11 fps ceiling per camera; latest-frame-wins
 AI_QUEUE = 2
 HEALTH_FLUSH_S = 5.0
@@ -80,6 +93,10 @@ class HubSlot:
     dropped_ai: int = 0
     jpeg_count: int = 0
     last_error: str | None = None
+    #: Whether an upstream worker is running for this camera now.
+    running: bool = False
+    #: When a still of this camera was last asked for (monotonic seconds).
+    last_demand: float = 0.0
     _fps_times: list[float] = field(default_factory=list)
 
 
@@ -87,8 +104,13 @@ class MediaHub:
     """Authoritative local media plane for the API process."""
 
     def __init__(self, store: Any | None = None, *,
-                 jpeg_quality: int = 70, max_width: int = 720) -> None:
+                 jpeg_quality: int = 70, max_width: int = 720,
+                 on_demand: bool | None = None, idle_s: float | None = None) -> None:
         self.store = store
+        self.on_demand = HUB_ON_DEMAND if on_demand is None else on_demand
+        self.idle_s = HUB_IDLE_S if idle_s is None else idle_s
+        self._stagger_s = 0.18
+        self._next_start = 0.0
         self.jpeg_quality = jpeg_quality
         self.max_width = max_width
         self.mgr = StreamManager(StreamConfig(
@@ -112,8 +134,55 @@ class MediaHub:
             "ai_error": None,
         }
 
+    def owns(self, camera_id: str) -> bool:
+        """Whether this hub is the camera's one upstream session (open or idle)."""
+        return camera_id in self._slots
+
+    def demand(self, camera_id: str) -> None:
+        """Something needs this camera now: open its session if it is idle.
+
+        Starts are staggered, as at boot, so thirty tiles scrolling into view
+        together do not become thirty simultaneous handshakes at the gateway.
+        """
+        now = time.monotonic()
+        with self._lock:
+            slot = self._slots.get(camera_id)
+            if slot is None or self._stop.is_set():
+                return
+            slot.last_demand = now
+            if slot.running:
+                return
+            slot.running = True
+            delay = max(0.0, self._next_start - now)
+            self._next_start = max(now, self._next_start) + self._stagger_s
+        t = threading.Thread(target=self._run_camera, args=(camera_id, slot.url, delay),
+                             name=f"hub:{camera_id}", daemon=True)
+        t.start()
+        self._threads.append(t)
+
+    def _always_open(self, slot: HubSlot) -> bool:
+        return (not self.on_demand or slot.domain != "GOVERNMENT"
+                or slot.camera_id in self.ai_cameras)
+
+    def reap_idle(self, now: float | None = None) -> list[str]:
+        """Close the sessions nothing has asked for in `idle_s`. Returns them."""
+        now = time.monotonic() if now is None else now
+        closed = []
+        with self._lock:
+            for cid, slot in self._slots.items():
+                if (slot.running and not self._always_open(slot)
+                        and now - slot.last_demand > self.idle_s):
+                    closed.append(cid)
+        for cid in closed:
+            self.mgr.remove(cid)
+        if closed:
+            log.info("media hub closed idle upstream sessions: %s", ", ".join(closed))
+        return closed
+
     def as_snapshot(self, camera_id: str) -> Snapshot | None:
         slot = self._slots.get(camera_id)
+        if slot is not None:
+            self.demand(camera_id)
         if slot is None or not slot.jpeg:
             return None
         age = time.time() - slot.captured_at if slot.captured_at else 999
@@ -127,6 +196,18 @@ class MediaHub:
         with self._lock:
             slot = self._slots.get(camera_id)
             worker = self.mgr.get(camera_id)
+        if slot is not None and not slot.running and not self._always_open(slot):
+            return {
+                "camera_id": camera_id,
+                "source": "IDLE",
+                "video": "IDLE",
+                "ai": slot.ai,
+                "age_s": None if not slot.jpeg else round(time.time() - slot.captured_at, 3),
+                "domain": slot.domain,
+                "label": "NOT_OPENED",
+                "live_means": ("no upstream session is held for a camera nothing is "
+                               "watching; it opens when a still of it is asked for"),
+            }
         if slot is None:
             return {
                 "camera_id": camera_id,
@@ -186,7 +267,9 @@ class MediaHub:
         gov = [s for s in states if s.get("domain") == "GOVERNMENT"]
         return {
             "plane": "local_hub",
-            "upstream_sessions": len(ids),
+            "on_demand": self.on_demand,
+            "upstream_sessions": sum(1 for s in states if s["source"] != "IDLE"),
+            "idle": sum(1 for s in states if s["source"] == "IDLE"),
             "source_connected": streaming,
             "government_live": sum(1 for s in gov if s["video"] == "LIVE"),
             "government_connected": sum(1 for s in gov if s["source"] == "CONNECTED"),
@@ -202,8 +285,13 @@ class MediaHub:
     def start(self, cameras: list[dict[str, Any]], *,
               ai_ids: list[str] | None = None,
               stagger_s: float = 0.18) -> None:
-        """Start one worker per camera. Own-feeds use local files."""
+        """Register every camera; open the ones that must be open now.
+
+        Own-feed files, AI-assigned cameras, and every camera when on-demand is
+        off, open at once, staggered. The rest open on first `demand`.
+        """
         self.ai_cameras = set(ai_ids or [])
+        self._stagger_s = stagger_s
         stagger = 0.0
         for cam in cameras:
             cid = cam.get("camera_id") or ""
@@ -215,15 +303,19 @@ class MediaHub:
             url = local_media_url(cid) or (cam.get("rtsp_url") or "")
             if not url:
                 continue
+            slot = HubSlot(camera_id=cid, domain=domain or "GOVERNMENT", url=url)
             with self._lock:
-                self._slots[cid] = HubSlot(
-                    camera_id=cid, domain=domain or "GOVERNMENT", url=url)
+                self._slots[cid] = slot
+            if not self._always_open(slot):
+                continue
+            slot.running = True
             t = threading.Thread(
                 target=self._run_camera, args=(cid, url, stagger),
                 name=f"hub:{cid}", daemon=True)
             t.start()
             self._threads.append(t)
             stagger += stagger_s
+        self._next_start = time.monotonic() + stagger
         if self.ai_cameras:
             ai = threading.Thread(target=self._ai_loop, name="hub-ai", daemon=True)
             ai.start()
@@ -244,18 +336,24 @@ class MediaHub:
             pass
 
     def _run_camera(self, camera_id: str, url: str, delay: float) -> None:
-        if delay and self._stop.wait(delay):
-            return
-        worker = self.mgr.add(camera_id, url)
-        q = worker.subscribe("hub-jpeg")
-        while not self._stop.is_set():
-            try:
-                frame = q.get(timeout=1.0)
-            except queue.Empty:
-                continue
-            if frame is None:
+        try:
+            if delay and self._stop.wait(delay):
                 return
-            self._on_frame(camera_id, frame)
+            worker = self.mgr.add(camera_id, url)
+            q = worker.subscribe("hub-jpeg")
+            while not self._stop.is_set():
+                try:
+                    frame = q.get(timeout=1.0)
+                except queue.Empty:
+                    continue
+                if frame is None:
+                    return
+                self._on_frame(camera_id, frame)
+        finally:
+            with self._lock:
+                slot = self._slots.get(camera_id)
+                if slot is not None:
+                    slot.running = False
 
     def _on_frame(self, camera_id: str, frame: Frame) -> None:
         now = time.monotonic()
@@ -377,11 +475,18 @@ class MediaHub:
 
     def _health_loop(self) -> None:
         while not self._stop.wait(HEALTH_FLUSH_S):
+            try:
+                self.reap_idle()
+            except Exception:
+                log.exception("hub idle reaping failed")
             if self.store is None:
                 continue
             try:
                 snap = self.snapshot()
                 for row in snap["cameras"]:
+                    if row["source"] == "IDLE":
+                        # Not opened, so not measured: keep the last health.
+                        continue
                     st = "STREAMING" if row["source"] in {"CONNECTED", "RECONNECTING"} else (
                         "DOWN" if row["source"] in {"UPSTREAM_ERROR", "NO_SIGNAL"} else "UNKNOWN")
                     self.store.upsert_health(row["camera_id"], {

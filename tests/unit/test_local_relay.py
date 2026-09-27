@@ -120,3 +120,25 @@ def test_capability_table_does_not_transcode_everyone():
     assert table["cam01"]["passthrough"] is False
     assert table["OWN-TRAFFIC"]["passthrough"] is True
     assert table["cam01"]["transcode"] is True
+
+
+def test_the_relay_is_opt_in(monkeypatch):
+    # It holds a session to every published camera, watched or not; the
+    # sandbox guidance is to keep open only the streams actively required.
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("SAAKSHYA_LOCAL_RELAY", raising=False)
+    assert relay_enabled() is False
+    monkeypatch.setenv("SAAKSHYA_LOCAL_RELAY", "1")
+    assert relay_enabled() is True
+
+
+def test_the_relay_publishes_no_more_than_the_measured_fifteen(monkeypatch):
+    from saakshya.live import relay as relay_mod
+
+    class Store:
+        def list_cameras(self):
+            return [{"camera_id": f"cam{i:02d}", "source_domain": "GOVERNMENT"}
+                    for i in range(30)]
+    assert relay_mod.MAX_CAMERAS == 15
+    monkeypatch.setenv("SAAKSHYA_RELAY_GOVERNMENT_ONLY", "1")
+    assert len(relay_mod.select_relay_cameras(Store())) == 15

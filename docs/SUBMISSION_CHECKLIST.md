@@ -140,9 +140,12 @@ by them in questions.
   beside MH02GB4920, with 3 votes against 267).
 - **The local relay can crash-loop.** On this laptop the relay's per-camera
   transcode hit decoder errors and reconnected fast enough that the grid
-  counted the dead sessions and refused the account for a while. The
-  government film uses direct WebRTC from the grid through the proxy, which
-  opens one session per visible tile and decodes nothing locally.
+  counted the dead sessions and refused the account for a while. It held a
+  session to every published camera whether or not anyone watched, which is
+  what the organisers ask teams not to do, so it is now opt-in and capped at
+  the 15 it sustained. The government film uses direct WebRTC from the grid
+  through the proxy, which opens one session per visible tile and decodes
+  nothing locally.
 - **The restricted-zone rule on the government grid is a demonstration rule**,
   set by the estate administrator for this evaluation and labelled so. The
   entries it reports are real sightings on that camera.
@@ -159,9 +162,17 @@ by them in questions.
 - **Two government cameras show corrupted colour** in the film — Dethali Char
   Rasta green, O.N.G.C. Office orange. Both artifacts are present in the
   upstream feed; they are not produced by anything here.
-- **The upstream grid meters WHEP sessions.** After repeated recording it
-  refuses new sessions for roughly 45–60 minutes. If you intend to show the
-  live wall on stage, do not re-record beforehand.
+- **The shared sandbox's availability varies with load.** After repeated
+  back-to-back recordings it refused new sessions for roughly 45–60 minutes.
+  The organisers have confirmed in writing that there is no fixed
+  participant-facing session or rate limit, that availability depends on
+  overall sandbox usage and gateway load, and that this variation is not a
+  limitation of our bridge; they recommend opening only the streams actually
+  needed, with backoff, per-camera isolation and staggered connections, which
+  is what the platform does (`docs/SENTINEL_SANDBOX.md`, "Concurrent access").
+  The media hub now opens a government camera only while something needs it,
+  where it used to hold all thirty. If you intend to show the live wall on
+  stage, do not re-record beforehand.
 - **Nothing here is production ready, legally admissible, or tested at 80,000
   cameras end to end.** The registry plane was tested at 80,000. The video and
   inference planes were not, and saying otherwise would be false.

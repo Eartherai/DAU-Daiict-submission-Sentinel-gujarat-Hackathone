@@ -57,8 +57,9 @@ MAX_HEIGHT = int(os.environ.get("SAAKSHYA_RELAY_MAX_HEIGHT", "480"))
 WALL_FPS = max(1, int(os.environ.get("SAAKSHYA_RELAY_FPS", "12")))
 #: Government cameras to publish, 0 = no cap. A measured ramp on this host
 #: held 15 at 1280x720/15fps with load ~5.5; 30 at the same profile
-#: collapsed with 63 broken pipes and a wall-wide 401 cascade.
-MAX_CAMERAS = int(os.environ.get("SAAKSHYA_RELAY_MAX_CAMERAS", "0"))
+#: collapsed with 63 broken pipes and a wall-wide 401 cascade. The default
+#: was "no cap" all the same; it is now the 15 that held.
+MAX_CAMERAS = int(os.environ.get("SAAKSHYA_RELAY_MAX_CAMERAS", "15"))
 #: Copy H.264 sources straight through instead of decoding and re-encoding.
 #: Off by default, and the reason is worth recording. Passthrough is far
 #: cheaper (30 publishers at 16% CPU rather than ~370%) and preserves the full
@@ -115,10 +116,21 @@ def set_relay(relay: LocalRelay | None) -> None:
 
 
 def relay_enabled() -> bool:
+    """Whether to run the local relay. Off unless SAAKSHYA_LOCAL_RELAY=1.
+
+    The relay holds one upstream session per published camera from start to
+    shutdown, watched or not. Against the shared Sentinel sandbox the
+    organisers' guidance is to keep open only the streams actively required,
+    and the relay's own record here is a crash-loop that tipped the grid into
+    refusing the account. So it is opt-in: by default browser tiles use direct
+    WHEP for the tiles on screen and the media hub opens a camera only while a
+    still of it is wanted (live/hub.py). Turn it on for a camera set whose
+    browsers cannot play the source codec, knowing what it holds open.
+    """
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return False
-    flag = os.environ.get("SAAKSHYA_LOCAL_RELAY", "1").strip().lower()
-    return flag not in {"0", "false", "off", "no"}
+    flag = os.environ.get("SAAKSHYA_LOCAL_RELAY", "0").strip().lower()
+    return flag in {"1", "true", "on", "yes"}
 
 
 def ffmpeg_bin() -> str:

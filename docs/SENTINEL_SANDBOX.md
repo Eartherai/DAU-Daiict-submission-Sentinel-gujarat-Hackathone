@@ -124,6 +124,47 @@ Pipelines must not assume a single codec or a single resolution.
 
 ---
 
+## Concurrent access — what the organisers said, and what this platform does
+
+We asked the organisers, with our measurements attached, for the sandbox's
+concurrent-RTSP limits and the integration pattern they expect for thirty
+cameras. Their written reply, in substance:
+
+- There is **no fixed participant-facing limit** on concurrent RTSP sessions -
+  per team, per IP, per camera or in aggregate - and no fixed rate limit.
+  Availability varies with **overall sandbox usage and gateway load**.
+- Keep open **only the streams actively required**; many unnecessary
+  simultaneous or long-lived connections can affect feed availability.
+- The thirty cameras are for development and testing; the architecture should
+  be **scalable and independent of a fixed camera count**.
+- Use connection management, **per-camera isolation, reconnection with
+  backoff**, and open streams **according to actual processing
+  requirements**; **stagger connections** and avoid unnecessary repeated ones.
+  They described our backoff and per-camera isolation as appropriate.
+- **No participant-specific `/api/ingest` catalogue** will be provided;
+  continue with the access mechanism issued through the hackathon resources.
+- The variation we measured when many upstream RTSP connections were open at
+  once comes from sandbox usage and upstream availability, and **should not be
+  read as a limitation of our local bridge**.
+
+How each point is met here:
+
+| Guidance | Implementation |
+|---|---|
+| Only the streams actively required | Browser tiles use direct WHEP for the tiles on screen only, at most 12 at once (`TILE_WHEP_BUDGET`), released after 15 s off screen (`ui/app.js`). The media hub opens a government camera's one RTSP session when a still of it is asked for or it is assigned to the AI worker, and closes it after 90 s with no request (`live/hub.py`, `SAAKSHYA_HUB_ON_DEMAND`, `SAAKSHYA_HUB_IDLE_S`); it used to hold all thirty from start-up. While the hub owns a camera the snapshot service never opens a second session for a still (`live/snapshot.py`). The local relay, which holds a session per published camera continuously, is opt-in (`SAAKSHYA_LOCAL_RELAY=1`) and capped at the 15 cameras it was measured to sustain (`live/relay.py`). |
+| Per-camera isolation | One worker per camera (`ingest/stream.py` `StreamManager`); a camera that fails is backed off on its own and does not take the others down. |
+| Reconnection with backoff | `LiveWorker` 2 s → 30 s with jitter (`tools/live/ingest.py`); the relay publisher backs off 300 s, jittered 0.7-1.45x, after an authentication refusal, so thirty cameras do not retry as a herd. |
+| Stagger connections | Hub opens are 0.18 s apart, at start-up and on demand; browser WHEP opens 400 ms apart (`TILE_WHEP_STAGGER_MS`); relay publishers 1.25 s apart. |
+| No fixed camera count | Cameras come from the registry (the onboarding portal and CSV import), never a constant; the registry plane was tested at 80,000 cameras. |
+| No `/api/ingest` catalogue | The camera list is probed and onboarded into the registry, and every such record says `source="probe"`. |
+
+What we observed and reported - the grid refusing new sessions for 45-60
+minutes after repeated back-to-back recordings - is therefore sandbox load,
+not a quota, and the platform's answer to it is the one above: fewer
+sessions, opened when needed, backed off when refused.
+
+---
+
 ## Pre-submission checklist (ours)
 
 - [x] Every client forces RTSP over TCP.
@@ -131,7 +172,8 @@ Pipelines must not assume a single codec or a single resolution.
 - [x] Inter-frame gaps do not crash or stall the pipeline.
 - [x] Reconnect with backoff is implemented.
 - [x] Decoder warnings on join are not fatal.
-- [ ] Camera list and per-camera properties are read from `/api/ingest` — **blocked** on this sandbox; probe + registry, labelled as such.
+- [x] Camera list and per-camera properties: `/api/ingest` is not provided to participants (organisers' reply), so they come from probe + registry, labelled as such.
+- [x] Only the streams actively required are open: on-demand hub, visible-tile WHEP, relay opt-in (see "Concurrent access" above).
 - [x] Pipeline handles mixed H.264 / H.265 and mixed resolutions.
 - [x] Behaviour is sane across a scene discontinuity.
 

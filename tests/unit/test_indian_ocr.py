@@ -199,7 +199,7 @@ def test_reading_holds_the_process_mps_lock(monkeypatch) -> None:
     assert rec.ocr_many([np.zeros((30, 100, 3), dtype=np.uint8)] * 2) == [None, None]
     net = rec._ensure()
     assert net.moved_under_lock == [True]
-    assert net.ran_under_lock == [True]
+    assert net.ran_under_lock == [True, True]            # the warm-up pass, then the read
     assert lock.devices == ["cpu", "cpu"]
 
 
@@ -318,3 +318,60 @@ def test_a_frames_plates_are_read_in_one_batch() -> None:
     reads = eng.read_frame(np.zeros((100, 400, 3), dtype=np.uint8), 1.0)
     assert calls == [2]
     assert [r.text for r in reads] == ["MH02EZ1785"] and reads[0].box[0] < 10
+
+
+def test_a_model_that_loads_but_cannot_run_is_a_load_error(monkeypatch) -> None:
+    # A device can take the weights and fail every forward pass (a CUDA build
+    # without this GPU's kernels, an op Metal lacks). That used to show only
+    # as zero plates on every frame.
+    loads = _fake_weights(monkeypatch)
+
+    def broken(self, x):
+        raise RuntimeError("no kernel image is available for execution on the device")
+    monkeypatch.setattr(_FakeNet, "__call__", broken)
+    with pytest.raises(oi.LoadError, match="no kernel image"):
+        oi._shared_model("cpu")
+    with pytest.raises(oi.LoadError):                         # reported once, not retried
+        oi._shared_model("cpu")
+    assert loads == ["cpu"]
+
+
+def test_an_explicit_choice_that_cannot_be_met_fails_every_time(monkeypatch) -> None:
+    # It used to raise once and then read plates with the ONNX recogniser,
+    # writing that recogniser into the provenance of every later event.
+    class Fake:
+        name = "fake-onnx"
+    _fake_weights(monkeypatch, fail=OSError("weights truncated"))
+    monkeypatch.setenv("SAAKSHYA_OCR", "indian")
+    eng = AnprEngine(AnprConfig(), backend=Fake())
+    for _ in range(3):
+        with pytest.raises(RuntimeError, match="SAAKSHYA_OCR=indian"):
+            _ = eng.ocr_backend
+
+
+def test_every_spelling_of_the_metal_device_takes_the_lock() -> None:
+    pytest.importorskip("torch")
+    assert rt.device_lock("mps:0") is rt._MPS_LOCK and rt.device_lock("mps") is rt._MPS_LOCK
+    assert rt.device_lock("cpu") is not rt._MPS_LOCK
+    assert oi._device("mps:0") == "mps"                         # one model, not two
+
+
+def test_the_parity_pin_is_the_one_the_fetch_script_checks_out() -> None:
+    from pathlib import Path
+    script = (Path(__file__).resolve().parents[2]
+              / "tools/models/fetch_indian_ocr.sh").read_text(encoding="utf-8")
+    assert f"PPOCR_COMMIT={oi.PPOCR_COMMIT}" in script
+
+
+def test_a_lead_is_only_as_sure_as_its_weakest_character() -> None:
+    from saakshya.analytics.anpr import PlateVoter, RawRead
+    shaky = PlateVoter(AnprConfig())
+    shaky.add("T1", [RawRead("KA209790", 0.87, (0, 0, 10, 5), 0.9, 0.0, weakest=0.41)])
+    assert shaky.resolve("T1") is None
+    sure = PlateVoter(AnprConfig())
+    sure.add("T1", [RawRead("GJ05AB1234", 0.97, (0, 0, 10, 5), 0.9, 0.0, weakest=0.93)])
+    lead = sure.resolve("T1")
+    assert lead is not None and lead.provisional and lead.votes == 1
+    legacy = PlateVoter(AnprConfig())                           # a recogniser with no weakest
+    legacy.add("T1", [RawRead("GJ05AB1234", 0.9, (0, 0, 10, 5), 0.9, 0.0)])
+    assert legacy.resolve("T1") is not None

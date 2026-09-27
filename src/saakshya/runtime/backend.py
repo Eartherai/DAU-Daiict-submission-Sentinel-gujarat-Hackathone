@@ -48,7 +48,9 @@ _NULL_LOCK = contextlib.nullcontext()
 
 
 def _device_lock(device: str) -> Any:
-    return _MPS_LOCK if device == "mps" else _NULL_LOCK
+    # "mps:0" is the same Metal device as "mps"; comparing the whole string let
+    # SAAKSHYA_INDIAN_OCR_DEVICE=mps:0 run on the GPU with no lock at all.
+    return _MPS_LOCK if str(device).split(":", 1)[0] == "mps" else _NULL_LOCK
 
 
 #: The same lock, for a model that runs outside `InferenceBackend._timed` - the
@@ -134,6 +136,9 @@ class Detection:
 class OcrResult:
     text: str
     confidence: float
+    #: The least confident character's probability, where the recogniser
+    #: reports one. None means it does not, and `confidence` stands in.
+    weakest: float | None = None
 
 
 @dataclass

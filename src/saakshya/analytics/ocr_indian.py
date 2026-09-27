@@ -89,7 +89,9 @@ def _device(choice: str) -> str:
     import torch
 
     if choice != "auto":
-        return choice
+        # One Metal device, one cache key: "mps:0" and "mps" must not load two
+        # copies of the model.
+        return "mps" if choice.split(":", 1)[0] == "mps" else choice
     # The switch that pins the detector to CPU pins this model too; an explicit
     # SAAKSHYA_INDIAN_OCR_DEVICE still wins.
     if os.environ.get("SAAKSHYA_FORCE_CPU", "").strip().lower() in {"1", "true", "yes", "on"}:
@@ -136,8 +138,14 @@ def _shared_model(device: str) -> Any:
             # Built and filled on the CPU, then moved: only the move is Metal
             # work, and only it holds the lock the detector's calls wait on.
             model = ocr_indian_net.load(WEIGHTS, "cpu")
-            with _backend.device_lock(device):
+            import torch
+            with _backend.device_lock(device), torch.inference_mode():
                 model = model.to(device)
+                # One forward pass before the model is called loaded. A device
+                # can accept the weights and still fail every forward (a CUDA
+                # build without this GPU's kernels, an op Metal lacks); that
+                # used to surface only as zero plates on every frame.
+                model(torch.zeros((1, *SHAPE), device=device))
         except Exception as exc:
             err = LoadError(f"Indian plate OCR did not load from {WEIGHTS} on {device}: "
                             f"{type(exc).__name__}: {exc}")
@@ -172,6 +180,19 @@ def preprocess(crop_bgr: np.ndarray) -> np.ndarray:
 
 def ctc_decode(probs: np.ndarray, charset: list[str]) -> list[tuple[str, float]]:
     """Greedy CTC over a (batch, steps, classes) probability array."""
+    return [(t, mean) for t, mean, _ in ctc_decode_detail(probs, charset)]
+
+
+def ctc_decode_detail(probs: np.ndarray,
+                      charset: list[str]) -> list[tuple[str, float, float]]:
+    """As `ctc_decode`, with the weakest kept character's probability too.
+
+    The mean says how sure the recogniser is on the whole; the weakest
+    character says how sure it is of the plate, since one wrong character is
+    a different vehicle. On the synthetic corpus, of 1,088 valid reads (1,032
+    real, 56 invented) a mean of 0.82 kept every real read and 41 invented
+    ones; a weakest character of 0.82 kept 852 real and 11 invented.
+    """
     out = []
     for seq in probs:
         idx = seq.argmax(axis=1)
@@ -181,7 +202,8 @@ def ctc_decode(probs: np.ndarray, charset: list[str]) -> list[tuple[str, float]]
         keep &= idx != 0
         chars = [charset[i] for i in idx[keep]]
         conf = float(p[keep].mean()) if keep.any() else 0.0
-        out.append(("".join(chars), conf))
+        weakest = float(p[keep].min()) if keep.any() else 0.0
+        out.append(("".join(chars), conf, weakest))
     return out
 
 
@@ -216,6 +238,10 @@ class IndianPlateOcr:
 
     def read(self, crops: list[np.ndarray]) -> list[tuple[str, float]]:
         """Raw readings for a batch of BGR crops, in order."""
+        return [(t, mean) for t, mean, _ in self.read_detail(crops)]
+
+    def read_detail(self, crops: list[np.ndarray]) -> list[tuple[str, float, float]]:
+        """Readings with mean and weakest-character confidence, in order."""
         import torch
 
         if not crops:
@@ -229,7 +255,7 @@ class IndianPlateOcr:
         # concurrently, as the detector does there.
         with _backend.device_lock(self.device), torch.inference_mode():
             probs = model(torch.from_numpy(x).to(self.device)).float().cpu().numpy()
-        return ctc_decode(probs, self.charset)
+        return ctc_decode_detail(probs, self.charset)
 
     def ocr_many(self, crops: list[np.ndarray]) -> list[OcrResult | None]:
         """Each crop's reading, normalised; an abstention is None, not a guess."""
@@ -239,13 +265,37 @@ class IndianPlateOcr:
             if c is None or c.size == 0 or c.ndim != 3:
                 raise ValueError("empty or non-colour plate crop")
         out: list[OcrResult | None] = []
-        for text, conf in self.read(crops):
+        for text, conf, weakest in self.read_detail(crops):
             text = normalise(text)
-            out.append(OcrResult(text=text, confidence=conf) if text else None)
+            out.append(OcrResult(text=text, confidence=conf, weakest=weakest)
+                       if text else None)
         return out
 
     def ocr(self, crop: np.ndarray) -> OcrResult | None:
         return self.ocr_many([crop])[0]
+
+
+#: The PaddleOCR commit the parity check was verified against. The fetch script
+#: pins its checkout to the same commit (tools/models/fetch_indian_ocr.sh).
+PPOCR_COMMIT = "dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf"
+
+
+def _check_ppocr_pin() -> None:
+    """Refuse to import PaddleOCR's code from any checkout but the pinned one.
+
+    The parity check imports and runs that code. A clone made by an older
+    version of the fetch script sits at whatever commit upstream had then.
+    """
+    import subprocess
+
+    try:
+        head = subprocess.run(["git", "-C", str(PPOCR_DIR), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(f"cannot verify the PaddleOCR checkout at {PPOCR_DIR}: {exc}") from exc
+    if head != PPOCR_COMMIT:
+        raise RuntimeError(f"PaddleOCR at {PPOCR_DIR} is at {head[:12]}, not the pinned "
+                           f"{PPOCR_COMMIT[:12]}; run tools/models/fetch_indian_ocr.sh --parity")
 
 
 def paddle_reference() -> Any:
@@ -260,6 +310,7 @@ def paddle_reference() -> Any:
     # the real PyTorch has to be bound first.
     import torch  # noqa: F401
 
+    _check_ppocr_pin()
     if str(PPOCR_DIR) not in sys.path:
         sys.path.insert(0, str(PPOCR_DIR))
     import paddle

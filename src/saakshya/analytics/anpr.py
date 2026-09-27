@@ -150,16 +150,21 @@ class AnprConfig:
     #:     by position >= 0.8        0.5      40      8   EK9900
     #:     by position >= 0.7        0.4      41      7   -
     #:     edit distance >= 0.7      0.35     42      4   -
-    #:     edit distance >= 0.7      0.38     41      4   -        (these)
+    #:     edit distance >= 0.7      0.38     41      4   -
+    #:     edit distance >= 0.7      0.4      40      4   -        (these)
     #:     edit distance >= 0.7      0.5      34      4   -
     #:
-    #: Every share from 0.34 to 0.5 publishes the same four wrong marks and
-    #: fewer right ones as it rises, so the share is the lowest that still
-    #: refuses the blurred plate read as EX0900 x3 against five scattered
-    #: lookalikes: 3 of 8 is 0.375, and 0.35 publishes it. These are one
+    #: Every share from 0.35 to 0.5 publishes the same four wrong marks and
+    #: fewer right ones as it rises. 0.38 is the lowest that refuses the
+    #: blurred plate read as EX0900 x3 against five scattered lookalikes (3 of
+    #: 8 is 0.375) - which is exactly why it is not used: a threshold set just
+    #: above one example is fitted to it. Two-fifths costs one right mark on
+    #: this audit. The vote log held only reads that were valid when logged,
+    #: so it contains no 0000 or RTO-0 reading: the part of the rule that
+    #: counts those is argued above, not measured on footage. These are one
     #: clip set's audit, not a general calibration; measure again on footage
     #: that differs.
-    min_agreement: float = 0.38
+    min_agreement: float = 0.4
     #: Two readings are the same plate read differently when they resemble at
     #: least this much (`plates.resemblance`, by edit distance): at most three
     #: edits in ten characters. An inserted or dropped character is one edit,
@@ -173,7 +178,12 @@ class AnprConfig:
     #: labels a one-vote plate REQUIRES_VERIFICATION. Discarding it entirely was
     #: the difference between a route and a blank screen when a vehicle crossed
     #: a camera once. The bar is high because there is no corroboration to lean
-    #: on — only format validity and this confidence.
+    #: on — only format validity and this confidence. Where the recogniser
+    #: reports its weakest character (the Indian model does), that must clear
+    #: the bar too: one wrong character is another vehicle. On the synthetic
+    #: corpus the Indian model's mean cleared 0.82 on 41 of its 56 invented
+    #: reads (KA209790 was published as a lead at 0.869); its weakest
+    #: character cleared it on 11, while keeping 852 of 1,032 real reads.
     enable_single_read_leads: bool = True
     single_read_lead_confidence: float = 0.82
     #: Reads are held per track for at most this many seconds of stream time.
@@ -192,6 +202,8 @@ class RawRead:
     box: tuple[int, int, int, int]
     det_confidence: float
     pts_s: float
+    #: Weakest character's probability, when the recogniser reports one.
+    weakest: float | None = None
 
 
 @dataclass
@@ -269,37 +281,53 @@ class AnprEngine:
 
     @property
     def ocr_backend(self) -> Any:
-        """The recogniser for plate crops; the detection backend's by default."""
+        """The recogniser for plate crops; the detection backend's by default.
+
+        The choice is made once. An explicit choice that cannot be honoured
+        (SAAKSHYA_OCR=indian without working weights) raises on *every*
+        access: it used to raise once and leave the ONNX recogniser in place,
+        so the second frame onwards read plates, and wrote provenance, with a
+        model nobody chose.
+        """
+        err = getattr(self, "_ocr_error", None)
+        if err is not None:
+            raise err
         if getattr(self, "_ocr", None) is None:
             choice = (os.environ.get("SAAKSHYA_OCR") or self.cfg.ocr_engine).strip().lower()
-            self._ocr: Any = self.backend
-            if choice in ("auto", "indian"):
-                from saakshya.analytics import ocr_indian
-                if ocr_indian.available():
-                    indian = ocr_indian.IndianPlateOcr()
-                    try:
-                        # Loaded here, outside read_frame's per-crop net, so
-                        # a model that cannot load is said once and loudly.
-                        indian.load()
-                    except ocr_indian.LoadError as exc:
-                        if choice == "indian":
-                            raise RuntimeError(f"SAAKSHYA_OCR=indian, but {exc}") from exc
-                        log.warning("Indian plate OCR unavailable (%s); reading plates with "
-                                    "the next recogniser", exc)
-                    else:
-                        self._ocr = indian
-                        return self._ocr
-                elif choice == "indian":
-                    raise RuntimeError("SAAKSHYA_OCR=indian, but the Indian plate model is not "
-                                       "installed (tools/models/fetch_indian_ocr.sh)")
-            if choice in ("auto", "apple-vision"):
-                from saakshya.analytics import ocr_vision
-                if ocr_vision.available():
-                    self._ocr = ocr_vision.AppleVisionOcr()
-                elif choice == "apple-vision":
-                    raise RuntimeError("SAAKSHYA_OCR=apple-vision, but Apple Vision is "
-                                       "not available on this host")
+            try:
+                self._ocr: Any = self._choose_ocr(choice)
+            except RuntimeError as exc:
+                self._ocr_error = exc
+                raise
         return self._ocr
+
+    def _choose_ocr(self, choice: str) -> Any:
+        if choice in ("auto", "indian"):
+            from saakshya.analytics import ocr_indian
+            if ocr_indian.available():
+                indian = ocr_indian.IndianPlateOcr()
+                try:
+                    # Loaded here, outside read_frame's per-crop net, so a
+                    # model that cannot load or run is said once and loudly.
+                    indian.load()
+                except ocr_indian.LoadError as exc:
+                    if choice == "indian":
+                        raise RuntimeError(f"SAAKSHYA_OCR=indian, but {exc}") from exc
+                    log.warning("Indian plate OCR unavailable (%s); reading plates with "
+                                "the next recogniser", exc)
+                else:
+                    return indian
+            elif choice == "indian":
+                raise RuntimeError("SAAKSHYA_OCR=indian, but the Indian plate model is not "
+                                   "installed (tools/models/fetch_indian_ocr.sh)")
+        if choice in ("auto", "apple-vision"):
+            from saakshya.analytics import ocr_vision
+            if ocr_vision.available():
+                return ocr_vision.AppleVisionOcr()
+            if choice == "apple-vision":
+                raise RuntimeError("SAAKSHYA_OCR=apple-vision, but Apple Vision is "
+                                   "not available on this host")
+        return self.backend
 
     def provenance(self) -> dict:
         """Written into every event this engine contributes to."""
@@ -411,6 +439,7 @@ class AnprEngine:
             out.append(RawRead(
                 text=res.text, confidence=res.confidence,
                 box=(x1, y1, x2, y2), det_confidence=score, pts_s=pts_s,
+                weakest=getattr(res, "weakest", None),
             ))
         return out
 
@@ -489,8 +518,11 @@ class PlateVoter:
             # read that clears the higher single-read bar; otherwise reject.
             competing = any(n >= votes for c, n in {**counts, **unreadable}.items()
                             if c != best)
+            weakest = min((r.weakest for _, r in members if r.weakest is not None),
+                          default=conf)
             if (not self.cfg.enable_single_read_leads or competing
-                    or conf < self.cfg.single_read_lead_confidence):
+                    or conf < self.cfg.single_read_lead_confidence
+                    or weakest < self.cfg.single_read_lead_confidence):
                 self.rejected_low_votes += 1
                 return None
             provisional = True

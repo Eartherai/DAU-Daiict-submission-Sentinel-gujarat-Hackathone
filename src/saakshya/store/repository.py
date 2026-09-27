@@ -358,7 +358,10 @@ class Store:
                 "AND conrelid = 'observations'::regclass "
                 "AND confrelid = 'cameras'::regclass")]
             for name in held:
-                c.exec_driver_sql(f'ALTER TABLE observations DROP CONSTRAINT "{name}"')
+                # IF EXISTS: two processes starting at once both find the
+                # key; the one that loses the race must not crash at start-up.
+                c.exec_driver_sql(
+                    f'ALTER TABLE observations DROP CONSTRAINT IF EXISTS "{name}"')
                 log.info("schema: dropped %s; observations from unregistered or "
                          "removed cameras are kept, as on SQLite", name)
 
@@ -545,12 +548,27 @@ class Store:
         return ctx
 
     def delete_camera(self, camera_id: str) -> bool:
-        """Remove a registry row. Health goes with it. Observations stay."""
+        """Remove a registry row. Observations stay; what was derived goes.
+
+        Health, capability and the clock calibration are measurements of the
+        camera and go with it. A restricted-zone rule is a department's
+        decision, with an authority and a reason: the camera is refused while
+        one exists, on every engine. SQLite never enforced the key and left
+        the rule pointing at nothing; PostgreSQL raised mid-transaction.
+        """
+        with self.engine.connect() as c:
+            rules = c.execute(select(func.count()).select_from(S.zone_rules).where(
+                S.zone_rules.c.camera_id == camera_id)).scalar_one()
+        if rules:
+            raise ValueError(f"camera {camera_id} has {rules} zone rule(s); "
+                             "retire them before removing the camera")
         with self.engine.begin() as c:
             c.execute(delete(S.camera_health).where(
                 S.camera_health.c.camera_id == camera_id))
             c.execute(delete(S.camera_capability).where(
                 S.camera_capability.c.camera_id == camera_id))
+            c.execute(delete(S.camera_timebase).where(
+                S.camera_timebase.c.camera_id == camera_id))
             result = c.execute(delete(S.cameras).where(
                 S.cameras.c.camera_id == camera_id))
         self._cam_cache.pop(camera_id, None)

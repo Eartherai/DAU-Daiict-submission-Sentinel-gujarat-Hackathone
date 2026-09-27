@@ -440,3 +440,22 @@ def test_a_wal_store_migrates_to_postgresql(tmp_path, fresh_pg, capsys):
         assert dst.verify_audit_chain() == (True, None)
     finally:
         dst.engine.dispose()
+
+
+def test_deleting_a_camera_on_postgresql(world):
+    # PostgreSQL enforces the keys SQLite ignored: the calibration goes with
+    # the camera, a department's zone rule refuses the delete cleanly.
+    from sqlalchemy import insert
+
+    from saakshya.store import schema as S
+    s: Store = world["state"].store
+    s.upsert_camera({"camera_id": "PG-DEL-1", "name": "d", "district": "Ahmedabad"})
+    s.upsert_camera({"camera_id": "PG-DEL-2", "name": "d", "district": "Ahmedabad"})
+    with s.engine.begin() as c:
+        c.execute(insert(S.camera_timebase).values(camera_id="PG-DEL-1", pts_health="OK"))
+        c.execute(insert(S.zone_rules).values(rule_id="ZR-PG-DEL-2", camera_id="PG-DEL-2",
+                                              name="carriageway", status="ACTIVE"))
+    assert s.delete_camera("PG-DEL-1") is True and s.get_camera("PG-DEL-1") is None
+    with pytest.raises(ValueError, match="zone rule"):
+        s.delete_camera("PG-DEL-2")
+    assert s.get_camera("PG-DEL-2") is not None

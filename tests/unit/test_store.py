@@ -304,3 +304,22 @@ def test_a_nul_beside_a_genuine_stand_in_still_verifies(store):
                   {"p": "probe of ? handling"})
     ok, err = store.verify_audit_chain()
     assert not ok and "id=1" in err
+
+
+def test_a_camera_goes_with_what_was_measured_of_it_but_not_a_departments_rule(store):
+    from sqlalchemy import insert, select
+
+    from saakshya.store import schema as S
+    store.upsert_camera({"camera_id": "DEL-1", "name": "d", "district": "Ahmedabad"})
+    store.upsert_camera({"camera_id": "DEL-2", "name": "d", "district": "Ahmedabad"})
+    with store.engine.begin() as c:
+        c.execute(insert(S.camera_timebase).values(camera_id="DEL-1", pts_health="OK"))
+        c.execute(insert(S.zone_rules).values(rule_id="ZR-DEL-2", camera_id="DEL-2",
+                                              name="carriageway", status="ACTIVE"))
+    assert store.delete_camera("DEL-1") is True
+    with store.engine.connect() as c:
+        assert c.execute(select(S.camera_timebase).where(
+            S.camera_timebase.c.camera_id == "DEL-1")).first() is None
+    with pytest.raises(ValueError, match="zone rule"):
+        store.delete_camera("DEL-2")
+    assert store.get_camera("DEL-2") is not None

@@ -8,11 +8,14 @@ Three domains, never mixed in labels:
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from saakshya.live.snapshot import local_media_url
 from saakshya.store import Store, now_us
+
+log = logging.getLogger(__name__)
 
 GOVERNMENT = "GOVERNMENT"
 OWN_FEED = "OWN_FEED"
@@ -373,7 +376,12 @@ def enforce_evaluation_50(store: Store) -> dict[str, Any]:
         # data because it does not recognise the name.
         if not _is_evaluation_fixture(cid, cam):
             continue
-        store.delete_camera(cid)
+        try:
+            store.delete_camera(cid)
+        except ValueError as exc:
+            # A department put a zone rule on it: not ours to remove.
+            log.warning("kept fixture camera %s: %s", cid, exc)
+            continue
         removed.append(cid)
     comp = wall_composition(store, target=50)
     return {"removed": removed, "composition": comp, "onboarded": comp["onboarded"]}

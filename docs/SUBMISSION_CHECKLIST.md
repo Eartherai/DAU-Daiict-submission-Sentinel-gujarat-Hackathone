@@ -134,10 +134,14 @@ by them in questions.
   the replayed window repeats across two government cameras, so a
   cross-camera government route cannot be shown - that is the data, not the
   platform. Cross-camera tracing is shown on the own/synthetic store and
-  labelled as such. On the own footage, marks are read by an on-device text
-  recogniser and voted across frames; the ones checked by eye are right, and
-  misread duplicates of the same car on a fragmented track exist (MN22GB4920
-  beside MH02GB4920, with 3 votes against 267).
+  labelled as such. On the own footage, marks are now read by an
+  Indian-trained recogniser and published only when a track's frames agree.
+  On the 57-second queue clip the final pipeline publishes 56 marks: 40 checked
+  correct by eye, 4 wrong (each one character from a real plate), 12 not
+  settled by a crop. **The two films were recorded on 24 September with the
+  previous recogniser (Apple Vision)**; their plates come from that run, where
+  misread duplicates of one car on a fragmented track existed (MN22GB4920
+  beside MH02GB4920, 3 votes against 267).
 - **The local relay can crash-loop.** On this laptop the relay's per-camera
   transcode hit decoder errors and reconnected fast enough that the grid
   counted the dead sessions and refused the account for a while. It held a

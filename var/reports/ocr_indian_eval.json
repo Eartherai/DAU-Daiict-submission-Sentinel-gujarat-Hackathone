@@ -65,5 +65,22 @@
    }
   },
   "reading": "2.8x the correct marks at the same or slightly lower error rate among marks that could be checked (22% vs 26%). Most wrong marks are one character from a real plate on the same clip; a one-vote read is published as a lead requiring verification, never a confirmation."
+ },
+ "final_pipeline": {
+  "measured": "2026-09-28, same clips, full production pipeline after the 0000/RTO-0 rules, the lookalike-agreement vote (edit distance >= 0.7, share >= 0.4) and weakest-character lead gating",
+  "queue_clip": {
+   "published": 56,
+   "checked_correct": 40,
+   "checked_wrong": 4,
+   "not_settled_by_a_crop": 12,
+   "hand_read_plates_published_exactly": "11/20"
+  },
+  "autostand_clip_blurred_digits": {
+   "published": 0,
+   "previously_invented": 3
+  },
+  "arterial_clip_published": 42,
+  "note": "Correct/wrong verdicts are the by-eye audit of the first run's published marks; marks the final pipeline publishes that were not in that run are counted as not settled.",
+  "synthetic_corpus_leads": "Of 1,088 valid reads (1,032 real, 56 invented), a mean-confidence bar of 0.82 kept 41 invented reads; a weakest-character bar of 0.82 kept 11 while keeping 852 real. tests/integration/test_pipeline_corpus.py passes 5/5 with the real weights."
  }
 }

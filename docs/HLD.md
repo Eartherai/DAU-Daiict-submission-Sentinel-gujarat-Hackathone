@@ -143,10 +143,16 @@ core here (50 ms a plate), so the network is **restated in PyTorch** with the
 checkpoint's own layer names; the published weights load unchanged and match
 PaddlePaddle's forward pass to 7.5×10⁻⁶ with identical text on every crop. On
 the GPU it takes 14 ms a plate, 6.6 ms when a frame's plates go as one batch;
-on CUDA the authors measure 5 ms. Over a whole 57-second clip it published 83
-marks against Vision's 29: checked by eye, 47 correct against 17, at a similar
-error rate where a crop could settle it (22% against 26%), and 12 of the 20
-hand-read plates exactly against 5 (`var/reports/ocr_indian_eval.json`).
+on CUDA the authors measure 5 ms. Over a whole 57-second clip, with the vote as
+it first stood, it published 83 marks against Vision's 29: 47 checked correct by
+eye against 17, 13 wrong against 6. The vote was then made to refuse what the
+frames do not agree on (below), and never-issued numbers (0000, RTO 0). The
+final pipeline publishes 56 marks on that clip: 40 checked correct, 4 wrong,
+12 not settled by a crop; 11 of the 20 hand-read plates exactly (Vision: 5);
+and nothing on the car whose digits the footage blurs, where it had invented
+three marks (`var/reports/ocr_indian_eval.json`, `final_pipeline`). Fewer marks,
+a third of the wrong ones: for a system whose output starts investigations,
+that is the trade to make.
 Apple Vision and the ONNX model remain the fallbacks where the weights are not
 installed. Every read is interpreted against the **positions of the Indian format**:
 an O where the RTO must be a digit is 0, an 8 where a series letter must be is

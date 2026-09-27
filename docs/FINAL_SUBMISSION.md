@@ -1,92 +1,71 @@
-# Final submission pack — 6 September 2026
+# SAAKSHYA — final submission index
 
-Upload these. Do not upload tokens, `.env`, or stream passwords.
+Team Saakshya · Gujarat Police CCTV Innovation Challenge (Sentinel).
+Every file named here is in the submission folder `var/demo/SUBMIT/`
+(built by `python tools/demo/build_submission_pack.py`). Upload **that
+folder**, not the older `var/demo/PORTAL_PACK/`.
 
-Registration and portal upload are **team-only**. Official last date on
-https://sentinel.gujarat.gov.in/ is **15 September 2026** (checked 6 Sep 2026).
+## Requirement → where it is answered
 
-## Required by the portal
+### 1. Solution presentation (PPT/PDF) — `01_SAAKSHYA_deck.pptx`, `01_SAAKSHYA_deck.pdf` (37 slides)
 
-| Item | File |
+| Asked for | Answered |
 |---|---|
-| Presentation | `var/demo/SAAKSHYA_deck.pdf` — **54 pages**, 7.3 MB |
-| High-level design | `docs/HLD.md` and `var/demo/diagrams/` |
-| Own-feed video (2–3 min cap) | `var/demo/own_feed.mp4` (2 min 47 s · 1920×1080) |
-| Government-feed video + report | `var/demo/government_feed.mp4` + `var/reports/detections/` |
-| Launch walkthrough (live grid, 15 min 03 s, every surface) | `var/demo/SAAKSHYA_launch.mp4` (1920×1080, ~150 MB, Indian-English VO) |
-| Designated vehicle on **own-feed** UI (not the live grid) | `var/demo/SAAKSHYA_designated.mp4` — 3 min 13 s; `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021 |
-| Drag-to-Drive folder | `var/demo/PORTAL_PACK/` |
+| Proposed model with justification | Hybrid of Models 1 + 2 + 3, with Model 4 analytics on selected cameras; central recording of ~80,000 cameras declined on 160 Gbps / 52 PB arithmetic |
+| Overview, objectives, innovations | Find → Trace → Verify → Act; capability measured per camera; metadata moves, video stays |
+| Architecture and end-to-end workflow | Two architecture diagrams and the seven-step pipeline from camera to search |
+| AI video analytics | RT-DETRv2 detection + ByteTrack tracking on the GPU; ANPR with a plate detector on full-resolution tiles and an Indian-trained recogniser (Awiros-ANPR-OCR, ported to PyTorch); per-track voting that publishes only plates the frames agree on; person detection, long-stay, restricted zones |
+| Watchlist correlation and real-time alerts | Match at ingest in the same transaction as the sighting; incidents, honest priority, read-against-list |
+| Technologies | PyAV, PyTorch + ONNX Runtime, FastAPI, SQLite and PostgreSQL 18 + PostGIS 3.6, vanilla ES; licences pinned |
+| Scale, interoperability, security, deployment | District edge + metadata centre; four authorisation gates; hash-chained evidence and audit |
+| Operational benefit | An index answers a plate nobody had asked for yet; honest capability grades |
 
-## Supporting
+### 2. Technical proposal — HLD — `02_HLD.md`, `02_HLD_diagrams.pdf`, `02_SECURITY.md`
 
-| Item | File |
+| Asked for | HLD section |
 |---|---|
-| Measured numbers (quote these) | `docs/MEASURED_RESULTS.md` — generated 2026-09-06T10:54:10Z |
-| Evaluation mapping | `docs/HACKATHON_READINESS.md` |
-| Demo script | `docs/DEMO_SCRIPT.md` |
-| Judge Q&A | `docs/JUDGE_QA.md` |
-| Architecture decision | `docs/FINAL_ARCHITECTURE_DECISION.md` |
+| Architecture, diagrams, component interactions | §3, §4, `02_HLD_diagrams.pdf` |
+| Heterogeneous cameras, NVRs, VMS | §10 (adapters; no VMS replaced), §13 item 6 |
+| Ingesting live streams from dispersed locations | §4.1, §6, §15, §16; sandbox access pattern in `docs/SENTINEL_SANDBOX.md` |
+| Watchlist databases and continuous correlation | §11, §11.1 |
+| AI analytics: ANPR, FRS, detection, tracking | §4.2 (ANPR, detection, tracking, persons); §11.2 (FRS: designed and gated, with why) |
+| Alert generation, prioritisation, visualisation, interaction | §11.1 |
+| Scalability, interoperability, security, performance to ~80,000 cameras | §7, §12, §16, §17, §18; `05_SCALE_80K_LOAD_TEST.md` |
+| Prerequisites and information needed from departments | §13 |
 
-## What the live store holds (MEASURED, 6 Sep 2026 10:54 UTC)
+### 3. Own-feed demonstration (max 2–3 min) — `03_own_feed.mp4` (2 min 53 s, 2560×1440, narrated)
 
-- 30 government cameras onboarded; 19 on the map; 11 listed, not invented
-- 552,889 observations; 145,868 persons (never plated)
-- 44 distinct marks; 70 corroborated; 17 leads; **0 cross-camera repeats**
-- 8 cameras published a mark; 737 forensic OCR attempts
-- 1 open watchlist alert: `GJ38BH5815` stolen_vehicle HIGH on cam21
-- Designated rehearsal: `GJ1VV0119` on cam07 (single camera)
-- Cross-camera identity is demonstrated on the **synthetic** store (`make serve`): `GJ05AB1234` / `GJ35BV6925`
-- Detection report Markdown/JSON: `var/reports/detections/` (SQL summary 6 Sep 10:54 UTC; CSV beside it is an earlier snapshot — do not quote both as one run)
+Licensed Mumbai traffic footage, heads blurred. Onboarding a camera through the
+registry portal; the pipeline's own boxes on every frame; a plate read off the
+footage searched and traced; a watchlist match and the alert it raised (on
+fictional plates — no real vehicle is listed); a printable trace report; sealed
+evidence; the audit log. Working backend throughout; no mock-ups.
+Recorded 24 September with the previous plate recogniser (Apple Vision); the
+submitted code uses the Indian-trained recogniser (HLD §4.2).
 
-## Launch film chapters (15 min 03 s)
+### 4. Government-feed demonstration — `04_government_feed.mp4` (8 min 10 s), `04_government_feed_1080p.mp4`, `04_government_feed_anpr_report.csv`
 
-Recorded 7 Sep 2026 against the live government grid. Indian-English voice (Aman). 1920×1080. Boxed stills, map, Gemini on/off.
+The issued cameras onboarded; live viewing over direct WebRTC; thirty cameras on
+one wall; analytics output; every plate read with camera and timestamp; the
+output report as CSV (plate, UTC and IST timestamp, camera, confidence, votes,
+format validity, observation and evidence ids).
 
-| t | Surface |
-|---|---|
-| 0:00 | Title — hybrid Models 1+2+3 |
-| 0:35 | Sign-in — case and purpose |
-| 1:13 | Overview — open alert, measured store |
-| 2:10 | Live wall — 30 government stills, vehicles boxed |
-| 3:53 | Estate map — 19 placed, 11 listed |
-| 5:15 | Cameras — ANPR UNSUITABLE is yield |
-| 6:04 | Find `GJ1VV0119` — one-camera honesty |
-| 6:58 | Lookalike `6J1VV0119` + person on cam28 |
-| 7:43 | Watchlist alert `GJ38BH5815` |
-| 8:26 | Analytics — timebase clusters |
-| 9:13 | System — Model 4 rejected on arithmetic |
-| 10:06 | Copilot — Gemini on, 16 tools |
-| 10:56 | Ask — grounded in tool results |
-| 11:37 | Refuse — enhance this still |
-| 12:22 | Timebase — cam01+cam21 REFUSED, cam01+cam04 |
-| 13:14 | Evidence + audit — hash chain, BSA unsigned |
-| 14:11 | Close — what we will not claim |
+### Supporting material
 
-## Designated-vehicle film on own feed (3 min 13 s)
+`00_CHECKLIST.md` (honest limits), `05_*` (registry API, gap analysis, 80k load
+test, sample metadata), `06_*` (printable trace reports).
 
-`var/demo/SAAKSHYA_designated.mp4` — LOCAL SYNTHETIC, not the government grid.
-Slate footer: `LOCAL SYNTHETIC · NOT GOVERNMENT DATA`.
+## How to submit
 
-| t | Surface |
-|---|---|
-| 0:00 | Title — own feed, not the live grid |
-| 0:29 | Sign-in — `supervisor.demo`, FIR-214/2026 |
-| 0:49 | Find `GJ05AB1234` — C-014 and C-021 |
-| 1:19 | Route — CONFIRMED, 2 cameras, timebase RESTRICTED |
-| 1:45 | Watchlist alerts — `GJ05AB1234` MEDIUM + `GJ15NT6564` HIGH |
-| 2:17 | Second mark `GJ35BV6925` — same two cameras |
-| 2:40 | Close — live grid still has zero cross-camera repeats |
+- **Videos** — upload `03_own_feed.mp4` and `04_government_feed.mp4` to YouTube
+  with visibility **Unlisted**; paste both links.
+- **Documents and pack** — upload the whole `var/demo/SUBMIT/` folder to Google
+  Drive or OneDrive and share it as **Anyone with the link — Viewer**.
+- **Source** — `https://github.com/Eartherai/DAU-Daiict-submission-Sentinel-gujarat-Hackathone`
+  (the submission branch must be pushed and merged to `main` first).
+- **Hosted platform (optional)** — if one is offered to the committee, create
+  a dedicated read-only screening account and send its credentials separately,
+  never in a document or the repository.
 
-## Copilot
-
-Gemini is configured as coordinator (16 tools, vision available). On 6 Sep every billed model returned HTTP 429 (prepayment credits depleted), including Flash fallbacks. The copilot **falls back to deterministic rules** from the same tools. Search, trajectory, watchlist, alerts and evidence never call a language model. The launch film shows both: Gemini configured on the Copilot page, then a grounded answer from rules, then a refused "enhance this still".
-
-## Phrases that must not appear in the upload
-
-production ready · legally admissible · tested at 80,000
-
-## Still only the team can do
-
-1. Register and submit on https://sentinel.gujarat.gov.in/ (last date **15 September 2026**).
-2. Host the launch film (unlisted YouTube or Drive with viewer access). Paste `var/demo/YOUTUBE_DESCRIPTION.txt`. Follow `docs/PORTAL_UPLOAD.md` in order.
-3. Do not put the bearer token or grid password in the upload.
+Never upload `.env`, `.env.local`, token files, `var/pg/url`, or stream
+passwords.

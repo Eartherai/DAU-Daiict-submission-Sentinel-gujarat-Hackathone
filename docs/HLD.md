@@ -360,7 +360,77 @@ rehearsal `GJ1VV0119` is on the live watchlist. Exact cross-camera repeats among
 published marks on this grid: **0**. Multi-camera trace is demonstrated on the
 synthetic corpus (`GJ01CD5678`, `GJ35BV6925`).
 
-Face recognition is **not built**. Person detection and dwell are.
+### 11.1 Alert workflow — from a read to an officer's decision
+
+1. **Correlate at ingest.** Every published plate is checked against the
+   active watchlist in the same transaction that stores the sighting, so a hit
+   cannot be missed by a later batch job. The match is exact, or a declared
+   near match: the read and the listed mark are aligned character by character
+   and every difference is labelled an OCR confusion (0/O, 5/S, 8/B...) or a
+   real difference, so "EXACT" and "NEAR" are claims the officer checks by eye.
+2. **Categorise.** Stolen, wanted, suspect and blacklisted vehicles,
+   investigation targets, and wanted- and missing-person entries (matched today
+   through their associated vehicles - see 11.2). Each entry carries a priority,
+   a reason and the authority that listed it.
+3. **Prioritise honestly.** The priority shown is the entry's, stepped down one
+   level when the read rests on a single frame (a lead, not a hit) and up one
+   level when the vehicle has been seen on three or more cameras, with the
+   reason in words (`watchlist/incidents.py`).
+4. **Group, not spam.** One incident per vehicle and watchlist entry; reads
+   within a ten-minute duplicate-hit window are one pass, a later read is a new
+   pass inside the same incident. On the evaluation store this turned 128 open
+   alert rows into thirteen incidents.
+5. **Visualise.** The Alerts view is the queue: priority, category, read
+   against list, camera, time and the sealed still. From an alert the officer
+   opens the vehicle's route on the map, the next cameras it could reach, and a
+   printable trace report with a digest over its rows.
+6. **Act, on the record.** An alert moves OPEN -> ACKNOWLEDGED -> UNDER
+   INVESTIGATION -> CLEARED, clearing requires a reason, and every transition
+   is written to the hash-chained audit log with the officer, case and purpose
+   (`POST /alerts/{id}/acknowledge | investigate | clear`). Evidence from the
+   sighting is sealed into the evidence chain on demand.
+7. **Notify.** In the PoC the operator is notified in the workspace queue. A
+   control-room integration (SMS, radio dispatch, an existing CAD system) is an
+   adapter on the incident stream, not built here, and would carry the same
+   priority and reason text.
+
+### 11.2 Persons: what is built, and the gated path to facial recognition
+
+**Built.** Person detection and tracking on every analysed frame, a
+long-stay report (a duration on one camera, never called loitering or
+intrusion), and restricted-zone rules a department sets - polygon, hours,
+classes, reason and authority - with every entry into the zone listed as a
+sighting. Wanted- and missing-person watchlist entries exist as categories and
+are correlated today through vehicles associated with the person.
+
+**Facial recognition is designed and gated, not shipped.** The platform can
+carry an FRS module on the same observation bus; it is deliberately not
+switched on in this PoC, for three reasons that a deployment would have to
+answer first:
+
+- *Authority and gallery.* 1:N search needs an enrolled gallery from an
+  authorised departmental database, a recorded legal basis per entry, and a
+  retention limit - the same authority and reason fields the watchlist and zone
+  rules already carry. No such gallery was provided, and enrolling faces
+  scraped from footage would be the wrong precedent. The Digital Personal Data
+  Protection Act, 2023 applies to such processing.
+- *Capability.* As with plates, a camera must be graded for faces before it is
+  asked to recognise them: the useful measure is pixels across a face at the
+  camera's measured distances. On the footage used here faces are a few pixels
+  across (the published own-feed film blurs heads for that reason), so these
+  cameras would be graded unsuitable, exactly as most government views are
+  graded unsuitable for plates.
+- *Harm.* A wrong plate points at a car; a wrong face points at a person.
+  The design therefore returns candidates requiring verification, never
+  identifications; binds every search to a case and purpose, as plate search
+  already is; logs every search in the audit chain; and lets a department set
+  the threshold per camera grade.
+
+The design: face detection only on person tracks at cameras graded suitable;
+embeddings compared against the authorised gallery; a hit raises a
+`wanted_person` or `missing_person` incident through the same workflow as 11.1,
+at one priority step below a verified plate hit until an officer confirms it.
+What a department must supply for this is listed in section 13.
 
 ## 12. Statewide operations — what is asked, what is claimed
 
@@ -385,9 +455,12 @@ Nothing in this table is quoted as “tested at 80,000”.
 To assess a further camera, and to stop inferring what a catalogue would have
 stated:
 
-1. **A catalogue session** on `cctv.corp8.cloud` (or an export): authoritative
-   camera id, department, mount, codec, and coordinates. `CATALOGUE` basis
-   supersedes `DERIVED_FROM_NAME` with no code change.
+1. **A camera inventory per department** (a spreadsheet is enough; the
+   registry's CSV import takes it): camera id, department, site, mount height
+   and direction, codec, resolution, and coordinates. For the evaluation the
+   organisers confirmed no participant catalogue (`/api/ingest`) would be
+   provided, so this grid's records are probed and say `source="probe"`; a
+   `CATALOGUE` basis supersedes them with no code change.
 2. **Surveyed coordinates** where names are insufficient (the eleven unlocated
    cameras on this grid).
 3. **Stream access** already issued for the 30-camera evaluation grid.
@@ -395,6 +468,16 @@ stated:
    be kept; BSA s.63 signing authority is outside this software.
 5. **Watchlist authority** if a government list is to replace the representative
    one: issuer, validity, revocation, and the legal basis for matching.
+6. **NVR / VMS access** where cameras are not reachable directly: vendor and
+   version, and either an RTSP/ONVIF export per channel or the VMS's own API
+   for live and recorded streams. Only frames and a stable camera id are
+   needed; no VMS is replaced.
+7. **Network path and bandwidth** from each district to its edge node: whether
+   streams can be pulled on demand, and the uplink for metadata (about 400 bytes
+   an observation) to the centre.
+8. **For facial recognition, if a department wants it (11.2):** an authorised
+   gallery with a recorded legal basis per person, a retention limit, a
+   decision on who may search, and cameras surveyed for face resolution.
 
 ## 14. Future roadmap (PoC → district → state)
 
@@ -407,7 +490,7 @@ This is a plan, not a claim of work already done.
 | Catalogue-backed Model 1 | Authoritative ids, departments and surveyed coordinates replace `DERIVED_FROM_NAME` / `probe` | **DESIGNED** — blocked on a catalogue session |
 | Government watchlist feed | Same match path; replace `REPRESENTATIVE` with an authorised issuer | **DESIGNED** — blocked on legal basis and API |
 | Statewide centre | Cross-district search over metadata; no central video farm | **MODELLED** |
-| Face recognition | Not on this roadmap. Deliberate abstention. | — |
+| Face recognition | Gated (11.2): only with an authorised gallery, a legal basis per entry, and cameras graded for face resolution. | Department decision |
 | VAHAN / CCTNS / AFIS | Adapters exist as `NotImplementedError`. No integration is claimed. | — |
 
 ## 15. Disaster recovery and redundancy design

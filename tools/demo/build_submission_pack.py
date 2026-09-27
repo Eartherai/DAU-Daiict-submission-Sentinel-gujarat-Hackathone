@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 #: (published name, source, required). Order is the portal's order.
 ITEMS: list[tuple[str, str, bool]] = [
+    ("00_SUBMISSION_INDEX.md", "docs/FINAL_SUBMISSION.md", True),
     ("00_CHECKLIST.md", "docs/SUBMISSION_CHECKLIST.md", True),
     ("01_SAAKSHYA_deck.pptx", "var/demo/SAAKSHYA_deck.pptx", True),
     ("01_SAAKSHYA_deck.pdf", "var/demo/SAAKSHYA_deck.pdf", True),

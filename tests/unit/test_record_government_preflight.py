@@ -411,11 +411,14 @@ def test_role_handoff_uses_one_document_navigation_per_role(monkeypatch):
     monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
     page = ActionPage()
     beats = gov.build(page, 'X', 'admin-placeholder', 'officer-placeholder', base='http://unused')
-    next(b for b in beats if 'Model 1' in b.title).action()
+    registry = next(b for b in beats if 'Model 1' in b.title)
+    registry.action()
     beats[-1].action()
+    registry.action()  # the same role again must still load a new document
     assert [a for a in page.actions if a[0] == 'goto'] == [
-        ('goto', 'http://unused/ui/?recorder-role=administrator#cameras'),
-        ('goto', 'http://unused/ui/?recorder-role=officer#cameras')]
+        ('goto', 'http://unused/ui/?recorder-role=administrator&handoff=1#cameras'),
+        ('goto', 'http://unused/ui/?recorder-role=officer&handoff=2#cameras'),
+        ('goto', 'http://unused/ui/?recorder-role=administrator&handoff=3#cameras')]
 
 
 def test_gallery_consumes_producer_fields_without_inventing_source_domain(tmp_path):

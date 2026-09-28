@@ -238,10 +238,20 @@ def test_pattern_marks_from_replay_cameras_keep_the_variant_out_of_the_film(monk
     monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
     page = Page()
     page.response.json = lambda: {'candidates': [], 'marks': [
-        {'plate': 'GJ11S7924', 'cameras': ['cam06']},
-        {'plate': 'GJ11SX0001', 'cameras': ['GOVREC-cam06']}]}
+        {'plate': 'GJ11S7924', 'cameras': [{'camera_id': 'cam06', 'reads': 57}]},
+        {'plate': 'GJ11SX0001', 'cameras': [{'camera_id': 'GOVREC-cam06', 'reads': 1}]}]}
     with pytest.raises(gov.SkipBeat, match='non-government'):
         beat(plan(page), 'Investigate — partial').action()
+
+
+def test_pattern_marks_on_government_cameras_are_filmed(monkeypatch):
+    monkeypatch.setattr(gov, 'navigate', lambda *a, **k: None)
+    monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
+    page = Page()
+    page.response.json = lambda: {'candidates': [], 'marks': [
+        {'plate': 'GJ11S7924', 'cameras': [{'camera_id': 'cam06', 'reads': 57}]}]}
+    result = beat(plan(page), 'Investigate — partial').action()
+    assert result['variant'] == 'partial' and result['returned_observations'] == 1
 
 
 def test_attribute_search_does_not_invent_unmeasured_colour(monkeypatch):

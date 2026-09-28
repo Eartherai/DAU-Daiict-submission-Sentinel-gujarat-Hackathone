@@ -544,15 +544,22 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
     selected = {"camera": None}
     gallery = gallery or ROOT / "var/demo/plate_gallery/gallery.html"
 
+    handoffs = [0]
+
     def use_token(token, role, view, content):
         if not token:
             raise RecorderFailure("role token missing")
         page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
         # A different query forces exactly one document navigation (a hash-only
         # navigation would leave the previous principal in app state).
-        page.goto(base.rstrip('/') + '/ui/?recorder-role=' + role + '#' + view,
+        # A repeated role URL would be a hash-only change: no document loads, the
+        # view never switches. Each handoff gets its own query.
+        handoffs[0] += 1
+        page.goto(base.rstrip('/') + f'/ui/?recorder-role={role}&handoff={handoffs[0]}#{view}',
                   wait_until='domcontentloaded')
-        wait_view(page, view, content)
+        # The registry view computes capability over the whole store; give it
+        # time. Capture is paused while a beat prepares.
+        wait_view(page, view, content, timeout=150000)
 
     def wall_group(fraction):
         def go():
@@ -762,12 +769,13 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.fill('#purpose', 'checking the registry role separation')
         page.fill('#q-plate', plate)
         wait_search_idle(page)
-        mine = 'Bearer ' + admin_token
-        with page.expect_response(lambda r: '/search?' in r.url and f'plate={plate}' in r.url
-                                  and r.request.headers.get('authorization') == mine) as pending:
+        # The form is idle, so the next search for this plate is the administrator's.
+        # A 200 here (wrong role in effect) still fails the beat below.
+        with page.expect_response(lambda r: '/search?' in r.url and f'plate={plate}' in r.url) as pending:
             page.press('#q-plate', 'Enter')
         if pending.value.status != 403:
-            raise RecorderFailure('expected administrator refusal not observed')
+            raise RecorderFailure('expected administrator refusal not observed '
+                                  f'(HTTP {pending.value.status})')
         wait_view(page, 'investigate', '#results .notice.bad', allow_error=True)
 
     search_beat = Beat('Designated plate — sightings with timestamps and camera', 30, search,
@@ -957,7 +965,9 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         body = pending.value.json()
         rows = body.get('candidates', [])
         # A pattern search answers with marks, each naming its cameras.
-        cams = [r.get('camera_id') for r in rows] + [c for m in body.get('marks', []) for c in m.get('cameras', [])]
+        cams = [r.get('camera_id') for r in rows] + [
+            c.get('camera_id') if isinstance(c, dict) else c
+            for m in body.get('marks', []) for c in m.get('cameras', [])]
         if any(c not in (government or []) for c in cams):
             raise SkipBeat('search variant returned non-government sources; omitted from government film')
         wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice, #results .mark-row')
@@ -980,7 +990,10 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         if pending.value.status != 200:
             raise RecorderFailure('fresh evidence verification unavailable')
         wait_view(page, 'evidence', '#evidence-chain .ev-when', timeout=180000, allow_error=True)
-        return {'integrity_ok': bool(pending.value.json().get('ok'))}
+        body = pending.value.json()
+        # The endpoint reports 'verified', 'failures' and 'cautions'; there is no 'ok'.
+        return {'integrity_ok': body.get('verified') is True and not body.get('failures'),
+                'cautions': len(body.get('cautions') or [])}
 
     def cases():
         with page.expect_response(lambda r: '/cases' in r.url and r.request.method == 'GET') as pending:

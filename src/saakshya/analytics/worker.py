@@ -261,9 +261,13 @@ class Worker:
                                 # insert then stores evidence_ref = NULL. The
                                 # frame is sealed, and the sighting still
                                 # reports "no evidence available".
+                                # Seal the frame the plate was read from. The
+                                # frame in hand closed the track, and by then
+                                # the vehicle has often left it.
                                 if evidence is not None:
-                                    to_seal.setdefault(
-                                        cid, []).append((o, frame.image))
+                                    shot = pipe.evidence_frame(o)
+                                    to_seal.setdefault(cid, []).append(
+                                        (o, frame.image if shot is None else shot))
                     dt_ms = (time.perf_counter() - t0) * 1000
                     times = fps_times[cid]
                     times.append(now)

@@ -188,6 +188,17 @@ class CameraPipeline:
         #: Attributes from the *highest-quality* frame of each track, not the
         #: last: a vehicle leaving frame gives a worse reading than mid-crossing.
         self._best_attrs: dict[str, tuple[float, VehicleAttributes]] = {}
+        #: The frame of each track's best plate read, with its quality score.
+        #: Evidence for an observation must show the vehicle whose plate was
+        #: read. The frame in hand when the track *closes* is later - often
+        #: after that vehicle has left - and sealing it put another car beside
+        #: the record's plate: 26 sealed stills for one plate showed a second
+        #: vehicle entirely.
+        self._evidence_frames: dict[str, tuple[float, Any]] = {}
+        #: dedup_key -> that frame, for observations emitted by the current
+        #: process()/flush() call. Cleared at the start of the next call, so a
+        #: frame is held only until the caller has had the chance to seal it.
+        self._evidence_out: dict[str, Any] = {}
         self._seen_tracks: set[str] = set()
         self._sequence = 0
         self._vehicle_backend: Any = None
@@ -363,6 +374,7 @@ class CameraPipeline:
         A full queue never causes evidence loss: the frame is processed
         synchronously as a fallback, outside the advisory queue.
         """
+        self._evidence_out.clear()
         gate = self.cfg.inference_scheduler
         plan = gate.plan(self.stats.frames_in) if gate else None
         admitted = bool(plan and plan.sample and plan.infer and gate and
@@ -465,6 +477,7 @@ class CameraPipeline:
             prev = self._best_quality.get(t.track_id)
             if prev is None or q.score > prev.score:
                 self._best_quality[t.track_id] = q
+            self._keep_evidence_frame(t.track_id, q.score, frame.image)
             self._seen_tracks.add(t.track_id)
 
         # Tracks with no plate at all still deserve a quality assessment, or the
@@ -571,6 +584,7 @@ class CameraPipeline:
         person still in frame at shutdown — which, for a camera watching a
         pavement, is most of them.
         """
+        self._evidence_out.clear()
         out: list[VehicleObservation] = []
         for tr in self.tracks._by_camera.values():
             for t in tr.close_segment():
@@ -607,6 +621,7 @@ class CameraPipeline:
         voter = self._voters.pop(track.track_id, None)
         quality = self._best_quality.pop(track.track_id, None)
         attrs = (self._best_attrs.pop(track.track_id, (0.0, None)))[1]
+        read_frame = self._evidence_frames.pop(track.track_id, (0.0, None))[1]
 
         # Per-track resolve, not resolve_all. resolve_all is the camera-level
         # eval path and refuses to publish a single-read lead — at that
@@ -667,9 +682,37 @@ class CameraPipeline:
         self.stats.observations_emitted += 1
         if obs.plate:
             self.stats.observations_with_plate += 1
+            if read_frame is not None:
+                self._evidence_out[obs.dedup_key] = read_frame
         else:
             self.stats.observations_without_plate += 1
         return [obs]
+
+    #: Frames are megabytes each, so the held set is bounded even if a track
+    #: were ever dropped without being emitted. Far above the plate-bearing
+    #: tracks one camera has open at once.
+    MAX_EVIDENCE_FRAMES = 16
+
+    def _keep_evidence_frame(self, track_id: str, score: float, image: Any) -> None:
+        """Hold ``image`` as the track's evidence frame if it is its best read.
+
+        Only a reference: each decoded frame is its own array, so nothing is
+        copied and nothing later overwrites it.
+        """
+        held = self._evidence_frames.get(track_id)
+        if held is not None and score <= held[0]:
+            return
+        if held is None and len(self._evidence_frames) >= self.MAX_EVIDENCE_FRAMES:
+            self._evidence_frames.pop(next(iter(self._evidence_frames)))
+        self._evidence_frames[track_id] = (score, image)
+
+    def evidence_frame(self, obs: VehicleObservation) -> Any | None:
+        """The frame ``obs``'s plate was best read from, or None.
+
+        Available for observations returned by the latest ``process`` or
+        ``flush`` call - which is when a caller seals them.
+        """
+        return self._evidence_out.get(obs.dedup_key)
 
     def snapshot(self) -> dict[str, Any]:
         return {"camera_id": self.camera_id, **self.stats.snapshot(),

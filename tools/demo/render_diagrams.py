@@ -203,9 +203,9 @@ def d_logical() -> Image.Image:
     """The federation. Video stays where it is; metadata is what moves."""
     n = [
         Node("estate", 70, 320, 400, 300, "Camera estate", [
-            "Five departments, two decades", "Heterogeneous vendors and codecs",
-            "Capability unknown until measured", "",
-            "· RTSP / HLS, in place"], "estate"),
+            "26 departments; five in sandbox", "Model 2: direct RTSP / ONVIF",
+            "Model 3: departmental VMS", "via federation middleware",
+            "· both register in Model 1"], "estate"),
         Node("edge", 610, 300, 430, 340, "District edge node", [
             "Decode · detect · track · ANPR",
             "Local store and queue",
@@ -231,9 +231,9 @@ def d_logical() -> Image.Image:
     ]
     return draw(
         "Logical architecture",
-        "Model 1 registry / GIS · Model 2 unified viewing · Model 3 VMS federation · Model 4 selected analytics",
+        "Compulsory Model 1 registry / GIS · Model 2 direct viewing · Model 3 VMS federation · Model 4 selected analytics",
         n, e,
-        "Statewide central recording is declined: 80,000 × 2 Mbps = 160 Gbps (MODELLED, docs/SCALE_MODEL.md).\nSelected-camera viewing and central analytics remain supported; district deployment is DESIGNED.")
+        "Statewide central recording is declined: 80,000 × 2 Mbps = 160 Gbps (MODELLED, docs/SCALE_MODEL.md).\nDistrict deployment is DESIGNED; VMS connectors are DEMO/TEST pending departmental access (docs/ADAPTERS.md).")
 
 
 def d_search() -> Image.Image:
@@ -311,9 +311,8 @@ def d_evidence() -> Image.Image:
         "Evidence chain",
         "Hash-chained, append-only, and honest about what it is not",
         n, e,
-        "The certificate is a draft by design. Calling an output "
-        "“legally admissible” is a claim about a\ncourt's decision, "
-        "and no system is in a position to make it.")
+        "A hash verifies unchanged bytes, not plate-to-image identity: older track-close stills can show a different vehicle.\n"
+        "Verify against source footage (docs/HLD.md §4.6). The certificate remains a draft, not a court determination.")
 
 
 def d_capability() -> Image.Image:

@@ -96,7 +96,7 @@ All **MODELLED**. None measured.
 | Local streams initially / at end | **50 initially; 44 streaming / 6 down at end** | `var/reports/camera_load.json` |
 | Frames decoded, decoder errors | 52,637 · **0** | `var/reports/camera_load.json` |
 | Cameras failed mid-run, not recovered / open failures | 6 / 36 | `var/reports/camera_load.json` |
-| Single-stream component throughput | **11.4 frames/s** | `var/reports/camera_load.json`; size full pipeline on the historical 5.6 fps baseline in `reports/SCALE_80K_LOAD_TEST.md` |
+| Single-process local-load throughput | **11.4 frames/s** | `var/reports/camera_load.json`; size full pipeline on the historical 5.6 fps baseline in `reports/SCALE_80K_LOAD_TEST.md` |
 | Peak RSS, 50 decoders in one process | 4.9 GB | `make loadtest` |
 | Cameras ingested in the demonstration | 6 | `make demo` |
 | Observations | 140 over 240 s | `var/logs/demo_seed.log` |

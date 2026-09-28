@@ -35,6 +35,16 @@ Model 2 is unified viewing and metadata search; Model 3 is VMS federation and
 adapter middleware. Statewide central recording is declined on bandwidth
 arithmetic (`docs/SCALE_MODEL.md`).
 
+Model 1 is compulsory: both source paths register identity, GIS and governance
+there. **Model 2 connects directly** to reachable cameras/NVRs or departmental
+systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
+VMS federation middleware** between departmental VMS APIs/SDKs and the unified
+platform. Transport adapters alone do not prove departmental VMS federation.
+The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
+no live departmental VMS integration is claimed. Selected central analytics
+is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+
+
 **Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
 CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
 400 ms apart. OPTIMIZED VIEW (default scrolling wall) holds at most 12
@@ -49,9 +59,13 @@ concurrency. Analytics workers scale horizontally, so additional GPU nodes
 raise concurrent inference throughput without redesigning ingest, event,
 watchlist, GIS or investigation services.
 
-The measured concurrency is a few selected cameras at a time, not the whole
-registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
-run). `command/summary.py` reports “N of M camera(s) with a stream under
+The default is **4 deep-inference slots, prioritised by measured capability**
+(VERIFIED in `src/saakshya/analytics/worker.py`, `SAAKSHYA_AI_CAMERA_LIMIT`).
+At worker boot, stream-capable enabled cameras are ranked GOOD > DEGRADED >
+UNKNOWN > UNSUITABLE by ANPR grade; ties use camera id. Assignments do not
+rotate at runtime. This configured default is separate from the historical
+four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
+`command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
 surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
 inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;

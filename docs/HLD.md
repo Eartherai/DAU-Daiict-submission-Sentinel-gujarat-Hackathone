@@ -87,7 +87,10 @@ unlocated (`NAME_INSUFFICIENT`), listed without invented coordinates
 (`docs/MEASURED_RESULTS.md`, 6 September snapshot).
 Model 1 does not stream live video.
 
-**Model 2 — Unified viewing (kept).**
+**Model 2 — Unified viewing (kept).** Direct integration with reachable
+cameras/NVRs and departmental systems over RTSP/ONVIF, without federation
+middleware. Both the direct path and the Model 3 path register in compulsory
+Model 1 (official FAQ Q12–Q23).
 
 **Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
 CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
@@ -99,10 +102,12 @@ Selected AI workers read RTSP/TCP separately. These are local viewing policies,
 not sandbox limits or a claim that every tile is currently live.
 
 
-**Model 3 — Federation & metadata (kept).** Heterogeneous sources: government
-RTSP plus local MediaMTX synthetic. The observation store is the metadata bus.
-Search, camera graph, trajectory, watchlist, alerts and evidence read that bus.
-Adapters, not a replacement VMS.
+**Model 3 — VMS federation middleware (kept).** Departmental VMS APIs/SDKs
+connect through system adapters to a unified downstream interface. The
+adapter contract and DEMO/TEST connectors are in `docs/ADAPTERS.md`; live
+departmental VMS credentials are still required. Government RTSP and local
+MediaMTX transport alone do not establish Model 3 federation. Departmental
+infrastructure is retained; metadata feeds search, correlation and alerts.
 
 **Model 4 — selected central analytics (kept as a PoC).** Own-feed and
 selected-camera streams can be pulled through one controlled gateway into
@@ -198,14 +203,29 @@ concurrency. Analytics workers scale horizontally, so additional GPU nodes
 raise concurrent inference throughput without redesigning ingest, event,
 watchlist, GIS or investigation services.
 
-The measured concurrency is a few selected cameras at a time, not the whole
-registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
-run). `command/summary.py` reports “N of M camera(s) with a stream under
+The default is **4 deep-inference slots, prioritised by measured capability**
+(VERIFIED in `src/saakshya/analytics/worker.py`, `SAAKSHYA_AI_CAMERA_LIMIT`).
+At worker boot, stream-capable enabled cameras are ranked GOOD > DEGRADED >
+UNKNOWN > UNSUITABLE by ANPR grade; ties use camera id. Assignments do not
+rotate at runtime. This configured default is separate from the historical
+four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
+`command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
 surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
 inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
 it does not rotate which cameras receive deep inference. GPU pool capacities
 in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+
+**MEASURED government output (historical store, not simultaneous coverage).**
+`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md` records 1,155,325 observations,
+including 529,966 car and 307,290 person observations; persons were detected
+across all 30 government cameras over the stored date range. ANPR has 901
+read rows, 178 distinct plates, and 97 distinct plates with at least two
+agreeing frames (474 read rows), on 9 cameras. There are no government
+cross-camera plate matches or appearance embeddings. The cam12 person-zone
+rule is an administrator-created demonstration rule. These are stored
+analytics outputs, not ground-truth accuracy or a completed government
+multi-location vehicle trace (official FAQ Q27–Q31).
 
 ### 4.3 Retrieval — graph-first
 ```
@@ -241,6 +261,14 @@ audited exactly as the plate search is.
 ### 4.6 Evidence
 Hash-chained frame, clip and manifest. BSA s.63 certificate prepared as a
 **draft** with signature blocks empty. The system never asserts admissibility.
+
+**Older sealed-still limitation.** A content hash verifies unchanged bytes,
+not that the image shows the vehicle named by its plate record. The older
+worker sealed the frame in hand when a track closed; that frame can show a
+different vehicle. Treat older stills as requiring visual/source verification,
+including those in historical trace reports and films. Since commit `672a2a0` the worker
+seals the frame each plate was best read from, so new captures show the read
+vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
 
 ### 4.7 Offline
 Durable local queue; events acknowledged, not deleted, so a lost acknowledgement
@@ -335,7 +363,7 @@ runtime from detected hardware. One codebase.
 estate. Separately, 50 logical local cameras with mixed codecs delivered
 52,637 frames with **0 decoder
 errors**, ending with 44 streaming and 6 down, 36 open failures and no
-recovery (`var/reports/camera_load.json`). The single-stream component rate
+recovery (`var/reports/camera_load.json`). The single-process local-load rate
 was 11.4 frames/s; sizing uses the historical ~5.6 fps full-pipeline baseline
 (§17.1). API p50 2.0–23.1 ms, p99 ≤44.7 ms on the DEMO store
 (`var/reports/api_latency.json`). Offline replay is VERIFIED in
@@ -376,7 +404,7 @@ The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 - **ER/STQC** — camera compliance status is a registry field, not an assertion
   about this software.
 
-## 10. Heterogeneous CCTV onboarding (Model 1 + 3)
+## 10. Heterogeneous CCTV onboarding (Models 1 + 2 + 3)
 
 Cameras arrive as RTSP (and, on the replica, MediaMTX). There is no assumption
 of a shared VMS. Each camera is a registry row: identity, transport, codec,
@@ -388,6 +416,17 @@ This is the 6 September snapshot (`docs/MEASURED_RESULTS.md`): the codec
 counts exclude the unobserved camera. Nineteen were placed `DERIVED_FROM_NAME`;
 eleven were listed `NAME_INSUFFICIENT`. No participant-specific catalogue is
 provided; government intake uses probe-derived records (`source="probe"`).
+
+**Integration feasibility (DESIGNED).** IP cameras and NVR exports use the
+Model 2 direct path; departmental VMS APIs/SDKs use the Model 3 federation
+path. Analog cameras require an existing DVR's supported digital channel
+export or an encoder gateway; raw analog input is not implemented here.
+Survey vendor/version, channel mapping, codec, clock/NTP configuration,
+network route, bandwidth, retention, licences and access authority before
+promising an integration. Private public-facing cameras may be viewed only
+where feasible and permitted; require owner consent, scope and retention
+policy. This proposal covers the FAQ's 26-department estate; the sandbox's
+five departments are an evaluation sample, not the statewide total.
 
 NVR and VMS vendors are not replaced. An adapter that can deliver frames (or
 already-decoded JPEGs) and a stable camera id is enough to sit on the
@@ -494,7 +533,7 @@ the same discipline as the rest of the proposal.
 | Topic | Claim | Label |
 |---|---|---|
 | Central / regional / edge | ~33 district nodes × 2,000–3,000 cameras; centre aggregates metadata | **MODELLED** (`docs/SCALE_MODEL.md`) |
-| GPU / accelerators | One CPU process: 11.4 fps component benchmark; historical 5.6 fps full pipeline (size on this, §17.1). A 2,500-camera node at that rate needs GPU inference at the district, not a rewrite. Profiles: `DEV_CPU` / `CLOUD_GPU` / `TARGET_GPU` | **MEASURED** throughput; **DESIGNED** GPU split |
+| GPU / accelerators | One CPU process: 11.4 fps local-load benchmark; historical 5.6 fps full pipeline (size on this, §17.1). A 2,500-camera node at that rate needs GPU inference at the district, not a rewrite. Profiles: `DEV_CPU` / `CLOUD_GPU` / `TARGET_GPU` | **MEASURED** throughput; **DESIGNED** GPU split |
 | Bandwidth | Do not copy video to the centre. Wall policies are in §3. MODELLED gated metadata: 92.16–184.32 GB/day at 400 B or 306.82–613.65 GB/day at the measured 1,331.7 B row; sizing uses the latter (§20.4). Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** offline tests |
 | Hot / warm / cold storage | Video stays at the camera/NVR. Hot: 30 days of metadata + sealed evidence at the node. Warm/cold: partition observations by month. Retention is a policy decision | **DESIGNED**, **UNTESTED** at 80k |
 | Load balancing / health | Horizontal processes per node; `/system/health`; hash-chained audit | **MEASURED** on 30 cameras; **UNTESTED** as a cluster scheduler |
@@ -541,6 +580,8 @@ These are requested inputs, not claims of access already granted.
 | Department | Required local information |
 |---|---|
 | Home / Police | Junction and jurisdiction mapping, control-room VMS exports, authorised watchlist issuer, incident escalation and evidence signing authority |
+| Food & Civil Supplies | Godown/PDS shop inventory, DVR/NVR exports, retention, ownership, uplink and authorised viewing roles |
+| RTO | Office/test-track/checkpoint channels, plate visibility, time synchronisation, vendor/API access and retention |
 | Health | Hospital camera ownership, restricted clinical areas, privacy masks, access roles and retention policy |
 | GSRTC | Depot and bus-station channel mapping, vehicle lanes, timetable context, VMS/RTSP exports and uplink constraints |
 | Panchayat | Village/site coordinates, power and backhaul availability, local maintenance owner and offline queue requirements |
@@ -554,7 +595,7 @@ This is a plan, not a claim of work already done.
 |---|---|---|
 | Next on-site PoC (date to be confirmed) | Evaluation baseline in §3, designated-vehicle search, watchlist alerts, CONTROL ROOM / OPTIMIZED VIEW. Target GPU benchmark before sizing. | **DESIGNED** |
 | District node | One district, 2,000–3,000 cameras, `TARGET_GPU` profile, local store and queue, watchlist bundles from the centre | **DESIGNED** |
-| Catalogue-backed Model 1 | Authoritative ids, departments and surveyed coordinates replace `DERIVED_FROM_NAME` / `probe` | **DESIGNED** — blocked on a catalogue session |
+| Catalogue-backed Model 1 | Authoritative ids, departments and surveyed coordinates replace `DERIVED_FROM_NAME` / `probe` | **DESIGNED** — requires departmental inventory; no participant sandbox catalogue is promised |
 | Government watchlist feed | Same match path; replace `REPRESENTATIVE` with an authorised issuer | **DESIGNED** — blocked on legal basis and API |
 | Statewide centre | Cross-district search over metadata; no central video farm | **MODELLED** |
 | Face recognition | Gated (11.2): only with an authorised gallery, a legal basis per entry, and cameras graded for face resolution. | Department decision |
@@ -576,7 +617,7 @@ centre does not stop a district detecting, matching or sealing evidence.
 | District node lost | That district's live analytics | Cameras keep recording to their own NVR. No central video was being written, so no footage is lost — only analysis is paused. | **DESIGNED** |
 | Store corruption at a node | That node's metadata | Restore from the last snapshot; replay the queue from the centre's copy of that district's metadata. | **DESIGNED**, **UNTESTED** |
 | Evidence tampering | One record | Hash chain detects it. 5 of 5 tamper tests detected. | **MEASURED** |
-| Upstream grid refuses sessions | Live wall only | Tiles fall back to their last still and say so; the AI plane and the store are unaffected. | **MEASURED** — observed repeatedly |
+| Upstream grid refuses sessions | Affected viewing or AI source connections | Tiles show fallback/health state and workers back off per camera. Stored observations remain available; separate RTSP and WHEP paths do not guarantee independent upstream availability. | **VERIFIED** — `live/hub.py`, `ingest/stream.py`; support guidance in `SENTINEL_SUPPORT_CLARIFICATION.md` |
 
 **Objectives to be agreed, not asserted.** RPO and RTO are procurement
 decisions with cost attached, so this proposal states the shape and leaves the
@@ -626,11 +667,12 @@ measured and they differ by a factor of two.
 
 | Measurement | Value | What it covers |
 |---|---|---|
-| Single analytics process, detection only, one stream | **11.4 frames/s** | Best case. 1,019 frames, `var/reports/camera_load.json`. |
+| Local replica load, one analytics process | **11.4 frames/s** | 1,019 frames processed across local camera queues; `tools/perf/camera_load.py`, `var/reports/camera_load.json`. |
 | Historical AI worker, full pipeline, four cameras concurrently | **~1.4 frames/s per camera, ~5.6 aggregate** | Historical measurement recorded in `reports/SCALE_80K_LOAD_TEST.md`; detection, ANPR and tracking share the host. Not remeasured with the current recogniser. |
 
-**Size on the second.** The first is a component benchmark taken with nothing
-else running; the second is what the software actually sustains doing the whole
+**Size on the second.** The first is the local replica harness, which times
+`CameraPipeline.process` across camera queues (not detection only or a
+single stream). The second is the historical government worker doing the whole
 job. A statewide estimate built on the best case is the kind of number that
 collapses in the first question about it.
 

@@ -181,14 +181,26 @@ concurrency. Analytics workers scale horizontally, so additional GPU nodes
 raise concurrent inference throughput without redesigning ingest, event,
 watchlist, GIS or investigation services.
 
-The measured concurrency is a few selected cameras at a time, not the whole
-registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
-run). `command/summary.py` reports “N of M camera(s) with a stream under
+The default is **4 deep-inference slots, prioritised by measured capability**
+(VERIFIED in `src/saakshya/analytics/worker.py`, `SAAKSHYA_AI_CAMERA_LIMIT`).
+At worker boot, stream-capable enabled cameras are ranked GOOD > DEGRADED >
+UNKNOWN > UNSUITABLE by ANPR grade; ties use camera id. Assignments do not
+rotate at runtime. This configured default is separate from the historical
+four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
+`command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
 surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
 inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
 it does not rotate which cameras receive deep inference. GPU pool capacities
 in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+
+**Older sealed-still limitation.** A content hash verifies unchanged bytes,
+not that the image shows the vehicle named by its plate record. The older
+worker sealed the frame in hand when a track closed; that frame can show a
+different vehicle. Treat older stills as requiring visual/source verification,
+including those in historical trace reports and films. Since commit `672a2a0` the worker
+seals the frame each plate was best read from, so new captures show the read
+vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
 
 ## 5 · How to regenerate any of it
 

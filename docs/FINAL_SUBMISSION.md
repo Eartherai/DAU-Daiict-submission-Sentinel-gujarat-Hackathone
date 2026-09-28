@@ -40,9 +40,54 @@ has 901 reads, 178 distinct marks and 9 cameras (counted with `csv.DictReader`
 from `var/demo/government_feed_anpr_report.csv` on 28 September). These are
 historical report statistics, not claims about the replacement take. Confirm
 the replacement film’s recogniser provenance and rebuild its output report
-before upload. Government evidence does not establish a cross-camera route.
+before upload. Government evidence does not establish a cross-camera route. The snapshot has
+474 confirmed read rows representing 97 distinct confirmed plates (at least
+two agreeing frames); see `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md` for SQL.
+
+**Older sealed-still limitation.** A content hash verifies unchanged bytes,
+not that the image shows the vehicle named by its plate record. The older
+worker sealed the frame in hand when a track closed; that frame can show a
+different vehicle. Treat older stills as requiring visual/source verification,
+including those in historical trace reports and films. Since commit `672a2a0` the worker
+seals the frame each plate was best read from, so new captures show the read
+vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
+
+## Requirement coverage (official FAQ Q24, Q29–Q36)
+
+| Requirement | Where the judge can inspect it |
+|---|---|
+| Model justification, overview, features (Q29) | Presentation; `02_HLD.md` §§1–3; hybrid source paths below |
+| Architecture and diagrams (Q24/Q30) | `02_HLD.md` §§3–4, §6; `02_HLD_diagrams.pdf` — include the diagram PDF even though the builder treats it as optional |
+| IP/analog, multi-vendor cameras/VMS (Q30) | HLD §10, §13; `05_ADAPTERS.md` — distinguish direct integration from federation |
+| Dispersed sites, edge/central split, low bandwidth (Q30/Q35) | HLD §§6, 20.1, 20.4 |
+| ANPR and cross-camera tracking (Q24/Q30) | HLD §§4.2–4.5, 11; government SINGLE-CAMERA and controlled own-feed trace reports above |
+| Privacy, RBAC, audit and security (Q24) | HLD §§4.8, 18; `02_SECURITY.md` |
+| Department technical inputs (Q24/Q30) | HLD §13, including Home/Police, Food & Civil Supplies, RTO and sandbox departments |
+| Compute/GPU sizing and costs (Q24/Q35) | HLD §§17, 20.2–20.3, 20.8–20.9; synthetic registry load report |
+| Hot/warm/cold retention, scaling, monitoring, HA/backup/DR (Q35) | HLD §§15, 20.5–20.7; assumptions and untested deployment work labelled |
+| Phased statewide rollout (Q35) | HLD §§14, 16 |
+| Working software films and timestamped output (Q31–Q33) | Own-feed film, final government film and ANPR CSV above; no mock-ups, animations or concept films satisfy these requirements |
+| Delivery and completeness (Q34/Q36) | Pack inventory above; signed-out viewer-link checks below |
+
+Government analytics evidence is summarised in
+`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`: vehicle and person detection were
+measured across historical government observations; restricted-zone reporting
+uses an administrator-created demonstration rule on cam12. There are no
+government appearance embeddings or government cross-camera plate matches.
+This does not establish completion of the moving-vehicle test across multiple
+government cameras (FAQ Q27–Q28); the multi-camera evidence is controlled own feed.
 
 ## Claims to keep separate
+
+Model 1 is compulsory: both source paths register identity, GIS and governance
+there. **Model 2 connects directly** to reachable cameras/NVRs or departmental
+systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
+VMS federation middleware** between departmental VMS APIs/SDKs and the unified
+platform. Transport adapters alone do not prove departmental VMS federation.
+The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
+no live departmental VMS integration is claimed. Selected central analytics
+is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+
 
 - **VERIFIED:** Models 1 (registry/GIS/governance), 2 (unified viewing and
   metadata search), 3 (VMS federation/adapter middleware), and 4 (selected
@@ -77,6 +122,15 @@ inference throughput without redesigning ingest, event, watchlist, GIS or
 investigation services. Adaptive scheduling changes cadence, not which cameras
 receive inference (`runtime/inference_scheduler.py`). Coverage is “N of M
 camera(s) with a stream under analysis” (`command/summary.py`).
+
+The default is **4 deep-inference slots, prioritised by measured capability**
+(VERIFIED in `src/saakshya/analytics/worker.py`, `SAAKSHYA_AI_CAMERA_LIMIT`).
+At worker boot, stream-capable enabled cameras are ranked GOOD > DEGRADED >
+UNKNOWN > UNSUITABLE by ANPR grade; ties use camera id. Assignments do not
+rotate at runtime. This configured default is separate from the historical
+four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
+`command/summary.py` reports “N of M camera(s) with a stream under
+analysis”.
 
 ## Live-demo and pack commands
 

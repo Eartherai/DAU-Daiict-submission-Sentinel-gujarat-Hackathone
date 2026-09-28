@@ -25,7 +25,8 @@ def test_both_throughput_measurements_are_stated() -> None:
     """One figure would hide that the two differ by a factor of two."""
     assert "11.4" in SECTION
     assert "5.6" in SECTION
-    assert "detection only" in SECTION or "detection-only" in SECTION
+    assert "tools/perf/camera_load.py" in SECTION
+    assert "local camera queues" in SECTION
 
 
 def test_it_sizes_on_the_conservative_measurement() -> None:
@@ -85,5 +86,8 @@ def test_the_avoided_costs_keep_their_measured_provenance() -> None:
         f"({rate}/s)")
     assert gaps and gaps.group(1).rstrip("0").rstrip(".") in avoided.replace(",", ""), (
         "the HLD quotes a gap-analysis time the load test no longer reports")
-    assert "58.01 MB" in avoided
+    size = re.search(r"\| Database size \| ([\d.]+) MB \|", report)
+    assert size, "the load report must state its measured database size"
+    assert f"{size.group(1)} MB" in avoided, (
+        "the HLD quotes a database size the load report no longer reports")
     assert "MEASURED" in avoided

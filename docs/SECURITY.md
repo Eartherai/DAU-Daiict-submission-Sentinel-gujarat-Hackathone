@@ -1,5 +1,14 @@
 # Security
 
+**Older sealed-still limitation.** A content hash verifies unchanged bytes,
+not that the image shows the vehicle named by its plate record. The older
+worker sealed the frame in hand when a track closed; that frame can show a
+different vehicle. Treat older stills as requiring visual/source verification,
+including those in historical trace reports and films. Since commit `672a2a0` the worker
+seals the frame each plate was best read from, so new captures show the read
+vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
+
+
 **Status:** implemented and tested. Adversarial checks in `tests/security/` (run `make test-security`).
 Every claim below names the file that enforces it and the test that proves it.
 

@@ -26,10 +26,10 @@ the submission evidence.
 
 1. Sign in. Case + purpose on the gate. Token field is a password box.
 2. Overview — open alert, cameras that published a mark, ANPR GOOD = 0 is yield.
-3. Live wall — 30 ingest stills. LIVE if age &lt; 2.5 s.
+3. Live wall — CONTROL ROOM up to 30 direct WHEP sessions / OPTIMIZED VIEW at most 12; current policy in `FINAL_SUBMISSION.md`.
 4. Map — 19 placed, 11 listed.
 5. Find `GJ11S7924` — one-camera honesty.
-6. Alerts — `GJ38BH5815` stolen_vehicle HIGH.
+6. Alerts — `GJ38BH5815` evaluation_designated HIGH; representative evaluation entry, not stolen.
 7. OCR lookalike on the live store: `GJ32K5587` / `GJ3ZK5587` (2 vs Z, both
    cam07). Two marks, not merged. Typed lookalike `6J1VV0119` still works.
 8. If they hand a **new** mark: watchlist (authority + reason required) → wait

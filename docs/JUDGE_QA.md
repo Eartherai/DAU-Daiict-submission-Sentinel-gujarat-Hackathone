@@ -121,12 +121,19 @@ uses SAAKSHYA’s authenticated proxy; Sentinel credentials stay server-side.
 Selected AI workers read RTSP/TCP separately. These are local viewing policies,
 not sandbox limits or a claim that every tile is currently live.
 
-Model 3 is federated metadata intelligence: government RTSP plus local
-MediaMTX, with the observation store as the bus.
+Model 1 is compulsory: both source paths register identity, GIS and governance
+there. **Model 2 connects directly** to reachable cameras/NVRs or departmental
+systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
+VMS federation middleware** between departmental VMS APIs/SDKs and the unified
+platform. Transport adapters alone do not prove departmental VMS federation.
+The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
+no live departmental VMS integration is claimed. Selected central analytics
+is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+
 
 Statewide central recording is declined on arithmetic; selected Model 4 analytics is retained. 80,000
-cameras at even 2 Mbps is 160 Gbps of sustained ingress. No network Gujarat has
-carries that, and no budget makes it appear.
+cameras at an assumed 2 Mbps is 160 Gbps of sustained ingress (MODELLED,
+`docs/SCALE_MODEL.md`); this is not a measurement of Gujarat’s network or budget.
 
 ## Why not a central VMS?
 

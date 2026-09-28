@@ -68,6 +68,14 @@ Real Chrome tab against a live API — overview → government Focus → plates 
 
 ---
 
+**Older sealed-still limitation.** A content hash verifies unchanged bytes,
+not that the image shows the vehicle named by its plate record. The older
+worker sealed the frame in hand when a track closed; that frame can show a
+different vehicle. Treat older stills as requiring visual/source verification,
+including those in historical trace reports and films. Since commit `672a2a0` the worker
+seals the frame each plate was best read from, so new captures show the read
+vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
+
 ## Official submission deliverables
 
 Upload `var/demo/SUBMIT/`, built by `python tools/demo/build_submission_pack.py`. The authoritative file list and submission instructions are in [docs/FINAL_SUBMISSION.md](docs/FINAL_SUBMISSION.md). Confirm the current deadline on the portal; large binaries are gitignored.
@@ -99,7 +107,7 @@ Forbidden phrases on every slide and in this README: *production ready* · *lega
 | Bonus ask | What is built |
 |---|---|
 | Hybrid architecture | Models **1 + 2 + 3** plus selected-camera Model **4** central analytics; statewide full-video centralization refused |
-| Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); live store: **0** exact cross-camera plate repeats (honest) |
+| Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); government cameras: **0** exact cross-camera plate repeats (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
 | Analytics beyond ANPR | Motion / track / person presence / attributes / measured capability |
 | Edge + low bandwidth | Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row; video stays at the camera; edge queue + SERVICE token sync |
 | Security / privacy / audit | Four authorisation gates · purpose binding · hash-chained audit · no FR identity on government data |
@@ -187,7 +195,7 @@ Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **20
 | ANPR grades | **0 GOOD · 28 UNSUITABLE · 2 UNKNOWN** |
 | Appearance | **20 GOOD · 8 DEGRADED · 2 UNKNOWN** |
 | Concurrent cameras (mixed codecs) | 50 local streams initially; 44 streaming / 6 down at end · 52,637 frames · **0** decoder errors (`var/reports/camera_load.json`) |
-| Analytics throughput (one process) | **11.4** frames/s |
+| Analytics throughput (local replica harness, one process) | **11.4** frames/s (`var/reports/camera_load.json`; not a current government-worker benchmark) |
 | Hot queries using an index | **10 of 10** |
 | Automated checks | Run the test suite (`make test`); current count is stamped at submission |
 
@@ -204,7 +212,17 @@ We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometr
 
 ## High-level design
 
-Metadata moves. Video stays where it is.
+Departmental recording stays at source; metadata and selected viewing streams move.
+
+Model 1 is compulsory: both source paths register identity, GIS and governance
+there. **Model 2 connects directly** to reachable cameras/NVRs or departmental
+systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
+VMS federation middleware** between departmental VMS APIs/SDKs and the unified
+platform. Transport adapters alone do not prove departmental VMS federation.
+The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
+no live departmental VMS integration is claimed. Selected central analytics
+is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+
 
 <p align="center">
   <img src="docs/readme/hld-fabric.jpg" alt="SAAKSHYA high-level design" width="100%">
@@ -214,7 +232,7 @@ Metadata moves. Video stays where it is.
 |---|---|---|
 | **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
 | **2** Unified viewing | CONTROL ROOM up to 30 WHEP sessions / OPTIMIZED VIEW at most 12 (policy below) | **Kept** |
-| **3** Federation | Government RTSP + local media; observation store as bus | **Kept** |
+| **3** Federation | Departmental VMS adapters and metadata exchange; DEMO/TEST connectors (`docs/ADAPTERS.md`) | **Kept; live VMS access pending** |
 | **4** Central analytics/VMS PoC | Selected-camera central ingest, analytics, events, watchlist, evidence, GIS | **Supported for selected feeds; not statewide full-video centralization** |
 
 ```
@@ -237,9 +255,13 @@ concurrency. Analytics workers scale horizontally, so additional GPU nodes
 raise concurrent inference throughput without redesigning ingest, event,
 watchlist, GIS or investigation services.
 
-The measured concurrency is a few selected cameras at a time, not the whole
-registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
-run). `command/summary.py` reports “N of M camera(s) with a stream under
+The default is **4 deep-inference slots, prioritised by measured capability**
+(VERIFIED in `src/saakshya/analytics/worker.py`, `SAAKSHYA_AI_CAMERA_LIMIT`).
+At worker boot, stream-capable enabled cameras are ranked GOOD > DEGRADED >
+UNKNOWN > UNSUITABLE by ANPR grade; ties use camera id. Assignments do not
+rotate at runtime. This configured default is separate from the historical
+four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
+`command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
 surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
 inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;

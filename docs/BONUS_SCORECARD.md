@@ -1,5 +1,9 @@
 # Bonus scorecard
 
+Historical scorecard. Current submission claims, wall policies and evidence limits
+are in [FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Still-wall counts and old
+render_deck.py references below describe earlier runs.
+
 The challenge's six bonus criteria, mapped to what exists, with an honest status
 per line. Three states, and they mean different things:
 

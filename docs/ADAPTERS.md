@@ -13,6 +13,16 @@ that deliberately does not pretend to work, it is called out as a seam.
 
 ## 1. What the platform ingests today
 
+Model 1 is compulsory: both source paths register identity, GIS and governance
+there. **Model 2 connects directly** to reachable cameras/NVRs or departmental
+systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
+VMS federation middleware** between departmental VMS APIs/SDKs and the unified
+platform. Transport adapters alone do not prove departmental VMS federation.
+The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
+no live departmental VMS integration is claimed. Selected central analytics
+is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+
+
 The platform is vendor-neutral by construction: nothing above the adapter
 boundary knows a camera's transport or its owning system. Five source types are
 wired in.
@@ -38,10 +48,13 @@ id pattern and onboarded into the registry labelled `source="probe"`. The parser
 already accepts the documented catalogue JSON, so making the catalogue
 authoritative is configuration, not a rewrite.
 
-The MediaMTX relay is the local **video** plane: it packet-copies government
-H.264 into loopback HLS/WHEP and transcodes the few HEVC sources, so a browser
-wall never opens a second session against the government WHEP gateway
-(`live/relay.py`, module docstring). The simulation catalogue is an
+The MediaMTX relay is an optional local **video** plane (`live/relay.py`).
+Default government viewing uses direct WHEP through authenticated signalling:
+CONTROL ROOM up to 30 sessions / OPTIMIZED VIEW at most 12, staggered 400 ms;
+the optimized policy prefetches 600 px and releases sessions after 15 s off
+screen (`ui/app.js`). These are local policies, not Sentinel limits. Selected
+AI workers consume RTSP/TCP separately. Relay configuration and its local cap
+are documented in `SENTINEL_SUPPORT_CLARIFICATION.md`. The simulation catalogue is an
 archival-replay definition — four looped four-minute clips across the demo fleet
 — and says so; it is `NOT_MEASURED` until a real worker attaches
 (`live/simulation.py`).

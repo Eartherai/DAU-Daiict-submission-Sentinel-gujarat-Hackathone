@@ -20,7 +20,7 @@ control).
 | File | Size |
 |---|---|
 | `00_SUBMISSION_INDEX.md` | 19K |
-| `01_SAAKSHYA_deck.pdf` | 14M |
+| `01_SAAKSHYA_deck.pdf` | 14M (51 slides) |
 | `01_SAAKSHYA_deck.pptx` | 18M |
 | `02_HLD.md` | 112K |
 | `02_HLD_diagrams.pdf` | 721K |

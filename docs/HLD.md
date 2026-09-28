@@ -1,8 +1,9 @@
 # High-Level Design
 
 **SAAKSHYA — Federated CCTV Intelligence and Evidence Fabric**
-Gujarat Police Innovation Challenge 2026 · Hybrid of Models 1 + 2 + 3 with a
-selected-camera Model 4 central analytics proof-of-concept.
+Gujarat Police Innovation Challenge 2026 · Hybrid of Models 1 + 2 + 3 + 4, all four
+built. Model 4's central analytics runs on selected cameras and ran live on the
+government grid on 28 Sep 2026 (4,465 observations, 200 plate reads).
 
 Submitted as the Technical Proposal. Engineering detail is in
 `docs/ARCHITECTURE.md`; the statewide target architecture, its capacity model
@@ -74,8 +75,10 @@ across that estate has three obstacles:
                                             (fail closed)
 ```
 
-**Submitted as a hybrid of Models 1 + 2 + 3, with selected-camera Model 4
-central analytics.** The evaluation baseline is **30 GOVERNMENT + 2 OWN_FEED + 18
+**Submitted as a hybrid of all four models, 1 + 2 + 3 + 4, all built.** Model 4
+is central analytics on selected cameras: four deep-inference slots that ran live
+on the government grid on 28 Sep (MEASURED). Only recording every camera's video
+centrally is declined (160 Gbps, 52 PB). The evaluation baseline is **30 GOVERNMENT + 2 OWN_FEED + 18
 SYNTHETIC_CONTROL = 50** (`src/saakshya/command/domain.py`,
 `enforce_evaluation_50`). Operator-onboarded cameras are retained, so a runtime
 registry can exceed that baseline. Government availability is measured during

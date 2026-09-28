@@ -288,7 +288,7 @@ def cover() -> Image.Image:
     d.text((ML, 338), "and Evidence Fabric", font=SANS_B(58), fill=WHITE)
     sub = SANS(24)
     for i, line in enumerate(wrap(d,
-            "Hybrid of Models 1 + 2 + 3, with Model 4's central analytics on selected cameras. Model 4's statewide central recording is declined on arithmetic, not deferred.",
+            "Hybrid of all four models — 1 + 2 + 3 + 4, all built. Model 4's central analytics ran live on the government grid on 28 Sep. Only recording every camera's video centrally is declined, on arithmetic.",
             sub, W - ML - MR)):
         d.text((ML, 430 + i * 34), line, font=sub, fill=(176, 180, 186))
     d.line([(ML, 530), (W - MR, 530)], fill=(58, 62, 68), width=1)
@@ -385,7 +385,7 @@ def problem() -> Image.Image:
 def hybrid() -> Image.Image:
     return table_page(
         "Proposed model, with justification",
-        "Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
+        "Hybrid of Models 1 + 2 + 3 + 4 — all four built.",
         ["MODEL", "ROLE / SOURCE PATH", "IMPLEMENTATION / BOUNDARY"],
         [
             [("M1 — Registry & GIS  (mandatory, kept)", None),
@@ -397,12 +397,12 @@ def hybrid() -> Image.Image:
             [("M3 — VMS federation middleware", None),
              ("Departmental VMS → vendor API/SDK adapters → federation layer → unified platform. Both paths share the Model 1 registry.", None),
              ("Adapter contract and DEMO/TEST connectors built; no vendor SDK client or ONVIF discovery yet. Deployment is DESIGNED.", None)],
-            [("M4 — Central analytics  (kept, selected cameras)", None),
+            [("M4 — Central analytics  (BUILT · ran live 28 Sep)", "green"),
              ("Selected streams through one controlled gateway into central analytics, events, watchlist, evidence, GIS.", None),
-             ("Intelligence view. Detection, tracking, ANPR, alerts on own and selected feeds.", None)],
-            [("M4 — Statewide central recording  (declined)", "red"),
-             ("The transport, not the capability. Central ingest of all video refused on cost and on the Core Goal.", "red"),
-             ("Not built, and not deferred. 80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB.", "red")],
+             ("Central worker, 4 deep-inference slots ranked by measured ANPR grade: 4,465 government observations and 200 plate reads, 28 Sep 11:15–12:53 IST (MEASURED).", "green")],
+            [("M4 at full scale — recording every camera centrally  (declined)", "red"),
+             ("The transport, not the capability: central analytics is built; central ingest of all 80,000 cameras' video is refused on cost.", "red"),
+             ("80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB. Model 4 runs on selected cameras by design.", "red")],
         ],
         "Sources: organiser FAQ Q12–Q23 (Model 2 direct; Model 3 middleware; hybrid allowed); docs/HLD.md §10; docs/SCALE_MODEL.md. Federation deployment is DESIGNED.",
         "04",
@@ -411,11 +411,54 @@ def hybrid() -> Image.Image:
     )
 
 
+def model4_built() -> Image.Image:
+    """Model 4 is built: the central worker's live run on the government grid."""
+    img, d = canvas(False, tags=("MEASURED", "VERIFIED"))
+    rail(img, d, "MODEL 4", "05")
+    kicker(d, "Model 4  ·  central analytics  ·  built and run live")
+    ty = title(d, "Model 4 is built. It ran live on the government grid.", y=88, size=44)
+    kpis = [("4", "DEEP-INFERENCE SLOTS", "cam06 · cam10 · cam08 · cam12"),
+            ("4,465", "LIVE OBSERVATIONS", "28 Sep 11:15–12:53 IST"),
+            ("200", "PLATE READS", "cam06 · 124 distinct plates"),
+            ("0", "CAMERAS RECORDED CENTRALLY", "video stays at the camera")]
+    x, kw = ML, (W - ML - MR) // 4
+    for num, lab, sub_ in kpis:
+        d.text((x, ty + 26), num, font=SANS_B(56), fill=SEAL)
+        _text(d, (x, ty + 100), lab, SANS(13), MUTED, spacing=2.2)
+        d.text((x, ty + 124), sub_, font=SANS(17), fill=INK)
+        x += kw
+    top = ty + 180
+    d.line([(ML, top - 18), (W - MR, top - 18)], fill=RULE, width=1)
+    colw = 640
+    y = top
+    for head, body in (
+        ("How it runs", "A central worker pulls selected government streams through one gateway and runs the full "
+                        "pipeline: RT-DETRv2 detection, tracking, YOLOv9 plate detection, Awiros-ANPR-OCR, per-track "
+                        "vote, watchlist match, evidence sealing."),
+        ("Which cameras", "Slots are assigned at boot by measured ANPR grade. Per camera: cam06 2,480 · cam10 1,050 · "
+                          "cam08 708 · cam12 227 observations."),
+        ("Why selected", "Deep inference goes to the cameras that earn it. Recording all 80,000 cameras centrally "
+                         "(160 Gbps) is the one part of Model 4 we decline."),
+    ):
+        d.text((ML, y), head, font=SANS_B(21), fill=SEAL)
+        y += 32
+        for line in wrap(d, body, SANS(19), colw):
+            d.text((ML, y), line, font=SANS(19), fill=INK)
+            y += 27
+        y += 16
+    shot = ROOT / "docs/readme/films/tour-model4-analytics.jpg"
+    if shot.exists():
+        paste_c(img, _open(shot), (ML + colw + 40, top - 4, W - MR, H - 140))
+    footer(d, "Sources: var/live.db, read-only SQL over 28 Sep 11:15–12:53:59 IST; src/saakshya/analytics/worker.py "
+              "(SAAKSHYA_AI_CAMERA_LIMIT = 4); screenshot from the full-feature tour, Model 4 beat.")
+    return img
+
+
 def model4() -> Image.Image:
     b = report("bandwidth")
     return table_page(
-        "Central recording  ·  arithmetic and a separate link measurement",
-        "Why statewide central recording is declined",
+        "Model 4 at full scale  ·  arithmetic and a separate link measurement",
+        "Why recording all 80,000 cameras centrally is declined",
         ["BASIS", "RESULT", "STATUS"],
         [
             [("80,000 cameras × 2 Mbps", None), ("160 Gbps sustained video ingest", None), ("MODELLED · HLD §1", "gold")],
@@ -425,7 +468,7 @@ def model4() -> Image.Image:
             [("Peak stored event rate × row size", None), (f"{b['event_mbps']:.3f} Mbps · {b['ratio']:.1f}× smaller", None), ("Report comparison · bandwidth.json", "green")],
             [("Compact observation assumption", None), ("~400 B per observation", None), ("MODELLED · SCALE_MODEL.md", "gold")],
         ],
-        "Sources: docs/HLD.md §1; docs/SCALE_MODEL.md; var/reports/bandwidth.json. Selected-camera Model 4 analytics remain part of the hybrid; statewide central recording is declined.",
+        "Sources: docs/HLD.md §1; docs/SCALE_MODEL.md; var/reports/bandwidth.json. Model 4 central analytics is built and ran live; only recording every camera centrally is declined.",
         "07", col_w=[ML, ML + 600, ML + 1160], tags=("MEASURED", "MODELLED"),
     )
 
@@ -591,7 +634,7 @@ def evaluation() -> Image.Image:
                 (
                     "Hybrid architecture",
                     (
-                        "Models 1 + 2 + 3 and selected-camera M4 analytics; HLD "
+                        "Models 1 + 2 + 3 + 4, all built (M4 on selected cameras); HLD "
                         "architecture diagrams."
                     ),
                 ),
@@ -694,7 +737,7 @@ def agenda() -> Image.Image:
         ["PORTAL ASKS", "THIS DECK"],
         [
             [("1. Proposed solution model, with justification", None),
-             ("Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics. Central VMS recording declined on 160 Gbps / 52 PB arithmetic.", None)],
+             ("Hybrid of Models 1 + 2 + 3 + 4, all built; Model 4's central analytics ran live on 28 Sep. Recording every camera centrally declined on 160 Gbps / 52 PB arithmetic.", None)],
             [("2. Overview, objectives, and key innovations", None),
              ("Find → Trace → Verify → Act. Capability measured. Metadata moves. Video stays.", None)],
             [("3. High-level architecture and end-to-end workflow", None),
@@ -1167,7 +1210,7 @@ def architecture() -> Image.Image:
             d.line((ax, 474, ax + gap - 22, 474), fill=NAVY, width=4)
             d.polygon(((ax + gap - 22, 474), (ax + gap - 36, 465), (ax + gap - 36, 483)), fill=NAVY)
     d.text((ML, 754), "Video and metadata at regional ingest; metadata to the centre. Authorised viewing pulls video on demand.", font=SANS(24), fill=INK)
-    d.text((ML, 806), "Models 1 + 2 + 3 form the foundation; selected-camera Model 4 analytics are included.", font=SANS_B(24), fill=INK)
+    d.text((ML, 806), "All four models are built: 1 + 2 + 3 form the foundation; Model 4 runs central analytics on selected cameras.", font=SANS_B(24), fill=INK)
     d.text((ML, 854), "Statewide central recording is declined. Multi-node HA and DR require deployment validation.", font=SANS(24), fill=MUTED)
     footer(d, "Sources: organiser FAQ Q16–Q19, Q23; docs/HLD.md §3, §6, §10, §15, §21. DESIGNED topology; VERIFIED component contracts. Departmental retention stays in place.")
     return img
@@ -1569,7 +1612,7 @@ def statewide_tiers() -> Image.Image:
         "District cell (40): GPU pool, event bus, PostgreSQL + PostGIS, media gateway, federation adapters. It keeps "
         "detecting, matching, alerting and sealing evidence with the WAN down.",
         "Region (6): viewing fan-out, backups, forensic GPUs. State + DR: registry and GIS, plate index, lake, identity.",
-        "Model 1 everywhere; Model 2 direct; Model 3 for departments with a VMS; Model 4 on selected cameras only.",
+        "Model 1 everywhere; Model 2 direct; Model 3 for departments with a VMS; Model 4 central analytics on the cameras that earn it.",
     ], ty + 22, size=24)
     rows = [
         [("Cell WAN", None), ("Detection, local watchlist match, alerts, evidence sealing, district control room", "green"),
@@ -1684,6 +1727,7 @@ def build() -> list[Image.Image]:
         problem(),
         objectives(),
         hybrid(),
+        model4_built(),
         model4(),
         architecture(),
         bleed(DIAG / "05_statewide_architecture.png", "Architecture", "Statewide target architecture",

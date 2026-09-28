@@ -105,7 +105,9 @@ silently.
 ## Why hybrid rather than one model?
 
 The challenge requires Model 1 (camera registry) plus at least one other. We
-submit a **hybrid of Models 1 + 2 + 3**.
+submit a **hybrid of all four: Models 1 + 2 + 3 + 4, all built**. Model 4 is
+central analytics on selected cameras (four deep-inference slots, run live on
+28 Sep); only centrally recording every camera's video is declined.
 
 Model 1 is the **spine** — not a map screen, but the thing every other plane
 reads camera identity, geometry, health and *capability* from. Nineteen cameras

@@ -2,8 +2,9 @@
 
 **Gujarat Police Innovation Challenge 2026 · Sentinel Camera Grid · DAU (DA-IICT) · 28 September 2026**
 
-A federated CCTV intelligence and evidence platform. It is a hybrid of Models
-1 + 2 + 3, with central deep analytics only on selected cameras (Model 4).
+A federated CCTV intelligence and evidence platform: a hybrid of **all four
+models, 1 + 2 + 3 + 4, all built**. Model 4's central analytics ran live on the
+government grid on 28 Sep (4 slots, 4,465 observations, 200 plate reads).
 
 ## Films
 

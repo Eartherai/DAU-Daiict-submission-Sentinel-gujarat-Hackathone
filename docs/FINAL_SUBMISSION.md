@@ -77,7 +77,7 @@ are stated here and in the supplied HLD, without assuming repository access.
 
 | Requirement | Where the judge can inspect it |
 |---|---|
-| Model justification, overview, features (Q29) | Presentation; `02_HLD.md` §§1–3; hybrid source paths below |
+| Model justification, overview, features (Q29) | Hybrid of all four models, 1 + 2 + 3 + 4, all built; Model 4's central analytics ran live on 28 Sep (4 slots, 4,465 observations, 200 plate reads). Presentation ("Hybrid of Models 1 + 2 + 3 + 4" and "Model 4 is built" slides); `02_HLD.md` §§1–3 |
 | Architecture and diagrams (Q24/Q30) | `02_HLD.md` §§3–4, §6, §21; `02_STATEWIDE_ARCHITECTURE.md`; `02_HLD_diagrams.pdf` |
 | IP/analog, multi-vendor cameras/VMS (Q30) | HLD §10, §13; `05_ADAPTERS.md` — distinguish direct integration from federation |
 | Dispersed sites, edge/central split, low bandwidth (Q30/Q35) | HLD §§6, 20.1, 20.4, 21 |

@@ -26,8 +26,9 @@
 
 SAAKSHYA onboards any camera the state already owns (**Model 1**), reads the
 live government grid (**Model 2**), federates departmental VMS systems
-(**Model 3**) and runs deep central analytics only on the cameras that
-measurably deserve it (**selected-camera Model 4**). Every vehicle sighting
+(**Model 3**) and runs deep central analytics on the cameras that measurably
+deserve it (**Model 4**). **All four models are built**; Model 4 ran live on the
+government grid on 28 Sep. Every vehicle sighting
 becomes a timestamped, geolocated, hash-chained observation. Every search
 needs a case and a stated purpose and lands in a tamper-evident audit log.
 Every number here is labelled **MEASURED**, **MODELLED**, **DEMO** or
@@ -103,7 +104,7 @@ is published only when the frames of one track **agree** on it.
 | | Result | Label |
 |---|---|---|
 | **Live grid census** | All 30 documented government camera IDs produced RTSP frames in the 16 Sep source census (reachability, not a simultaneous wall) | MEASURED |
-| **Live session, 28 Sep** | 6–13 of 30 cameras advancing at once on the shared sandbox; 4 deep-inference slots wrote **4,465** observations; **200** plate reads on cam06 | MEASURED |
+| **Model 4 live, 28 Sep** | Central worker, 4 deep-inference slots: **4,465** government observations (cam06 2,480 · cam10 1,050 · cam08 708 · cam12 227) and **200** plate reads on cam06 in 11:15–12:53 IST; 6–13 of 30 cameras advancing at once on the shared sandbox | MEASURED |
 | **Government store to 24 Sep** | **1,155,325** observations; persons on all 30 cameras, vehicles on 29; 901 plate reads | MEASURED |
 | **Recorded government footage** | 15 clips analysed frame by frame: 3,159 frames, 1,319 tracks, 1,548 observations, kept apart as `ARCHIVAL_REPLAY` | MEASURED |
 | **Statewide scale** | 80,000 cameras in 40 district cells + state DC + DR; only inference compute grows per analysed camera; 80k synthetic registry rows loaded and queried | MODELLED · MEASURED (synthetic) |
@@ -116,13 +117,25 @@ the tour's footage is recorded, not live.
 
 ---
 
-## 🏗 Architecture
+## 🏗 Architecture — all four models built
+
+| Model | Built | Evidence |
+|---|---|---|
+| **M1** Registry & GIS | ✅ | Form + bulk onboarding, gap analysis, measured capability grades, estate map (tour film) |
+| **M2** Direct unified viewing | ✅ | 30-tile government wall over WHEP, recorded live 28 Sep (live film) |
+| **M3** VMS federation | ✅ | Adapter contract with DEMO/TEST connectors ([adapters](docs/ADAPTERS.md), [federated report](submission/reports/05_FEDERATED_ANALYTICS_REPORT.md)); vendor-SDK deployment DESIGNED |
+| **M4** Central analytics | ✅ | 4 deep-inference slots, run live 28 Sep: 4,465 observations, 200 plate reads. Recording all 80,000 cameras centrally is declined (160 Gbps) |
+
+<img src="docs/readme/films/tour-model4-analytics.jpg" alt="Model 4 analytics view" width="100%">
+
+<sub><b>Model 4 output in the application:</b> detector classes, person reports, restricted-zone entries and capability across the estate.</sub>
+
 
 <img src="docs/readme/films/hld-statewide.jpg" alt="Statewide target architecture" width="100%">
 
 <table>
 <tr>
-<td width="50%"><img src="docs/readme/films/hld-logical.jpg" alt="Logical architecture"><br><sub><b>Logical architecture:</b> Models 1 + 2 + 3 with selected-camera Model 4</sub></td>
+<td width="50%"><img src="docs/readme/films/hld-logical.jpg" alt="Logical architecture"><br><sub><b>Logical architecture:</b> Models 1 + 2 + 3 + 4, all built</sub></td>
 <td width="50%"><img src="docs/readme/films/hld-dataflow.jpg" alt="Data flow"><br><sub><b>One vehicle, one read:</b> detected in the cell, routed at the state</sub></td>
 </tr>
 </table>
@@ -154,7 +167,7 @@ from footage we had captured on 15 Sep.
 
 | Portal item | File | Built by |
 |---|---|---|
-| 1 · Presentation | [`01_SAAKSHYA_deck.pdf`](submission/01_SAAKSHYA_deck.pdf) · [`.pptx`](submission/01_SAAKSHYA_deck.pptx) (50 slides) | `tools/demo/render_submission_deck.py` |
+| 1 · Presentation | [`01_SAAKSHYA_deck.pdf`](submission/01_SAAKSHYA_deck.pdf) · [`.pptx`](submission/01_SAAKSHYA_deck.pptx) (51 slides) | `tools/demo/render_submission_deck.py` |
 | 2 · High-level design | [HLD](docs/HLD.md) · [diagrams](submission/02_HLD_diagrams.pdf) · [statewide](docs/STATEWIDE_ARCHITECTURE.md) · [security](docs/SECURITY.md) | `tools/demo/render_diagrams.py` |
 | 3 · Own-feed demo | [`03_own_feed_1080p.mp4`](submission/films/03_own_feed_1080p.mp4) | `tools/demo/record_own_feed.py` |
 | 4 · Government demo + plate report | [`04_government_feed_1080p.mp4`](submission/films/04_government_feed_1080p.mp4) · [`04_government_feed_anpr_report.csv`](submission/04_government_feed_anpr_report.csv) | `tools/demo/record_government_feed.py` |

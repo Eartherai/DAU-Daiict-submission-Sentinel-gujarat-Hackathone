@@ -126,6 +126,21 @@ def test_the_display_crop_is_only_enlarged(world):
         assert card.getpixel((ox + x * k, oy + y * k)) == crop.getpixel((x, y))
 
 
+def test_the_plate_image_is_an_exact_enlargement_of_the_sealed_region(world):
+    from PIL import Image
+    _manifest(world, [_row("var/evidence/EZTEST.png#xywh=40,20,120,50", "cam06",
+                           "GOVERNMENT", "GJ11S7924", selected=True)])
+    _, out = _build(world)
+    sel = json.loads((out / "selected.json").read_text())[0]
+    k = sel["display_scale"]
+    plate = Image.open(out / sel["plate_image"]).convert("RGB")
+    crop = Image.open(world / "var/evidence/EZTEST.png").convert("RGB").crop((40, 20, 160, 70))
+    assert plate.size == (crop.width * k, crop.height * k)
+    for x in range(0, crop.width, 7):
+        for y in range(0, crop.height, 5):
+            assert plate.getpixel((x * k + k // 2, y * k + k // 2)) == crop.getpixel((x, y))
+
+
 def test_faces_in_the_thumbnail_are_blurred_and_nothing_else(world):
     from PIL import Image
     img = Image.open(world / "var/evidence/EZTEST.png").convert("RGB")

@@ -1198,6 +1198,34 @@ def gallery_path(value: str, directory: Path) -> Path:
     return ROOT / path if path.parts[:2] == ("var", "demo") else directory / path
 
 
+def _ist(value: str, with_time: bool = True) -> str:
+    """An exporter ISO timestamp as a reader would say it: 21 Sep 2026 · 02:13:45 IST.
+
+    Converted to IST, not relabelled: a UTC input printed with its own clock
+    and an "IST" suffix would be five and a half hours wrong. A timestamp with
+    no zone cannot be converted, so it is shown as given.
+    """
+    from datetime import datetime, timedelta, timezone
+    try:
+        t = datetime.fromisoformat(str(value))
+    except ValueError:
+        return str(value)
+    if t.tzinfo is None:
+        return str(value)
+    t = t.astimezone(timezone(timedelta(hours=5, minutes=30)))
+    day = f"{t.day} {t:%b %Y}"
+    return f"{day}  ·  {t:%H:%M:%S} IST" if with_time else day
+
+
+def _reads(value: object) -> str:
+    """Agreeing reads as the voter means them: one read is a lead, not a confirmation."""
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return "reads not recorded"
+    return "single read — a lead, verify" if n <= 1 else f"{n} agreeing reads"
+
+
 def government_anpr_gallery() -> Image.Image | None:
     """Omit absent/incomplete evidence; never substitute stock or generated crops."""
     directory = ROOT / "var/demo/plate_gallery"
@@ -1225,7 +1253,10 @@ def government_anpr_gallery() -> Image.Image | None:
                 raise ValueError("statistics must be nonnegative integer counts")
         # Preflight every displayed crop before drawing any purported evidence.
         rows = selected[:8] if len(selected) >= 8 else selected[:6]
-        images = [_open(gallery_path(row["display_image"], directory)) for row in rows]
+        # The plate alone, enlarged, reads at slide size; the full card's own
+        # text does not. Fall back to the card for an older exporter.
+        images = [_open(gallery_path(row.get("plate_image") or row["display_image"], directory))
+                  for row in rows]
     except (OSError, ValueError, KeyError, TypeError):
         print("WARNING: GOVERNMENT ANPR GALLERY OMITTED — missing or invalid "
               "var/demo/plate_gallery/{selected.json,stats.json,display_image} inputs.", file=sys.stderr)
@@ -1239,7 +1270,8 @@ def government_anpr_gallery() -> Image.Image | None:
     band = (f"{stats['total_reads']:,} total reads   ·   {stats['distinct_plates']:,} distinct plates   ·   "
             f"{stats['confirmed_registrations']:,} confirmed registrations   ·   {camera_count} cameras")
     d.text((ML, 160), band, font=SANS_B(24), fill=GOLD)
-    d.text((ML, 202), f"Test window: {stats['window_start']} → {stats['window_end']}", font=SANS(20), fill=WHITE)
+    d.text((ML, 202), f"Read window: {_ist(stats['window_start'], False)} – {_ist(stats['window_end'], False)} (IST)",
+           font=SANS(20), fill=WHITE)
     d.text((ML, 240), "Selected examples below; statistics cover every government read in the stated window.", font=SANS(20), fill=WHITE)
     columns = 4 if len(rows) == 8 else 3
     gap = 22
@@ -1247,12 +1279,14 @@ def government_anpr_gallery() -> Image.Image | None:
     for i, (row, crop) in enumerate(zip(rows, images)):
         x, y = ML + i % columns * (cw + gap), 294 + i // columns * 316
         d.rounded_rectangle((x, y, x + cw, y + 296), radius=8, fill=DARK_2)
-        paste_c(img, crop, (x + 12, y + 12, x + cw - 12, y + 162))
-        d.text((x + 18, y + 174), str(row["plate_text"]), font=SANS_B(26), fill=WHITE)
-        d.text((x + 18, y + 212), f"{row['camera']}  ·  confidence {float(row['confidence']):.1%}", font=SANS(19), fill=GOLD)
-        for j, line in enumerate(wrap(d, str(row["timestamp"]), SANS(18), cw - 36)):
-            d.text((x + 18, y + 242 + j * 22), line, font=SANS(18), fill=WHITE)
-    footer(d, "Sources: var/demo/plate_gallery/selected.json (display_image); stats.json. "
+        paste_c(img, crop, (x + 12, y + 12, x + cw - 12, y + 150))
+        d.text((x + 18, y + 160), str(row["plate_text"]), font=SANS_B(26), fill=WHITE)
+        d.text((x + 18, y + 196), f"{row['camera']}  ·  OCR confidence {float(row['confidence']):.1%}",
+               font=SANS(19), fill=GOLD)
+        d.text((x + 18, y + 226), _reads(row["agreeing_reads"]), font=SANS(18), fill=WHITE)
+        d.text((x + 18, y + 256), _ist(row["timestamp"]), font=SANS(18), fill=MUTED)
+    footer(d, "Sources: var/demo/plate_gallery/selected.json (plate_image, nearest-neighbour enlargement "
+           "of the sealed frame); stats.json. "
            + str(stats["source"]) + ". " + str(stats["note"])
            + ". Older sealed frames may differ from their record’s vehicle; inspect selected.json provenance for crop/read pairing.", dark=True, y=944)
     return img

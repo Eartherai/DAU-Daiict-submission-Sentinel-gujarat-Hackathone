@@ -279,6 +279,22 @@ def blur_faces(img: Any, detect: Callable[[Any], list[list]] | None = None) -> t
     return out, len(regions)
 
 
+def plate_only(original: bytes, region: tuple[int, int, int, int], k: int) -> bytes:
+    """The plate region alone, enlarged by the card's integer factor.
+
+    For slides and films, where the card's own text would be too small to
+    read. Nearest neighbour, like the card: every pixel is a copy of one in
+    the sealed frame, so nothing is made clearer than it was.
+    """
+    from PIL import Image
+
+    crop = Image.open(io.BytesIO(original)).convert("RGB").crop(region)
+    big = crop.resize((crop.width * k, crop.height * k), Image.NEAREST)
+    out = io.BytesIO()
+    big.save(out, format="PNG")
+    return out.getvalue()
+
+
 def display_card(original: bytes, region: tuple[int, int, int, int] | None,
                  row: dict[str, str],
                  detect: Callable[[Any], list[list]] | None = None) -> tuple[bytes, int]:
@@ -394,7 +410,7 @@ def build(root: Path, out: Path, manifest: Path, store: Path,
         except ValueError:
             label = str(store)
         stats = government_stats(con, label)
-        for d in ("originals", "display"):
+        for d in ("originals", "display", "plate"):
             shutil.rmtree(out / d, ignore_errors=True)
             (out / d).mkdir(parents=True, exist_ok=True)
         selected, cards = [], []
@@ -418,6 +434,7 @@ def build(root: Path, out: Path, manifest: Path, store: Path,
                 "original_sha256": hashlib.sha256(data).hexdigest(),
                 "display_image": str(disp.relative_to(out)),
                 "display_scale": k,
+                "plate_image": None,
                 "camera": r.data["camera"],
                 "timestamp": r.data["timestamp"],
                 "plate_text": r.data["plate_text"],
@@ -425,6 +442,10 @@ def build(root: Path, out: Path, manifest: Path, store: Path,
                 "agreeing_reads": r.data["agreeing_reads"],
                 "provenance": r.data["provenance"],
             }
+            if region:
+                plate = out / "plate" / disp.name
+                plate.write_bytes(plate_only(data, region, k))
+                sel["plate_image"] = str(plate.relative_to(out))
             selected.append(sel)
             cards.append((sel, png))
     finally:

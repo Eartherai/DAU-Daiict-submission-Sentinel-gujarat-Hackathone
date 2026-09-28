@@ -118,8 +118,9 @@ def test_gallery_uses_full_window_stats_and_card_metadata(gallery, text_calls, c
     assert "1,000 total reads" in rendered and "100 distinct plates" in rendered
     assert "50 confirmed registrations" in rendered and "2 cameras" in rendered
     assert all(f"TEST{i}" in rendered for i in range(count))
-    assert "cam06  ·  confidence 95.0%" in rendered
-    assert "2026-09-28T04:20:31+00:00" in rendered
+    assert "cam06  ·  OCR confidence 95.0%" in rendered
+    # The fixture's UTC time, converted to IST rather than relabelled.
+    assert "28 Sep 2026  ·  09:50:31 IST" in rendered
 
 
 def test_empty_plate_lists_do_not_claim_ocr_parity(text_calls):

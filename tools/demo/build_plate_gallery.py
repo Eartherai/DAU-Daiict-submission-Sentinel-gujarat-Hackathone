@@ -38,6 +38,7 @@ import re
 import shutil
 import sqlite3
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -238,8 +239,49 @@ def _font(size: int, mono: bool = False):
     return ImageFont.load_default(size=size)
 
 
+#: Faces are blurred in anything published (the rule `blur_heads.py` records
+#: for the own feed). The whole-frame thumbnail on a card shows riders and
+#: pedestrians, so it is blurred with the same production person detector and
+#: head geometry; the plate crop is cut from the untouched frame.
+_PEOPLE: Any = None
+
+
+def blur_faces(img: Any, detect: Callable[[Any], list[list]] | None = None) -> tuple[Any, int]:
+    """A copy of the PIL image with every detected person's head blurred.
+
+    ``detect`` maps a BGR array to person boxes; by default it is the
+    production detector run whole-frame and tiled, as `blur_heads.py` does.
+    Raises if that detector cannot load: an unblurred face is not published.
+    """
+    import numpy as np
+    from PIL import ImageFilter
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from blur_heads import detect_people, head_regions
+
+    global _PEOPLE
+    if detect is None:
+        if _PEOPLE is None:
+            from blur_heads import _detector
+            _PEOPLE = _detector()
+        backend = _PEOPLE
+
+        def detect(bgr: Any) -> list[list]:
+            return detect_people(bgr, backend, person_conf=0.25)
+
+    rgb = np.asarray(img.convert("RGB"))
+    regions = head_regions(detect(rgb[:, :, ::-1].copy()), img.width, img.height)
+    out = img.copy()
+    for box in regions:
+        patch = out.crop(box)
+        radius = max(6, max(patch.size) // 3)
+        out.paste(patch.filter(ImageFilter.GaussianBlur(radius)), box)
+    return out, len(regions)
+
+
 def display_card(original: bytes, region: tuple[int, int, int, int] | None,
-                 row: dict[str, str]) -> tuple[bytes, int]:
+                 row: dict[str, str],
+                 detect: Callable[[Any], list[list]] | None = None) -> tuple[bytes, int]:
     """The card PNG and the integer enlargement used."""
     from PIL import Image, ImageDraw
 
@@ -257,14 +299,14 @@ def display_card(original: bytes, region: tuple[int, int, int, int] | None,
     if region:
         # Where the plate sits in the frame: a small copy of the whole frame
         # with the region outlined. The outline is on the thumbnail only.
-        th = src.copy()
+        th, _ = blur_faces(src, detect)
         th.thumbnail((320, 180))
         s = th.width / src.width
         ImageDraw.Draw(th).rectangle(
             [int(region[0] * s) - 2, int(region[1] * s) - 2,
              int(region[2] * s) + 2, int(region[3] * s) + 2], outline=(255, 196, 0), width=2)
         card.paste(th, (20, CARD_H - th.height - 20))
-        d.text((360, CARD_H - 150), "whole sealed frame;\nplate region outlined",
+        d.text((360, CARD_H - 150), "whole sealed frame,\nfaces blurred;\nplate region outlined",
                font=_font(18), fill=(190, 190, 190))
 
     ink, dim = (20, 22, 26), (95, 98, 105)
@@ -338,7 +380,8 @@ Generated {html.escape(stats['generated_at'])}.</footer>
 
 
 # --------------------------------------------------------------------------- #
-def build(root: Path, out: Path, manifest: Path, store: Path) -> dict[str, Any]:
+def build(root: Path, out: Path, manifest: Path, store: Path,
+          detect: Callable[[Any], list[list]] | None = None) -> dict[str, Any]:
     rows = read_manifest(manifest)
     con = open_ro(store)
     try:
@@ -365,7 +408,7 @@ def build(root: Path, out: Path, manifest: Path, store: Path) -> dict[str, Any]:
                 orig.write_bytes(data)
             if hashlib.sha256(orig.read_bytes()).digest() != hashlib.sha256(data).digest():
                 raise GalleryError(f"{orig}: copy is not byte-identical")
-            png, k = display_card(data, region, r.data)
+            png, k = display_card(data, region, r.data, detect)
             stem = f"{r.data['camera']}_{r.data['plate_text'] or 'unread'}"
             disp = out / "display" / f"{len(selected) + 1:02d}_{stem}.png"
             disp.write_bytes(png)

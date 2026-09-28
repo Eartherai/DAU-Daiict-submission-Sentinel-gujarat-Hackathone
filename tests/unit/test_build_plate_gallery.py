@@ -77,10 +77,15 @@ def _manifest(root: Path, rows) -> Path:
     return p
 
 
+def _nobody(bgr):
+    """A person detector that finds no one, so fixtures need no model."""
+    return []
+
+
 def _build(root: Path):
     out = root / "var/demo/plate_gallery"
     return gallery.build(root, out, root / "reports/final_plate_gallery_manifest.csv",
-                         root / "var/live.db"), out
+                         root / "var/live.db", detect=_nobody), out
 
 
 def test_originals_are_byte_identical_and_cards_are_made(world):
@@ -109,13 +114,31 @@ def test_the_display_crop_is_only_enlarged(world):
     from PIL import Image
     orig = (world / "var/evidence/EZTEST.png").read_bytes()
     row = _row("x", "cam06", "GOVERNMENT", "GJ11S7924", selected=True)
-    png, k = gallery.display_card(orig, (40, 20, 160, 70), row)
+    # A person whose head overlaps the plate area: the thumbnail is blurred,
+    # the plate crop must still be copied from the untouched frame.
+    png, k = gallery.display_card(orig, (40, 20, 160, 70), row,
+                                  detect=lambda bgr: [[30, 10, 170, 95, "p"]])
     card = Image.open(io.BytesIO(png)).convert("RGB")
     crop = Image.open(io.BytesIO(orig)).convert("RGB").crop((40, 20, 160, 70))
     ox = 20 + (gallery.CROP_BOX[0] - crop.width * k) // 2
     oy = 20 + (gallery.CROP_BOX[1] - crop.height * k) // 2
     for x, y in [(0, 0), (17, 9), (119, 49), (63, 31)]:
         assert card.getpixel((ox + x * k, oy + y * k)) == crop.getpixel((x, y))
+
+
+def test_faces_in_the_thumbnail_are_blurred_and_nothing_else(world):
+    from PIL import Image
+    img = Image.open(world / "var/evidence/EZTEST.png").convert("RGB")
+    person = [60, 10, 100, 90, "p"]            # head = top 24% of the box
+    out, n = gallery.blur_faces(img, detect=lambda bgr: [person])
+    assert n == 1
+    head_px = (80, 20)
+    assert out.getpixel(head_px) != img.getpixel(head_px), "the head was not blurred"
+    far_px = (190, 95)
+    assert out.getpixel(far_px) == img.getpixel(far_px), "blur spread beyond the head"
+    assert img.getpixel(head_px) == Image.open(
+        world / "var/evidence/EZTEST.png").convert("RGB").getpixel(head_px), \
+        "the source frame was modified"
 
 
 def test_stats_cover_every_government_read_not_the_selection(world):

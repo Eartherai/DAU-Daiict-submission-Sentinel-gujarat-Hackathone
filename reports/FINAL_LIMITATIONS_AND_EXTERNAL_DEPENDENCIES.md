@@ -1,5 +1,9 @@
 # Final limitations and external dependencies
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 Companion to `FINAL_TECHNICAL_EVIDENCE_MASTER.md` and `FINAL_PPT_TECHNICAL_CONTENT.md`.  
 Purpose: keep judging language honest. No production-code claims beyond what was measured.
 
@@ -11,7 +15,7 @@ Purpose: keep judging language honest. No production-code claims beyond what was
 |---|---|---|
 | Sentinel catalogue session (`SENTINEL_GRID_COOKIE` / TOKEN) not available in this environment | BLOCKED_BY_EXTERNAL_ACCESS | `/api/ingest` not used; no authentication bypass |
 | 30 source identities are documented **probe IDs**, not authoritative catalogue output | NOT_AUTHORITATIVE | Do not present cam01–cam30 as official inventory |
-| Intermittent upstream RTSP **401 / connection refuse / DESCRIBE timeout** under large concurrent fan-in | MEASURED_REAL (observed) / BLOCKED_BY_EXTERNAL_ACCESS (session budget) | Bridge readiness on hybrid wall dropped even when local encode scaled to 15 under healthy conditions |
+| Intermittent upstream RTSP **401 / connection refuse / DESCRIBE timeout** under large concurrent fan-in | MEASURED_REAL (observed) / BLOCKED_BY_EXTERNAL_ACCESS (availability during this test window; no fixed session quota) | Bridge readiness on hybrid wall dropped even when local encode scaled to 15 under healthy conditions |
 | Government RTSP auth was periodically blocked during earlier phases | BLOCKED_BY_EXTERNAL_ACCESS | Phase 10 recorded 401 periods; live gov re-runs paused then resumed when credentials accepted again |
 
 ---

@@ -1,5 +1,16 @@
 # Evaluation plan
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 How this system is measured, and what each number is allowed to claim.
 
 Vocabulary, used consistently and never interchangeably:
@@ -48,11 +59,11 @@ that failures are handled — not that the models are good.
 
 | Level | Count | Command | What it protects |
 |---|---:|---|---|
-| Unit | 199 | `make test-unit` | Component behaviour, including every abstention rule |
-| Security | 47 | `make test-security` | Four auth gates, injection, traversal, leakage |
-| Integration | 5 | `make test-integration` | Pipeline over the corpus |
-| ML regression | 5 | `pytest tests/evaluation` | Attribute extraction against ground truth |
-| End-to-end | 31 | `make test-e2e` | The mandatory chain, and the offline demonstration |
+| Unit | Run to count | `make test-unit` | Component behaviour, including every abstention rule |
+| Security | Run to count | `make test-security` | Four auth gates, injection, traversal, leakage |
+| Integration | Run to count | `make test-integration` | Pipeline over the corpus |
+| ML regression | Run to count | `pytest tests/evaluation` | Attribute extraction against ground truth |
+| End-to-end | Run to count | `make test-e2e` | The mandatory chain, and the offline demonstration |
 | Chaos | — | `make chaos` | Fault injection against a live replica |
 | Performance | — | `make perf`, `make queryplan` | Latency and query plans |
 | Load | — | `make loadtest` | Concurrent cameras |

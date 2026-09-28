@@ -11,14 +11,18 @@ This is the gate document required before implementation resumes.
 ## 1. Selected architecture
 
 **SAAKSHYA — Federated CCTV Intelligence & Evidence Fabric**
-Model 1 (mandatory) + Model 3 (federation) + Model 2 (direct-connect fallback).
+**Submission amendment (28 September 2026).** Hybrid Models 1 + 2 + 3
+with selected-camera Model 4 analytics. Model 1 is registry/GIS/governance;
+Model 2 is unified viewing and metadata search; Model 3 is VMS federation
+middleware; Model 4 is selected central analytics. Only statewide central
+recording is declined on MODELLED bandwidth/storage arithmetic
+(`docs/SCALE_MODEL.md`).
 
-**Submission amendment (4 September 2026).** The evaluation proposal is a
-**hybrid of Models 1 + 2 + 3**. Model 2 *as demonstrated* is unified viewing as
-ingest stills (~1 Hz JPEG), because a thirty-tile live video wall would be
-thirty extra RTSP sessions. The 1 September "direct-connect fallback" remains
-the operational degraded path for sites that cannot host analytics; it is not
-Model 4. Model 4 stays rejected on arithmetic (160 Gbps / 52 PB).
+The Model 2 wall has CONTROL ROOM (up to 30 direct WHEP tile sessions,
+400 ms apart) and OPTIMIZED VIEW (at most 12 near the viewport, 600 px
+prefetch, released 15 s off screen). These local policies are VERIFIED in
+`ui/app.js`; they are not sandbox limits. Browser signalling uses the
+authenticated proxy; selected AI workers use RTSP/TCP separately.
 
 **Amended by this review in four ways:**
 

@@ -101,7 +101,8 @@ av.open(credentialed(url),
         timeout=20.0)
 ```
 
-H.264 and H.265 both occur on this estate (24 / 6 in the 2 September profile).
+H.264 and H.265 both occur: the historical store snapshot recorded 23 h264
+and 6 hevc, with one camera unobserved (`docs/MEASURED_RESULTS.md`).
 Pipelines must not assume a single codec or a single resolution.
 
 ---
@@ -151,19 +152,22 @@ How each point is met here:
 
 | Guidance | Implementation |
 |---|---|
-| Only the streams actively required | Browser tiles use direct WHEP for the tiles on screen only, at most 12 at once (`TILE_WHEP_BUDGET`), released after 15 s off screen (`ui/app.js`). The media hub opens a government camera's one RTSP session when a still of it is asked for or it is assigned to the AI worker, and closes it after 90 s with no request (`live/hub.py`, `SAAKSHYA_HUB_ON_DEMAND`, `SAAKSHYA_HUB_IDLE_S`); it used to hold all thirty from start-up. While the hub owns a camera the snapshot service never opens a second session for a still (`live/snapshot.py`). The local relay, which holds a session per published camera continuously, is opt-in (`SAAKSHYA_LOCAL_RELAY=1`) and capped at the 15 cameras it was measured to sustain (`live/relay.py`). |
+| Only the streams actively required | CONTROL ROOM (Dense 6×5) holds up to 30 direct WHEP sessions; OPTIMIZED VIEW holds at most 12 near the viewport, with 600 px prefetch and release after 15 s off screen (`ui/app.js`). Both stagger opens by 400 ms and label the policy at `#media-policy`. Signalling uses our authenticated proxy; browser clients hold no Sentinel credentials. Selected AI workers use RTSP/TCP separately. The hub is on demand (`live/hub.py`); snapshots reuse hub ownership (`live/snapshot.py`). The relay is opt-in (`SAAKSHYA_LOCAL_RELAY=1`): its local government-camera cap defaults to 15 (`live/relay.py::MAX_CAMERAS`), configurable through `SAAKSHYA_RELAY_MAX_CAMERAS`; positive values slice the government list, 0 disables the cap, and own feeds are added separately. Fifteen was measured during one ramp on this machine (`reports/CLAUDE_LIVE_WALL_RESULT.md`), not a sandbox or universal bridge limit. |
 | Per-camera isolation | One worker per camera (`ingest/stream.py` `StreamManager`); a camera that fails is backed off on its own and does not take the others down. |
 | Reconnection with backoff | Hub `StreamConfig` starts at 2 s, multiplies by 1.8 up to 30 s, with ±30% jitter (`ingest/stream.py`). The relay publisher uses `AUTH_BACKOFF_S=300`, jittered 0.7–1.45x, after an authentication refusal; consecutive refusals double the base up to `AUTH_BREAKER_MAX_SCALE=6` (`live/relay_publisher.py`). |
 | Stagger connections | Hub opens are 0.18 s apart, at start-up and on demand; browser WHEP opens 400 ms apart (`TILE_WHEP_STAGGER_MS`); relay publishers 1.25 s apart. |
-| No fixed camera count | Cameras come from the registry (the onboarding portal and CSV import), never a constant; the registry plane was tested at 80,000 cameras. |
+| No fixed camera count | Cameras come from the registry (the onboarding portal and CSV import), never a constant; the registry/GIS plane was load-tested with 80,000 synthetic camera rows (`reports/SCALE_80K_LOAD_TEST.md`). |
 | No `/api/ingest` catalogue | The camera list is probed and onboarded into the registry, and every such record says `source="probe"`. |
 
 What we observed and reported - the grid refusing new sessions for 45-60
-minutes after repeated back-to-back recordings - is therefore sandbox load,
-not a quota, and the platform's answer to it is the one above: fewer
+minutes after repeated back-to-back recordings - is consistent with variable shared availability,
+not proof of a quota or a particular session-reaping mechanism, and the platform's answer to it is the one above: fewer
 sessions, opened when needed, backed off when refused.
 
 ---
+
+**Measured during a test window ≠ sandbox limit.** The sanitised point-by-point
+record is [SENTINEL_SUPPORT_CLARIFICATION.md](SENTINEL_SUPPORT_CLARIFICATION.md).
 
 ## Pre-submission checklist (ours)
 

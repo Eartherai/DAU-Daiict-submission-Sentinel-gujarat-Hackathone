@@ -52,7 +52,7 @@ Do not treat any single number as “the wall.” These are different experiment
 
 - Direct WHEP works concurrently for the historical 15-id set at **14/15**, not 30/30.
 - Groups of 10: cam07–11, 15, 17, 21, 24–25, 27–30 stayed `WHEP_UNAVAILABLE` even with HTTP 201 on some (ICE disconnect / no first frame). That is source-side session/codec behaviour, not a missing UI tile.
-- Opening 12 then 16 then 25 then 30 in one browser session produces 502/503. The product budget is **12 Direct WHEP sessions**, reused, staggered 400 ms. CONTROL tiles never open a government stream.
+- Opening 12 then 16 then 25 then 30 in one browser session produces 502/503. That historical run used a 12-session budget. Current policies are CONTROL ROOM up to 30 / OPTIMIZED VIEW at most 12, staggered 400 ms (`ui/app.js`); see `docs/SENTINEL_SUPPORT_CLARIFICATION.md`. CONTROL tiles never open a government stream.
 
 **Honest operator wall for the demo:** GOVERNMENT MODE + Grid + wall 12 (or the 15 Direct-WHEP ids). Do not brute-force 30 extra WHEP clients.
 

@@ -1,5 +1,16 @@
 # Alignment with the published test scenario
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 The organisers' Resources page states the scenario the solution is evaluated
 against. This maps each stated requirement and expected output to what this
 system actually does, with the evidence and its status label —
@@ -22,7 +33,7 @@ grid, that is stated with the measurement that shows it.
 | 30 cameras discovered on the live grid and onboarded into one registry. All 30 reachable over authenticated RTSP/TCP (`SENTINEL_GRID_EMAIL` / `PASSWORD` in the process environment, never in the repo). The documented catalogue and HLS endpoints redirect to `/auth/login`, so the camera set was found by enumerating the documented id pattern and **every record is labelled `source="probe"`** rather than presented as a catalogue import. | **MEASURED** |
 | Heterogeneity is handled as data, not assumed away: mixed codecs (h264 and hevc), mixed resolutions (640×576 to 2560×1440), 16 of 30 monochrome/IR — detected by `mean_chroma`, not by configuration. | **MEASURED** |
 | **Department attribution: 3 of 30.** The dataset spans five departments (Health, Police, GSRTC, Panchayat, Municipal Corporation) but the mapping is not published. Only three cameras state it themselves — cam17 "Rajkot Bus Port" (GSRTC), cam19 "Khaparia Gram Panchayat", and cam25 whose own signage reads "GRAM PANCHAYAT". A traffic junction in Gujarat could belong to either Police or Municipal Corporation, so the rest are recorded as unknown rather than guessed. The catalogue endpoint would settle every one of them and is not reachable. | **MEASURED** |
-| Onboarding is metadata-first (Model 1), with Model 2 as ingest stills (not a second RTSP copy) and Model 3 as the observation bus. Model 4 — centralising video — was rejected on arithmetic: 160 Gbps and 52 PB. See [SCALE_MODEL.md](SCALE_MODEL.md). | **MODELLED** |
+| Onboarding is metadata-first (Model 1), with Model 2 as ingest stills (not a second RTSP copy) and Model 3 as the observation bus. Selected Model 4 analytics is retained; statewide central recording is declined on MODELLED arithmetic: 160 Gbps and 52 PB. See [SCALE_MODEL.md](SCALE_MODEL.md). | **MODELLED** |
 | Capacity beyond the 30 available: 50 concurrent streams exercised on one host. | **MEASURED**, `var/reports/camera_load.json` |
 
 > The solution must enable centralised monitoring and AI-powered video analytics.
@@ -244,7 +255,7 @@ output is a timestamp, not a claim that the live grid grew a multi-camera route.
 | Watchlist + automated alert | 7:43 `GJ38BH5815` | Representative watchlist. Stolen-vehicle HIGH OPEN on cam21. |
 | Route with timestamps | 6:04 trajectory panel | Single-camera **RESTRICTED**. Cross-camera identity is **0** on this store. Two-camera routes: `var/demo/SAAKSHYA_designated.mp4` on the local corpus (`GJ05AB1234`, `GJ35BV6925`). |
 | Timebase honesty | 12:22 Copilot | cam01+cam21 **REFUSED**; cam01+cam04 asked next. |
-| Integration / architecture / scale honesty | 9:13 System | Hybrid 1+2+3. Model 4 rejected on modelled 160 Gbps / 52 PB. Not tested at 80,000. |
+| Integration / architecture / scale honesty | 9:13 System | Hybrid 1+2+3 with selected Model 4 analytics; statewide central recording declined on modelled 160 Gbps / 52 PB. Synthetic registry load is separate from live video. |
 | Copilot (bonus, not mandatory) | 10:06–13:00 | Gemini on in the masthead (16 tools). Enhance-still refused. |
 
 ### Shown in the designated-vehicle film (own feed, 6 Sep 2026)

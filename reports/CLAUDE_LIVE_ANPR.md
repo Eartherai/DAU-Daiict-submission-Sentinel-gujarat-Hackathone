@@ -1,5 +1,9 @@
 # LIVE ANPR ON THE GOVERNMENT FEED
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 2026-09-20, ~05:20–06:07 IST. Every number below comes from **live Sentinel
 video read during this run**. No historical rows, no simulation, no replay of
 stored observations.
@@ -82,13 +86,13 @@ Two honest ways to close it:
 
 The cross-camera attempt failed for an unrelated reason: I restarted the AI
 worker onto four cameras five seconds after killing the previous one, and
-Sentinel — which does not release sessions on disconnect — answered 55x 401.
+Sentinel answered 55x 401 in that window; session retention was not verified.
 The same fast-restart mistake documented earlier in this session.
 
 ## Plane separation, which made this possible at all
 
 RTSP is the grid's AI plane and WHEP is the browser plane, and they were
-competing for one account's admission budget: 30 WHEP tiles + 3 RTSP produced
+concurrent in the same test window: 30 WHEP tiles + 3 RTSP coincided with
 401s for the AI and ~11 black tiles on the wall. Giving the **AI plane its own
 account** fixed both: 0x401, and detection ran at 2.1–4.8 detector fps per
 camera while the wall kept playing.

@@ -40,7 +40,7 @@ security, observability, runtime, edge, and API packages
 government cameras onboarded, a mixed H.264/H.265 estate, 50-camera decode
 load with zero decoder errors in the recorded run, 11.4 frames/s analytics
 throughput in one CPU process, indexed search/trajectory timings, 14/14
-security controls refused when attacked, and 666 collected tests at the time
+security controls refused when attacked, and the test suite recorded at the time
 of the baseline documentation. These figures are run artifacts, not a promise
 that every environment will reproduce them.
 

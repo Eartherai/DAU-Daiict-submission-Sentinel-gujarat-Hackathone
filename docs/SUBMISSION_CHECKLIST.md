@@ -1,22 +1,18 @@
 # Final submission checklist
 
-Written 22 September 2026. Every figure on this page was read off the file it
-describes, not carried over from an earlier draft.
-
-Two older pages — `docs/PORTAL_UPLOAD.md` and `docs/SUBMISSION.md` — describe
-the artifacts as they were on 14 September and are **superseded by this one**.
-They say 54 slides, a 2:47 own-feed film at 1080p, and a government film of
-1:37 with zero plates read. None of those three numbers is still true. Do not
-quote them on the portal.
+Last reconciled 28 September 2026. The authoritative upload inventory and
+commands are in [FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Counts below belong
+to their named snapshot, not the current runtime estate. The government film
+is being re-recorded; validate the final take and CSV together at pack build.
 
 ## 1 · The four required items
 
 | # | What the challenge asks for | File | Verified |
 |---|---|---|---|
-| 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` and `var/demo/SAAKSHYA_deck.pdf` | **37 slides**, 16:9, rendered from the repository (`tools/demo/render_submission_deck.py`) so no claim lives only on a slide. Adds the measured GPU speed-up with its parity check, the vehicle trace report, the evidence chain and own-feed screens from the current build; the films page reads each film's length off the file. Upload the PPTX if the field wants PowerPoint; attach the PDF as well. |
-| 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–19) plus `var/demo/diagrams/` | §4.2 the models and why each (tiled plate search, on-device OCR, position typing, restricted-zone rules), §4.5 the printable trace, §4.9 the Gemini copilot over all four models with its gates, §15 disaster recovery, §16 statewide rollout with exit gates, §17 the cost model with **S measured** (2.0× whole pipeline on a laptop GPU, 3.4× detector, identical outputs), §18 the cybersecurity architecture, §19 the claims this proposal declines to make. |
-| 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 53 s** · 2560×1440 · 98 MB · narrated, captioned. Eleven beats, all driven cleanly. Licensed Mumbai street footage with heads blurred. An estate administrator onboards a camera through the portal form (validated before it writes) and hands over to the investigating officer. Both feeds play at 30 fps with this platform's boxes on every frame and plates drawn once the vote holds; the live AI worker analyses them on the GPU during the take (AI ACTIVE · OCR ACTIVE, measured inference figures on screen). MH02GB4920, read off the footage and agreed across 267 frames, is searched and shown CONFIRMED BY PLATE. The watchlist hit and its trace report are on fictional plates. |
-| 4 | Demo video — government feed, **with a report of detected vehicles / plates and timestamps** | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | Video **8 m 10 s** · 2560×1440 · 67 MB · narrated, captioned (1080p copy: `government_feed_1080.mp4`, 32 MB). Twenty-two chapters on the organisers' own cameras and store: registry and bulk onboarding validated before it writes, the gap report asked of Gemini, GIS, the administrator refused a plate search, the live wall over direct WebRTC (23 of 30 tiles showing a frame), one camera with the overlay, analytics with a restricted-zone rule, marks with timestamps, the designated vehicle GJ11S7924 traced, followed and printed, alerts, evidence, Gemini over Models 2 and 4, its refusal to fabricate, system health with the federated VMS, the audit log. **One splice, stated:** chapters 18–20 (the three Gemini beats, 55 s) come from the take recorded 80 minutes earlier on the same build, because in the final take the suggestion chips had not drawn when clicked (fixed since). Report: **901 government reads, 178 distinct marks, 9 government cameras, 474 confirmed across frames**, each with UTC and IST time, camera, district, confidence, format check and evidence id. Own-feed rows that the live store also held are excluded. |
+| 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` and `var/demo/SAAKSHYA_deck.pdf` | Generated deck, 16:9, rendered from the repository (`tools/demo/render_submission_deck.py`) so no claim lives only on a slide. Adds the measured GPU speed-up with its parity check, the vehicle trace report, the evidence chain and own-feed screens from the current build; the films page reads each film's length off the file. Upload the PPTX if the field wants PowerPoint; attach the PDF as well. |
+| 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–20) plus `var/demo/diagrams/` | §4.2 the models and why each (tiled plate search, on-device OCR, position typing, restricted-zone rules), §4.5 the printable trace, §4.9 the Gemini copilot over all four models with its gates, §15 disaster recovery, §16 statewide rollout with exit gates, §17 the cost model with **S measured** (2.0× whole pipeline on a laptop GPU, 3.4× detector; equal observation counts but no plates in the pipeline sample), §18 the cybersecurity architecture, §19 the claims this proposal declines to make. |
+| 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 53 s** · 2560×1440 · 98 MB · narrated, captioned. Eleven beats, all driven cleanly. Licensed Mumbai street footage with heads blurred. An estate administrator onboards a camera through the portal form (validated before it writes) and hands over to the investigating officer. Both feeds play at 30 fps with this platform's boxes on every frame and plates drawn once the vote holds; the live AI worker analyses them on the GPU during the take (AI ACTIVE · OCR ACTIVE, measured inference figures on screen). MH02GB4920 (historical Apple Vision output), read off the footage and agreed across 267 frames, is searched and shown CONFIRMED BY PLATE. The watchlist hit and its trace report are on fictional plates. |
+| 4 | Demo video — government feed, with plate/timestamp output report | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | **Re-recorded — duration stamped at pack build.** Verify replacement take, recogniser provenance and CSV together. Government designated vehicle `GJ11S7924`, cam06 only: SINGLE-CAMERA evidence (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). The prior take used earlier recognisers; do not attribute its reads to the current Indian recogniser. |
 
 The recorder refuses to finish an own-feed film over three minutes rather than
 producing something an assessor will have cut off. That check passed.
@@ -25,10 +21,10 @@ producing something an assessor will have cut off. That check passed.
 
 | Named deliverable | File | What it actually contains |
 |---|---|---|
-| Registry gap analysis | `reports/MODEL1_GAP_ANALYSIS.md` | 34 cameras onboarded, 18 capacity slots, six departments. Counted in SQL across the whole registry — not sampled. Names five fields at 94.1% unpopulated and says what each one blocks. |
+| Registry gap analysis | `reports/MODEL1_GAP_ANALYSIS.md` | Historical registry snapshot in that report; evaluation baseline and operator additions are separate (`FINAL_SUBMISSION.md`). Counted in SQL across the whole registry — not sampled. Names five fields at 94.1% unpopulated and says what each one blocks. |
 | Registry API documentation | `reports/REGISTRY_API.md` | Generated from the running service's own OpenAPI schema, so it cannot document an endpoint the platform does not serve. |
-| Sample onboarded camera-metadata dataset | `reports/sample_camera_metadata.csv` | 34 rows, 27 columns — the registry's own export, which round-trips back into `POST /registry/cameras/import.csv`. |
-| Scalability and load test, ~80,000 cameras | `reports/SCALE_80K_LOAD_TEST.md` | Measured, not modelled: 80,000 cameras onboarded in 0.697 s (114,742/s), gap analysis over all of them in 85 ms, single lookup 0.46 ms, 58.01 MB on disk. Followed by a section on what those numbers do **not** prove. |
+| Sample onboarded camera-metadata dataset | `reports/sample_camera_metadata.csv` | Snapshot rows and columns from the registry's own export, which round-trips back into `POST /registry/cameras/import.csv`. |
+| Scalability and load test, ~80,000 cameras | `reports/SCALE_80K_LOAD_TEST.md` | Measured, not modelled: 80,000 cameras onboarded in 1.388 s (57,647/s), gap analysis over all of them in 181.7 ms, single lookup 0.69 ms, 58.05 MB on disk. Followed by a section on what those numbers do **not** prove. |
 
 ## 2b · A folder you can drag to Drive
 
@@ -50,13 +46,13 @@ drifted the first time a report was regenerated.
 01_SAAKSHYA_deck.pptx                    01_SAAKSHYA_deck.pdf
 02_HLD.md   02_HLD_diagrams.pdf   02_SECURITY.md
 03_own_feed.mp4                          2 m 53 s · 2560×1440
-04_government_feed.mp4                   8 m 10 s · 2560×1440
-04_government_feed_1080p.mp4             8 m 10 s · 1920×1080
+04_government_feed.mp4                   re-recorded — duration stamped at pack build
+04_government_feed_1080p.mp4             re-encode final take — duration stamped at pack build
 04_government_feed_anpr_report.csv       901 reads · 178 marks · 9 cameras
 05_MODEL1_GAP_ANALYSIS.md   05_REGISTRY_API.md
 05_SCALE_80K_LOAD_TEST.md   05_sample_camera_metadata.csv
-06_designated_vehicle_trace_report.html  GJ11S7924: 52 reads, 24 sealed stills re-verified
-06_own_feed_trace_report.html            GJ18JX7786: C-014 then C-021
+06_designated_vehicle_trace_report.html  GJ11S7924: cam06 only, SINGLE-CAMERA (snapshot report)
+06_own_feed_trace_report.html            GJ18JX7786: C-014 then C-021; CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
 ```
 
 Ignore the older `var/demo/PORTAL_PACK/` and `PORTAL_PACK.zip` — they are the
@@ -64,11 +60,10 @@ Ignore the older `var/demo/PORTAL_PACK/` and `PORTAL_PACK.zip` — they are the
 
 ## 3 · Before you upload
 
-- [ ] **Revoke the live supervisor token — after your last live demo, not
-      before it.** A working token was pasted into
+- [ ] **Revoke supervisor/admin tokens after the last live demo.** A working token was pasted into
       `tools/recorder/record_full_demo.py` during development. It is gone from
       the working tree and from history — `tools/verify/secret_scan.py` passes
-      across 976 tracked files and the full history — but the credential is
+      on its recorded scan; run it again on the final tree — but the credential is
       valid until the account that issued it is disabled. Disabling kills
       *every* token for that user, including the one the recorders use, so
       sequence it last:
@@ -105,7 +100,8 @@ by them in questions.
   use the machine's GPU (Apple MPS); plate detection stays on CPU. Measured on the same
   2560×1440 frames, before the Indian recogniser replaced the CPU one: the
   whole per-frame pipeline 598 → 293 ms (2.0×), the detector alone
-  448 → 133 ms (3.4×), with identical outputs
+  448 → 133 ms (3.4×), with matched detector boxes; the pipeline sample
+  had the same 67 observations and no plates on either device
   (`var/reports/pipeline_device.json`, `detector_device.json`). The recogniser
   on its own takes 6.6 ms a plate batched on the GPU against 50 ms on one CPU
   core (`var/reports/ocr_indian_eval.json`); the whole-pipeline figure has not
@@ -114,7 +110,7 @@ by them in questions.
   a sampling policy, not a ceiling. The earlier four-camera government figure
   (~1.4 fps each, P50 ~170 ms) was CPU-only. Statewide inference needs
   data-centre GPU capacity; HLD §17 shows how the target accelerator's speed-up
-  is measured with the same command, and does not quote a rupee figure.
+  is measured with the same command, with MODELLED/SIZED GPU pools and assumed unit prices in HLD §20.8.
 - **94% of registry metadata is unpopulated** on five fields. That is the point
   of the gap report rather than a defect in it: the platform holds what
   departments have supplied and names what they have not, and it does not
@@ -138,18 +134,16 @@ by them in questions.
   Indian-trained recogniser and published only when a track's frames agree.
   On the 57-second queue clip the final pipeline publishes 56 marks: 40 checked
   correct by eye, 4 wrong (each one character from a real plate), 12 not
-  settled by a crop. **The two films were recorded on 24 September with the
-  previous recogniser (Apple Vision)**; their plates come from that run, where
+  settled by a crop. **The own-feed film and prior government take were recorded on 24 September
+  with the previous recogniser (Apple Vision)**; their plates come from that run, where
   misread duplicates of one car on a fragmented track existed (MN22GB4920
   beside MH02GB4920, 3 votes against 267).
-- **The local relay can crash-loop.** On this laptop the relay's per-camera
-  transcode hit decoder errors and reconnected fast enough that the grid
-  counted the dead sessions and refused the account for a while. It held a
-  session to every published camera whether or not anyone watched, which is
-  what the organisers ask teams not to do, so it is now opt-in and capped at
-  the 15 it sustained. The government film uses direct WebRTC from the grid
-  through the proxy, which opens one session per visible tile and decodes
-  nothing locally.
+- **Relay policy is local.** The relay is opt-in. Its government-camera cap
+  defaults to 15, configurable through `SAAKSHYA_RELAY_MAX_CAMERAS`; 0 disables
+  the cap (`src/saakshya/live/relay.py`). That default reflects one test window,
+  not a Sentinel limit or universal bridge maximum. Current viewing has two
+  policies: CONTROL ROOM up to 30 / OPTIMIZED VIEW at most 12. See
+  `docs/SENTINEL_SUPPORT_CLARIFICATION.md` for the organisers’ clarification.
 - **The restricted-zone rule on the government grid is a demonstration rule**,
   set by the estate administrator for this evaluation and labelled so. The
   entries it reports are real sightings on that camera.
@@ -178,8 +172,23 @@ by them in questions.
   where it used to hold all thirty. If you intend to show the live wall on
   stage, do not re-record beforehand.
 - **Nothing here is production ready, legally admissible, or tested at 80,000
-  cameras end to end.** The registry plane was tested at 80,000. The video and
+  cameras end to end.** The registry/GIS plane was load-tested with 80,000 synthetic camera rows
+  (`reports/SCALE_80K_LOAD_TEST.md`). The video and
   inference planes were not, and saying otherwise would be false.
+
+Current demonstration hardware limits simultaneous deep-inference
+concurrency. Analytics workers scale horizontally, so additional GPU nodes
+raise concurrent inference throughput without redesigning ingest, event,
+watchlist, GIS or investigation services.
+
+The measured concurrency is a few selected cameras at a time, not the whole
+registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
+run). `command/summary.py` reports “N of M camera(s) with a stream under
+analysis”. Integrated cameras remain available to the viewer and health
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
+inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
+it does not rotate which cameras receive deep inference. GPU pool capacities
+in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
 
 ## 5 · How to regenerate any of it
 

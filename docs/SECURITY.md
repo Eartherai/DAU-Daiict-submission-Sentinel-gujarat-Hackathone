@@ -1,6 +1,6 @@
 # Security
 
-**Status:** implemented and tested. 47 adversarial tests in `tests/security/`.
+**Status:** implemented and tested. Adversarial checks in `tests/security/` (run `make test-security`).
 Every claim below names the file that enforces it and the test that proves it.
 
 ---
@@ -243,6 +243,6 @@ IMPLEMENTED or SPECIFIED so the two are never confused.
   not. A deployment behind an API gateway should add it.
 - **No mTLS between edge and centre.** The transport is pluggable; TLS
   termination is a deployment decision.
-- **No formal penetration test.** The 47 tests here are adversarial but written
+- **No formal penetration test.** The tests here are adversarial but written
   by the same people who wrote the system, which is a known limitation of any
   self-assessment.

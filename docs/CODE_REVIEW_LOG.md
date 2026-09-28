@@ -1,5 +1,16 @@
 # Code Review Log
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 Second-pass review after each substantial change, per the high-assurance
 directive. Severity: **P0** catastrophic · **P1** major correctness/security ·
 **P2** important · **P3** polish · **NIT** optional.

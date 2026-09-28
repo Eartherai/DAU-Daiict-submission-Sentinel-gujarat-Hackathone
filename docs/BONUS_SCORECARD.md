@@ -21,7 +21,7 @@ line that is TESTED but not DEMONSTRATED works — on data we made.
 | Model 1 (camera registry) as the spine every plane reads from | DEMONSTRATED | 30 government cameras in one registry; 19 on the map, 11 listed without invented coordinates |
 | Model 2 (unified viewing as ingest stills) | DEMONSTRATED | 30/30 JPEG wall at ~1 Hz; not a second RTSP copy per tile |
 | Model 3 (federated metadata intelligence) | DEMONSTRATED | observations, graph and search over the live estate |
-| Model 4 rejected on arithmetic, not preference | — | 160 Gbps / 52 PB, [SCALE_MODEL.md](SCALE_MODEL.md) |
+| Statewide central recording declined; selected Model 4 analytics retained | — | 160 Gbps / 52 PB, [SCALE_MODEL.md](SCALE_MODEL.md) |
 | Heterogeneity handled as data | DEMONSTRATED | mixed h264/hevc, 640×576–2560×1440, 16 of 30 monochrome — all detected, none configured |
 
 **The argument.** Gujarat does not need to replace what it has. The registry is

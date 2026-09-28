@@ -1,5 +1,9 @@
 # OPERATOR CLICK-THROUGH — FINDINGS
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 Every nav destination exercised against the live app, 1920x1080.
 
 ## All nine views load
@@ -165,10 +169,8 @@ wall 12   12 tiles  12 videos  8 decoding  0 stills  "8 live sessions"
 The first recording after this fix still failed, with the Live step timing out
 waiting for `#live .live-tile`. The cause was me: the browser pane I had been
 testing in was holding twelve WHEP sessions on the same grid account the
-recorder needed. Releasing them and waiting two minutes for the grid to reap
-the sessions fixed it.
+recorder needed. Releasing them and waiting two minutes preceded a successful retry; session reaping was not verified.
 
-That is the same session-budget constraint that produced the 401 cascades
-earlier in this project, arriving from a new direction — two clients of the
-same account competing. Worth knowing before a live demonstration: close every
+This coincided with the earlier 401 cascades under shared load. It does not
+establish an account session budget or an upstream session-reaping mechanism. Worth knowing before a live demonstration: close every
 other window on the grid first.

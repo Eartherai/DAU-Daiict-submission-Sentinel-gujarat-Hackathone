@@ -29,10 +29,35 @@ answer.
 
 ## Shape
 
-Submitted architecture: **hybrid of Models 1 + 2 + 3**. Model 1 is the registry
-and GIS spine. Model 2 is unified viewing as ingest stills. Model 3 is the
-observation metadata bus across heterogeneous sources. Model 4 (central VMS
-recording) is rejected on arithmetic, not left unfinished.
+Submitted architecture: **hybrid of Models 1 + 2 + 3, with Model 4 central
+analytics on selected cameras**. Model 1 is registry, GIS and governance;
+Model 2 is unified viewing and metadata search; Model 3 is VMS federation and
+adapter middleware. Statewide central recording is declined on bandwidth
+arithmetic (`docs/SCALE_MODEL.md`).
+
+**Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
+CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
+400 ms apart. OPTIMIZED VIEW (default scrolling wall) holds at most 12
+sessions near the viewport, prefetches 600 px, and releases sessions 15 s
+after leaving it. `#media-policy` names the active policy. Browser signalling
+uses SAAKSHYA’s authenticated proxy; Sentinel credentials stay server-side.
+Selected AI workers read RTSP/TCP separately. These are local viewing policies,
+not sandbox limits or a claim that every tile is currently live.
+
+Current demonstration hardware limits simultaneous deep-inference
+concurrency. Analytics workers scale horizontally, so additional GPU nodes
+raise concurrent inference throughput without redesigning ingest, event,
+watchlist, GIS or investigation services.
+
+The measured concurrency is a few selected cameras at a time, not the whole
+registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
+run). `command/summary.py` reports “N of M camera(s) with a stream under
+analysis”. Integrated cameras remain available to the viewer and health
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
+inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
+it does not rotate which cameras receive deep inference. GPU pool capacities
+in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+
 
 ```
                        ┌─────────────────────────────────────────┐
@@ -65,7 +90,7 @@ recording) is rejected on arithmetic, not left unfinished.
         └──────────────┴──────────────────┼───────────────┴────────────────┘
                                           ▼
                     ┌─────────────────────────────────────────┐
-                    │  API  api/ · 83 operations · 4 gates    │
+                    │  API  api/ · generated routes · 4 gates    │
                     │  ui/  investigation workspace           │
                     │  copilot/ · read-only tools             │
                     └─────────────────────────────────────────┘
@@ -165,14 +190,14 @@ cannot, and cannot skip an authorisation check" true by construction.
 
 ### API and UI — `api/`, `ui/`
 
-Four authorisation gates (`docs/SECURITY.md`), 83 operations on 80 paths, OpenAPI generated
+Four authorisation gates (`docs/SECURITY.md`), OpenAPI generated
 from the routes. The workspace is vanilla ES modules with a hand-written canvas
 map — **no third-party asset of any kind**, which is what lets it run on a
 network with no internet route and makes a strict CSP enforceable.
 
 ### Copilot — `copilot/`
 
-Sixteen read-only tools over the same facade (search, trajectory, watchlist,
+Read-only tools over the same facade (search, trajectory, watchlist,
 evidence, estate, timebase, `refuse_imagery`). Structural safety (no tool
 mutates), injection detection on camera-derived text, and mechanical grounding
 verification of every factual token. **The mandatory chain does not involve it**

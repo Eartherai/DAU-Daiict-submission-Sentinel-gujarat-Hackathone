@@ -1,5 +1,10 @@
 # On-site PoC — 22–23 September 2026
 
+Use `FINAL_SUBMISSION.md` for current commands and pack names. Government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence. Own-feed `GJ18JX7786` is the
+CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`).
+
 Venue: i-Hub, Ahmedabad (portal). Bring this machine if it still holds
 `var/live.db` and the 30 ingest sessions; otherwise a cold start of ingest
 needs `SENTINEL_GRID_EMAIL` / `PASSWORD` in the environment only.
@@ -23,7 +28,7 @@ the submission evidence.
 2. Overview — open alert, cameras that published a mark, ANPR GOOD = 0 is yield.
 3. Live wall — 30 ingest stills. LIVE if age &lt; 2.5 s.
 4. Map — 19 placed, 11 listed.
-5. Find `GJ1VV0119` — one-camera honesty.
+5. Find `GJ11S7924` — one-camera honesty.
 6. Alerts — `GJ38BH5815` stolen_vehicle HIGH.
 7. OCR lookalike on the live store: `GJ32K5587` / `GJ3ZK5587` (2 vs Z, both
    cam07). Two marks, not merged. Typed lookalike `6J1VV0119` still works.
@@ -31,7 +36,7 @@ the submission evidence.
    for ingest match → search → trajectory. Timebase ALLOWED / RESTRICTED /
    REFUSED, never guessed.
 9. If they want two cameras: say the live store has 0 repeats; switch to
-   port **8081** (`sqlite:///var/demo.db`) and `GJ05AB1234` / `GJ35BV6925`.
+   port **8081** (`sqlite:///var/demo.db`) and `GJ18JX7786`.
    8081 is the own-feed workspace — never the live grid. Label it LOCAL
    SYNTHETIC out loud. Live tiles come from the local corpus (MediaMTX on
    this machine, or last stills in `var/demo_evidence/preview/`). Do not
@@ -58,5 +63,5 @@ print('bytes', len(tok))
 
 ## If the grid is down
 
-Own-feed corpus on port **8081** (not 8080): `GJ05AB1234`, `GJ35BV6925`,
+Own-feed corpus on port **8081** (not 8080): `GJ18JX7786` (C-014 then C-021),
 watchlist alerts. Label it LOCAL SYNTHETIC out loud.

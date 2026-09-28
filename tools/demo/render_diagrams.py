@@ -16,6 +16,7 @@ reader who has seen one recognises the others.
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from dataclasses import dataclass, field
 from itertools import pairwise
@@ -30,6 +31,8 @@ sys.path.insert(0, str(ROOT / "tools" / "demo"))
 from render_demo_video import MONO, SANS, SANS_B, SEAL, _text, display
 
 W, H = 1920, 1080
+# Searchable PDF text follows the exact strings drawn on each page.
+PAGE_TEXT: list[str] = []
 PAPER = (247, 248, 250)
 INK = (17, 24, 33)
 INK_2 = (74, 85, 101)
@@ -112,6 +115,9 @@ def _arrow(d: ImageDraw.ImageDraw, at: tuple[int, int], facing: str,
 
 def draw(title: str, subtitle: str, nodes: list[Node], edges: list[Edge],
          footer: str = "") -> Image.Image:
+    PAGE_TEXT.append("\n".join([title, subtitle,
+        *[text for node in nodes for text in [node.title, *node.lines]],
+        *[edge.label for edge in edges if edge.label], footer]))
     img = Image.new("RGB", (W, H), PAPER)
     d = ImageDraw.Draw(img)
     by = {n.id: n for n in nodes}
@@ -205,13 +211,13 @@ def d_logical() -> Image.Image:
             "Local store and queue",
             "Watchlist match · alerts",
             "Evidence sealing", "",
-            "· video never leaves the district"], "edge"),
+            "· departmental recording retained"], "edge"),
         Node("centre", 1180, 320, 400, 300, "Centre", [
             "Cross-district aggregation", "Search · camera graph · trajectory",
             "Evidence register · audit", "GIS and command picture", "",
             "· metadata only"], "centre"),
-        Node("fallback", 610, 720, 430, 130, "Model 2 — central processing", [
-            "For sites that cannot host analytics.",
+        Node("fallback", 610, 720, 430, 130, "Model 4 — selected central\nanalytics", [
+            "Selected feeds through one gateway.",
             "The same pipeline, against a pulled stream."], "note"),
     ]
     e = [
@@ -219,18 +225,15 @@ def d_logical() -> Image.Image:
         Edge("edge", "centre", "metadata"),
         # Routed below the fallback box, not through it: nodes are drawn after
         # edges, so a return path at the obvious height was hidden behind Model
-        # 2 along with its label.
+        # 4 along with its label.
         Edge("centre", "edge", "watchlist bundles · fail closed", "down", drop=270),
         Edge("edge", "fallback", "", "v", dashed=True),
     ]
     return draw(
         "Logical architecture",
-        "Model 1 registry as the spine · Model 3 federated intelligence · "
-        "Model 2 as fallback",
+        "Model 1 registry / GIS · Model 2 unified viewing · Model 3 VMS federation · Model 4 selected analytics",
         n, e,
-        "Video does not move. 80,000 cameras at 2 Mbps is 160 Gbps sustained "
-        "(MODELLED), which is why\nthe centre receives metadata and the "
-        "decode stays in the district that owns the camera.")
+        "Statewide central recording is declined: 80,000 × 2 Mbps = 160 Gbps (MODELLED, docs/SCALE_MODEL.md).\nSelected-camera viewing and central analytics remain supported; district deployment is DESIGNED.")
 
 
 def d_search() -> Image.Image:
@@ -270,7 +273,7 @@ def d_search() -> Image.Image:
         n, e,
         "Purpose binding is not a dialog dismissed once — it is standing "
         "furniture in the interface,\nand it is written into every audit "
-        "record the search produces. 10 of 10 refusals verified (MEASURED).")
+        "record the search produces (VERIFIED, tests/security/).")
 
 
 def d_evidence() -> Image.Image:
@@ -331,9 +334,8 @@ def d_capability() -> Image.Image:
         Node("unsuit", 900, 490, 330, 150, "Search says why not", [
             "Absence of a result is", "reported, not implied."], "gate"),
         Node("unknown", 1300, 380, 340, 230, "UNKNOWN is first class", [
-            "cam22 gave one frame in 25 s",
-            "on the first pass and 25 fps",
-            "on the second.", "",
+            "Source availability can change",
+            "between measurement windows.", "",
             "A single sample is not a verdict."], "note"),
     ]
     e = [
@@ -346,10 +348,8 @@ def d_capability() -> Image.Image:
         "Camera capability",
         "Measured from the stream, per camera, per time band",
         n, e,
-        "On the organiser's grid: 28 GOOD for presence, 29 GOOD for vehicle "
-        "detection, 16 UNSUITABLE for\nappearance because they are infrared "
-        "(MEASURED). A system that assumes uniform capability\nreturns nothing "
-        "from half the estate and never says why.")
+        "Grades describe the sampled camera and time band, not an estate-wide guarantee.\n"
+        "Historical capability results: docs/MEASURED_RESULTS.md; current policy: docs/HLD.md.")
 
 
 DIAGRAMS = {
@@ -367,6 +367,7 @@ def main() -> int:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    PAGE_TEXT.clear()
     pages = []
     for name, fn in DIAGRAMS.items():
         img = fn()
@@ -375,8 +376,26 @@ def main() -> int:
         print(f"  {name}.png")
 
     pdf = out / "HLD_diagrams.pdf"
-    pages[0].save(pdf, "PDF", save_all=True, append_images=pages[1:],
-                  resolution=150.0)
+    # Same PDF dependency used by the submission-deck renderer. The visible
+    # page remains the approved raster; an invisible text layer makes its
+    # labels searchable and independently extractable for pack consistency.
+    import pymupdf as fitz
+
+    document = fitz.open()
+    for img, page_text in zip(pages, PAGE_TEXT, strict=True):
+        page = document.new_page(width=W, height=H)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        page.insert_image(page.rect, stream=buf.getvalue())
+        font_path = SANS(17).path
+        page.insert_font(fontname="DiagramText", fontfile=font_path)
+        remaining = page.insert_textbox(
+            fitz.Rect(70, 100, W - 70, H - 70), page_text,
+            fontname="DiagramText", fontsize=17, render_mode=3)
+        if remaining < 0:
+            raise ValueError("PDF text layer overflow")
+    document.save(pdf)
+    document.close()
     print(f"\ndiagrams: {display(out)}/*.png")
     print(f"combined: {display(pdf)}")
     return 0

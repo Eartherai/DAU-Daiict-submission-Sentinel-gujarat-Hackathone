@@ -1,5 +1,9 @@
 # Final evaluation report - Models 1-4
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 Generated 2026-09-16T22:37:54.371769+00:00 UTC. Finished 2026-09-16T22:38:15.948127+00:00 UTC.
 
 Unit tests: exit 0 in 0.7 s.
@@ -22,7 +26,7 @@ Unit tests: exit 0 in 0.7 s.
 | 3 | no live departmental VMS; in-process bus ≠ Kafka |
 | 4 | GPU/utilization and own-feed detector FPS not attached to this API process |
 
-## Exact measured limits
+## Measured workload sizes during these test windows
 
 - Registry: 80,000 synthetic SQLite rows (MEASURED_SYNTHETIC)
 - Government live wall: 15 browser-visible / 30 registered at 60s Direct WHEP; 19 at prior 120s (MEASURED_REAL)
@@ -51,7 +55,7 @@ Unit tests: exit 0 in 0.7 s.
 
 ## Remaining external limitations
 
-- Sentinel session budget (EXTERNAL_DEPENDENCY)
+- Sentinel shared-load availability (EXTERNAL_DEPENDENCY; no fixed participant-facing limit confirmed)
 - Departmental VMS credentials (EXTERNAL_DEPENDENCY)
 - GPU utilization sampling (NOT_MEASURED)
 - Own-feed ANPR accuracy without ground truth (NOT_MEASURED)

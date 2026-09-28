@@ -1,5 +1,9 @@
 # 30-CAMERA ROOT CAUSE — STANDALONE vs THE ACTUAL APPLICATION
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 Measured 2026-09-20 01:30–02:05 IST against the **live Sentinel government
 grid** (`103.250.160.189:8554`) through the running local relay, and against
 the real SAAKSHYA application at `http://127.0.0.1:8083` — not a test page.
@@ -20,8 +24,8 @@ not exist.**
 | Media profile | h264 Baseline 640×360 @8fps | identical |
 
 Both clients sit at roughly two-thirds of the wall. The application is not
-meaningfully worse than the standalone harness. **The ceiling is upstream, in
-Sentinel admission — not in the browser lifecycle.**
+meaningfully worse than the standalone harness. **Upstream failures coincided with the lower live count in this window.
+This does not establish a Sentinel admission ceiling or a bridge limit.**
 
 ## 2. What the application does correctly (verified, not assumed)
 
@@ -58,10 +62,9 @@ odd cameras → primary account, even cameras → backup account, 15 each.
 
 `relay_publisher.py` applies `AUTH_BACKOFF_S = 300.0` on a 401. The backoff is
 correct in magnitude and **is honoured** — but it carries **no jitter**, and the
-pool shares one identity. So when the primary account's concurrent-session
-admission is exceeded, all 15 odd publishers 401 within seconds of each other,
-all enter a 300-second backoff together, and **all 15 go dark and recover in
-lockstep.**
+pool shares one identity. In the recorded window, all 15 odd publishers returned 401 within seconds
+of each other; the precise upstream mechanism was not established.
+They entered a 300-second backoff together and recovered in lockstep.
 
 Caught in the act at 01:56:
 
@@ -94,7 +97,7 @@ one §11 lists that the code does not implement: **jitter**.
 
 1. Add per-publisher jitter to `AUTH_BACKOFF_S`, e.g. `300 * uniform(0.7, 1.4)`, so a pool de-synchronises instead of failing as one block.
 2. Honour a `Retry-After` when Sentinel supplies one.
-3. Add a per-account circuit breaker that caps concurrent RTSP sessions below the observed admission ceiling rather than discovering it by 401.
+3. Use a local concurrency budget and circuit breaker to reduce repeated failed connections; the observed count is not an upstream admission ceiling.
 4. Surface `RATE_LIMITED` as a distinct source state (§9) — right now these tiles read `RECONNECTING`, which misdescribes a camera that is deliberately waiting.
 
 ## 4. Second finding — CPU starvation was degrading the whole media plane
@@ -144,7 +147,7 @@ liveness signal and keep rVFC as a corroborator.**
 
 Not a browser rewrite. In priority order:
 
-1. **De-synchronise auth backoff (jitter) and cap per-account concurrency.** This is the binding constraint — it alone costs up to 15 cameras at a time.
+1. **De-synchronise auth backoff (jitter) and budget local concurrency.** The synchronised failure affected 15 cameras in this window; no participant quota was established.
 2. **Protect the media plane from background CPU load.** Route every heavy job through the existing lease.
 3. **Raise `relay.py` defaults** from 180p/5fps/150k to the 360p/8fps/450k the running instance already uses, so a default start is not below the §12 floor.
 4. **Switch liveness to `framesDecoded`.**

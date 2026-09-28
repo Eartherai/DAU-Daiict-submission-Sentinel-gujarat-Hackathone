@@ -1,5 +1,16 @@
 # Demonstration script
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 Two recordings are required by the portal: **own feed, 2–3 minutes (hard cap)**
 and **government feed, plus an output report** of detected vehicles and plates
 with timestamps.

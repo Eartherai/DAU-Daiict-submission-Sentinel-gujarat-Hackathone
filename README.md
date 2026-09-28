@@ -8,18 +8,20 @@ Federated CCTV intelligence and evidence fabric for a camera estate that was nev
 [![Hybrid 1+2+3+4](https://img.shields.io/badge/Architecture-Hybrid_Models_1%2B2%2B3%2B4-0E7C7B?style=flat-square)](docs/HLD.md)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI_%2B_OpenAPI-009688?style=flat-square)](docs/API.md)
-[![Tests](https://img.shields.io/badge/Tests-666_collected-2E7D32?style=flat-square)](#verify-the-stack)
+[![Tests](https://img.shields.io/badge/Tests-make_test-2E7D32?style=flat-square)](#verify-the-stack)
 [![Licence policy](https://img.shields.io/badge/Models-permissive_only_(AGPL_rejected)-6A1B9A?style=flat-square)](docs/THIRD_PARTY_LICENSES.md)
 
 **Gujarat Police Innovation Challenge 2026** · Sentinel Camera Grid · **DAU / DAIICT**  
 **Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 central analytics.**
-The official live test targets **approximately 50 cameras**. Our currently
-accessible/probed sandbox exposes **30 cameras**; that is the current access
-result, not the official limit. Full statewide centralization of ~80,000
+The evaluation baseline is **30 GOVERNMENT + 2 OWN_FEED + 18
+SYNTHETIC_CONTROL = 50** (`src/saakshya/command/domain.py`,
+`enforce_evaluation_50`). Operator-onboarded cameras are retained, so a runtime
+registry can exceed that baseline. Government availability is measured during
+a test window; onboarding does not establish simultaneous viewing or inference. Full statewide centralization of ~80,000
 cameras remains rejected on arithmetic — 80k × 2 Mbps ≈ **160 Gbps**, 30-day
 ≈ **52 PB** — while selected-camera central analytics is supported.
 
-[Live README images](#watch-first-26-seconds) · [HLD](docs/HLD.md) · [Measured results](docs/MEASURED_RESULTS.md) · [API](docs/API.md) · [Portal pack](docs/PORTAL_UPLOAD.md) · [Judge Q&A](docs/JUDGE_QA.md)
+[Live README images](#watch-first-26-seconds) · [HLD](docs/HLD.md) · [Measured results](docs/MEASURED_RESULTS.md) · [API](docs/API.md) · [Submission index](docs/FINAL_SUBMISSION.md) · [Judge Q&A](docs/JUDGE_QA.md)
 
 ---
 
@@ -55,8 +57,8 @@ Real Chrome tab against a live API — overview → government Focus → plates 
 
 | Film | What it is |
 |---|---|
-| **Own feed** `1.mp4` | Street CCTV with live SAAKSHYA boxes (portal `03_own_feed.mp4` + CSV/JSON) |
-| **Government workspace** `2.mp4` | Narrated live grid tour (portal `06_SAAKSHYA_launch.mp4`) |
+| **Own feed** `03_own_feed.mp4` | Onboarding, detection, watchlist and alerts; 2:53 (`var/demo/own_feed.mp4`, ffprobe) |
+| **Government workspace** `04_government_feed.mp4` | Re-recorded — duration stamped at pack build; single-camera designated vehicle evidence |
 | **Detection overlays** | Same `CameraPipeline` drawn onto government + own frames |
 
 <p align="center">
@@ -68,15 +70,14 @@ Real Chrome tab against a live API — overview → government Focus → plates 
 
 ## Official submission deliverables
 
-Portal deadline **15 Sep 2026**. Pack layout and paste text: [`docs/PORTAL_UPLOAD.md`](docs/PORTAL_UPLOAD.md). Large binaries live under `var/demo/PORTAL_PACK/` on the submission machine (gitignored — too large for GitHub).
+Upload `var/demo/SUBMIT/`, built by `python tools/demo/build_submission_pack.py`. The authoritative file list and submission instructions are in [docs/FINAL_SUBMISSION.md](docs/FINAL_SUBMISSION.md). Confirm the current deadline on the portal; large binaries are gitignored.
 
 | Portal field | Artefact | In-repo pointer |
 |---|---|---|
 | **1 · Presentation** | `01_SAAKSHYA_deck.pptx` + `.pdf` | Rendered by `tools/demo/render_submission_deck.py` |
 | **2 · High-level design** | `docs/HLD.md` + architecture diagrams | [docs/HLD.md](docs/HLD.md) · [docs/readme/hld-fabric.jpg](docs/readme/hld-fabric.jpg) |
-| **3 · Own-feed demo** | `03_own_feed.mp4` + `.csv` / `.json` | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
-| **4 · Government-feed demo** | `04_government_feed.mp4` + reports | Stills: [docs/readme/detect/](docs/readme/detect/) |
-| **5 · Detection report** | `05_detections.md` + summary | Quote sheet: [docs/MEASURED_RESULTS.md](docs/MEASURED_RESULTS.md) |
+| **3 · Own-feed demo** | `03_own_feed.mp4` (2:53; source above) | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
+| **4 · Government-feed demo** | `04_government_feed.mp4` + `04_government_feed_anpr_report.csv` | Stills: [docs/readme/detect/](docs/readme/detect/) |
 | **Working platform** | This repository · `make demo && make serve` | Steps below |
 
 Forbidden phrases on every slide and in this README: *production ready* · *legally admissible* · *tested at 80,000*.
@@ -87,20 +88,20 @@ Forbidden phrases on every slide and in this README: *production ready* · *lega
 
 | Criterion | Where the evidence is |
 |---|---|
-| **1. Successful test case** | 30/30 government cameras onboarded; find `GJ1VV0119`; alert `GJ38BH5815`; own-feed cross-camera `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021. Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
+| **1. Successful test case** | Government designated vehicle `GJ11S7924` on cam06: SINGLE-CAMERA evidence. `GJ18JX7786` on C-014 then C-021: CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
 | **2. Solution presentation** | Portal deck PPTX/PDF · content from measured sheet · [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
-| **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Model 4 rejected with bandwidth arithmetic |
+| **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Statewide Model 4 recording declined on bandwidth arithmetic; selected-camera Model 4 analytics kept |
 | **4. Working platform & demonstration** | `make install && make media && make demo && make serve` → http://127.0.0.1:8080 · bearer gate · OpenAPI `/docs` |
 | **5. Video analytics output** | Vehicle + person detection, tracking, per-track ANPR with voting, capability grades, CSV/JSON paired to overlay films |
-| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · 30 currently reachable government cameras + 50 logical-camera load · **MODELLED** 80k sizing kept separate |
-| **7. Submission completeness** | This README, `.env.example`, 666 tests, portal pack checklist, secret scan in `make verify` |
+| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · dated 30-camera government registry snapshot + 50 local streams initially / 44 at end (`var/reports/camera_load.json`) · **MODELLED** 80k sizing kept separate |
+| **7. Submission completeness** | This README, `.env.example`, the test suite (`make test`), portal pack checklist, secret scan in `make verify` |
 
 | Bonus ask | What is built |
 |---|---|
 | Hybrid architecture | Models **1 + 2 + 3** plus selected-camera Model **4** central analytics; statewide full-video centralization refused |
 | Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); live store: **0** exact cross-camera plate repeats (honest) |
 | Analytics beyond ANPR | Motion / track / person presence / attributes / measured capability |
-| Edge + low bandwidth | Metadata ~400 B/observation; video stays at the camera; edge queue + SERVICE token sync |
+| Edge + low bandwidth | Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row; video stays at the camera; edge queue + SERVICE token sync |
 | Security / privacy / audit | Four authorisation gates · purpose binding · hash-chained audit · no FR identity on government data |
 | Dashboards / alerts / APIs | Overview · Live · Find · Map · Alerts · Copilot (refuses enhancement) · OpenAPI |
 
@@ -152,7 +153,7 @@ Boxes come from the same `CameraPipeline` the live grid runs. A white plate chip
 <p align="center">
   <img src="docs/readme/ui/find-gj1vv0119.jpg" alt="Find GJ1VV0119" width="100%">
 </p>
-<p align="center"><em>Designated rehearsal plate <code>GJ1VV0119</code> — one camera, looping footage. Not a cross-camera fleet claim.</em></p>
+<p align="center"><em>Historical rehearsal screenshot: <code>GJ1VV0119</code> — one camera, looping footage. Not a cross-camera fleet claim.</em></p>
 
 <p align="center">
   <img src="docs/readme/ui/alerts.jpg" alt="Alert GJ38BH5815" width="100%">
@@ -176,7 +177,7 @@ Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **20
 
 | | |
 |---|---|
-| Cameras onboarded | **30 currently reachable/probed**; official evaluation target is approximately 50 |
+| Cameras onboarded | **30 government registry entries in this dated snapshot**; baseline composition is stated above |
 | On the map / listed, not invented | **19** / **11** |
 | Observations stored | **689,502** |
 | Person observations (presence, not identity) | **178,757** |
@@ -185,10 +186,10 @@ Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **20
 | Exact cross-camera repeats | **0** |
 | ANPR grades | **0 GOOD · 28 UNSUITABLE · 2 UNKNOWN** |
 | Appearance | **20 GOOD · 8 DEGRADED · 2 UNKNOWN** |
-| Concurrent cameras (mixed codecs) | 50 cameras — 52,637 frames · **0** decoder errors |
+| Concurrent cameras (mixed codecs) | 50 local streams initially; 44 streaming / 6 down at end · 52,637 frames · **0** decoder errors (`var/reports/camera_load.json`) |
 | Analytics throughput (one process) | **11.4** frames/s |
 | Hot queries using an index | **10 of 10** |
-| Automated tests collected | **666** |
+| Automated checks | Run the test suite (`make test`); current count is stamped at submission |
 
 We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometry finding (plate width / mount), not a failed reader.
 
@@ -196,8 +197,8 @@ We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometr
 
 | Store | What we show |
 |---|---|
-| **Live government** | Rehearse `GJ1VV0119` (cam07, looping). Open alert `GJ38BH5815` on cam21. Current accessible set is 30; final evaluation set is catalogue-dependent. |
-| **Own-feed corpus** | Cross-camera `GJ05AB1234` / `GJ35BV6925` on **C-014** + **C-021** |
+| **Live government** | `GJ11S7924`: 52 reads on cam06 only, SINGLE-CAMERA evidence. `GJ38BH5815` on cam21 is an evaluation-designated watchlist entry, not stolen (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
+| **Own-feed corpus** | `GJ18JX7786` on **C-014 then C-021** — CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
 
 ---
 
@@ -209,14 +210,10 @@ Metadata moves. Video stays where it is.
   <img src="docs/readme/hld-fabric.jpg" alt="SAAKSHYA high-level design" width="100%">
 </p>
 
-<p align="center">
-  <img src="docs/readme/system-architecture.jpg" alt="SAAKSHYA system architecture" width="100%">
-</p>
-
 | Model | Role | Status |
 |---|---|---|
 | **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
-| **2** Unified viewing | Ingest stills on the wall; click → one extra stream copy | **Kept** |
+| **2** Unified viewing | CONTROL ROOM up to 30 WHEP sessions / OPTIMIZED VIEW at most 12 (policy below) | **Kept** |
 | **3** Federation | Government RTSP + local media; observation store as bus | **Kept** |
 | **4** Central analytics/VMS PoC | Selected-camera central ingest, analytics, events, watchlist, evidence, GIS | **Supported for selected feeds; not statewide full-video centralization** |
 
@@ -225,6 +222,29 @@ RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track
         →  EDGE (local store, queue, watchlist)  →  STORE (SQLite ⇄ PostgreSQL + PostGIS)
         →  search / graph / trajectory / alerts / evidence / investigation workspace
 ```
+
+**Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
+CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
+400 ms apart. OPTIMIZED VIEW (default scrolling wall) holds at most 12
+sessions near the viewport, prefetches 600 px, and releases sessions 15 s
+after leaving it. `#media-policy` names the active policy. Browser signalling
+uses SAAKSHYA’s authenticated proxy; Sentinel credentials stay server-side.
+Selected AI workers read RTSP/TCP separately. These are local viewing policies,
+not sandbox limits or a claim that every tile is currently live.
+
+Current demonstration hardware limits simultaneous deep-inference
+concurrency. Analytics workers scale horizontally, so additional GPU nodes
+raise concurrent inference throughput without redesigning ingest, event,
+watchlist, GIS or investigation services.
+
+The measured concurrency is a few selected cameras at a time, not the whole
+registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
+run). `command/summary.py` reports “N of M camera(s) with a stream under
+analysis”. Integrated cameras remain available to the viewer and health
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
+inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
+it does not rotate which cameras receive deep inference. GPU pool capacities
+in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
 
 The chain runs **with no language model in the loop** — a test fails if one is imported while it runs.
 
@@ -236,12 +256,12 @@ The chain runs **with no language model in the loop** — a test fails if one is
 |---|---|
 | Central / regional / edge | **Edge / district:** ingest + analytics + local store + durable queue (~2–3k cameras / node, **MODELLED**). **Central:** aggregation, cross-district search, evidence chain, audit |
 | GPU | The detector and the plate recogniser run on the GPU where there is one (Metal measured here; CUDA in deployment); plate detection stays on CPU (ONNX). Every stage has a CPU path, so a GPU is acceleration, not a requirement for the PoC |
-| Bandwidth | Video stays at the camera. Metadata ~400 B/observation. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why Model 4 is refused |
+| Bandwidth | Video stays at the camera. Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why statewide central recording is declined |
 | Storage | Hot metadata + sealed evidence centrally; video remains on departmental NVR/VMS |
 | HA / ops | Edge continues with uplink down; SERVICE token sync; reconnect with exponential backoff; credentials from environment only |
 | Cost | Quantities from [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md); procurement rates not invented |
 
-**MEASURED:** 30 simultaneous government cameras; 50 concurrent mixed-codec load with 0 decoder errors; whole per-frame pipeline 598 → 293 ms at 2560×1440 on the laptop's GPU (2.0×, identical outputs; `var/reports/pipeline_device.json`).  
+**MEASURED:** 30 government cameras onboarded (dated snapshot above); 50 local streams initially, 44 streaming / 6 down at end, 0 decoder errors (`var/reports/camera_load.json`); whole per-frame pipeline 598 → 293 ms at 2560×1440 on the laptop's GPU (2.0×, same 67 observations and no plates on either device in the 145-frame sample; `var/reports/pipeline_device.json`).
 **MODELLED:** ~33 district nodes for 80k. Never quoted as tested.
 
 ---
@@ -252,7 +272,7 @@ The chain runs **with no language model in the loop** — a test fails if one is
 |---|---|---|
 | Ingest | **PyAV** (real PTS) | Wall-clock / declared FPS rejected for evidence time |
 | Detect / track | **RT-DETRv2-R18** (Apache-2.0) on the GPU where there is one (Apple MPS measured 3.4×, same boxes) + ByteTrack + separate person pool | Persons never enter plate voting |
-| ANPR | YOLOv9 plate detector (MIT) on **full-resolution tiles** of ≥1920 px frames; OCR by **Awiros-ANPR-OCR** (Apache-2.0, PP-OCRv5 fine-tuned on 558k Indian plates), **ported to PyTorch** so it runs on the GPU (6.6 ms a plate batched; matches PaddlePaddle to 7.5e-6); Apple Vision / CCT ONNX as fallbacks; Indian-format position typing; per-track vote | 17/21 hand-read plates exact against Vision's 5/21 and ONNX's 2/21; on a whole clip the final vote publishes 56 marks, 40 checked correct and 4 wrong, against Vision's 17 correct and 6 wrong (`var/reports/ocr_indian_eval.json`); AGPL Ultralytics **rejected in code** |
+| ANPR | YOLOv9 plate detector (MIT) on **full-resolution tiles** of ≥1920 px frames; OCR by **Awiros-ANPR-OCR** (Apache-2.0, PP-OCRv5 fine-tuned on 558k Indian plates), **ported to PyTorch** so it runs on the GPU (6.6 ms a plate batched; matches PaddlePaddle to 7.5e-6); Apple Vision / CCT ONNX as fallbacks; Indian-format position typing; per-track vote | 17/21 hand-read plates exact against Vision's 5/21 and ONNX's 2/21 after format-position typing; on a whole clip the final vote publishes 56 marks, 40 checked correct and 4 wrong, against Vision's 17 correct and 6 wrong (`var/reports/ocr_indian_eval.json`); AGPL Ultralytics **rejected in code** |
 | API | **FastAPI** + generated OpenAPI | Contract cannot drift from routes |
 | Store | SQLAlchemy · SQLite ⇄ **PostgreSQL 18 + PostGIS 3.6** (`tools/db/setup_postgres.sh`) | Same schema, both exercised: the 1.19M-row government store copied with counts matching and both hash chains verifying; `/gis/near` on geography with a GiST index (`var/reports/store_engines.json`) |
 | UI | Static investigation workspace (`ui/`) | No third-party CDN required for core use |
@@ -513,7 +533,7 @@ tests/              unit · integration · e2e · security
 | [DEMO_SIMULATION.md](docs/DEMO_SIMULATION.md) | Isolated 30-channel archival replay demo |
 | [JUDGE_QA.md](docs/JUDGE_QA.md) | Hard questions |
 | [FINAL_RED_TEAM.md](docs/FINAL_RED_TEAM.md) | Attacks we ran on ourselves |
-| [PORTAL_UPLOAD.md](docs/PORTAL_UPLOAD.md) | Submit checklist |
+| [FINAL_SUBMISSION.md](docs/FINAL_SUBMISSION.md) | Authoritative upload index |
 
 ---
 

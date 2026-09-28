@@ -50,7 +50,7 @@ across that estate has three obstacles:
 
 | # | Principle | Consequence in the build |
 |---|---|---|
-| P1 | Move metadata, not video | Analytics run at the edge; ~400 B per observation crosses the network |
+| P1 | Move metadata, not video | Analytics run at the edge; ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row |
 | P2 | Measure capability, never assume it | Three graded capabilities per camera per time band, with evidence |
 | P3 | Absence of evidence is not evidence of absence | Four leg types; coverage gaps stated in words |
 | P4 | Abstention is a correct answer | No colour rather than a guessed colour; UNKNOWN rather than a grade from three frames |
@@ -73,22 +73,31 @@ across that estate has three obstacles:
 ```
 
 **Submitted as a hybrid of Models 1 + 2 + 3, with selected-camera Model 4
-central analytics.** The official evaluation target is approximately 50
-heterogeneous cameras. The currently accessible sandbox evidence contains 30
-reachable/probed cameras; that is an access result, not the evaluation limit.
-The catalogue-driven importer accepts the authoritative set when its
-authenticated Resources-page endpoint is available.
+central analytics.** The evaluation baseline is **30 GOVERNMENT + 2 OWN_FEED + 18
+SYNTHETIC_CONTROL = 50** (`src/saakshya/command/domain.py`,
+`enforce_evaluation_50`). Operator-onboarded cameras are retained, so a runtime
+registry can exceed that baseline. Government availability is measured during
+a test window; onboarding does not establish simultaneous viewing or inference.
+
 
 **Model 1 — Camera registry & GIS (mandatory, kept).** Identity, geometry,
-transport, health and *measured capability*. Nineteen cameras are placed from
-their names (`DERIVED_FROM_NAME`). Eleven remain in the registry without
-coordinates (`NAME_INSUFFICIENT`) and are listed, not invented onto the map.
+transport, health and *measured capability*. The historical government snapshot
+placed nineteen cameras from names (`DERIVED_FROM_NAME`) and left eleven
+unlocated (`NAME_INSUFFICIENT`), listed without invented coordinates
+(`docs/MEASURED_RESULTS.md`, 6 September snapshot).
 Model 1 does not stream live video.
 
-**Model 2 — Unified viewing (kept as stills).** One JPEG per camera, written by
-ingest at about 1 Hz. The organiser's guide: each client gets its own stream
-copy. A thirty-tile WebRTC wall would be thirty extra RTSP sessions against the
-government grid. Click-to-play is optional; the demonstration is the still wall.
+**Model 2 — Unified viewing (kept).**
+
+**Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
+CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
+400 ms apart. OPTIMIZED VIEW (default scrolling wall) holds at most 12
+sessions near the viewport, prefetches 600 px, and releases sessions 15 s
+after leaving it. `#media-policy` names the active policy. Browser signalling
+uses SAAKSHYA’s authenticated proxy; Sentinel credentials stay server-side.
+Selected AI workers read RTSP/TCP separately. These are local viewing policies,
+not sandbox limits or a claim that every tile is currently live.
+
 
 **Model 3 — Federation & metadata (kept).** Heterogeneous sources: government
 RTSP plus local MediaMTX synthetic. The observation store is the metadata bus.
@@ -184,6 +193,20 @@ are one character from a real plate on the same clip, at 40-50 px of plate;
 better optics buy the rest, and a one-vote read is published only as a lead
 requiring verification.
 
+Current demonstration hardware limits simultaneous deep-inference
+concurrency. Analytics workers scale horizontally, so additional GPU nodes
+raise concurrent inference throughput without redesigning ingest, event,
+watchlist, GIS or investigation services.
+
+The measured concurrency is a few selected cameras at a time, not the whole
+registry (see `reports/SCALE_80K_LOAD_TEST.md` for the historical four-camera
+run). `command/summary.py` reports “N of M camera(s) with a stream under
+analysis”. Integrated cameras remain available to the viewer and health
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
+inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
+it does not rotate which cameras receive deep inference. GPU pool capacities
+in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+
 ### 4.3 Retrieval — graph-first
 ```
 structured prune → graph prune → candidate scoring → decomposed rerank
@@ -268,7 +291,7 @@ table on both sides, and verified the 1,239-entry audit chain and the
 213-record evidence chain on PostgreSQL. The same API then ran against it:
 heavy aggregates are faster there (the overview 2.50 s → 0.97 s, a camera's
 page 876 → 183 ms), point lookups pay a few milliseconds of client round trip
-(`var/reports/store_engines.json`). On 80,000 cameras viewport and radius
+(`var/reports/store_engines.json`). On 80,000 synthetic registry rows, viewport and radius
 queries take about 1 ms on either engine and return the same cameras at 20 of
 20 points (`var/reports/gis_postgis.json`). `tests/postgres/` runs search,
 trajectory, evidence, audit, zone rules, the trace report and `/gis/near` on a
@@ -311,12 +334,17 @@ runtime from detected hardware. One codebase.
 **MEASURED** — 30 government cameras were onboarded in the recorded accessible
 estate. Separately, 50 logical local cameras with mixed codecs delivered
 52,637 frames with **0 decoder
-errors**, 6 failures recovered. One analytics process sustains 11.4 frames/s
-(~11 cameras at 1 fps). 10 of 10 hot queries indexed. API p50 1.7–9.6 ms.
-Offline replay with no duplicates and no loss. 5 of 5 tamper tests detected.
+errors**, ending with 44 streaming and 6 down, 36 open failures and no
+recovery (`var/reports/camera_load.json`). The single-stream component rate
+was 11.4 frames/s; sizing uses the historical ~5.6 fps full-pipeline baseline
+(§17.1). API p50 2.0–23.1 ms, p99 ≤44.7 ms on the DEMO store
+(`var/reports/api_latency.json`). Offline replay is VERIFIED in
+`tests/e2e/test_offline_mode.py`.
 
 **MODELLED** — 80,000 cameras across ~33 district nodes; 160 Gbps / 52 PB for
-central video; ~90–180 GB/day of metadata statewide.
+central video. At 10–20% activity, metadata is 92.16–184.32 GB/day on the
+MODELLED 400 B payload or 306.82–613.65 GB/day on the MEASURED 1,331.7 B
+row; both daily rates are MODELLED (`docs/SCALE_MODEL.md`). Sizing uses the latter.
 
 The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 
@@ -328,8 +356,8 @@ The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 | Analytics throughput per process | GPU profiles; more processes per node | Measured, understood |
 | No PKI for evidence or bundles | Content hashes with the limitation stated everywhere | Accepted; needs a policy decision |
 | Insider misuse | Purpose binding, scope, hash-chained audit | Recorded, not prevented |
-| Catalogue exposes fewer cameras than the official target | Catalogue-driven intake; preserve the exact returned count and do not fabricate capacity | **Current accessible evidence is 30; target is approximately 50** |
-| Unavailable government feed | Catalogue-driven intake; no code change needed | **Blocked on authenticated catalogue/session** |
+| Evaluation mixes source domains | Preserve GOVERNMENT / OWN_FEED / SYNTHETIC_CONTROL labels and operator additions | Baseline composition in §3; not 50 government streams |
+| Unavailable government feed | Per-camera backoff, isolation and visible health state | Shared-load availability varies; no participant catalogue is provided (`SENTINEL_SUPPORT_CLARIFICATION.md`) |
 
 ## 9. Compliance
 
@@ -343,8 +371,8 @@ The distinction is maintained everywhere. Nothing modelled is quoted as tested.
 - **Purpose in any script** — a purpose written in Gujarati reaches the audit
   log as written; header values outside ISO-8859-1 are percent-encoded by the
   interface and decoded once at the gate.
-- **No government database integration claimed** — VAHAN, CCTNS, SARATHI, AFIS
-  and NAFIS adapters raise `NotImplementedError` naming what each would require.
+- **No government database integration claimed** — VAHAN, SARATHI, eGujCop (CCTNS), AFIS
+  and NAFIS adapters refuse with `SourceUnavailable` (`watchlist/government.py`) naming what each would require.
 - **ER/STQC** — camera compliance status is a registry field, not an assertion
   about this software.
 
@@ -356,9 +384,10 @@ resolution, measured capability, health, and — only if known — coordinates.
 
 **MEASURED on the issued grid:** 30 cameras, 23× h264 + 6× hevc, mixed
 resolutions, five departments in the estate of which three self-identify.
-Nineteen placed `DERIVED_FROM_NAME`; eleven `NAME_INSUFFICIENT` listed, not
-invented. The published catalogue redirects to login, so every record is
-`source="probe"`.
+This is the 6 September snapshot (`docs/MEASURED_RESULTS.md`): the codec
+counts exclude the unobserved camera. Nineteen were placed `DERIVED_FROM_NAME`;
+eleven were listed `NAME_INSUFFICIENT`. No participant-specific catalogue is
+provided; government intake uses probe-derived records (`source="probe"`).
 
 NVR and VMS vendors are not replaced. An adapter that can deliver frames (or
 already-decoded JPEGs) and a stable camera id is enough to sit on the
@@ -376,10 +405,14 @@ target — created by the team. No government stolen-vehicle or wanted-person
 database is integrated. An adapter that received such a feed would be the same
 match path; the feed is what is missing.
 
-**MEASURED:** `GJ38BH5815` stolen_vehicle HIGH OPEN on cam21. Designated
-rehearsal `GJ1VV0119` is on the live watchlist. Exact cross-camera repeats among
-published marks on this grid: **0**. Multi-camera trace is demonstrated on the
-synthetic corpus (`GJ01CD5678`, `GJ35BV6925`).
+**MEASURED, read-only store snapshot:** government designated vehicle
+`GJ11S7924` has 52 reads on cam06 only: **SINGLE-CAMERA** evidence.
+`GJ38BH5815` has one read and a HIGH OPEN `evaluation_designated` alert on
+cam21; it is not listed as stolen. The older `GJ1VV0119` rehearsal is an
+`investigation_target` on cam07. **DEMO:** `GJ18JX7786`, C-014 then C-021,
+is the **CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION**. Sources and SQL
+are in `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`; no government cross-camera
+trajectory is claimed.
 
 ### 11.1 Alert workflow — from a read to an officer's decision
 
@@ -461,13 +494,13 @@ the same discipline as the rest of the proposal.
 | Topic | Claim | Label |
 |---|---|---|
 | Central / regional / edge | ~33 district nodes × 2,000–3,000 cameras; centre aggregates metadata | **MODELLED** (`docs/SCALE_MODEL.md`) |
-| GPU / accelerators | One CPU process: 11.4 fps (~11 cameras at 1 Hz). A 2,500-camera node at that rate needs GPU inference at the district, not a rewrite. Profiles: `DEV_CPU` / `CLOUD_GPU` / `TARGET_GPU` | **MEASURED** throughput; **DESIGNED** GPU split |
-| Bandwidth | Do not copy video to the centre. Ingest stills ~1 Hz for the wall. Metadata ~90–180 GB/day statewide with T0 gating. Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** offline tests |
+| GPU / accelerators | One CPU process: 11.4 fps component benchmark; historical 5.6 fps full pipeline (size on this, §17.1). A 2,500-camera node at that rate needs GPU inference at the district, not a rewrite. Profiles: `DEV_CPU` / `CLOUD_GPU` / `TARGET_GPU` | **MEASURED** throughput; **DESIGNED** GPU split |
+| Bandwidth | Do not copy video to the centre. Wall policies are in §3. MODELLED gated metadata: 92.16–184.32 GB/day at 400 B or 306.82–613.65 GB/day at the measured 1,331.7 B row; sizing uses the latter (§20.4). Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** offline tests |
 | Hot / warm / cold storage | Video stays at the camera/NVR. Hot: 30 days of metadata + sealed evidence at the node. Warm/cold: partition observations by month. Retention is a policy decision | **DESIGNED**, **UNTESTED** at 80k |
 | Load balancing / health | Horizontal processes per node; `/system/health`; hash-chained audit | **MEASURED** on 30 cameras; **UNTESTED** as a cluster scheduler |
-| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (18 e2e tests). Central HA, backup and DR designed in §15; still **UNTESTED** multi-node | **MEASURED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
+| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (`tests/e2e/test_offline_mode.py`). Central HA, backup and DR designed in §15; still **UNTESTED** multi-node | **MEASURED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
 | Cybersecurity | Four gates (auth, role, jurisdiction, purpose). ADMIN cannot search. Tokens not in query strings. No secrets in the repository | **MEASURED** on the API; statewide SOC integration **UNTESTED** |
-| Cost | §17 gives the model and its measured inputs (11.4 fps; **S = 2.0** whole-pipeline on an Apple M5 integrated GPU, 3.4 for the detector alone); the target accelerator's **S** comes from the same scripted benchmark before any figure is signed. §20.8 prices the model on an assumed **S** and assumed unit rates, as ranges, for procurement to replace | **MODELLED** §17; **S MEASURED** on dev hardware; unit rates **ASSUMED** §20.8 |
+| Cost | §17 gives the model and its measured inputs (5.6 fps full pipeline; **S = 2.0** whole-pipeline on an Apple M5 integrated GPU, 3.4 for the detector alone); the target accelerator's **S** comes from the same scripted benchmark before any figure is signed. §20.8 prices the model on an assumed **S** and assumed unit rates, as ranges, for procurement to replace | **MODELLED** §17; **S MEASURED** on dev hardware; unit rates **ASSUMED** §20.8 |
 
 Nothing in this table is quoted as “tested at 80,000”.
 
@@ -494,11 +527,24 @@ stated:
    for live and recorded streams. Only frames and a stable camera id are
    needed; no VMS is replaced.
 7. **Network path and bandwidth** from each district to its edge node: whether
-   streams can be pulled on demand, and the uplink for metadata (about 400 bytes
-   an observation) to the centre.
+   streams can be pulled on demand, and the uplink for metadata (1,331.7 B MEASURED serialised row; ~400 B MODELLED compact payload,
+   `var/reports/bandwidth.json`; sizing uses the measured row) to the centre.
 8. **For facial recognition, if a department wants it (11.2):** an authorised
    gallery with a recorded legal basis per person, a retention limit, a
    decision on who may search, and cameras surveyed for face resolution.
+
+### Department-wise information requirements
+
+The common inventory and authority fields above apply to every department.
+These are requested inputs, not claims of access already granted.
+
+| Department | Required local information |
+|---|---|
+| Home / Police | Junction and jurisdiction mapping, control-room VMS exports, authorised watchlist issuer, incident escalation and evidence signing authority |
+| Health | Hospital camera ownership, restricted clinical areas, privacy masks, access roles and retention policy |
+| GSRTC | Depot and bus-station channel mapping, vehicle lanes, timetable context, VMS/RTSP exports and uplink constraints |
+| Panchayat | Village/site coordinates, power and backhaul availability, local maintenance owner and offline queue requirements |
+| Municipal bodies | Ward and traffic asset mapping, overlapping coverage, NVR/channel inventory, storage retention and maintenance contacts |
 
 ## 14. Future roadmap (PoC → district → state)
 
@@ -506,13 +552,13 @@ This is a plan, not a claim of work already done.
 
 | Horizon | What | Label |
 |---|---|---|
-| On-site PoC (22–23 Sep 2026) | Same 30-camera grid, designated-vehicle search, watchlist alerts, still wall. GPU only if the venue supplies it. | **DESIGNED** |
+| Next on-site PoC (date to be confirmed) | Evaluation baseline in §3, designated-vehicle search, watchlist alerts, CONTROL ROOM / OPTIMIZED VIEW. Target GPU benchmark before sizing. | **DESIGNED** |
 | District node | One district, 2,000–3,000 cameras, `TARGET_GPU` profile, local store and queue, watchlist bundles from the centre | **DESIGNED** |
 | Catalogue-backed Model 1 | Authoritative ids, departments and surveyed coordinates replace `DERIVED_FROM_NAME` / `probe` | **DESIGNED** — blocked on a catalogue session |
 | Government watchlist feed | Same match path; replace `REPRESENTATIVE` with an authorised issuer | **DESIGNED** — blocked on legal basis and API |
 | Statewide centre | Cross-district search over metadata; no central video farm | **MODELLED** |
 | Face recognition | Gated (11.2): only with an authorised gallery, a legal basis per entry, and cameras graded for face resolution. | Department decision |
-| VAHAN / CCTNS / AFIS | Adapters exist as `NotImplementedError`. No integration is claimed. | — |
+| VAHAN / SARATHI / eGujCop (CCTNS) / AFIS / NAFIS | Adapters refuse with `SourceUnavailable`, stating required access (`watchlist/government.py`). No integration is claimed. | **DESIGNED** access |
 
 ## 15. Disaster recovery and redundancy design
 
@@ -526,7 +572,7 @@ centre does not stop a district detecting, matching or sealing evidence.
 
 | Failure | Blast radius | Behaviour | Label |
 |---|---|---|---|
-| Centre unreachable | Statewide search, cross-district correlation | Districts continue: detection, watchlist, alerts and evidence all local. Metadata queues and replays on reconnect. | **MEASURED** — 18 offline e2e tests |
+| Centre unreachable | Statewide search, cross-district correlation | Districts continue: detection, watchlist, alerts and evidence all local. Metadata queues and replays on reconnect. | **MEASURED** — `tests/e2e/test_offline_mode.py` |
 | District node lost | That district's live analytics | Cameras keep recording to their own NVR. No central video was being written, so no footage is lost — only analysis is paused. | **DESIGNED** |
 | Store corruption at a node | That node's metadata | Restore from the last snapshot; replay the queue from the centre's copy of that district's metadata. | **DESIGNED**, **UNTESTED** |
 | Evidence tampering | One record | Hash chain detects it. 5 of 5 tamper tests detected. | **MEASURED** |
@@ -581,7 +627,7 @@ measured and they differ by a factor of two.
 | Measurement | Value | What it covers |
 |---|---|---|
 | Single analytics process, detection only, one stream | **11.4 frames/s** | Best case. 1,019 frames, `var/reports/camera_load.json`. |
-| Live AI worker, full pipeline, four cameras concurrently | **~1.4 frames/s per camera, ~5.6 aggregate** | Detection *and* ANPR and tracking, sharing a host with the API and media planes. |
+| Historical AI worker, full pipeline, four cameras concurrently | **~1.4 frames/s per camera, ~5.6 aggregate** | Historical measurement recorded in `reports/SCALE_80K_LOAD_TEST.md`; detection, ANPR and tracking share the host. Not remeasured with the current recogniser. |
 
 **Size on the second.** The first is a component benchmark taken with nothing
 else running; the second is what the software actually sustains doing the whole
@@ -600,15 +646,15 @@ cameras_per_district        = 2,500          design assumption
 sample_rate_hz              = 1              policy choice, not a limit
 frames_per_second_needed    = 2,500
 process_throughput_fps      = 5.6            MEASURED, full pipeline
-gpu_speedup_factor          = S              UNKNOWN — must be benchmarked
+gpu_speedup_factor          = S              2.0 MEASURED laptop GPU; target UNKNOWN — must be benchmarked
 inference_nodes_per_district= 2,500 / (5.6 × S)
 districts                   = 33
 ```
 
 ### 17.3 Solved for every value of S
 
-Rather than quote a speedup this proposal has not measured, the model is solved
-across the range. Procurement benchmarks **S** once and reads its own row.
+Speedup is measured only on the laptop integrated GPU (§17.4), so the model
+is solved across the range. Procurement benchmarks **S** once and reads its own row.
 
 | GPU speedup **S** | Nodes per district | Statewide | Statewide on the best-case figure |
 |---:|---:|---:|---:|
@@ -650,7 +696,7 @@ ratio:
 | What was timed | CPU median | GPU median | **S** | Parity |
 |---|---:|---:|---:|---|
 | Detector alone (RT-DETRv2-R18) | 448 ms | 133 ms | **3.4** | 3,622 of 3,622 boxes matched at IoU ≥ 0.9 |
-| Whole pipeline (detect, track, plate, OCR) | 598 ms | 293 ms | **2.0** | same 67 observations, same plates |
+| Whole pipeline (detect, track, plate, OCR) | 598 ms | 293 ms | **2.0** | same 67 observations; no plates on either device in this 145-frame sample |
 
 Source: `var/reports/detector_device.json`, `var/reports/pipeline_device.json`.
 The whole-pipeline ratio is the one to read into §17.3, and it is lower than
@@ -665,11 +711,9 @@ laptop's integrated GPU.** It says the method works and the pipeline is not
 CPU-bound by construction; it is not the target accelerator's row, which the
 same command produces on that hardware.
 
-Step 4 is the one usually skipped, and it is the one this project learned the
-hard way: moving from one camera to four raised aggregate throughput roughly
-sixfold while per-camera latency stayed flat, which says the worker was waiting
-on frames rather than saturating the processor. Ingest concurrency is the first
-thing to size, not the accelerator.
+Step 4 measures contention at the intended concurrency. Registry scale alone
+cannot determine ingest or inference capacity; benchmark both independently
+on the target host before using the MODELLED GPU pool sizes.
 
 ### 17.5 What this design does not spend, and why
 
@@ -678,9 +722,9 @@ The costs avoided are as material as the ones incurred.
 | Avoided | Because |
 |---|---|
 | Central video storage (~52 PB modelled) | Video stays at the camera/NVR |
-| Central video bandwidth (~160 Gbps modelled) | Only metadata and ~1 Hz stills traverse the uplink |
+| Central video bandwidth (~160 Gbps modelled) | Metadata uplink sized separately from on-demand wall viewing (§20.4) |
 | Per-camera VMS licensing at the centre | Departmental VMS platforms are integrated, not replaced |
-| Registry sharding | 80,000 camera rows occupy **58.01 MB**; onboarding runs at **114,742 cameras/s**, gap analysis over all 80,000 in **85 ms**, single lookup **0.46 ms** — all **MEASURED**, and regenerated by `tools/reports/scale_load_test.py` rather than transcribed |
+| Registry sharding | 80,000 camera rows occupy **58.05 MB**; onboarding runs at **57,647 cameras/s**, gap analysis over all 80,000 in **181.7 ms**, single lookup **0.69 ms** — all **MEASURED**, and regenerated by `tools/reports/scale_load_test.py` rather than transcribed (`reports/SCALE_80K_LOAD_TEST.md`) |
 
 **Operational cost is dominated by inference, not by storage or transport.**
 That is the opposite of the assumption a central-VMS design starts from, and it
@@ -921,7 +965,7 @@ part.
 | Database servers | 2 | 32–64 cores, 256–512 GB RAM, NVMe | PostgreSQL + PostGIS primary and synchronous standby |
 | Application servers | 2 | 16–32 cores, 64 GB RAM | API, alerts, queue shipper; one active, one taking load |
 | Hot storage (NVMe, usable) | 8 TB | Split across the two database servers | ~1.2 TB of 30-day metadata with indexes (20.5), with room for growth, per copy |
-| Warm storage (HDD / object, usable) | 20 TB | NAS or object store | ~15 TB for a year of metadata with indexes, plus sealed evidence |
+| Warm storage (HDD / object, usable) | 20 TB | NAS or object store | ~14.00 TB for a year of metadata with indexes, plus sealed evidence |
 | Network | 1 set | 10 GbE top-of-rack pair, firewall pair, load balancer pair | Camera VLAN terminates here (§18.2) |
 | Rack, UPS, cooling | 1 set | — | — |
 | Site boxes (optional) | 25 | Embedded accelerator, 1 per thin-backhaul site | **ASSUMED** count, set by the site survey |
@@ -933,8 +977,8 @@ part.
 | Database servers | 3 | 64 cores, 512 GB–1 TB RAM, NVMe | Primary, synchronous standby, asynchronous replica at the DR site |
 | Application servers | 4 | 16–32 cores, 64–128 GB RAM | Stateless API behind the load balancer; N+1 |
 | Monitoring and logging servers | 3 | 16 cores, 64 GB RAM, 20 TB | Metrics, logs, audit export (20.6) |
-| Hot storage (NVMe, usable) | 120 TB | 40 TB per database copy | ~36 TB of 30-day metadata with indexes at the measured row size (20.5) |
-| Warm storage (usable) | 450 TB | Object store or HDD tier | ~438 TB for a year of metadata with indexes |
+| Hot storage (NVMe, usable) | 120 TB | 40 TB per database copy | ~36.82 TB of 30-day metadata with indexes at the measured row size (20.5) |
+| Warm storage (usable) | 450 TB | Object store or HDD tier | ~447.96 TB for a year of metadata with indexes |
 | Cold / backup storage | 500 TB | Tape or cold object tier, off-site | Base backups, WAL archive, detached partitions |
 | Evidence store | 50 TB | Object store with write-once retention | Sealed stills and manifests (**ASSUMED** volume) |
 | Network, security, DR site facility | 1 set each | Core switches, firewalls, load balancers; DR rack | — |
@@ -961,16 +1005,16 @@ platforms keep their own licences; this platform does not replace them (§10).
 | Flow | Rate | Crosses | Label |
 |---|---|---|---|
 | Camera → district node, video | 2 Mbps per pulled stream; 2,500 × 2 Mbps = **5 Gbps** if every camera is pulled continuously | Departmental / district network only, on a camera VLAN; never the WAN | **MODELLED** (the 2 Mbps of §1) |
-| District → centre, metadata, modelled row | 400 B an observation → 3–6 GB/day gated, ≤ **2.7 Mbps** at the ungated worst case (20 vehicles per camera-minute) | WAN | **MODELLED** (`docs/SCALE_MODEL.md`) |
-| District → centre, metadata, measured row | The serialised row this build ships is **1,331.7 B**, not 400 (`bandwidth.json`), so 10–20 GB/day gated and ≤ **8.9 Mbps** ungated | WAN | Row size **MEASURED**; rate **MODELLED** |
-| Stills for the wall | ~1 Hz JPEG, on demand, only while a tile is open; 100–200 KB a still (**ASSUMED**) → 0.8–1.6 Mbps a tile | District network, or WAN when viewed from the centre | **DESIGNED**; still size **ASSUMED** |
+| District → centre, metadata, modelled row | 400 B MODELLED optimised payload → 2.88–5.76 GB/day gated, ≤ **2.67 Mbps** at the ungated worst case (20 vehicles per camera-minute) | WAN | **MODELLED** (`docs/SCALE_MODEL.md`) |
+| District → centre, metadata, measured row | The serialised row this build ships is **1,331.7 B** (`var/reports/bandwidth.json`), so 9.59–19.18 GB/day gated and ≤ **8.88 Mbps** ungated | WAN | Row size **MEASURED**; rate **MODELLED** |
+| Wall video / still fallback | CONTROL ROOM up to 30 streams; OPTIMIZED VIEW at most 12 (§3). At an assumed 2 Mbps per stream: 60 / 24 Mbps per wall. Fallback JPEG size and rate must be measured separately. | Viewing network; WAN if viewed centrally | Policy **VERIFIED** in `ui/app.js`; bandwidth **MODELLED** |
 | Evidence | Sealed stills and manifests, per case | WAN, on demand | **DESIGNED** |
-| Centre inbound, statewide | 33 districts ≤ 8.9 Mbps each: **≤ 290 Mbps** worst case, metadata only | WAN | **MODELLED** |
+| Centre inbound, statewide | 80,000 cameras × 20/min × 1,331.7 B × 8: **284.10 Mbps** worst case (33 × 2,500 district slots: 292.97 Mbps), metadata only | WAN | **MODELLED** |
 
 **Provisioning (ASSUMED).** Per district: a 20 Mbps primary uplink to the
-centre and a 10 Mbps secondary on a different carrier — twice the ungated
-worst case, with room for evidence pulls and a few wall tiles viewed from the
-centre. At the centre: two 500 Mbps links. Against the 160 Gbps a central
+centre and a 10 Mbps secondary on a different carrier — above the metadata-only ungated
+worst case. Central viewing adds the wall-video budget above; a dense wall
+cannot be budgeted inside this metadata uplink. At the centre: two 500 Mbps links. Against the 160 Gbps a central
 video design needs, statewide metadata at its worst is under 0.2% of that.
 
 The planning figures use the measured row. The 400 B model is kept because
@@ -978,13 +1022,14 @@ The planning figures use the measured row. The 400 B model is kept because
 actually serialises (identifiers, the `dedup_key`, the box, the raw OCR),
 and a compact wire encoding is an optimisation not yet made.
 
-**Low bandwidth and disconnection (MEASURED, 18 offline e2e tests).** The
+**Low bandwidth and disconnection (MEASURED, `tests/e2e/test_offline_mode.py`).** The
 district node keeps detecting, matching the watchlist, raising alerts and
 sealing evidence with the uplink down (§15). Observations wait in a durable
 local queue that is acknowledged, not deleted, so a lost acknowledgement
 replays rather than losing data; the centre applies each event once by its
-`dedup_key`. At the measured row size a district produces 10–20 GB a day
-gated, so a week of disconnection is at most ~140 GB of queue — a disk, not
+`dedup_key`. At the measured row size a district produces 9.59–19.18 GB a day
+gated, so a week of disconnection is at most ~134.24 GB of queue
+(`docs/SCALE_MODEL.md`, before queue/index overhead) — a disk, not
 a design problem. Watchlist bundles travel the other way and fail closed on
 integrity, issuer or version, so a node offline keeps its last valid list
 rather than none.
@@ -998,15 +1043,18 @@ sizing and is a policy decision the department makes (§13).
 
 | Tier | Holds | Medium | Retention (**ASSUMED**) | Per district | Centre |
 |---|---|---|---|---:|---:|
-| **Hot** | Current month's observations, open alerts, watchlist, audit | PostgreSQL on NVMe, indexed (10 of 10 hot queries use an index, **MEASURED**) | 30 days | ~1.2 TB | ~36 TB |
-| **Warm** | Older monthly observation partitions, still queryable | PostgreSQL tablespace on HDD / object-backed volume | 1 year | ~15 TB | ~438 TB |
+| **Hot** | Current month's observations, open alerts, watchlist, audit | PostgreSQL on NVMe, indexed (10 of 10 hot queries use an index, **MEASURED**) | 30 days | ~1.2 TB | ~36.82 TB |
+| **Warm** | Older monthly observation partitions, still queryable | PostgreSQL tablespace on HDD / object-backed volume | 1 year | ~14.00 TB | ~447.96 TB |
 | **Cold** | Detached partitions, base backups, WAL archive | Tape or cold object tier, off-site | Set by policy (1–7 years is the range to decide within) | — | 500 TB provisioned |
 | **Evidence** | Sealed stills, clips, manifests, BSA s.63 drafts | Object store with write-once retention; hash chain verified on read | Life of the case plus the appeal period | per case | 50 TB provisioned |
 | **Audit** | Hash-chained audit log | PostgreSQL, partitioned, never pruned | Indefinite (`docs/SCALE_MODEL.md`) | small | small |
 
 Sizes are the measured 1,331.7-byte row × the gated daily volume × retention,
 doubled for indexes (the factor of two is **ASSUMED**; index overhead on the
-production schema was not measured).
+production schema was not measured). `docs/SCALE_MODEL.md` shows both payload
+cases: at 400 B the statewide 30-day range is 5.53–11.06 TB and the annual
+range is 67.28–134.55 TB; the measured-row ranges are 18.41–36.82 TB and
+223.98–447.96 TB. Storage provisions use the upper measured-row bound.
 
 **What is built and what is not.** One schema on SQLite and PostgreSQL +
 PostGIS is **MEASURED** (§4.10). Monthly partitioning of observations, the

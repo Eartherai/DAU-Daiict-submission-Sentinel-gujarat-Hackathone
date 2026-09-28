@@ -5,7 +5,7 @@ definitions, not maintained beside them, so this document cannot drift into
 describing a system that does not exist. Live schema: `GET /openapi.json`,
 interactive at `/docs`.
 
-83 operations on 80 paths (counted from the generated OpenAPI). Everything below is implemented and covered by tests; the live schema is the complete list.
+The generated OpenAPI is the complete operation inventory. Everything below is implemented and covered by tests; the live schema is the complete list.
 
 ---
 
@@ -72,7 +72,7 @@ no endpoint that returns a bare confidence number.
 
 ## GIS
 
-Six endpoints, one filter vocabulary: `bbox` (`west,south,east,north`), `zoom`,
+GIS endpoints share a filter vocabulary where applicable: `bbox` (`west,south,east,north`), `zoom`,
 `district`, `department`, `tier`, `status`, `capability`, `grade`, `time_band`.
 
 | Method | Path | Returns |
@@ -84,6 +84,10 @@ Six endpoints, one filter vocabulary: `bbox` (`west,south,east,north`), `zoom`,
 | GET | `/gis/alerts` | Alert locations |
 | GET | `/gis/coverage` | Gaps: `DISTANCE`, `CAPABILITY`, `AVAILABILITY` |
 | GET | `/gis/extent` | Bounding box of the located estate |
+| GET | `/gis/near` | Cameras within a radius, nearest first, jurisdiction-scoped |
+| GET | `/gis/gaps` | Registry completeness and governance gaps |
+| GET | `/gis/timebase` | Camera timing health and time clusters |
+| GET | `/gis/timebase/check` | Whether selected cameras may be correlated |
 
 Two properties worth knowing:
 
@@ -123,7 +127,7 @@ Tuesday still reads as it did on Tuesday, so an investigator's note about
 |---|---|---|
 | GET/POST | `/watchlist` | Read is purpose-bound — asking discloses an investigation |
 | GET | `/alerts` | |
-| POST | `/alerts/{id}/acknowledge` · `/clear` | Clearing requires a reason |
+| POST | `/alerts/{id}/acknowledge` · `/investigate` · `/clear` | Clearing requires a reason |
 | POST | `/evidence/from-observation/{id}` | Seals frame and clip, appends to the chain |
 | GET | `/evidence/{id}` · `/{id}/frame` | Frame served only from inside the evidence root |
 | POST | `/evidence/{id}/verify` | Real cryptographic verification; no stub path |
@@ -133,6 +137,22 @@ Tuesday still reads as it did on Tuesday, so an investigator's note about
 | GET | `/capability/summary` · POST `/capability/grade` | Re-grade from stored observations |
 
 ---
+
+## Registry, zone rules and output reports
+
+Routes verified in `api/routes_registry.py`, `routes_zones.py`, `routes_ops.py`.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/registry/cameras/import` · `/registry/cameras/import.csv` | JSON / CSV onboarding, admin write gate; validation before mutation |
+| GET | `/registry/cameras/export.csv` | Export registry metadata, camera read gate |
+| GET/POST | `/zones` | List authorised zone rules / create a rule with admin write permission |
+| GET | `/zones/{rule_id}/entries` | Sightings inside a rule during its hours, alert read permission |
+| GET | `/reports/vehicle/{plate}.html` | Printable, scoped, purpose-bound vehicle trace with evidence and digest |
+| GET | `/reports/anpr.csv` | Purpose-bound ANPR export with plate, camera and timestamps |
+
+Alert lifecycle: OPEN → ACKNOWLEDGED → UNDER INVESTIGATION → CLEARED.
+Clearing requires a reason; transitions are audited (`api/routes_ops.py`).
 
 ## Edge
 

@@ -246,7 +246,11 @@ The committee should **watch the mp4**, not a screenshot deck.
 
 ---
 
-## N. Known upstream Sentinel limitations
+## N. Upstream observations during this test window
+
+These are MEASURED DURING A TEST WINDOW, not sandbox limits. Organisers
+confirmed no fixed participant-facing RTSP session limit; current policies
+and guidance are in `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
 
 - Concurrent Direct WHEP is stable for a historical **~15-id** set (**14/15** LIVE), not 30/30.
 - Groups of 10: several ids stay `WHEP_UNAVAILABLE` even after HTTP 201 (ICE / no first frame).

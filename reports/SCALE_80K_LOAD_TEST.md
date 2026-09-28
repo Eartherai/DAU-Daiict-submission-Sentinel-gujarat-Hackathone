@@ -1,19 +1,19 @@
 # Scalability and load test — 80,000 cameras
 
-Generated 2026-09-22 18:46:15Z. Every figure below was measured by this script on a
-throwaway database; none is extrapolated.
+Generated 2026-09-28 04:35:18Z. The registry table below was measured by this script on a
+throwaway database of synthetic camera rows; none is a live stream.
 
 ## Registry plane, at statewide scale
 
 | Operation | Result |
 |---|---:|
-| Bulk onboarding of 80,000 cameras | **0.697s** (114,742/s) |
-| Registry gap analysis (all 80,000) | **85.0 ms** |
-| Capability grading summary | 151.0 ms |
-| Map viewport, zoom 11 → 1,665 features | 225.0 ms |
-| Single camera lookup | **0.46 ms** |
-| Department filter over the whole estate (80,000 rows) | 406.3 ms |
-| Database size | 58.01 MB |
+| Bulk onboarding of 80,000 cameras | **1.388s** (57,647/s) |
+| Registry gap analysis (all 80,000) | **181.7 ms** |
+| Capability grading summary | 336.4 ms |
+| Map viewport, zoom 11 → 1,665 features | 426.2 ms |
+| Single camera lookup | **0.69 ms** |
+| Department filter over the whole estate (80,000 rows) | 651.3 ms |
+| Database size | 58.05 MB |
 
 The map viewport is a bounded query rather than a full dump: it returns
 1,665 features from 80,000 cameras, so the cost of
@@ -24,31 +24,29 @@ drawing the map does not grow with the estate.
 Registry rows say nothing about video or inference, and it would be
 dishonest to present the numbers above as statewide readiness.
 
-- **Video plane.** The wall holds a bounded number of concurrent WHEP
-  sessions, and the upstream grid refuses further sessions under churn.
-  Statewide viewing is a regional-fan-out problem, not a registry one.
-- **AI plane.** Inference is the real constraint. Measured on this host,
-  CPU-only: four cameras at roughly 1.4 fps each, aggregate ~5.6 fps,
-  P50 around 170 ms and P95 up to 1.5 s. Scaling that to a meaningful
-  fraction of the estate needs GPU capacity, not more registry rows.
-- **Storage.** The registry is metadata. Footage retention, hot/warm/
-  cold tiering and the bandwidth to move it are sized separately and are
-  not exercised here.
+- **Video plane.** CONTROL ROOM opens up to 30 direct WHEP sessions;
+  OPTIMIZED VIEW holds at most 12 near the viewport (`ui/app.js`). These
+  local policies are not Sentinel limits: availability varies with shared
+  load (`docs/SENTINEL_SUPPORT_CLARIFICATION.md`). This run opens no streams.
+- **AI plane.** The historical report recorded four selected cameras at
+  roughly 1.4 fps each (~5.6 aggregate), before the current GPU recogniser.
+  That measurement is not repeated by this registry-only harness. The GPU
+  path is separately measured in `var/reports/pipeline_device.json` and
+  `var/reports/ocr_indian_eval.json`. It does not analyse every registry row.
+- **Storage.** These are synthetic camera metadata rows, not observations
+  or retained video. Retention and media bandwidth are sized separately.
 
 ## What the numbers imply for sizing
 
-The registry is not the bottleneck at statewide scale and does not need
-sharding for camera metadata. Two findings matter more:
+Bounded viewport output keeps drawing manageable; gap analysis still scans
+registry metadata, and this single-host result does not establish distributed
+capacity. Current demonstration hardware limits simultaneous deep-inference
+concurrency. Analytics workers scale horizontally, so additional GPU nodes
+raise concurrent inference throughput without redesigning ingest, event,
+watchlist, GIS or investigation services. Cluster capacities are MODELLED.
 
-1. **The AI plane was waiting on frames, not saturating CPU.** Moving
-   from one camera to four raised aggregate throughput roughly sixfold
-   while per-camera latency stayed flat. Ingest concurrency, not raw
-   inference speed, is the first thing to size.
-2. **A viewport query is already bounded**, so the map and the gap
-   report scale with what is being looked at rather than with the
-   estate.
-
-This run used SQLite. The store abstracts its backend, and the
-PostgreSQL + PostGIS deployment the challenge suggests is the
-appropriate target for a statewide estate; that migration has not been
-exercised here and should not be claimed.
+This registry run used SQLite. PostgreSQL 18 + PostGIS 3.6 carries the same
+schema; the government store was copied and served there with both chains
+verified (`var/reports/store_engines.json`, `docs/HLD.md` §4.10). A district-scale
+PostgreSQL deployment with replication and failover has not been exercised
+here and should not be claimed.

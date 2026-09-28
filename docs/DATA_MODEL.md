@@ -1,6 +1,6 @@
 # Data model
 
-21 tables, one schema, two dialects, both exercised. SQLite is the
+One schema (`src/saakshya/store/schema.py`), two dialects, both exercised. SQLite is the
 development and edge store; PostgreSQL 18 + PostGIS 3.6 is the district and
 central store (`tools/db/setup_postgres.sh`; pgvector is planned for the
 appearance index). The government store was copied to PostgreSQL with counts
@@ -102,7 +102,21 @@ plausibility prior; an observed one is evidence. An edge is `trusted` only at
 
 ---
 
+### `camera_timebase` / `time_clusters`
+Per-camera PTS health, regressions, jumps, measured rate and scene-clock
+readings are diagnostics. Nullable cluster membership constrains cross-camera
+correlation when timing is unknown. Clusters record their basis (measured,
+declared or inferred), reference time, membership and skew. They do not replace
+PTS for ordering (`src/saakshya/store/schema.py`).
+
 ## Watch and act
+
+### `zone_rules`
+Department-authorised restricted-zone polygons, camera id, applicable classes,
+IST hours, reason, authority and active status. The zone report evaluates
+stored sightings against a rule; it does not identify people or infer intent
+(`src/saakshya/store/schema.py`, `api/routes_zones.py`).
+
 
 ### `watchlist`
 Versioned and superseding, never mutated: `version`, `status`, `valid_from_us`,
@@ -160,7 +174,10 @@ Last sync, last acknowledged sequence, installed watchlist version, state.
 
 ## Indexes
 
-17 indexes. Every one traces to a query plan in `var/reports/query_plans.json`;
-see `docs/PERFORMANCE.md`. Indexes were added on evidence from `make queryplan`,
+The schema currently declares 31 indexes across 21 tables, counted on
+28 September by importing `metadata` from `src/saakshya/store/schema.py` and
+summing `len(table.indexes)` over `metadata.tables.values()`. The historical
+`var/reports/query_plans.json` covers the hot queries measured then, not every
+current index. See `docs/PERFORMANCE.md`. Indexes were added using `make queryplan`,
 not on principle — `ix_audit_case` exists precisely because that harness caught
 the case-file export doing a full scan.

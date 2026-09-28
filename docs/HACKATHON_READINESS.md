@@ -1,5 +1,16 @@
 # Readiness against the evaluation criteria
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 Every row states **implemented · tested · demonstrated · documented** and points
 at the evidence. Where something is not done, the row says so rather than
 softening it — a scorecard that only records strengths is a marketing document.
@@ -137,7 +148,7 @@ seven-week route gets presented as a journey.
 |---|---|
 | **Implemented** | Durable local queue with acknowledgement-not-deletion; idempotent replay; watchlist bundles that fail closed; keyframe-only decoding by tier |
 | **Tested** | 18 end-to-end offline tests: detection, watchlist, alert and evidence all continue with the link down; replay reconstructs the timeline with no duplicates and no loss, including partial delivery |
-| **Measured** | ~400 bytes per observation against 2 Mbps of video — the arithmetic behind metadata-first |
+| **MODELLED / MEASURED** | ~400 B optimised payload model vs 1,331.7 B measured serialised row (`var/reports/bandwidth.json`); sizing uses the measured row. Daily/storage arithmetic for both: `docs/SCALE_MODEL.md`. |
 | **Outstanding** | Bandwidth measured under all three modes (raw / metadata / event-triggered) is **not done** |
 
 ### B5 · Cybersecurity, privacy, auditability, RBAC

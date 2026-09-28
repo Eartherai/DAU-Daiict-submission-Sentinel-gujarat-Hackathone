@@ -1,5 +1,16 @@
 # Master Build Plan
 
+Historical planning / measurement record. For the current submission use
+[FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
+C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+(`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
+screenshot counts, timings and dates below belong to their recorded run.
+Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
+OPTIMIZED VIEW at most 12, 600 px prefetch, released after 15 s off screen
+(`ui/app.js`). Old still-wall descriptions below are historical.
+
+
 **Frozen:** 31 August 2026
 **Submission closes:** 07 September 2026 (registration and submission share this deadline)
 **Finale:** 10–11 September 2026, i-Hub Gujarat
@@ -12,7 +23,7 @@ complete when its stated measurement passes.
 ## Architecture freeze (Phase 0) — **DONE**
 
 **Decision: Model 1 (mandatory) + Model 3 federation, with Model 2 as the
-degraded path. Model 4 rejected with arithmetic.**
+degraded path. Statewide central recording declined on arithmetic; selected Model 4 analytics retained.**
 
 Frozen choices, not revisited without a written reason:
 

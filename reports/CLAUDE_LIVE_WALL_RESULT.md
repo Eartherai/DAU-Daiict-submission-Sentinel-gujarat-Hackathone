@@ -1,5 +1,9 @@
 # LIVE WALL — VERIFIED RESULT
 
+Historical measurement record. Concurrent live counts below are **MEASURED
+DURING A TEST WINDOW**, not sandbox limits. Current support guidance and wall
+policies: `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
+
 Measured 2026-09-20 03:34–03:40 IST in the **actual SAAKSHYA application**
 (`http://127.0.0.1:8083`), against the live Sentinel government grid. Not a
 test page, not a harness.
@@ -66,21 +70,20 @@ Sustained operation at 30 x 720p then collapsed:
 18  InvalidDataError
 ```
 
-The encoder backs up, MediaMTX times the publisher out, the broken pipe is
-retried fast enough that Sentinel still counts the dead session, and answers
-401. **One camera too many costs the whole wall, not one tile.**
+Broken pipes and upstream 401 responses coincided with the collapse.
+The logs do not establish whether upstream session retention caused it.
+The measured live count is specific to this test window.
 
-15 x 720p is the measured stable point on this host. 30 cameras remain
-available at 640x360, which on a 335px-wide tile is still 2x oversampled.
+15 x 720p held during this ramp on this host. This is not a sandbox quota
+or a universal bridge maximum; longer soaks were not completed.
 
-## Sentinel admission — the real mechanism
+## Upstream availability during the test window
 
-Sentinel does **not** release a session when the client disconnects. Restarting
-30 publishers immediately after killing 30 is therefore seen as 60 concurrent,
-and locks the account. This is why every previous fast restart made things
-worse, and the variable was never stagger or CPU — it was **idle time before
-reconnecting**. 15 minutes of true silence cleared a lockout twice tonight,
-verified by single probe both times.
+Fast publisher restarts coincided with failed opens; after 15 minutes of
+idle time, a single probe succeeded twice in this window. The upstream
+session lifetime and account-lock mechanism were not verified. Organisers
+subsequently confirmed no fixed participant-facing session limit; see
+`docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
 
 Sources are `h264 High/Main 1920x1080 @ 25-30fps` — the relay had been
 publishing 360p/8fps, discarding ~94% of the pixels.

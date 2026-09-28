@@ -2,11 +2,14 @@
 
 **Strongest measured result:** 19 browser-visible government tiles (8 LIVE, 11 PREVIEW, 15 DIRECT WHEP, 4 BRIDGED, 11 RTSP_ONLY_AI, 0 NO_SIGNAL) on the Phase 16 120 s hybrid wall. First-frame P50 8122.1 ms / P95 14831.76 ms.
 
-**Bottleneck:** upstream Sentinel concurrent WHEP sessions, not local VideoToolbox.
+**Observed:** upstream WHEP failures during this test window. The report does not establish a fixed upstream session ceiling or a local bridge maximum.
 
-**Exact measured limit:** 19 simultaneous government browser tiles MEASURED_REAL. 30 cameras registered. 50 = logical composition, not 50 government live feeds.
+**MEASURED DURING A TEST WINDOW:** 19 simultaneous government browser tiles MEASURED_REAL. 30 cameras registered. 50 = logical composition, not 50 government live feeds.
 
 **GPU / browser CPU / RAM:** NOT_MEASURED.
+
+Current wall policies: CONTROL ROOM up to 30 / OPTIMIZED VIEW at most 12
+(`ui/app.js`). See `docs/SENTINEL_SUPPORT_CLARIFICATION.md`.
 
 ## TEST A — wall sizes
 

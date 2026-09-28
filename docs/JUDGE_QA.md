@@ -112,14 +112,19 @@ reads camera identity, geometry, health and *capability* from. Nineteen cameras
 are placed from their names; eleven without coordinates stay in the registry
 strip and are not invented onto the map.
 
-Model 2 is unified viewing as **ingest stills** (~1 Hz JPEG). The organiser's
-guide gives each client its own stream copy; a thirty-tile live video wall would
-be thirty extra RTSP sessions. Click-to-play is optional.
+**Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
+CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,
+400 ms apart. OPTIMIZED VIEW (default scrolling wall) holds at most 12
+sessions near the viewport, prefetches 600 px, and releases sessions 15 s
+after leaving it. `#media-policy` names the active policy. Browser signalling
+uses SAAKSHYA’s authenticated proxy; Sentinel credentials stay server-side.
+Selected AI workers read RTSP/TCP separately. These are local viewing policies,
+not sandbox limits or a claim that every tile is currently live.
 
 Model 3 is federated metadata intelligence: government RTSP plus local
 MediaMTX, with the observation store as the bus.
 
-Model 4 (full central video) was rejected on arithmetic, not preference. 80,000
+Statewide central recording is declined on arithmetic; selected Model 4 analytics is retained. 80,000
 cameras at even 2 Mbps is 160 Gbps of sustained ingress. No network Gujarat has
 carries that, and no budget makes it appear.
 

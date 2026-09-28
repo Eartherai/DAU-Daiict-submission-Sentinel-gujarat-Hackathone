@@ -21,6 +21,7 @@ government-feed report is worse than no pack.
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import shutil
 import subprocess
@@ -69,7 +70,8 @@ def _probe(mp4: Path) -> str:
     if len(out) < 3:
         return ""
     w, h, dur = out[0], out[1], float(out[2])
-    return f"{int(dur)//60}m{int(dur) % 60:02d}s · {w}x{h}"
+    whole = math.ceil(dur - 0.5)  # nearest second, halves down, as the deck shows
+    return f"{whole // 60}m{whole % 60:02d}s · {w}x{h}"
 
 
 def main() -> int:

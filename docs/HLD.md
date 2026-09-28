@@ -490,7 +490,8 @@ database is integrated. An adapter that received such a feed would be the same
 match path; the feed is what is missing.
 
 **MEASURED, read-only store snapshot:** government designated vehicle
-`GJ11S7924` has 52 reads on cam06 only: **SINGLE-CAMERA** evidence.
+`GJ11S7924` has 57 reads on cam06 only (52 to the 24 Sep snapshot, 5 read
+live during the 28 Sep recording session): **SINGLE-CAMERA** evidence.
 `GJ38BH5815` has one read and a HIGH OPEN `evaluation_designated` alert on
 cam21; it is not listed as stolen. The older `GJ1VV0119` rehearsal is an
 `investigation_target` on cam07. **DEMO:** `GJ18JX7786`, C-014 then C-021,

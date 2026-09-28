@@ -205,7 +205,7 @@ We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometr
 
 | Store | What we show |
 |---|---|
-| **Live government** | `GJ11S7924`: 52 reads on cam06 only, SINGLE-CAMERA evidence. `GJ38BH5815` on cam21 is an evaluation-designated watchlist entry, not stolen (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
+| **Live government** | `GJ11S7924`: 57 reads on cam06 only (52 to the 24 Sep snapshot, 5 read live during the 28 Sep recording), SINGLE-CAMERA evidence. `GJ38BH5815` on cam21 is an evaluation-designated watchlist entry, not stolen (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
 | **Own-feed corpus** | `GJ18JX7786` on **C-014 then C-021** — CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
 
 ---

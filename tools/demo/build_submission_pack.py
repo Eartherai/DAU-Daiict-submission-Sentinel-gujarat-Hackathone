@@ -62,6 +62,7 @@ ITEMS: list[tuple[str, str, bool]] = [
     # What integrating the shared live grid took: measurements, the question to
     # Sentinel and its answer (sanitised), the rebuild, the 28 Sep session.
     ("07_LIVE_INTEGRATION_STORY.md", "docs/LIVE_INTEGRATION_STORY.md", True),
+    ("08_SAAKSHYA_Project_Report.pdf", "submission/form/SAAKSHYA_Project_Report.pdf", False),
 ]
 
 

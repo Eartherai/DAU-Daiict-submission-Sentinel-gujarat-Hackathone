@@ -119,7 +119,7 @@ measured viewport took 426.2 ms (§11), above the 100 ms target.
 
 **Hybrid split, stated plainly:** Model 1 everywhere. Model 2 for every directly
 reachable camera or NVR. Model 3 for departments whose cameras sit behind a VMS.
-Model 4 for selected analytics only. Both Model 2 and Model 3 sources register in
+Model 4 central analytics (built; ran live on 28 Sep) on selected cameras. Both Model 2 and Model 3 sources register in
 Model 1 before any stream opens.
 
 **Government databases (FAQ Q8).** VAHAN, SARATHI, eGujCop, AFIS and NAFIS are

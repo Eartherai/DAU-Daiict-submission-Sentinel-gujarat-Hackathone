@@ -119,6 +119,8 @@ the tour's footage is recorded, not live.
 
 ## 🏗 Architecture — all four models built
 
+<img src="docs/readme/films/roadmap-flow.jpg" alt="End-to-end flow and road map" width="100%">
+
 | Model | Built | Evidence |
 |---|---|---|
 | **M1** Registry & GIS | ✅ | Form + bulk onboarding, gap analysis, measured capability grades, estate map (tour film) |

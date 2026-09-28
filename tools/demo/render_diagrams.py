@@ -266,9 +266,9 @@ def d_logical() -> Image.Image:
             "Cross-district aggregation", "Search · camera graph · trajectory",
             "Evidence register · audit", "GIS and command picture", "",
             "· metadata only"], "centre"),
-        Node("fallback", 610, 720, 430, 130, "Model 4 — selected central\nanalytics", [
-            "Selected feeds through one gateway.",
-            "The same pipeline, against a pulled stream."], "note"),
+        Node("fallback", 610, 720, 430, 130, "Model 4 — central analytics\n(built · ran live 28 Sep)", [
+            "4 deep-inference slots on selected cameras.",
+            "4,465 observations · 200 plate reads."], "note"),
     ]
     e = [
         Edge("estate", "edge", "RTSP / HLS"),
@@ -281,9 +281,9 @@ def d_logical() -> Image.Image:
     ]
     return draw(
         "Logical architecture",
-        "Compulsory Model 1 registry / GIS · Model 2 direct viewing · Model 3 VMS federation · Model 4 selected analytics",
+        "All four built: Model 1 registry / GIS · Model 2 direct viewing · Model 3 VMS federation · Model 4 central analytics",
         n, e,
-        "Statewide central recording is declined: 80,000 × 2 Mbps = 160 Gbps (MODELLED, docs/SCALE_MODEL.md).\nDistrict deployment is DESIGNED; VMS connectors are DEMO/TEST pending departmental access (docs/ADAPTERS.md).")
+        "Model 4 ran live on the government grid (MEASURED, 28 Sep). Only recording all 80,000 cameras centrally is declined: 160 Gbps (MODELLED).\nDistrict deployment is DESIGNED; VMS connectors are DEMO/TEST pending departmental access (docs/ADAPTERS.md).")
 
 
 def d_search() -> Image.Image:

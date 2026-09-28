@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 
 from saakshya.api.app import create_app
 from saakshya.api.deps import AppState
-from saakshya.reports.vehicle_trace import _still, legs
+from saakshya.reports.vehicle_trace import BEST_READ_FRAME_FIX_AT, PRE_FIX_STILL_CAUTION, _still, legs
 from saakshya.security import Role, TokenService
 from tests.conftest import make_observation
 
@@ -146,11 +146,91 @@ def test_a_still_that_no_longer_matches_its_seal_is_withheld(tmp_path):
     sealed = hashlib.sha256(p.read_bytes()).hexdigest()
     m = SimpleNamespace(frame_path=str(p), frame_sha256=sealed, entry_hash="h")
     state = SimpleNamespace(evidence=SimpleNamespace(load=lambda _: m, root=tmp_path))
-    ok = _still(state, "EV1")
+    ok = _still(state, "EV1", sealed_at=BEST_READ_FRAME_FIX_AT)
     assert ok["status"] == "verified" and ok["uri"].startswith("data:image/jpeg;base64,")
     Image.new("RGB", (64, 40), (200, 10, 10)).save(p)          # the file is changed
     bad = _still(state, "EV1")
     assert "uri" not in bad and "withheld" in bad["status"]
+
+
+@pytest.mark.parametrize("offset,expected", [(-1, PRE_FIX_STILL_CAUTION), (0, "verified"), (1, "verified")])
+def test_still_cutoff_is_inclusive_and_visible(tmp_path, offset, expected):
+    from datetime import timedelta
+    from PIL import Image
+
+    p = tmp_path / "sealed.png"
+    Image.new("RGB", (64, 40)).save(p)
+    m = SimpleNamespace(frame_path=str(p), frame_sha256=hashlib.sha256(p.read_bytes()).hexdigest(),
+                        entry_hash="h")
+    state = SimpleNamespace(evidence=SimpleNamespace(load=lambda _: m, root=tmp_path))
+    still = _still(state, "EV1", sealed_at=BEST_READ_FRAME_FIX_AT + timedelta(microseconds=offset))
+    assert still["status"] == expected
+    assert still["post_fix"] == (offset >= 0)
+    assert "uri" in still
+    assert "seal time unknown" in _still(state, "EV1")["status"]
+
+
+def test_post_fix_seals_get_embedding_priority_and_gallery_order(tmp_path, monkeypatch):
+    from datetime import timedelta
+    import numpy as np
+    from sqlalchemy import update
+    from saakshya.reports import vehicle_trace as trace
+    from saakshya.store import schema as S
+    from saakshya.store.repository import to_us
+
+    state = AppState(f"sqlite:///{tmp_path / 'priority.db'}", evidence_root=tmp_path / "ev")
+    state.store.upsert_camera({"camera_id": "cam06", "source_domain": "GOVERNMENT"})
+    eids = []
+    for i in range(3):
+        obs = make_observation("cam06", plate=PLATE, offset_s=i)
+        state.store.add_observations([obs])
+        m = state.evidence.create(obs, frame=np.zeros((40, 64, 3), dtype=np.uint8))
+        eids.append(m.evidence_id)
+        # All observation times predate the fix; only the final seal is post-fix.
+        sealed = BEST_READ_FRAME_FIX_AT + timedelta(seconds=-1 if i < 2 else 0)
+        with state.store.engine.begin() as c:
+            c.execute(update(S.evidence).where(S.evidence.c.evidence_id == m.evidence_id)
+                      .values(created_at_us=to_us(sealed)))
+    ctx = SimpleNamespace(principal=SimpleNamespace(
+        scope_filter=lambda: None, may=lambda _: True, user_id="test", role=Role.SUPERVISOR))
+    monkeypatch.setattr(trace, "MAX_STILLS", 2)
+    report = trace.build(state, ctx, PLATE)
+    assert [r["evidence_id"] for r in report["rows"]] == eids
+    assert "uri" in report["stills"][eids[2]]
+    assert "uri" in report["stills"][eids[0]]
+    assert "uri" not in report["stills"][eids[1]]
+    body = trace.render_html(report)
+    gallery = body.split('<h2>Sealed stills</h2>')[1]
+    assert gallery.index("verified") < gallery.index(PRE_FIX_STILL_CAUTION)
+    assert PRE_FIX_STILL_CAUTION in body.split('<h2>Sealed stills</h2>')[0]
+
+
+@pytest.mark.parametrize("domains", [("GOVERNMENT", "OWN_FEED"),
+                                    ("SYNTHETIC_CONTROL", "SYNTHETIC_CONTROL"),
+                                    ("GOVERNMENT", "SYNTHETIC_CONTROL")])
+def test_trace_states_each_source_and_labels_synthetic_routes(tmp_path, domains):
+    from saakshya.reports.vehicle_trace import SYNTHETIC_LABEL, build, render_html
+
+    state = AppState(f"sqlite:///{tmp_path / 'sources.db'}", evidence_root=tmp_path / "ev")
+    for i, domain in enumerate(domains):
+        state.store.upsert_camera({"camera_id": f"CAM{i}", "source_domain": domain})
+        state.store.add_observations([make_observation(f"CAM{i}", plate=PLATE, offset_s=i)])
+    ctx = SimpleNamespace(principal=SimpleNamespace(
+        scope_filter=lambda: None, may=lambda _: True, user_id="test", role=Role.SUPERVISOR))
+    report = build(state, ctx, PLATE)
+    report["watchlist"] = {"entries": [{"in_force": True, "category": "stolen_vehicle",
+        "priority": "HIGH", "reason": "fixture", "authority": "Real office attribution"}]}
+    body = render_html(report)
+    for i, domain in enumerate(domains):
+        assert report["cameras"][f"CAM{i}"]["source_domain"] == domain
+        assert f"Source: {domain}" in body
+    assert (SYNTHETIC_LABEL in body) == ("SYNTHETIC_CONTROL" in domains)
+    if all(d == "SYNTHETIC_CONTROL" for d in domains):
+        assert "Fictional plate and listing" in body
+        assert "not a government record" in body
+        assert "Real office attribution" not in body
+    else:
+        assert "Real office attribution" in body
 
 
 def test_a_purpose_in_gujarati_reaches_the_audit_log_as_written(world):

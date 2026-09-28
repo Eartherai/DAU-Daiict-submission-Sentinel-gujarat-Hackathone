@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any, Literal
@@ -31,7 +32,7 @@ LEGACY_COLUMNS = ("plate", "timestamp_utc", "camera_id", "camera_name",
                   "district", "department", "object_type", "votes")
 ANPR_COLUMNS = LEGACY_COLUMNS + (
     "timestamp_ist", "confidence", "confirmed", "plate_format_valid",
-    "plate_format_note", "observation_id", "evidence_id")
+    "plate_format_note", "observation_id", "evidence_id", "ocr_model")
 
 #: A read agreed across this many frames is a confirmation, below it a lead.
 #: Same threshold as `plate_status` in analytics, so the report and the
@@ -62,7 +63,7 @@ def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
     o = S.observations
     cols = (o.c.observation_id, o.c.plate, o.c.camera_id, o.c.t_norm_us,
             o.c.district, o.c.department, o.c.object_type, o.c.plate_votes,
-            o.c.plate_confidence, o.c.evidence_ref)
+            o.c.plate_confidence, o.c.evidence_ref, o.c.model_versions)
     where = [o.c.plate.isnot(None), o.c.plate != ""]
     canon = normalise(plate) if plate else None
     if canon:
@@ -119,6 +120,7 @@ def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
         votes = int(m["plate_votes"] or 0)
         fmt = parse(m["plate"])
         conf = m["plate_confidence"]
+        models = json.loads(m["model_versions"]) if m["model_versions"] else {}
         out.append({
             "plate": m["plate"],
             # Byte-for-byte the value the old report carried, so a reader that
@@ -137,6 +139,7 @@ def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
             "plate_format_note": fmt.reason,
             "observation_id": m["observation_id"],
             "evidence_id": m["evidence_ref"] or "",
+            "ocr_model": models.get("ocr") or "earlier",
         })
         if len(out) >= limit:
             break

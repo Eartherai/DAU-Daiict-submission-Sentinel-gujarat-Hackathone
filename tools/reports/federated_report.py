@@ -14,7 +14,8 @@ It is generated from the live store, never written, so it cannot drift from what
 the platform holds. The store is opened **read-only**: a plain ``sqlite:///``
 path is rewritten to ``sqlite:///file:<abs>?mode=ro&uri=true`` so the script
 cannot create, migrate or write the database it reports on. With no ``--out`` it
-prints to stdout.
+prints to stdout. For a frozen snapshot, ``--immutable`` also avoids SQLite
+lock/sidecar writes (and ignores WAL updates).
 
 Provenance is resolved with the platform's own classifier
 (:func:`saakshya.command.domain.classify_source_domain`): the stored
@@ -29,7 +30,7 @@ import argparse
 import datetime as dt
 import sys
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -46,25 +47,30 @@ from saakshya.store.repository import Store, from_us
 UNREGISTERED = "UNREGISTERED"
 
 
-def read_only_url(url: str) -> str:
+def read_only_url(url: str, *, immutable: bool = False) -> str:
     """Rewrite a plain ``sqlite:///`` path into a read-only URI open.
 
-    A read-only open can create nothing and write nothing, which is the whole
-    guarantee a report tool should make about the store it reads. A URL that is
-    already a ``file:`` URI, or is not SQLite, is returned unchanged — the
-    caller is trusted to have opened Postgres with a read-only role.
+    ``immutable`` also avoids SQLite lock/sidecar writes for a frozen snapshot.
+    It ignores WAL updates, so use it only when the database is no longer being
+    written. Non-SQLite callers must use a read-only database role.
     """
     prefix = "sqlite:///"
     if not url.startswith(prefix):
         return url
     tail = url[len(prefix):]
     if tail.startswith("file:"):
-        return url
+        path, _, query = tail.partition("?")
+        params = dict(parse_qsl(query))
+        params.update(mode="ro", uri="true")
+        if immutable:
+            params["immutable"] = "1"
+        return f"{prefix}{path}?{urlencode(params)}"
     if tail == ":memory:":
         return url
     abs_path = Path(tail).resolve()
     # quote the path so a space or a '?' in it cannot corrupt the query string.
-    return f"{prefix}file:{quote(str(abs_path))}?mode=ro&uri=true"
+    return (f"{prefix}file:{quote(str(abs_path))}?mode=ro&uri=true"
+            + ("&immutable=1" if immutable else ""))
 
 
 def _domain_resolver(cam_rows: list[dict]):
@@ -373,11 +379,13 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--db", default="sqlite:///var/demo.db",
                     help="store URL; a plain sqlite path is opened read-only")
+    ap.add_argument("--immutable", action="store_true",
+                    help="read a frozen SQLite snapshot without lock/sidecar writes; ignores WAL updates")
     ap.add_argument("--out", default=None,
                     help="output path (inside the worktree); stdout if omitted")
     a = ap.parse_args(argv)
 
-    url = read_only_url(a.db)
+    url = read_only_url(a.db, immutable=a.immutable)
     store = Store(url)
     # A writable SQLite store is migrated first, so an older schema does not
     # raise 'no such column' mid-report. The read-only default cannot migrate

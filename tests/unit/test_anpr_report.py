@@ -9,6 +9,35 @@ from saakshya.api.app import build
 from fastapi.testclient import TestClient
 
 
+def test_csv_appends_ocr_provenance_without_changing_existing_columns(tmp_path):
+    import csv
+    import io
+    from sqlalchemy import update
+    from saakshya.reports.anpr import anpr_csv, anpr_rows
+    from saakshya.store import Store, schema as S
+    from tests.conftest import make_observation
+
+    store = Store(f"sqlite:///{tmp_path / 'models.db'}")
+    store.create_all()
+    store.upsert_camera({"camera_id": "cam06", "name": "Junction, North"})
+    for i, models in enumerate([None, {}, {"detector": "test"}, {"ocr": "awiros-anpr-ocr"}]):
+        obs = make_observation("cam06", plate=f"GJ01AB123{i}", offset_s=i)
+        obs.model_versions = models
+        store.add_observations([obs])
+        if models is None:
+            with store.engine.begin() as c:
+                c.execute(update(S.observations).where(S.observations.c.observation_id == obs.observation_id)
+                          .values(model_versions=None))
+    reader = csv.DictReader(io.StringIO(anpr_csv(anpr_rows(store, reads="all"))))
+    assert reader.fieldnames == ["plate", "timestamp_utc", "camera_id", "camera_name", "district",
+        "department", "object_type", "votes", "timestamp_ist", "confidence", "confirmed",
+        "plate_format_valid", "plate_format_note", "observation_id", "evidence_id", "ocr_model"]
+    rows = list(reader)
+    assert [r["ocr_model"] for r in rows] == ["awiros-anpr-ocr", "earlier", "earlier", "earlier"]
+    assert all(r["camera_name"] == "Junction, North" for r in rows)
+    assert anpr_csv([]).strip().split(",") == reader.fieldnames
+
+
 def _client(tmp_path, monkeypatch):
     monkeypatch.setenv("SAAKSHYA_DB", f"sqlite:///{tmp_path / 'r.db'}")
     monkeypatch.setenv("SAAKSHYA_EVIDENCE", str(tmp_path / "ev"))

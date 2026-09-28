@@ -90,6 +90,28 @@ def test_read_only_url_rewrites_a_plain_sqlite_path():
     assert fr.read_only_url("postgresql://h/db") == "postgresql://h/db"
 
 
+def test_immutable_report_cli_reads_snapshot_without_writes(tmp_path):
+    import sqlite3
+    import pytest
+
+    url = _build(tmp_path)
+    db = tmp_path / "fed.db"
+    before = db.read_bytes()
+    immutable_url = fr.read_only_url(url, immutable=True)
+    assert "immutable=1" in immutable_url
+    assert "mode=ro" in fr.read_only_url("sqlite:///file:/x?mode=rw&uri=true", immutable=True)
+    assert fr.read_only_url(immutable_url, immutable=True) == immutable_url
+    out = tmp_path / "report.md"
+    assert fr.main(["--db", url, "--immutable", "--out", str(out)]) == 0
+    assert "| GOVERNMENT | 2 |" in out.read_text()
+    assert db.read_bytes() == before
+    assert not Path(str(db) + "-wal").exists()
+    assert not Path(str(db) + "-shm").exists()
+    with sqlite3.connect(f"file:{db}?mode=ro&immutable=1", uri=True) as con:
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            con.execute("delete from cameras")
+
+
 def test_report_opens_read_only_and_counts_from_the_store(tmp_path):
     url = _build(tmp_path)
     store = Store(fr.read_only_url(url))

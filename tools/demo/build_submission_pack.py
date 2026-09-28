@@ -32,11 +32,10 @@ ROOT = Path(__file__).resolve().parents[2]
 #: (published name, source, required). Order is the portal's order.
 ITEMS: list[tuple[str, str, bool]] = [
     ("00_SUBMISSION_INDEX.md", "docs/FINAL_SUBMISSION.md", True),
-    ("00_CHECKLIST.md", "docs/SUBMISSION_CHECKLIST.md", True),
     ("01_SAAKSHYA_deck.pptx", "var/demo/SAAKSHYA_deck.pptx", True),
     ("01_SAAKSHYA_deck.pdf", "var/demo/SAAKSHYA_deck.pdf", True),
     ("02_HLD.md", "docs/HLD.md", True),
-    ("02_HLD_diagrams.pdf", "var/demo/diagrams/HLD_diagrams.pdf", False),
+    ("02_HLD_diagrams.pdf", "var/demo/diagrams/HLD_diagrams.pdf", True),
     ("02_SECURITY.md", "docs/SECURITY.md", False),
     ("02_STATEWIDE_ARCHITECTURE.md", "docs/STATEWIDE_ARCHITECTURE.md", True),
     ("03_own_feed.mp4", "var/demo/own_feed.mp4", True),
@@ -54,7 +53,7 @@ ITEMS: list[tuple[str, str, bool]] = [
     # designated vehicle, with a timestamped and location-wise movement
     # history". This is that, as the platform prints it, for the designated
     # vehicle the government film traces.
-    ("06_designated_vehicle_trace_report.html", "var/demo/designated_vehicle_trace.html", False),
+    ("06_designated_vehicle_trace_report.html", "var/demo/designated_vehicle_trace.html", True),
     ("06_own_feed_trace_report.html", "var/demo/own_feed_trace.html", False),
 ]
 

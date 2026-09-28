@@ -45,6 +45,14 @@ IMPLAUSIBLE_KMH = 150.0
 #: print, and past this it is the export package that should be used.
 MAX_STILLS = 24
 STILL_WIDTH = 360
+#: First worker session running 672a2a0: 28 Sep 2026, 11:15 IST.
+#: Earlier seals used the track-closing frame, which can show another vehicle.
+#: Compare evidence.created_at_us (seal time), not the observation's camera time.
+BEST_READ_FRAME_FIX_AT = datetime.fromisoformat("2026-09-28T11:15:00+05:30")
+PRE_FIX_STILL_CAUTION = (
+    "sealed before the best-read-frame fix: the hash verifies the bytes, "
+    "not that this image shows the vehicle — verify the crop")
+SYNTHETIC_LABEL = "SYNTHETIC RENDERED TEST CORPUS — not camera footage"
 
 
 def _haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -102,7 +110,8 @@ def legs(reads: list[dict[str, Any]], cams: dict[str, dict[str, Any]]
     return out
 
 
-def _still(state: Any, evidence_id: str) -> dict[str, Any]:
+def _still(state: Any, evidence_id: str, *, sealed_at: datetime | None = None
+           ) -> dict[str, Any]:
     """The sealed still as a data URI, or the reason it is not printed."""
     from PIL import Image
 
@@ -127,7 +136,15 @@ def _still(state: Any, evidence_id: str) -> dict[str, Any]:
         img = img.resize((STILL_WIDTH, max(1, round(img.height * STILL_WIDTH / img.width))))
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=80)
-    return {"status": "verified" if m.frame_sha256 else "no digest recorded",
+    post_fix = sealed_at is not None and sealed_at >= BEST_READ_FRAME_FIX_AT
+    status = "verified" if m.frame_sha256 else "no digest recorded"
+    if sealed_at is None:
+        status += "; seal time unknown — verify the crop at the source"
+    elif not post_fix:
+        status = (PRE_FIX_STILL_CAUTION if m.frame_sha256 else
+                  "no digest recorded; sealed before the best-read-frame fix "
+                  "— this image may show another vehicle; verify the crop")
+    return {"status": status, "post_fix": post_fix,
             "sha256": digest, "manifest": m.entry_hash,
             "uri": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()}
 
@@ -135,28 +152,48 @@ def _still(state: Any, evidence_id: str) -> dict[str, Any]:
 def build(state: Any, ctx: Any, plate: str, *, limit: int = 500) -> dict[str, Any]:
     """Everything the page prints, as data. Access is checked by the caller."""
     from saakshya.analytics.plates import normalise
+    from saakshya.command.domain import classify_source_domain
     from saakshya.reports.anpr import anpr_rows
     from saakshya.security import Permission
+    from saakshya.store import schema as S
+    from saakshya.store.repository import from_us
+    from sqlalchemy import select
 
     canon = normalise(plate) or plate.upper()
     rows = anpr_rows(state.store, plate=canon, reads="all", limit=limit,
                      districts=ctx.principal.scope_filter())
     rows.sort(key=lambda r: r["timestamp_utc"])
     cams = {cid: state.store.get_camera(cid) or {} for cid in {r["camera_id"] for r in rows}}
+    for cid, cam in cams.items():
+        cam["source_domain"] = classify_source_domain(
+            cid, stored=cam.get("source_domain"), integration_model=cam.get("integration_model"))
 
     may_stills = ctx.principal.may(Permission.EVIDENCE_READ)
     stills: dict[str, dict[str, Any]] = {}
-    for r in rows:
+    seal_times = {}
+    if may_stills:
+        eids = {r["evidence_id"] for r in rows if r.get("evidence_id")}
+        if eids:
+            with state.store.engine.connect() as c:
+                seal_times = {eid: from_us(ts) for eid, ts in c.execute(
+                    select(S.evidence.c.evidence_id, S.evidence.c.created_at_us)
+                    .where(S.evidence.c.evidence_id.in_(eids)))}
+    # Keep the read table and route chronological, but give post-fix seals
+    # priority within the embedding limit as well as in the still gallery.
+    still_rows = sorted(rows, key=lambda r: not (
+        seal_times.get(r.get("evidence_id")) is not None
+        and seal_times[r["evidence_id"]] >= BEST_READ_FRAME_FIX_AT))
+    for r in still_rows:
         eid = r.get("evidence_id")
         if not eid or eid in stills:
             continue
         if not may_stills:
             stills[eid] = {"status": "your role does not include evidence access"}
         elif sum(1 for s in stills.values() if "uri" in s) >= MAX_STILLS:
-            stills[eid] = {"status": f"not embedded (report holds the first {MAX_STILLS})"}
+            stills[eid] = {"status": f"not embedded (report holds {MAX_STILLS}; post-fix seals first)"}
         else:
             try:
-                stills[eid] = _still(state, eid)
+                stills[eid] = _still(state, eid, sealed_at=seal_times.get(eid))
             except Exception as exc:        # a broken file must not sink the report
                 stills[eid] = {"status": f"could not be read: {type(exc).__name__}"}
 
@@ -316,9 +353,16 @@ def _map_svg(rows: list[dict[str, Any]], cams: dict[str, dict[str, Any]]) -> str
 
 def render_html(t: dict[str, Any]) -> str:
     rows, cams, stills = t["rows"], t["cameras"], t["stills"]
+    synthetic = {cid for cid, cam in cams.items()
+                 if cam.get("source_domain") == "SYNTHETIC_CONTROL"}
+    synthetic_only = bool(rows) and all(r["camera_id"] in synthetic for r in rows)
     wl = t["watchlist"] or {}
     in_force = [e for e in wl.get("entries") or [] if e.get("in_force")]
-    if in_force:
+    if synthetic_only:
+        banner = ('<div class="banner unchecked">Fictional plate and listing in a '
+                  'route-logic demonstration; not a government record. '
+                  'Watchlist attribution is omitted for this synthetic corpus.</div>')
+    elif in_force:
         e = in_force[0]
         cat = str(e.get("category", "")).replace("_", " ")
         banner = (f'<div class="banner listed">ON WATCHLIST at {_e(_ist_short(t["generated_ist"]))}'
@@ -344,7 +388,7 @@ def render_html(t: dict[str, Any]) -> str:
            f"<title>Vehicle trace {_e(t['plate'])} — {_e(t['report_id'])}</title>",
            f"<style>{_CSS}</style></head><body>",
            '<div class="head"><div>',
-           '<div class="meta">SAAKSHYA · Gujarat Police · Vehicle trace report</div>',
+           '<div class="meta">SAAKSHYA · Vehicle trace report</div>',
            f'<h1>Movement of <span class="mono">{_e(t["plate"])}</span></h1>',
            f'<div class="meta">Report <b class="mono">{_e(t["report_id"])}</b> · generated '
            f'<b>{_e(_ist_short(t["generated_ist"]))}</b> by <b>{_e(t["user"])}</b> '
@@ -352,6 +396,8 @@ def render_html(t: dict[str, Any]) -> str:
            f'<div class="meta">Case <b class="mono">{_e(t["case_id"] or "—")}</b> · purpose '
            f'recorded: <b>{_e(t["purpose"] or "—")}</b></div>',
            f'</div><div class="plate mono">{_e(t["plate"])}</div></div>',
+           (f'<div class="banner unchecked">{SYNTHETIC_LABEL}. '
+            'Synthetic camera reads demonstrate route logic only.</div>' if synthetic else ""),
            banner, f'<div class="kpis">{kpi_html}</div>']
 
     if not rows:
@@ -389,6 +435,9 @@ def render_html(t: dict[str, Any]) -> str:
                    "<th>Camera</th><th>District</th><th>Read</th><th>Confidence</th>"
                    "<th>Frames agreeing</th><th>Standing</th><th>Evidence</th></tr>")
         for i, r in enumerate(rows, 1):
+            domain = cams.get(r["camera_id"], {}).get("source_domain") or "UNKNOWN"
+            source_label = (domain + " · " + SYNTHETIC_LABEL
+                            if domain == "SYNTHETIC_CONTROL" else domain)
             ev_status = stills.get(r.get("evidence_id") or "", {})
             has_still = "uri" in ev_status or ev_status.get("status") in (
                 "verified", "no digest recorded") or str(ev_status.get("status", "")).startswith("not embedded")
@@ -404,13 +453,15 @@ def render_html(t: dict[str, Any]) -> str:
             ev_cell = (f'<span class="mono">{_e(ev)}</span><div>{_e(st.get("status", ""))}</div>'
                        if ev else '<span class="muted">not sealed</span>')
             out.append(f"<tr><td>{i}</td><td>{_e(_ist_short(r['timestamp_ist']))}</td>"
-                       f"<td><b>{_e(r['camera_name'])}</b><div class=\"mono\">{_e(r['camera_id'])}</div></td>"
+                       f"<td><b>{_e(r['camera_name'])}</b><div class=\"mono\">{_e(r['camera_id'])}</div>"
+                       f"<div>Source: {_e(source_label)}</div></td>"
                        f"<td>{_e(r['district'])}</td><td class=\"mono\">{_e(r['plate'])}{fmt}</td>"
                        f"<td>{_e(r['confidence'] or '—')}</td><td>{_e(r['votes'])}</td>"
                        f"<td>{stand}</td><td>{ev_cell}</td></tr>")
         out.append("</table>")
         shown = [(r, stills[r["evidence_id"]]) for r in rows
                  if r.get("evidence_id") and "uri" in stills.get(r["evidence_id"], {})]
+        shown.sort(key=lambda pair: not pair[1].get("post_fix", False))
         seen: set[str] = set()
         cards = []
         for r, st in shown:
@@ -432,7 +483,8 @@ def render_html(t: dict[str, Any]) -> str:
                'reads. A <b>confirmed</b> read was agreed across two or more frames of one '
                'pass; a <b>lead</b> rests on a single frame and must be checked against the '
                'still, or at the source where no still was retained, before it is relied on. A read is evidence that a vehicle bearing these '
-               'characters passed the camera — not of who was driving it. Legs are timed from '
+               'characters passed the camera — not of who was driving it. '
+               'Synthetic corpus reads describe rendered test clips, not real vehicle movements. Legs are timed from '
                'camera clocks normalised to IST; implied speeds use straight-line distance and '
                'are therefore the slowest the vehicle could have gone.</div>')
     out.append('<div class="sign"><div>Prepared by (name, rank, belt no.)</div>'

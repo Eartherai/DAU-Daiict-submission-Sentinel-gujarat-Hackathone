@@ -497,13 +497,13 @@ def infrastructure() -> Image.Image:
         "Compute, bandwidth and retention",
         ["RESOURCE", "PLANNING BASIS — NOT A PROCUREMENT BENCHMARK"],
         [
-            [("Regional compute", None), ("Per district: 2,500 cameras at 1 Hz, assumed S=10 over the 5.6 fps CPU sizing baseline. 45 inference units in 12 four-GPU servers; 10 ingest/decode servers. HLD §20.2–20.3.", None)],
-            [("Hardware classes", None), ("Inference: 256 GB RAM per server. Decode: 64 cores / 256 GB. Database: primary + synchronous standby, 32–64 cores / 256–512 GB each. HLD §20.3; MODELLED, target GPU unmeasured.", None)],
-            [("Metadata bandwidth", None), ("1,331.7 B/observation MEASURED (bandwidth.json); ~400 B MODELLED (SCALE_MODEL.md). At the measured row size: 10–20 GB/day per district gated, ≤8.9 Mbps ungated — MODELLED, HLD §20.4.", None)],
-            [("Hot / warm / cold", None), ("MODELLED central metadata with indexes: ~36 TB hot for 30 days, ~438 TB warm for a year. Cold provision: 500 TB; policy sets retention. Evidence provision: 50 TB, assumed. HLD §20.5.", None)],
-            [("Low connectivity", None), ("Video remains at departmental NVRs. Optional site inference ships metadata only; durable queues replay after reconnect. Viewing and evidence retrieval add traffic. HLD §20.1 / §20.4.", None)],
+            [("Cell compute", None), ("Per full cell: 2,500 cameras at 1 Hz, ANPR-grade 20% (ASSUMED) at 5 fps; S=10 ASSUMED over the 5.6 fps CPU sizing baseline. 81 GPUs + 2 spares in 21 four-GPU servers (12 if all at 1 Hz); 10 ingest/decode servers. HLD §20.2–20.3.", None)],
+            [("Hardware classes", None), ("Inference: 256 GB RAM per server. Decode: 64 cores / 256 GB. Database: primary + synchronous standby, 32 TB NVMe per copy. HLD §20.3; MODELLED, target GPU unmeasured.", None)],
+            [("Metadata bandwidth", None), ("1,331.7 B/observation MEASURED (bandwidth.json); batches compress 8.0× (measure_compression.json). At 3,000 observations/camera-hour (ASSUMED): 3.83 Mbps per full cell, 82 Mbps statewide — MODELLED, HLD §20.4.", None)],
+            [("Hot / warm / cold", None), ("MODELLED: 30-day hot metadata 14.4 TB per full cell (4.3 TB at the measured mean rate); lake 324 TB/year, 1.5 PB usable for 3 years plus a DR copy; evidence 100 TB write-once, assumed. HLD §20.5.", None)],
+            [("Low connectivity", None), ("Video remains at departmental NVRs. Optional site inference ships metadata only; durable queues replay after reconnect (a week is 194 GB per cell). Viewing and evidence retrieval add traffic. HLD §20.1 / §20.4.", None)],
         ],
-        "Sources: docs/HLD.md §20.1–20.5; docs/SCALE_MODEL.md; var/reports/bandwidth.json. Retention and target hardware require departmental agreement.",
+        "Sources: docs/HLD.md §20.1–20.5; reports/capacity_model.json; var/reports/bandwidth.json. Retention and target hardware require departmental agreement.",
         "11", col_w=[ML, ML + 410], tags=("MEASURED", "MODELLED", "DESIGNED"),
     )
 
@@ -778,7 +778,7 @@ def watchlist_method() -> Image.Image:
         ("4", "Commit", "Alert and sighting write in the same transaction, or neither does. There is no “alert without evidence”."),
         ("5", "Alert", "OPEN, with decomposed confidence (plate × quality × category), recommended action, observation ids."),
         ("6", "Hold", "Acknowledge → investigate → clear (with a reason). No delete. Every transition is in the hash-chained audit log."),
-        ("7", "Edge", "The district node keeps matching if the uplink is down. Watchlist bundles fail closed on integrity."),
+        ("7", "Edge", "The district cell keeps matching if the uplink is down. Watchlist bundles fail closed on integrity."),
     ]
     y = 220
     for n, verb, body in steps:
@@ -1087,15 +1087,15 @@ def architecture() -> Image.Image:
             "Model 2: direct RTSP/ONVIF access; no federation middleware.",
             "Model 3: departmental VMS via federation adapters. Both register in Model 1.",
         ]),
-        ("DISTRICT / REGIONAL", "Analytics and local continuity", [
+        ("DISTRICT CELL / REGION", "Analytics and local continuity", [
             "Ingest → detect → track → ANPR on selected cameras.",
             "Local watchlist, alerts, evidence, store and durable queue.",
-            "Worker pools and camera failover are deployment design.",
+            "40 cells of ≤ 2,500 cameras; worker pools and failover are deployment design.",
         ]),
-        ("CENTRE + DR SITE", "Metadata services", [
+        ("STATE + DR SITE", "Metadata services", [
             "Registry, GIS, governance and cross-district investigation.",
             "PostgreSQL / PostGIS, evidence index and hash-chained audit.",
-            "Watchlist bundles return to district nodes with integrity checks.",
+            "Watchlist bundles return to cells with integrity checks.",
         ]),
     ]
     gap, cw = 95, (W - ML - MR - 190) // 3
@@ -1117,7 +1117,7 @@ def architecture() -> Image.Image:
     d.text((ML, 754), "Video and metadata at regional ingest; metadata to the centre. Authorised viewing pulls video on demand.", font=SANS(24), fill=INK)
     d.text((ML, 806), "Models 1 + 2 + 3 form the foundation; selected-camera Model 4 analytics are included.", font=SANS_B(24), fill=INK)
     d.text((ML, 854), "Statewide central recording is declined. Multi-node HA and DR require deployment validation.", font=SANS(24), fill=MUTED)
-    footer(d, "Sources: organiser FAQ Q16–Q19, Q23; docs/HLD.md §6, §10, §15, §20.1. DESIGNED topology; VERIFIED component contracts. Departmental retention stays in place.")
+    footer(d, "Sources: organiser FAQ Q16–Q19, Q23; docs/HLD.md §3, §6, §10, §15, §21. DESIGNED topology; VERIFIED component contracts. Departmental retention stays in place.")
     return img
 
 
@@ -1333,11 +1333,11 @@ def ai_coverage() -> Image.Image:
             f"Decode/load: {load['aggregate']['cameras_streaming']}/{load['aggregate']['cameras_total']} streaming at end. camera_load.json. Separate workload.",
             "Earlier OCR pipeline; current recogniser needs a fresh benchmark. Slots are assigned GOOD > DEGRADED > UNKNOWN > UNSUITABLE at worker boot.",
         ]),
-        ("REGIONAL GPU POOL", "MODELLED", [
-            "SIZED: 2,500 cameras at 1 Hz; 5.6 fps CPU sizing baseline. S=10 speedup ASSUMED, not measured on target GPUs.",
-            "45 inference units / district; 12 servers with four GPUs each. 33 districts → 1,485 units / 396 servers.",
+        ("CELL GPU POOL", "MODELLED", [
+            "SIZED: 2,500 cameras per full cell at 1 Hz, ANPR-grade 20% at 5 fps (ASSUMED); 5.6 fps CPU sizing baseline. S=10 speedup ASSUMED, not measured on target GPUs.",
+            "83 GPUs / full cell in 21 four-GPU servers. 80,000 cameras in 40 cells → 2,652 GPUs / 663 servers (1 Hz for all: 1,509 / 378).",
             "Decode is sized separately. Benchmark tendered hardware, including OCR and memory, before procurement.",
-            "docs/HLD.md §20.2–20.3; docs/SCALE_MODEL.md. Planning input differs from the device workload at left.",
+            "docs/HLD.md §17.6, §20.2–20.3. Planning input differs from the device workload at left.",
         ]),
         ("STATEWIDE", "DESIGNED", [
             "Regional ingest; horizontal worker pools; metadata event bus and district-local queues.",
@@ -1363,19 +1363,27 @@ def ai_coverage() -> Image.Image:
 
 
 def cost_benefit() -> Image.Image:
+    table = capacity()["cost_table"]
+    cell, state = table["one_full_cell_2500"], table["statewide_planning"]
+
+    def crore(pair: list[float]) -> str:
+        lo, hi = pair
+        digits = 0 if lo >= 10 else 1
+        return f"INR {lo:,.{digits}f}–{hi:,.{digits}f} crore"
+
     return table_page(
         "MODELLED cost  ·  assumed unit rates and accelerator speedup",
         "Indicative cost and avoided central-video spend",
         ["SCOPE", "IMPLEMENTATION", "ANNUAL OPERATIONS"],
         [
             [("PoC · approximately 50 cameras", None), ("INR 29–63 lakh", None), ("INR 18–50 lakh", None)],
-            [("District · 2,500 cameras", None), ("INR 5.8–13.1 crore", None), ("INR 0.96–2.5 crore", None)],
-            [("Statewide · 33 districts + centre", None), ("INR 197–443 crore", None), ("INR 34–86 crore", None)],
+            [("Full district cell · 2,500 cameras", None), (crore(cell["implementation_crore"]), None), (crore(cell["operations_crore_per_year"]), None)],
+            [("Statewide · 40 cells + 6 regions + state/DR", None), (crore(state["implementation_crore"]), None), (crore(state["operations_crore_per_year"]), None)],
             [("Avoided central video storage", None), ("INR 52–156 crore · disks only", None), ("52 PB; one copy, before DR / replication", None)],
             [("Avoided central video transport", None), ("160 Gbps continuous ingest", None), ("INR 58–154 crore / year", None)],
             [("Operational benefit", None), ("Searchable history, incident grouping, sealed evidence", None), ("Investigation time savings remain estimates; measure in the district pilot.", None)],
         ],
-        "Source: docs/HLD.md §20.8–20.9. MODELLED on ASSUMED S=10 and unit prices, before taxes; not vendor quotes or a measured saving. Existing departmental VMS spend continues.",
+        "Source: docs/HLD.md §20.8–20.9; reports/capacity_model.json. MODELLED on ASSUMED S=10, 20% ANPR-grade at 5 fps and unit prices, before taxes; not quotes. VMS spend continues.",
         "11b", col_w=[ML, ML + 580, ML + 1130], tags=("MODELLED",),
     )
 
@@ -1383,19 +1391,173 @@ def cost_benefit() -> Image.Image:
 def resilience_rollout() -> Image.Image:
     return table_page(
         "Deployment path  ·  cybersecurity and DR",
-        "District pilot, regional rollout, metadata centre",
+        "District cell pilot, regional rollout, metadata state tier",
         ["DESIGN / PHASE", "TARGET AND VALIDATION"],
         [
             [("Cybersecurity", None), ("Segment camera, analytics, data and operator zones. TLS in transit; encrypted stores and backups; keys held apart. RBAC, jurisdiction and purpose gates; audit exported for review. HLD §18.", None)],
-            [("District continuity", None), ("Watchlist, evidence and queues continue locally during uplink loss. District metadata targets: RPO ≤5 min, RTO ≤8 h. Assumed targets; restore/replay must be drilled. HLD §20.7.", None)],
-            [("Central HA and DR", None), ("Synchronous standby, asynchronous DR replica, nightly base backups and continuous WAL. DR targets: RPO ≤15 min, RTO ≤4 h. Multi-node failover remains untested. HLD §20.7.", None)],
-            [("Pilot → district → state", None), ("Survey cameras, obtain authoritative catalogue and watchlist authority, benchmark target GPU; then district integration and phased expansion. Central services aggregate metadata. HLD §13–16.", None)],
+            [("Cell continuity", None), ("Watchlist, evidence and queues continue locally during uplink loss. Cell metadata targets: RPO 0 in the cell, ≤5 min off it; RTO ≤60 s failover, ≤8 h rebuild. Assumed targets; restore/replay must be drilled. HLD §15.", None)],
+            [("State HA and DR", None), ("Synchronous standbys, event bus mirrored to DR, erasure-coded lake. Plate index and registry: RPO ≤1 min to DR, RTO ≤1 h at DR; lake reads ≤4 h. Multi-node failover remains untested. HLD §15.", None)],
+            [("Pilot → cell → region → state", None), ("Survey cameras, obtain catalogue and watchlist authority; each phase passes measured gates first (S on the tendered GPU, observation rate, compression ≥4×, WAN-cut drill). HLD §13–16.", None)],
             [("Inputs from each department", None), ("Inventory, mount, codec, resolution and surveyed coordinates; NVR/VMS vendor, version and authorised API/stream access; network path/bandwidth; retention/evidence policy and watchlist authority. HLD §13.", None)],
             [("Operations and acceptance", None), ("Health/readiness probes, metrics, structured logs and hash-chained audit exist. Deployment adds load balancing, log retention, alerts, camera assignment and failover. HLD §20.6.", None)],
         ],
-        "Sources: docs/HLD.md §13–16, §18, §20.6–20.7. RPO/RTO are ASSUMED design targets, not measured recovery results. Government watchlist and identity integrations require authority and access.",
+        "Sources: docs/HLD.md §13–16, §18, §20.6; docs/STATEWIDE_ARCHITECTURE.md §8. RPO/RTO are ASSUMED targets, not measured recovery. Government integrations require authority.",
         "11c", col_w=[ML, ML + 430], tags=("DESIGNED", "VERIFIED"),
     )
+
+# ---------------------------------------------------------------- statewide
+# The three statewide pages read reports/capacity_model.json, written by
+# tools/sizing/capacity_model.py, so a re-run of the model cannot leave the
+# deck quoting last week's numbers.
+
+def capacity() -> dict[str, Any]:
+    return json.loads((ROOT / "reports/capacity_model.json").read_text())
+
+
+def _row(model: dict[str, Any], prefix: str) -> dict[str, Any]:
+    rows = [r for r in model["rows"] if r["resource"].startswith(prefix)]
+    if len(rows) != 1:
+        raise KeyError(f"capacity_model.json: {len(rows)} rows start with {prefix!r}")
+    return rows[0]
+
+
+def _num(v: float) -> str:
+    if float(v).is_integer() or v >= 100:
+        return f"{v:,.0f}"
+    return f"{v:.1f}" if v >= 10 else f"{v:.2f}".rstrip("0").rstrip(".")
+
+
+def _bullets(d: ImageDraw.ImageDraw, points: list[str], y: int, *, size: int = 21) -> int:
+    for point in points:
+        d.text((ML, y + 2), "■", font=SANS(14), fill=SEAL)
+        for line in wrap(d, point, SANS(size), W - ML - MR - 28):
+            d.text((ML + 28, y), line, font=SANS(size), fill=INK)
+            y += int(size * 1.36)
+        y += 10
+    return y
+
+
+def _grid(d: ImageDraw.ImageDraw, y: int, columns: list[str], rows: list[list[tuple[str, str | None]]],
+          xs: list[int], *, size: int = 20, gap: int = 12) -> int:
+    for i, col in enumerate(columns):
+        _text(d, (xs[i], y), col.upper(), SANS(13), MUTED, spacing=2.2)
+    d.line([(ML, y + 24), (W - MR, y + 24)], fill=RULE, width=1)
+    y += 38
+    tones = {"green": GREEN, "red": RED, "gold": (146, 97, 10)}
+    for row in rows:
+        rh = 0
+        for i, (text, tone) in enumerate(row):
+            face = SANS_B(size) if i == 0 else SANS(size)
+            width = (xs[i + 1] if i + 1 < len(xs) else W - MR) - xs[i] - 14
+            lines = wrap(d, text, face, max(60, width))
+            for li, line in enumerate(lines):
+                d.text((xs[i], y + li * (size + 6)), line, font=face, fill=tones.get(tone or "", INK))
+            rh = max(rh, len(lines) * (size + 6))
+        y += rh + gap
+        d.line([(ML, y - gap // 2 - 2), (W - MR, y - gap // 2 - 2)], fill=(236, 236, 232), width=1)
+    return y
+
+
+def statewide_compute() -> Image.Image:
+    m = capacity()
+    comp, wan, rates = m["compute"], m["wan_cell"], m["rates"]
+    ratio = m["inputs"]["obs_zlib_ratio_batch100"]["value"]
+    img, d = canvas(False, tags=("MEASURED", "MODELLED", "DESIGNED"))
+    rail(img, d, "STATEWIDE", "11a")
+    kicker(d, "Statewide target architecture  ·  sized, not tested at 80,000")
+    ty = title(d, "80,000 cameras: only compute grows with cameras analysed", y=84, size=40)
+    y = _bullets(d, [
+        f"Video stays with the department. Only metadata crosses the WAN: {rates['state_metadata_mbps_z_pess']:.0f} Mbps "
+        f"statewide compressed at a pessimistic 3,000 observations per camera-hour (ASSUMED), against "
+        f"{rates['central_video_gbps_2mbps']:.0f} Gbps for central video. MODELLED.",
+        "A district cell holds at most 2,500 cameras or 4,000 observations/s, and runs detection, ANPR, alerts and "
+        "evidence locally. Plates are partitioned by plate: a designated-vehicle route reads one shard. DESIGNED.",
+        "Camera-driven non-compute resources keep ≥ 5× headroom on throughput and ≥ 2.2× on hot storage at 100% "
+        "analysed; the 3-year lake (1.5×) is bought per retention year. MODELLED.",
+        f"Unit costs measured on this project: {m['inputs']['obs_wire_bytes']['value']:,} B per observation, "
+        f"{ratio:.1f}× batch compression, {m['inputs']['pg_write_rows_per_s_one_stream']['value']:,} rows/s PostgreSQL, "
+        f"{m['inputs']['postgis_viewport_p50_ms_80k']['value']} ms PostGIS viewport on 80,000 cameras. "
+        f"GPU speed-up S = 10 is ASSUMED.",
+    ], ty + 22, size=24)
+    rows = [[(f"{r['analysed']:,}", None), (f"{r['gpus']:,}", "gold"), (_num(r["avg_cell_wan_mbps"]), None),
+             (_num(r["state_bus_MBps"]), None), (_num(r["cell_db_rows_s"]), None), (_num(r["lake_TB_yr"]), None)]
+            for r in m["sweep"]]
+    xs = [ML + i * 285 for i in range(6)]
+    _grid(d, y + 14, ["Analysed cameras", "GPUs incl. spares", "Cell WAN, Mbps", "State bus, MB/s",
+                      "Cell DB rows/s", "Lake TB / year"], rows, xs, size=28, gap=20)
+    footer(d, f"Growth at pessimistic rates, average cell of 80,000 / 40 cameras. {comp['gpus_with_spares']:,} GPUs = {comp['servers_4gpu']} servers; "
+              f"a full cell sends {wan['total_mbps']} Mbps. Source: reports/capacity_model.json; HLD §21.")
+    return img
+
+
+def statewide_tiers() -> Image.Image:
+    img, d = canvas(False, tags=("DESIGNED", "VERIFIED", "MODELLED"))
+    rail(img, d, "STATEWIDE", "11b")
+    kicker(d, "Statewide tiers  ·  DESIGNED; the cell's offline half is built and tested")
+    ty = title(d, "Three tiers, and what survives each failure", y=84, size=40)
+    y = _bullets(d, [
+        "Camera / site: nothing new at most sites; an edge box only where the site's link cannot carry its streams.",
+        "District cell (40): GPU pool, event bus, PostgreSQL + PostGIS, media gateway, federation adapters. It keeps "
+        "detecting, matching, alerting and sealing evidence with the WAN down.",
+        "Region (6): viewing fan-out, backups, forensic GPUs. State + DR: registry and GIS, plate index, lake, identity.",
+        "Model 1 everywhere; Model 2 direct; Model 3 for departments with a VMS; Model 4 on selected cameras only.",
+    ], ty + 22, size=24)
+    rows = [
+        [("Cell WAN", None), ("Detection, local watchlist match, alerts, evidence sealing, district control room", "green"),
+         ("Statewide search stale for that cell; catches up by priority lane", None)],
+        [("Region", None), ("Cells and state", "green"), ("Remote viewing moves to a neighbour region; backups queue", None)],
+        [("State event bus", None), ("Cells", "green"), ("Plate and alert lanes queue in the cell (7 days: 194 GB per cell, MODELLED)", None)],
+        [("State database", None), ("Cells; the bus keeps 7 days", "green"), ("Statewide routes pause, then replay", None)],
+        [("Whole state DC", None), ("Everything local", "green"), ("DR takes over; cells keep the last valid watchlist, fail-closed", None)],
+        [("GPU saturation", None), ("ALERT and HIGH_PRIORITY cadence first", "green"), ("NORMAL frames shed", None)],
+    ]
+    _grid(d, y + 14, ["What fails", "What keeps working", "What degrades"], rows,
+          [ML, ML + 300, ML + 1050], size=24, gap=18)
+    footer(d, "Sources: docs/STATEWIDE_ARCHITECTURE.md §2, §8; HLD §3, §6, §15; tests/e2e/test_offline_mode.py. RPO/RTO targets ASSUMED; multi-node failover untested.")
+    return img
+
+
+def statewide_binding() -> Image.Image:
+    m = capacity()
+    hostile = m["hostile"]["b_all_highway_cell_at_peak_hour"]
+    img, d = canvas(False, tags=("MEASURED", "MODELLED", "DESIGNED"))
+    rail(img, d, "STATEWIDE", "11c")
+    kicker(d, "Binding-constraint check  ·  pessimistic, 80,000 cameras all analysed")
+    ty = title(d, "Every resource against its capacity: compute binds first", y=84, size=40)
+    wan_raw = _row(m, "Cell WAN uplink, raw")
+    kafka_raw = _row(m, "State event bus IF all observations")
+    y = _bullets(d, [
+        f"Would-be bottlenecks found and designed out: uncompressed metadata on a 20 Mbps link ({wan_raw['headroom']}×), "
+        f"every observation through the state bus ({kafka_raw['headroom']}×), a cell of highway cameras "
+        f"({hostile['db_headroom_half_measured']}× on the database at half the measured write rate; cells now split at 4,000 observations/s).",
+        "Inference compute binds first by construction: GPUs are bought to demand, S is measured on tendered hardware before purchase.",
+        "Bus, gateway, TURN and object-store capacities are ASSUMED and are Phase 1 measurement gates (HLD §16).",
+    ], ty + 20, size=22)
+    picks = [
+        ("Cell WAN, compressed", "Cell WAN uplink (metadata, compressed)", "cameras", "Mbps"),
+        ("Cell WAN, uncompressed (rejected)", "Cell WAN uplink, raw", "cameras", "Mbps"),
+        ("State bus, real-time lanes", "State event bus (Kafka), real-time lanes only", "cameras", "MB/s"),
+        ("State bus, all observations (rejected)", "State event bus IF all observations", "cameras", "MB/s"),
+        ("Cell database writes", "Cell DB write rate", "cameras", "rows/s"),
+        ("Cell hot store, 30 days", "Cell hot store", "cameras", "TB"),
+        ("State lake, 3 years", "State object store, 3 years", "cameras", "TB"),
+        ("Media gateway sessions / cell", "Media gateway sessions", "viewers", "sessions"),
+        ("State API", "API request rate", "users", "req/s"),
+        ("Watchlist bootstrap, one cell", "Watchlist bootstrap", "list size", "s"),
+    ]
+    rows = []
+    for label, prefix, driver, unit in picks:
+        r = _row(m, prefix)
+        h = r["headroom"]
+        tone = "red" if h < 1.2 else ("gold" if h < 5 else "green")
+        rows.append([(label, None), (driver, None), (f"{_num(r['demand'])} {unit}", None),
+                     (f"{_num(r['capacity'])} {unit}", None), (f"{h:.2f}×" if h < 3 else f"{h:.1f}×", tone)])
+    _grid(d, y + 12, ["Resource", "Driven by", "Demand", "Capacity", "Headroom"], rows,
+          [ML, ML + 560, ML + 820, ML + 1180, ML + 1520], size=23, gap=13)
+    footer(d, "Headroom = capacity ÷ demand. Storage is policy-elastic; viewers and users have their own admission control. "
+              "Source: reports/capacity_model.json; HLD §21.")
+    return img
+
 
 def build() -> list[Image.Image]:
     gallery = government_anpr_gallery()
@@ -1411,6 +1573,9 @@ def build() -> list[Image.Image]:
         system_architecture(),
         scenario(),
         infrastructure(),
+        statewide_compute(),
+        statewide_tiers(),
+        statewide_binding(),
         cost_benefit(),
         resilience_rollout(),
         pipeline(),

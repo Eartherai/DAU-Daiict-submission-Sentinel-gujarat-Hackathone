@@ -1,94 +1,115 @@
-# SAAKSHYA
+# SAAKSHYA · साक्ष्य — *evidence*
 
-**साक्ष्य — *evidence***
-
-Federated CCTV intelligence and evidence fabric for a camera estate that was never built to be one.
+### Federated CCTV intelligence and evidence fabric for Gujarat's camera estate
 
 [![GPIC 2026](https://img.shields.io/badge/Gujarat_Police-Innovation_Challenge_2026-1B4F72?style=flat-square)](https://sentinel.gujarat.gov.in/)
 [![Hybrid 1+2+3+4](https://img.shields.io/badge/Architecture-Hybrid_Models_1%2B2%2B3%2B4-0E7C7B?style=flat-square)](docs/HLD.md)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI_%2B_OpenAPI-009688?style=flat-square)](docs/API.md)
-[![Tests](https://img.shields.io/badge/Tests-make_test-2E7D32?style=flat-square)](#verify-the-stack)
+[![Tests](https://img.shields.io/badge/Tests-1582_passed-2E7D32?style=flat-square)](#full-reproduce--clone-to-working-login)
 [![Licence policy](https://img.shields.io/badge/Models-permissive_only_(AGPL_rejected)-6A1B9A?style=flat-square)](docs/THIRD_PARTY_LICENSES.md)
 
-**Gujarat Police Innovation Challenge 2026** · Sentinel Camera Grid · **DAU / DAIICT**  
-**Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 central analytics.**
-The evaluation baseline is **30 GOVERNMENT + 2 OWN_FEED + 18
-SYNTHETIC_CONTROL = 50** (`src/saakshya/command/domain.py`,
-`enforce_evaluation_50`). Operator-onboarded cameras are retained, so a runtime
-registry can exceed that baseline. Government availability is measured during
-a test window; onboarding does not establish simultaneous viewing or inference. Full statewide centralization of ~80,000
-cameras remains rejected on arithmetic — 80k × 2 Mbps ≈ **160 Gbps**, 30-day
-≈ **52 PB** — while selected-camera central analytics is supported.
+**Gujarat Police Innovation Challenge 2026 · Sentinel Camera Grid · DAU (DA-IICT)**
 
-[Live README images](#watch-first-26-seconds) · [HLD](docs/HLD.md) · [Measured results](docs/MEASURED_RESULTS.md) · [API](docs/API.md) · [Submission index](docs/FINAL_SUBMISSION.md) · [Judge Q&A](docs/JUDGE_QA.md)
+SAAKSHYA onboards any camera the state already owns (**Model 1**), reads the
+live government grid (**Model 2**), federates departmental VMS systems through
+adapters (**Model 3**), and runs deep central analytics only on the cameras
+that measurably deserve it (**selected-camera Model 4**). Every vehicle
+sighting becomes a timestamped, geolocated, hash-chained observation; every
+search needs a case and a stated purpose and lands in a tamper-evident audit
+log; every number on this page says whether it was **MEASURED**, **MODELLED**,
+**DEMO** or **DESIGNED**.
 
----
-
-## Contents
-
-- [Watch first (26 seconds)](#watch-first-26-seconds)
-- [Official submission deliverables](#official-submission-deliverables)
-- [How this maps to the evaluation framework](#how-this-maps-to-the-evaluation-framework)
-- [Detection that is actually drawn](#detection-that-is-actually-drawn)
-- [Investigation workspace](#investigation-workspace)
-- [Measured on the live government grid](#measured-on-the-live-government-grid)
-- [High-level design](#high-level-design)
-- [Scalability and PoC readiness](#scalability-and-poc-readiness)
-- [Technology stack](#technology-stack)
-- [Full reproduce — clone to working login](#full-reproduce--clone-to-working-login)
-- [Against the real Sentinel government feed](#against-the-real-sentinel-government-feed)
-- [API integration](#api-integration)
-- [What it does / what it is not](#what-it-does--what-it-is-not)
-- [Troubleshooting](#troubleshooting)
-- [Repository map](#repository-map)
-- [Documentation](#documentation)
-- [Team · licence · credentials](#team--licence--credentials)
+> **Judges: start here →** [`submission/`](submission/) holds every file we
+> submitted (deck, HLD diagrams, three films, plate reports, trace reports),
+> and [`docs/FINAL_SUBMISSION.md`](docs/FINAL_SUBMISSION.md) says what each
+> one proves and what it does not.
 
 ---
 
-## Watch first (26 seconds)
+## ▶ Three films — the working software, not mock-ups
 
-Real Chrome tab against a live API — overview → government Focus → plates on the camera you opened. Nothing here is a mock-up.
+| | Film | Length | What you see |
+|---|---|---|---|
+| 🎬 | [**Own feed** · `03_own_feed_1080p.mp4`](submission/films/03_own_feed_1080p.mp4) | **2:43** | Masked sign-in → a camera onboarded through the registry form (validated before it writes) → administrator hands over to the officer → licensed Mumbai traffic with the production pipeline's boxes on every frame and plates drawn only when the vote holds → ANPR search → a watchlist alert with its map, route and trace report (synthetic corpus, labelled) → the evidence chain |
+| 🎬 | [**Government, live** · `04_government_feed_1080p.mp4`](submission/films/04_government_feed_1080p.mp4) | **5:40** | Recorded **live** on the Sentinel grid, 28 Sep 2026 12:41–12:47 IST, with the live-camera count measured on screen: the 30-tile control room, a focused live camera and its intelligence panel, person detections, the cam12 zone rule, the ANPR gallery, the designated stand-in `GJ11S7924`, GIS, the trace report and the plate CSV |
+| 🎬 | [**Government, every feature** · `04b_government_tour_1080p.mp4`](submission/films/04b_government_tour_1080p.mp4) | **15:04** | From the sign-in gate through **every screen of the application**: wall layouts, focus, analytics, persons, zones, ANPR gallery and CSVs, the alert lifecycle (open → acknowledge → investigate → resolve), exact / partial / fuzzy / attribute search, trajectory, GIS, evidence verification, trace report, cases and export, the **Gemini copilot**, the audit hash chain, Model 1 grades, gaps and bulk validation, estate-map search, Model 3 systems, Model 4 analytics, system health, the **administrator's refused search** and the handoff. The wall plays **RECORDED GOVERNMENT FOOTAGE** (14 cameras, captured 15 Sep, replayed with per-frame AI boxes) — labelled on every tile and never called live |
 
-![Live government Focus — moving night CCTV in the real workspace](docs/readme/live-preview.gif)
-
-**[▶ Download the 26-second dashboard cut (720p)](docs/readme/dashboard.mp4)**
-
-| Film | What it is |
-|---|---|
-| **Own feed** `03_own_feed.mp4` | 2:43, recorded 28 Sep: masked sign-in, form onboarding validated before write, administrator → officer handoff, per-frame detection and voted plates, ANPR search, watchlist alert, route and trace report (synthetic corpus, labelled), evidence chain (`var/demo/own_feed.mp4`, ffprobe) |
-| **Government workspace** `04_government_feed.mp4` | 5 m 40 s · 1440p · recorded live 28 Sep 2026; single-camera designated vehicle evidence; `04_government_feed_anpr_report.csv` carries 1,101 government reads |
-| **Detection overlays** | Same `CameraPipeline` drawn onto government + own frames |
-
-<p align="center">
-  <img src="docs/readme/live-wall.gif" alt="SAAKSHYA live government wall — 30 cameras" width="100%">
-</p>
-<p align="center"><em>30-camera live government wall. Unusable mounts stay dark — that is the estate, not demo polish.</em></p>
+<table>
+<tr>
+<td width="50%"><img src="docs/readme/films/tour-recorded-wall.jpg" alt="Recorded government wall with per-frame boxes"><br><sub><b>Recorded government wall</b> — 14 cameras, per-frame boxes, <code>RECORDED · captured 2026-09-15</code> on every tile</sub></td>
+<td width="50%"><img src="docs/readme/films/own-feed-detection.jpg" alt="Own-feed detection with voted plates"><br><sub><b>Own feed</b> — every vehicle boxed; a plate appears only when the track's frames agree on it</sub></td>
+</tr>
+<tr>
+<td><img src="docs/readme/films/tour-focus-cam06.jpg" alt="Focused recorded camera with provenance panel"><br><sub><b>Focus with provenance</b> — source domain, parent camera and capture window beside the picture</sub></td>
+<td><img src="docs/readme/films/tour-alerts.jpg" alt="Alert queue grouped by vehicle"><br><sub><b>Alert queue</b> — reads grouped into one decision per vehicle; every transition audited</sub></td>
+</tr>
+<tr>
+<td><img src="docs/readme/films/tour-copilot.jpg" alt="Gemini copilot grounded answer"><br><sub><b>Gemini copilot</b> — answers only from read-only tool results; here: 57 reads, one camera, no multi-camera route claimed</sub></td>
+<td><img src="docs/readme/films/tour-evidence-chain.jpg" alt="Evidence chain verification"><br><sub><b>Evidence</b> — 235 sealed records re-hashed on demand; cautions stated, never hidden</sub></td>
+</tr>
+<tr>
+<td><img src="docs/readme/films/tour-estate-map-search.jpg" alt="Estate map camera search"><br><sub><b>Estate map</b> — camera search and ANPR-capability layer over the real registry</sub></td>
+<td><img src="docs/readme/films/tour-rbac-refused.jpg" alt="Administrator search refused"><br><sub><b>Role separation</b> — the estate administrator cannot search plates; the server refuses, the UI explains</sub></td>
+</tr>
+</table>
 
 ---
 
-**Older sealed-still limitation.** A content hash verifies unchanged bytes,
-not that the image shows the vehicle named by its plate record. The older
-worker sealed the frame in hand when a track closed; that frame can show a
-different vehicle. Treat older stills as requiring visual/source verification,
-including those in historical trace reports and films. Since commit `672a2a0` the worker
-seals the frame each plate was best read from, so new captures show the read
-vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`.
+## Results at a glance
 
-## Official submission deliverables
-
-Upload `var/demo/SUBMIT/`, built by `python tools/demo/build_submission_pack.py`. The authoritative file list and submission instructions are in [docs/FINAL_SUBMISSION.md](docs/FINAL_SUBMISSION.md). Confirm the current deadline on the portal; large binaries are gitignored.
-
-| Portal field | Artefact | In-repo pointer |
+| | Result | Label |
 |---|---|---|
-| **1 · Presentation** | `01_SAAKSHYA_deck.pptx` + `.pdf` | Rendered by `tools/demo/render_submission_deck.py` |
-| **2 · High-level design** | `docs/HLD.md` + architecture diagrams | [docs/HLD.md](docs/HLD.md) · [docs/readme/hld-fabric.jpg](docs/readme/hld-fabric.jpg) |
-| **3 · Own-feed demo** | `03_own_feed.mp4` (2:43; source above) | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
-| **4 · Government-feed demo** | `04_government_feed.mp4` + `04_government_feed_anpr_report.csv` | Stills: [docs/readme/detect/](docs/readme/detect/) |
-| **Working platform** | This repository · `make demo && make serve` | Steps below |
+| **Live grid census** | All 30 documented government camera IDs produced RTSP frames in the 16 Sep source census (reachability, not a simultaneous wall) | MEASURED |
+| **Live session, 28 Sep 11:15–12:53 IST** | 6–13 of 30 cameras advancing at once on the shared sandbox; the 4 deep-inference slots wrote **4,465** observations; **200** plate reads on cam06 by the current recogniser | MEASURED |
+| **Government store to 24 Sep** | **1,155,325** government observations; persons on all 30 cameras, vehicles on 29; 901 plate reads, 178 distinct plates, 97 confirmed by ≥ 2 agreeing frames | MEASURED |
+| **Delivered plate report** | [`04_government_feed_anpr_report.csv`](submission/04_government_feed_anpr_report.csv): **1,101** government reads · 264 plates · 9 cameras, with UTC and IST timestamps and recogniser provenance | MEASURED |
+| **Recorded government footage** | 15 clips re-analysed frame by frame: 3,159 frames, 1,319 tracks, 1,548 observations, kept apart as `ARCHIVAL_REPLAY` ([replay reads](submission/04b_government_tour_replay_reads.csv)) | MEASURED |
+| **Indian plate recogniser** | Hand-read plates exact: **17/21** (Awiros-ANPR-OCR, ported to PyTorch) vs 5/21 Apple Vision and 2/21 ONNX; on a 57 s clip the final vote published 56 marks — 40 correct, 4 wrong, 12 unsettled | MEASURED |
+| **Statewide scale** | 80,000 cameras in 40 district cells + state DC + DR; inference compute is the only resource bought per analysed camera; 80k synthetic registry rows served and queried | MODELLED / MEASURED (synthetic load) |
+| **Tests** | **1,582 passed, 20 skipped, 0 failed** — full suite, 28 Sep 2026 (27 min) | MEASURED |
 
-Forbidden phrases on every slide and in this README: *production ready* · *legally admissible* · *tested at 80,000*.
+What we do **not** claim: no government plate was read on two government
+cameras, so there is **no real multi-camera government route** — route logic
+is shown on a labelled synthetic corpus. No 80,000-camera live test was run.
+The recorded footage in the tour is recorded, not live. See
+[`docs/FINAL_SUBMISSION.md`](docs/FINAL_SUBMISSION.md).
+
+---
+
+## What it took to integrate the live grid
+
+We measured the grid before building on it (all 30 camera IDs producing RTSP
+frames, 15 reachable by direct WHEP, 15 needing an H.264 bridge), asked
+Sentinel for its concurrency guidance, and rebuilt around the answer: direct
+WHEP through our authenticated signalling proxy, CONTROL ROOM and OPTIMIZED
+VIEW session policies, per-camera isolation with backoff, four prioritised
+deep-inference slots, truthful LIVE semantics and preflight gates that refuse
+to film a stall. Eight recording attempts on 28 Sep produced the 5:40 live
+take; from 12:57 IST the grid rejected our credentials (401), and the
+full-feature tour was then made from footage we had already captured.
+Full timeline, with the question we sent and Sentinel's answer (sanitised):
+[**docs/LIVE_INTEGRATION_STORY.md**](docs/LIVE_INTEGRATION_STORY.md).
+
+---
+
+## Submission files
+
+| Portal item | File in [`submission/`](submission/) | Source in this repo |
+|---|---|---|
+| 1 · Presentation | [`01_SAAKSHYA_deck.pdf`](submission/01_SAAKSHYA_deck.pdf) · [`.pptx`](submission/01_SAAKSHYA_deck.pptx) (50 slides) | `tools/demo/render_submission_deck.py` |
+| 2 · High-level design | [`docs/HLD.md`](docs/HLD.md) · [`02_HLD_diagrams.pdf`](submission/02_HLD_diagrams.pdf) · [`docs/STATEWIDE_ARCHITECTURE.md`](docs/STATEWIDE_ARCHITECTURE.md) · [`docs/SECURITY.md`](docs/SECURITY.md) | `tools/demo/render_diagrams.py` |
+| 3 · Own-feed demo (2–3 min) | [`films/03_own_feed_1080p.mp4`](submission/films/03_own_feed_1080p.mp4) | `tools/demo/record_own_feed.py` |
+| 4 · Government-feed demo + plate report | [`films/04_government_feed_1080p.mp4`](submission/films/04_government_feed_1080p.mp4) · [`04_government_feed_anpr_report.csv`](submission/04_government_feed_anpr_report.csv) | `tools/demo/record_government_feed.py` |
+| 4b · Every feature, from sign-in | [`films/04b_government_tour_1080p.mp4`](submission/films/04b_government_tour_1080p.mp4) · [`04b_government_tour_replay_reads.csv`](submission/04b_government_tour_replay_reads.csv) · [beat record](submission/evidence/04b_government_tour_beats.json) | `--tour full --wall-domain replay` |
+| Designated-vehicle trace | [`06_designated_vehicle_trace_report.html`](submission/06_designated_vehicle_trace_report.html) · [`06_own_feed_trace_report.html`](submission/06_own_feed_trace_report.html) | `/reports/trace` |
+| Models 1 & 3 reports | [`reports/`](submission/reports/) — gap analysis, registry API, adapters, federated analytics, 80k load test, sample camera metadata | `reports/`, `docs/ADAPTERS.md` |
+| Integration story | [`docs/LIVE_INTEGRATION_STORY.md`](docs/LIVE_INTEGRATION_STORY.md) | — |
+| Certification | [`reports/FINAL_SUBMISSION_CERTIFICATION.md`](reports/FINAL_SUBMISSION_CERTIFICATION.md) — what was checked before upload | — |
+
+The 2560×1440 masters and the pack builder's output (`var/demo/SUBMIT/`,
+`python tools/demo/build_submission_pack.py`) stay out of git; the 1080p
+copies above are the same takes.
 
 ---
 
@@ -96,22 +117,22 @@ Forbidden phrases on every slide and in this README: *production ready* · *lega
 
 | Criterion | Where the evidence is |
 |---|---|
-| **1. Successful test case** | Team-chosen stand-in `GJ11S7924` (not organiser-issued) on cam06: SINGLE-CAMERA evidence. `GJ18JX7786` on C-014 then C-021: SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
-| **2. Solution presentation** | Portal deck PPTX/PDF · content from measured sheet · [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
-| **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Statewide Model 4 recording declined on bandwidth arithmetic; selected-camera Model 4 analytics kept |
-| **4. Working platform & demonstration** | `make install && make media && make demo && make serve` → http://127.0.0.1:8080 · bearer gate · OpenAPI `/docs` |
-| **5. Video analytics output** | Vehicle + person detection, tracking, per-track ANPR with voting, capability grades, CSV/JSON paired to overlay films |
-| **6. Scalability & PoC readiness** | [Scalability section](#scalability-and-poc-readiness) · [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · dated 30-camera government registry snapshot + 50 local streams initially / 44 at end (`var/reports/camera_load.json`) · **MODELLED** 80k sizing kept separate |
-| **7. Submission completeness** | This README, `.env.example`, the test suite (`make test`), portal pack checklist, secret scan in `make verify` |
+| **1. Successful test case** | Team-chosen stand-in `GJ11S7924` (not organiser-issued) on cam06: SINGLE-CAMERA evidence in the live film, the trace report and the tour. `GJ18JX7786` on C-014 then C-021: SYNTHETIC RENDERED TEST CORPUS — route logic, not camera footage. Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
+| **2. Solution presentation** | [Deck](submission/01_SAAKSHYA_deck.pdf) · [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
+| **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/STATEWIDE_ARCHITECTURE.md](docs/STATEWIDE_ARCHITECTURE.md) · [diagrams](submission/02_HLD_diagrams.pdf) · statewide full-video centralisation declined on arithmetic (80k × 2 Mbps ≈ 160 Gbps; 30 days ≈ 52 PB), selected-camera Model 4 kept |
+| **4. Working platform & demonstration** | Three films above · `make demo && make serve` · bearer-token gate · OpenAPI `/docs` |
+| **5. Video analytics output** | Vehicle and person detection, tracking, per-track ANPR with voting, attribute search, zones, capability grades, CSV reports |
+| **6. Scalability & PoC readiness** | [docs/SCALE_MODEL.md](docs/SCALE_MODEL.md) · [80k synthetic load test](submission/reports/05_SCALE_80K_LOAD_TEST.md) · MODELLED sizing kept separate from MEASURED |
+| **7. Submission completeness** | [`submission/`](submission/) · [`docs/FINAL_SUBMISSION.md`](docs/FINAL_SUBMISSION.md) · secret scan in `make verify` |
 
 | Bonus ask | What is built |
 |---|---|
-| Hybrid architecture | Models **1 + 2 + 3** plus selected-camera Model **4** central analytics; statewide full-video centralization refused |
-| Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); government cameras: **0** exact cross-camera plate repeats (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
-| Analytics beyond ANPR | Motion / track / person presence / attributes / measured capability |
-| Edge + low bandwidth | Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row; video stays at the camera; edge queue + SERVICE token sync |
-| Security / privacy / audit | Four authorisation gates · purpose binding · hash-chained audit · no FR identity on government data |
-| Dashboards / alerts / APIs | Overview · Live · Find · Map · Alerts · Copilot (refuses enhancement) · OpenAPI |
+| Hybrid architecture | Models **1 + 2 + 3** plus selected-camera Model **4** |
+| Cross-camera correlation | Graph + trajectory with typed legs (`OBSERVED` / `UNOBSERVED` / `COVERAGE_GAP`); government cameras: **0** exact cross-camera plate repeats, stated |
+| Analytics beyond ANPR | Person presence, zones, attributes, measured capability grades |
+| Edge + low bandwidth | Video stays at the camera; ~1.3 kB measured metadata row per observation; edge queue with token sync |
+| Security / privacy / audit | Four authorisation gates · case + purpose binding · hash-chained audit · no face recognition · heads blurred in the own-feed and recorded government footage |
+| Dashboards / alerts / APIs | Overview · Live · Investigate · Map · Alerts · Evidence · Cases · Copilot · OpenAPI |
 
 ---
 
@@ -178,8 +199,10 @@ Boxes come from the same `CameraPipeline` the live grid runs. A white plate chip
 
 ---
 
-## Measured on the live government grid
+## Earlier measured snapshot (6 Sep 2026)
 
+The current figures are in [Results at a glance](#results-at-a-glance); this table is the
+6 Sep snapshot, kept for its capability and load measurements.
 Source: [`docs/MEASURED_RESULTS.md`](docs/MEASURED_RESULTS.md) · generated **2026-09-06T21:02:56Z**.  
 **MEASURED** figures are never mixed with **MODELLED** 80k sizing.
 

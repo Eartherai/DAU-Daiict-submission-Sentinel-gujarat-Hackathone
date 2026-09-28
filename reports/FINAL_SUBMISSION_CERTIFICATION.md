@@ -4,137 +4,134 @@ What was checked before upload, and what each claim rests on. Categories are
 kept apart: **MEASURED** (a file or query produced the number), **VERIFIED**
 (checked in code or tests), **MODELLED** (arithmetic from stated inputs),
 **DEMO** (controlled or synthetic material, labelled as such), **DESIGNED**
-(specified, not built or not run at scale), and **EXTERNAL SANDBOX
-VARIABILITY** (the shared Sentinel sandbox, outside this project's control).
+(specified, not built or not run at scale), **RECORDED** (government footage
+downloaded earlier and replayed, never presented as live) and **EXTERNAL
+SANDBOX VARIABILITY** (the shared Sentinel sandbox, outside this project's
+control).
 
 ## Submission directory
 
-`/Users/earther/Desktop/Gujarat CCTV/saakshya/var/demo/SUBMIT/` — 19 files,
-337 MB, built by `python tools/demo/build_submission_pack.py`. The index is
-`00_SUBMISSION_INDEX.md` (source `docs/FINAL_SUBMISSION.md`). The internal
-operator checklist is no longer shipped.
+`var/demo/SUBMIT/` — 22 files, 456 MB, built by
+`python tools/demo/build_submission_pack.py`. The index is
+`00_SUBMISSION_INDEX.md` (source `docs/FINAL_SUBMISSION.md`). The repository's
+`submission/` folder carries the same deck, diagrams, reports and CSVs, and
+1080p copies of the three films (the 2560×1440 masters stay out of git).
 
 | File | Size |
 |---|---|
-| `00_SUBMISSION_INDEX.md` | 15K |
-| `01_SAAKSHYA_deck.pdf` | 13M |
-| `01_SAAKSHYA_deck.pptx` | 17M |
-| `02_HLD.md` | 110K |
-| `02_HLD_diagrams.pdf` | 704K |
+| `00_SUBMISSION_INDEX.md` | 19K |
+| `01_SAAKSHYA_deck.pdf` | 14M |
+| `01_SAAKSHYA_deck.pptx` | 18M |
+| `02_HLD.md` | 112K |
+| `02_HLD_diagrams.pdf` | 721K |
 | `02_SECURITY.md` | 12K |
-| `02_STATEWIDE_ARCHITECTURE.md` | 57K |
-| `03_own_feed.mp4` | 94M |
-| `04_government_feed.mp4` | 152M |
-| `04_government_feed_1080p.mp4` | 60M |
-| `04_government_feed_anpr_report.csv` | 218K |
-| `05_ADAPTERS.md` | 17K |
-| `05_FEDERATED_ANALYTICS_REPORT.md` | 2.7K |
-| `05_MODEL1_GAP_ANALYSIS.md` | 2.9K |
-| `05_REGISTRY_API.md` | 7.1K |
-| `05_SCALE_80K_LOAD_TEST.md` | 2.5K |
-| `05_sample_camera_metadata.csv` | 9.3K |
-| `06_designated_vehicle_trace_report.html` | 408K |
-| `06_own_feed_trace_report.html` | 9.6K |
+| `02_STATEWIDE_ARCHITECTURE.md` | 58K |
+| `03_own_feed.mp4` | 158M |
+| `04_government_feed.mp4` | 159M |
+| `04_government_feed_1080p.mp4` | 63M |
+| `04_government_feed_anpr_report.csv` | 223K |
+| `04b_government_tour.mp4` | 63M |
+| `04b_government_tour_replay_reads.csv` | 1.8K |
+| `05_ADAPTERS.md` | 18K |
+| `05_FEDERATED_ANALYTICS_REPORT.md` | 2.8K |
+| `05_MODEL1_GAP_ANALYSIS.md` | 3.0K |
+| `05_REGISTRY_API.md` | 7.3K |
+| `05_SCALE_80K_LOAD_TEST.md` | 2.6K |
+| `05_sample_camera_metadata.csv` | 9.5K |
+| `06_designated_vehicle_trace_report.html` | 418K |
+| `06_own_feed_trace_report.html` | 9.8K |
+| `07_LIVE_INTEGRATION_STORY.md` | 12K |
 
-## Films (MEASURED, ffprobe and extracted frames)
+## Films (MEASURED, ffprobe, freezedetect and extracted frames)
 
 | Film | Duration | Format | Checked |
 |---|---|---|---|
-| `03_own_feed.mp4` | 2:53 (173.5 s, 5,205 frames) | H.264 2560×1440, 30 fps, narration | Under the 3-minute cap. Video beats move; full-frame freezes are static UI screens. Heads blurred (frames inspected). |
-| `04_government_feed.mp4` | 5:40 (339.97 s, 10,199 frames) | H.264 2560×1440, 30 fps encode, narration + captions | Recorded live 28 Sep 12:41–12:47 IST. No black segments; the first 175 s (live government video) contain no freeze ≥ 8 s. Opens on moving government tiles with the measured count on screen. |
-| `04_government_feed_1080p.mp4` | 5:40 | H.264 1920×1080 | Same take. |
+| `03_own_feed.mp4` | 2:43 (163.0 s, 4,890 frames) | H.264 2560×1440, 30 fps, narration | Recorded 28 Sep. No freeze in the detection beat (42–76 s); the other freezes are static UI screens under narration. The recorder refuses a take if either video stalls for ≥ 1 s or its boxes stop drawing. Heads blurred; street basemap under the route. |
+| `04_government_feed.mp4` | 5:40 (339.97 s) | H.264 2560×1440, 30 fps, narration + captions | Recorded **live** 28 Sep 12:41–12:47 IST. Unchanged since the previous certification. |
+| `04b_government_tour.mp4` | 15:04 (903.9 s, 27,117 frames) | 1920×1080 in the pack; 2560×1440 master `var/demo/government_tour.mp4` | Recorded 28 Sep on `var/govfilm.db`, a copy of the government store, with Sentinel credentials unset. 49 filmed beats, 2 named skips (no watchlist add/revoke UI), 0 failures (`var/demo/government_tour_20260928_214832/beats.json`). No black segment; freezes only in the first 40 s (sign-in and overview). The wall and focus play **RECORDED** footage labelled `RECORDED · captured 2026-09-15` on every tile. |
 
-The government film shows: the OPTIMIZED VIEW wall (8 of 30 live at the
-opening, 6–13 across the wall beats), all thirty in the CONTROL ROOM, a
-focused live camera with its intelligence panel, analytics, cam12 person
-detections and the demonstration restricted-zone rule, the government ANPR
-gallery, the designated stand-in `GJ11S7924` (SINGLE-CAMERA), GIS, the trace
-report, the ANPR CSV, evidence, system status and the Model 1 registry as the
-estate administrator. It does **not** show an onboarding action, the
-administrator's refused search or the handoff; the own-feed film shows form
-onboarding and the handoff. The screen was captured by CDP screencast and
-encoded at 30 fps.
+## Recorded government footage (RECORDED, MEASURED)
 
-## Measured government result
+- Source: 12-second clips captured 15 Sep 2026 by
+  `tools/demo/capture_live_clips.py` (`var/demo/live_clips/scores.json`).
+  15 of them are byte-identical to the capture record; 4 were damaged later
+  and 2 were scored unusable at capture; 9 cameras produced no clip.
+- `tools/demo/import_gov_clips.py` re-timed each clip at its measured rate
+  (frames / 12 s, every frame kept), blurred heads with the production person
+  detector, and registered it as `GOVREC-camNN` with source domain
+  `ARCHIVAL_REPLAY` in the film store only. The capture date is the download
+  date; the cameras' own overlays show June 2026.
+- The production pipeline analysed every frame: 3,159 frames, 1,319 tracks,
+  1,548 observations, 4 plates in 7 reads, all cam06. By eye, 3 of the 4
+  match the plate in the picture; `RJ12J8713` is unverified. cam08's clip is a
+  source decode mosaic and is not shown on the wall.
+- Replay reads never enter `04_government_feed_anpr_report.csv`; they are in
+  `04b_government_tour_replay_reads.csv` with `source_domain = ARCHIVAL_REPLAY`.
 
-- **Live session, 28 Sep 11:15–12:53 IST (MEASURED, read-only SQL):** the four
-  deep-inference slots (cam06, cam12, cam10, cam08) wrote 4,465 government
-  observations; 200 plate reads (124 distinct plates), all cam06, by the
-  current recogniser (`ocr_model = awiros-anpr-ocr` in the CSV). 21 of the 200
-  fall inside the filmed take.
-- **Snapshot to 24 Sep 16:10 IST (MEASURED):** 1,155,325 government
-  observations; persons on all 30 cameras, vehicles on 29; 901 plate reads,
-  178 distinct plates, 97 confirmed (≥ 2 agreeing frames), 9 cameras.
-- **Film CSV (MEASURED):** 1,101 government reads = 901 + 200; 264 distinct
-  plates; 9 cameras; no own-feed or synthetic rows (`domain=GOVERNMENT`).
-- **Designated stand-in:** `GJ11S7924`, chosen by the team from its own cam06
-  reads on 20 Sep (not organiser-issued); 57 reads, all cam06. No plate was
-  read on two government cameras: government evidence is single-camera.
-- **Live availability (EXTERNAL SANDBOX VARIABILITY, measured during the test
-  window):** 6–13 of 30 government cameras delivered advancing video at once;
-  18 advanced at some point in one five-minute preflight. The organisers state
-  there is no fixed participant-facing session limit; these are measurements,
-  not a limit.
+## Measured government result (unchanged)
+
+- **Live session, 28 Sep 11:15–12:53 IST:** 4,465 government observations
+  from the four deep-inference slots; 200 plate reads (124 distinct plates),
+  all cam06, current recogniser; 21 inside the filmed take.
+- **Snapshot to 24 Sep 16:10 IST:** 1,155,325 government observations;
+  persons on all 30 cameras, vehicles on 29; 901 plate reads, 178 distinct,
+  97 confirmed, 9 cameras.
+- **Film CSV:** 1,101 government reads = 901 + 200; 264 distinct plates;
+  9 cameras; the tour's own export of the same store has the same 1,101 rows.
+- **Designated stand-in:** `GJ11S7924`, team-chosen from cam06 reads (not
+  organiser-issued); 57 reads, all cam06. No plate was read on two government
+  cameras: government evidence is single-camera.
+- **Live availability (EXTERNAL SANDBOX VARIABILITY):** 6–13 of 30 advancing
+  at once during the test window. Not a limit.
+
+## Defects found and fixed in this final round (VERIFIED, with tests)
+
+- `make serve` sent a broken basemap template (`{z/{x}/{y}.png}`): sh ends
+  `${VAR:-default}` at the first `}`. Every map drew over a blank canvas.
+- Recorded government tiles decoded but stayed transparent on the wall (the
+  WHEP readiness flag was never set for file playback): boxes over black.
+- The estate map's "search camera" box had no handler; it now filters the
+  map and the registry strip.
+- The estate administrator saw an error toast on the estate map: the alert
+  layer (no `alert:read` for ADMIN) returned 403 and was toasted as a failure.
+- Recorder races (a re-rendered alert queue, a busy search form, hash-only
+  role handoffs, a pattern-result selector, the evidence verdict key) and a
+  copilot question that exceeded the coordinator's six-step limit.
 
 ## AI result
 
-- Deep inference runs in 4 slots (`SAAKSHYA_AI_CAMERA_LIMIT`), assigned at
-  worker boot by measured ANPR grade or by an explicit camera list, not rotated;
-  the live worker samples at a fixed interval (VERIFIED). The adaptive
-  scheduler is built and tested in the certification harness; live-worker
-  wiring is DESIGNED.
-- Statewide sizing is MODELLED from measured unit costs
-  (`tools/sizing/capacity_model.py`, `reports/capacity_model.json`): inference
-  compute is the only resource bought in proportion to cameras analysed; the
-  camera-driven non-compute resources keep ≥ 5× throughput headroom at 80,000
-  cameras, with the exceptions and pessimistic cases stated in
-  `docs/STATEWIDE_ARCHITECTURE.md`. Kafka, gateway-session, TURN and
-  data-centre GPU capacities are ASSUMED and are Phase 1 gates.
-- The multi-camera route `GJ18JX7786` (C-014 → C-021) is a **SYNTHETIC
-  RENDERED TEST CORPUS** — route logic on computer-rendered clips, not camera
-  footage (DEMO).
+- Deep inference runs in 4 slots, assigned at boot, not rotated (VERIFIED).
+- Own-feed plates in the film come from the final pipeline's sidecars
+  (Indian-trained recogniser). On the 57 s queue clip the vote published 56
+  marks: 40 correct by eye, 4 wrong, 12 unsettled
+  (`var/reports/ocr_indian_eval.json`). The film's search returns 23 stored
+  `MH02GB4920` reads from the 24 Sep Apple Vision run.
+- Statewide sizing is MODELLED (`tools/sizing/capacity_model.py`).
+- `GJ18JX7786` (C-014 → C-021) is a **SYNTHETIC RENDERED TEST CORPUS** (DEMO).
 
 ## Tests and scans
 
-- Full suite after every merge, at `1313905` (`python -m pytest -q`, whole
-  `tests/`): **1,493 passed, 20 skipped, 0 failed**, 28 min. The takeover
-  baseline at `b5a21c8` was 1,375 passed; the 118 added tests pin this
-  session's fixes.
-- Secret scan (`tools/verify/secret_scan.py`): **PASS**, 1,058 tracked files
-  and full history. The pack's text files contain no token, key, bearer or
-  private-key pattern and no personal e-mail address. `auto.key` (untracked,
-  gitignored, mode 600) and `.env.local` are not in the pack.
-- The sandbox host appears in `05_sample_camera_metadata.csv` stream URLs,
-  without credentials.
-
-## Red team (four lenses; claims, consistency, coverage by agents; security by the primary)
-
-48 findings. Verified and fixed: the synthetic route mislabelled as own-feed;
-stale index text about a replacement take; "200 reads in the film" (21);
-the stand-in's attribution; older sealed stills shown as verified in the trace
-report (now cautioned, post-fix stills first); "never filed as stolen" (one
-representative stolen-vehicle entry exists); a 30/30 screenshot of cached
-stills (replaced by the dated 28 Sep control-room still); adaptive-cadence
-wording; compression and spatial-query figures; the government CSV's missing
-provenance column (`ocr_model` added); the Model 3 report built from the demo
-store (regenerated from the government store); the internal checklist shipped
-to judges (removed). Open, stated rather than fixed: the government film has
-no onboarding action; the pack does not carry the raw evidence JSON files (the
-repository does — supply its link, FAQ Q34); the deck is raster-only.
+- Full suite (`python -m pytest -q tests`): **1,582 passed, 20 skipped, 0 failed** (27 min 28 s), 28 Sep 2026, on the code committed with this certification.
+- Secret scan (`tools/verify/secret_scan.py`): **PASS**, 1,113 tracked files (including `submission/`) and full history.
+- No e-mail address, token or credential pattern in `submission/` or the
+  pack's text files (grep, 28 Sep 22:20 IST).
 
 ## Known external limitations
 
 - From 28 Sep 12:57 IST the sandbox returned `401 Unauthorized` to this
-  project's grid credentials (RTSP and WHEP). No further live recording was
-  possible after the submitted take.
-- Sandbox fan-in varies with shared load (above).
+  project's grid credentials. No live stream was opened after that; the tour
+  was made offline from recorded footage.
+- Sandbox fan-in varies with shared load.
 
 ## Before upload — for the team
 
-1. Host the films (unlisted YouTube or Drive/OneDrive "anyone with the link").
-2. Supply the repository link if you want judges to see the cited evidence files.
-3. Rotate the Sentinel grid credentials if not already done, and revoke or let
-   expire the three one-day API tokens minted on 28 Sep for the recordings
-   (`adm.live`, `insp.live`, `sup.live`; `tools/admin/users.py`).
+1. Host the films (the repository's `submission/films/` has 1080p copies;
+   the 1440p masters are in the pack).
+2. Rotate the Sentinel grid credentials: a password was pasted into a chat
+   on 28 Sep.
+3. Revoke or let expire the one-day API tokens minted on 28 Sep:
+   `adm.live`, `insp.live`, `sup.live` (live store), `admin.demo`,
+   `supervisor.demo` (`var/ownfilm.db`) and `sup.live`, `adm.live`
+   (`var/govfilm.db`).
 4. Re-run `python tools/verify/secret_scan.py` on anything attached outside
    the pack.

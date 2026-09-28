@@ -1,0 +1,290 @@
+{
+  "seconds": 12,
+  "cameras": [
+    {
+      "camera_id": "cam01",
+      "ok": true,
+      "show": true,
+      "bytes": 2538101,
+      "score": 71.42,
+      "frames": 180,
+      "seconds": 15.5,
+      "note": ""
+    },
+    {
+      "camera_id": "cam02",
+      "ok": true,
+      "show": true,
+      "bytes": 6216789,
+      "score": 61.98,
+      "frames": 360,
+      "seconds": 14.7,
+      "note": ""
+    },
+    {
+      "camera_id": "cam03",
+      "ok": true,
+      "show": true,
+      "bytes": 2738146,
+      "score": 74.2,
+      "frames": 230,
+      "seconds": 14.3,
+      "note": ""
+    },
+    {
+      "camera_id": "cam04",
+      "ok": true,
+      "show": true,
+      "bytes": 9562181,
+      "score": 67.48,
+      "frames": 295,
+      "seconds": 17.1,
+      "note": ""
+    },
+    {
+      "camera_id": "cam05",
+      "ok": true,
+      "show": true,
+      "bytes": 4911014,
+      "score": 57.07,
+      "frames": 360,
+      "seconds": 15.0,
+      "note": ""
+    },
+    {
+      "camera_id": "cam06",
+      "ok": true,
+      "show": true,
+      "bytes": 11215687,
+      "score": 44.19,
+      "frames": 289,
+      "seconds": 15.8,
+      "note": ""
+    },
+    {
+      "camera_id": "cam07",
+      "ok": true,
+      "show": false,
+      "bytes": 3953598,
+      "score": 0.0,
+      "frames": 167,
+      "seconds": 23.6,
+      "note": "unusable picture"
+    },
+    {
+      "camera_id": "cam08",
+      "ok": true,
+      "show": true,
+      "bytes": 4118010,
+      "score": 88.04,
+      "frames": 131,
+      "seconds": 61.0,
+      "note": ""
+    },
+    {
+      "camera_id": "cam09",
+      "ok": true,
+      "show": false,
+      "bytes": 2965151,
+      "score": 0.0,
+      "frames": 300,
+      "seconds": 15.5,
+      "note": "unusable picture"
+    },
+    {
+      "camera_id": "cam10",
+      "ok": true,
+      "show": true,
+      "bytes": 3942029,
+      "score": 64.07,
+      "frames": 171,
+      "seconds": 42.0,
+      "note": ""
+    },
+    {
+      "camera_id": "cam11",
+      "ok": true,
+      "show": true,
+      "bytes": 3930558,
+      "score": 58.49,
+      "frames": 158,
+      "seconds": 19.7,
+      "note": ""
+    },
+    {
+      "camera_id": "cam12",
+      "ok": true,
+      "show": true,
+      "bytes": 3901690,
+      "score": 72.05,
+      "frames": 240,
+      "seconds": 14.8,
+      "note": ""
+    },
+    {
+      "camera_id": "cam13",
+      "ok": false,
+      "note": "ExitError: [Errno 1414092869] Immediate exit requested: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam13'",
+      "seconds": 49.0
+    },
+    {
+      "camera_id": "cam14",
+      "ok": true,
+      "show": true,
+      "bytes": 1587332,
+      "score": 50.55,
+      "frames": 64,
+      "seconds": 8.7,
+      "note": ""
+    },
+    {
+      "camera_id": "cam15",
+      "ok": true,
+      "show": true,
+      "bytes": 1903265,
+      "score": 61.74,
+      "frames": 67,
+      "seconds": 49.5,
+      "note": ""
+    },
+    {
+      "camera_id": "cam16",
+      "ok": true,
+      "show": true,
+      "bytes": 3081820,
+      "score": 55.13,
+      "frames": 120,
+      "seconds": 16.5,
+      "note": ""
+    },
+    {
+      "camera_id": "cam17",
+      "ok": true,
+      "show": true,
+      "bytes": 4333994,
+      "score": 57.12,
+      "frames": 300,
+      "seconds": 13.9,
+      "note": ""
+    },
+    {
+      "camera_id": "cam18",
+      "ok": true,
+      "show": true,
+      "bytes": 8951560,
+      "score": 68.65,
+      "frames": 300,
+      "seconds": 19.4,
+      "note": ""
+    },
+    {
+      "camera_id": "cam19",
+      "ok": true,
+      "show": true,
+      "bytes": 2220350,
+      "score": 59.68,
+      "frames": 142,
+      "seconds": 7.1,
+      "note": ""
+    },
+    {
+      "camera_id": "cam20",
+      "ok": true,
+      "show": true,
+      "bytes": 3024431,
+      "score": 57.34,
+      "frames": 164,
+      "seconds": 18.4,
+      "note": ""
+    },
+    {
+      "camera_id": "cam21",
+      "ok": true,
+      "show": true,
+      "bytes": 5121155,
+      "score": 54.2,
+      "frames": 147,
+      "seconds": 26.2,
+      "note": ""
+    },
+    {
+      "camera_id": "cam22",
+      "ok": false,
+      "note": "too few frames (0)",
+      "seconds": 121.8
+    },
+    {
+      "camera_id": "cam23",
+      "ok": true,
+      "show": true,
+      "bytes": 2154842,
+      "score": 57.63,
+      "frames": 103,
+      "seconds": 21.2,
+      "note": ""
+    },
+    {
+      "camera_id": "cam24",
+      "ok": false,
+      "note": "too few frames (0)",
+      "seconds": 4.4
+    },
+    {
+      "camera_id": "cam25",
+      "ok": false,
+      "note": "InvalidDataError: [Errno 1094995529] Invalid data found when processing input: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam25'",
+      "seconds": 0.2
+    },
+    {
+      "camera_id": "cam26",
+      "ok": false,
+      "note": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam26'",
+      "seconds": 0.0
+    },
+    {
+      "camera_id": "cam27",
+      "ok": false,
+      "note": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam27'",
+      "seconds": 1.0
+    },
+    {
+      "camera_id": "cam28",
+      "ok": false,
+      "note": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam28'",
+      "seconds": 0.0
+    },
+    {
+      "camera_id": "cam29",
+      "ok": false,
+      "note": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam29'",
+      "seconds": 0.0
+    },
+    {
+      "camera_id": "cam30",
+      "ok": false,
+      "note": "ConnectionRefusedError: [Errno 61] Connection refused: 'rtsp://<redacted>@103.250.160.189:8554/stream/cam30'",
+      "seconds": 0.0
+    }
+  ],
+  "showable": [
+    "cam01",
+    "cam02",
+    "cam03",
+    "cam04",
+    "cam05",
+    "cam06",
+    "cam08",
+    "cam10",
+    "cam11",
+    "cam12",
+    "cam14",
+    "cam15",
+    "cam16",
+    "cam17",
+    "cam18",
+    "cam19",
+    "cam20",
+    "cam21",
+    "cam23"
+  ]
+}

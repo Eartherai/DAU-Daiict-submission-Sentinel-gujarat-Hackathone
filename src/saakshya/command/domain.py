@@ -1,10 +1,11 @@
 """Provenance of every camera on the 50-camera wall.
 
-Three domains, never mixed in labels:
+Source domains, never mixed in labels:
 
 * GOVERNMENT — supplied Sentinel probe / catalogue cameras.
 * OWN_FEED — participant submission feeds (golden Model 4 demo).
 * SYNTHETIC_CONTROL — logical / evaluation slots. Never labelled government.
+* ARCHIVAL_REPLAY — recorded files, separate from the current government stream.
 """
 from __future__ import annotations
 
@@ -21,7 +22,9 @@ GOVERNMENT = "GOVERNMENT"
 OWN_FEED = "OWN_FEED"
 SYNTHETIC_CONTROL = "SYNTHETIC_CONTROL"
 
-DOMAINS = (GOVERNMENT, OWN_FEED, SYNTHETIC_CONTROL)
+ARCHIVAL_REPLAY = "ARCHIVAL_REPLAY"
+
+DOMAINS = (GOVERNMENT, OWN_FEED, SYNTHETIC_CONTROL, ARCHIVAL_REPLAY)
 
 GOLDEN_OWN_FEEDS = (
     {
@@ -171,6 +174,8 @@ def classify_source_domain(camera_id: str | None, *,
     cid = (camera_id or "").strip()
     if not cid:
         return SYNTHETIC_CONTROL
+    if cid.upper().startswith("GOVREC-"):
+        return ARCHIVAL_REPLAY
     if cid.upper().startswith("OWN-") or cid in GOLDEN_IDS:
         return OWN_FEED
     im = (integration_model or "").strip().upper()
@@ -189,6 +194,8 @@ def classify_source_domain(camera_id: str | None, *,
 
 def tile_status(cam: dict[str, Any], *, local_replay: bool = False) -> str:
     """Operator tile badge. A still is never LIVE."""
+    if cam.get("source_domain") == ARCHIVAL_REPLAY:
+        return "REPLAY" if local_replay else "NO SIGNAL"
     st = str(cam.get("state") or cam.get("health_state") or "").upper()
     whep = bool(cam.get("whep_capable") or cam.get("whep_url"))
     rtsp = bool(cam.get("rtsp_capable") or cam.get("rtsp_url"))
@@ -221,7 +228,7 @@ def annotate_camera(cam: dict[str, Any]) -> dict[str, Any]:
     out["source_domain"] = domain
     cid = str(out.get("camera_id") or "")
     replay = False
-    if cid.startswith(("OWN-", "C-")):
+    if cid.startswith(("OWN-", "C-", "GOVREC-")):
         replay = bool(local_media_url(cid))
     out["local_replay"] = replay
     out["tile_status"] = tile_status(out, local_replay=replay)
@@ -229,7 +236,11 @@ def annotate_camera(cam: dict[str, Any]) -> dict[str, Any]:
         GOVERNMENT: "GOVERNMENT",
         OWN_FEED: "OWN FEED",
         SYNTHETIC_CONTROL: "CONTROL",
+        ARCHIVAL_REPLAY: "ARCHIVAL REPLAY",
     }[domain]
+    if domain == ARCHIVAL_REPLAY:
+        from saakshya.live.recordings import recording_metadata
+        out.update(recording_metadata(cid))
     if domain == OWN_FEED:
         out["demo_label"] = "DEMO / CONTROLLED TEST"
     return out

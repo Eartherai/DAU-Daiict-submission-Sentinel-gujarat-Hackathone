@@ -2056,7 +2056,8 @@ function plateRead(plate) {
  * plate, then print the same plate again under it, so a gallery with no
  * stills was sixteen black boxes of repeated text. */
 function plateCard(m) {
-  const showStill = m.still_ok !== false && !directGovernmentOnDemand();
+  const replay = String(m.camera_id || "").startsWith("GOVREC-");
+  const showStill = !replay && m.still_ok !== false && !directGovernmentOnDemand();
   const img = el("img", { alt: m.plate });
   const still = showStill ? el("div", { class: "still" }, img) : null;
   const noStill = () => el("div", { class: "no-still", text: "mark read here · no still captured" });
@@ -2065,6 +2066,7 @@ function plateCard(m) {
     el("div", { class: "read" }, plateRead(m.plate)),
     el("div", { class: "where", text:
       `${m.camera_id} · ${m.name || ""} · ${m.district || "location unknown"} · ${fmtClock(m.t)}` }),
+    replay ? el("div", { class: "where", text: "ARCHIVAL_REPLAY · RECORDED" }) : null,
     showStill ? null : noStill());
   if (showStill) {
     refreshTile(img, m.camera_id).catch(() => {
@@ -3001,9 +3003,19 @@ function streamPriority(cam) {
 function sourceDomain(cam) {
   if (cam?.source_domain) return cam.source_domain;
   const id = String(cam?.camera_id || "");
+  if (/^GOVREC-/i.test(id)) return "ARCHIVAL_REPLAY";
   if (/^OWN-/i.test(id)) return "OWN_FEED";
   if (/^cam\d+/i.test(id)) return "GOVERNMENT";
   return "SYNTHETIC_CONTROL";
+}
+
+function isRecordedGovernment(cam) {
+  return sourceDomain(cam) === "ARCHIVAL_REPLAY"
+    && String(cam?.camera_id || "").startsWith("GOVREC-");
+}
+
+function recordingLabel(cam) {
+  return cam.recording_label || "RECORDED · capture date unavailable";
 }
 
 function domainBadge(cam) {
@@ -3015,6 +3027,7 @@ function domainBadge(cam) {
 }
 
 function tileStatusLabel(cam) {
+  if (isRecordedGovernment(cam)) return "REPLAY";
   if (cam?.tile_status) return cam.tile_status;
   const st = String(cam?.state || "").toUpperCase();
   if (st === "RECONNECTING") return "RECONNECTING";
@@ -3265,9 +3278,11 @@ function setTileState(id, state, text) {
 function renderLiveCount(cams) {
   const node = $("#live-count");
   if (!node) return;
-  const isSimulation = liveDomain === "simulation"
-    || (cams || []).some((c) => sourceDomain(c) === "ARCHIVAL_REPLAY");
-  if (isSimulation) {
+  const isSimulation = liveDomain === "simulation";
+  if (liveDomain === "replay") {
+    node.textContent = `${cams.length} recordings · ARCHIVAL_REPLAY · `
+      + "RECORDED GOVERNMENT FOOTAGE · capture dates on tiles · replayed";
+  } else if (isSimulation) {
     node.textContent =
       `${Math.min(cams.length, liveWallMode)} of ${cams.length} cameras · wall ${liveWallMode} · `
       + `LIVE SIMULATION / ARCHIVAL REPLAY · 12h virtual window · repeated 4-minute assets`;
@@ -3396,6 +3411,8 @@ loaders.live = async () => {
         + (Number(c.published_marks) || 0) * 0.01;
       return score(b) - score(a);
     });
+  } else if (liveDomain === "replay") {
+    cams = cams.filter(isRecordedGovernment);
   } else if (liveDomain === "intelligence") {
     const keep = ["OWN-PEOPLE", "OWN-TRAFFIC"];
     const rank = new Map(keep.map((id, i) => [id, i]));
@@ -3426,7 +3443,7 @@ loaders.live = async () => {
    * one, so the focus stage stays empty until they choose a camera. */
   if (directGovernmentOnDemand() && liveDomain === "government") return;
   if (liveLayout === "focus" || liveLayout === "twoup") {
-    const heroId = demoWall ? "OWN-PEOPLE" : (cams[0] && cams[0].camera_id);
+    const heroId = demoWall && liveDomain !== "replay" ? "OWN-PEOPLE" : (cams[0] && cams[0].camera_id);
     if (heroId) {
       const hero = $(`#live-strip .live-tile[data-camera="${CSS.escape(heroId)}"]`)
         || $(`#live-grid .live-tile[data-camera="${CSS.escape(heroId)}"]`);
@@ -3560,6 +3577,7 @@ function liveEmptyNotice() {
   const domain = {
     government: "No government camera is indexed in this store.",
     intelligence: "Neither own intelligence feed (OWN-PEOPLE, OWN-TRAFFIC) is onboarded in this store.",
+    replay: "No recorded government footage is registered in this store.",
     simulation: "The simulation plane returned no enabled camera.",
   }[liveDomain] || "No camera is onboarded in this store.";
   return el("div", { class: "notice live-empty", text: domain });
@@ -3708,6 +3726,8 @@ async function fillLivePlates() {
     const res = await api("/marks");
     clear(g);
     const rows = preferUsableStills((res.marks || []).filter((m) => {
+      if (liveDomain === "replay") return String(m.camera_id || "").startsWith("GOVREC-");
+      if (liveDomain === "government") return sourceDomain(cameraRecord(m.camera_id)) === "GOVERNMENT";
       if (state.dataHolds !== "DEMONSTRATION") return true;
       return ["C-014", "C-021"].includes(m.camera_id);
     })).slice(0, 16);
@@ -3823,7 +3843,7 @@ async function fillHerePlates(cameraId) {
   const row = $("#here-plate-row");
   const kicker = $("#here-plates .here-kicker");
   if (!row || !cameraId) return;
-  if (kicker) kicker.textContent = `Plates read on ${cameraId} · select a plate for its route`;
+  if (kicker) kicker.textContent = `${String(cameraId).startsWith("GOVREC-") ? "ARCHIVAL_REPLAY · " : ""}Plates read on ${cameraId} · select a plate for its route`;
   try {
     const res = await api(`/marks?camera_id=${encodeURIComponent(cameraId)}`);
     clear(row);
@@ -3892,6 +3912,10 @@ function renderSidecar(cam, ctx) {
     ["District", registry.district || "—"],
     ["Department", registry.department || "—"],
     ["Source", sourceDomain(registry)],
+    ...(isRecordedGovernment(cam) ? [
+      ["Recorded from", cam.source_camera_id || cam.camera_id.replace(/^GOVREC-/, "")],
+      ["Capture window (IST)", `${cam.capture_start_ist || "unknown"} — ${cam.capture_end_ist || "unknown"}`],
+    ] : []),
     ["Stream", `${registry.codec || cam.codec || "—"} · ${registry.width || cam.width || "?"}×${registry.height || cam.height || "?"}`],
     ["Measured FPS", ctx?.health?.measured_fps ?? cam.measured_fps ?? "not measured"],
     ["AI state", cam.ai_state || "not measured"],
@@ -3957,6 +3981,7 @@ function stopDetectionOverlay() {
 }
 
 function startDetectionOverlay(cameraId, canvas) {
+  if (isRecordedGovernment(cameraRecord(cameraId))) return;
   stopDetectionOverlay();
   if (!canvas) return;
   const tracks = new Map(); // track_id -> {bbox, plate, ts, colour}
@@ -4130,6 +4155,7 @@ function fillLiveStage(id) {
 
 
 function liveTile(cam, health) {
+  if (isRecordedGovernment(cam)) return recordedGovernmentTile(cam);
   const id = cam.camera_id;
   const isSimulation = sourceDomain(cam) === "ARCHIVAL_REPLAY";
   const onDemand = !isSimulation && sourceDomain(cam) === "GOVERNMENT"
@@ -4332,7 +4358,7 @@ function startLiveRefresh() {
   /* The simulation wall is WHEP-only: every tile is ARCHIVAL_REPLAY, so a
    * still-capture loop or hub-plane poll here would just churn against
    * endpoints the isolated demo plane never exposes. */
-  if (liveDomain === "simulation") return;
+  if (liveDomain === "simulation" || liveDomain === "replay") return;
   const hub = hubPlane();
   const relay = localRelay();
   const direct = !hub && !relay && state.liveConfig?.plane === "direct_whep";
@@ -4504,6 +4530,7 @@ function decodedPlaybackState(id) {
 }
 
 function tileWhepEligible(cam) {
+  if (isRecordedGovernment(cam)) return false;
   if (hubPlane()) return false;
   /* The isolated demo simulation plane is gated on config.simulation, not on
    * the primary government WHEP flag — it runs its own dedicated relay and
@@ -4530,6 +4557,7 @@ function tileWhepEligible(cam) {
 }
 
 function tileHlsEligible(cam) {
+  if (isRecordedGovernment(cam)) return false;
   /* Local WHEP is the primary command-wall transport. HLS remains an explicit
    * diagnostic fallback only (`?transport=hls`), never the default wall. The
    * standalone 30-camera Chromium success used persistent WHEP peers; making
@@ -5229,9 +5257,16 @@ async function openLive(tile, id) {
   closeLive();
   $$(`.live-tile[data-camera="${CSS.escape(id)}"]`).forEach((t) => t.classList.add("selected"));
   livePlayer = { pc: null, tile, id, statsTimer: null, ownsPc: false };
+  const camRec = cameraRecord(id);
+  if (isRecordedGovernment(camRec)) {
+    await paintGovernmentRecording(camRec, $("#live-stage"));
+    if (livePlayer?.id !== id) return;
+    fillLiveSidecar(camRec);
+    fillHerePlates(id);
+    return;
+  }
   fillLiveStage(id);
 
-  const camRec = cameraRecord(id);
   const isSimulation = sourceDomain(camRec) === "ARCHIVAL_REPLAY";
 
   /* The isolated demo simulation catalog has no still/registry endpoint —
@@ -5387,6 +5422,12 @@ function closeLive() {
    * second WHEP. Only a privately owned hero PC is closed here. */
   if (livePlayer.ownsPc) {
     try { livePlayer.pc && livePlayer.pc.close(); } catch { /* already closed */ }
+  }
+  const recordingStage = $("#live-stage");
+  if (recordingStage?._recordingRequest) {
+    recordingStage._recordingRequest = null;
+    recordingStage.querySelector("video.intel-video")?.remove();
+    recordingStage.classList.remove("recording-stage");
   }
   const stageVideo = $("#live-stage")?.querySelector("video.live-whep");
   if (stageVideo) {
@@ -6934,6 +6975,70 @@ const OWN_KIND_COLOUR = {
   truck: "#ff7a45", bus: "#ff7a45", motorcycle: "#7ddc5a", bicycle: "#7ddc5a",
 };
 
+function recordingFrameIndex(tracks, currentTime) {
+  const frames = tracks.frames || [];
+  if (tracks.timing !== "presentation_timestamps") {
+    return Math.min(frames.length - 1, Math.max(0, Math.floor(currentTime * (tracks.fps || 12))));
+  }
+  let low = 0, high = frames.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (frames[mid][0] <= currentTime + 0.0005) low = mid + 1;
+    else high = mid;
+  }
+  return Math.max(0, low - 1);
+}
+
+function recordedGovernmentTile(cam) {
+  const frame = el("div", { class: "frame" });
+  const tile = el("div", { class: "live-tile", "data-camera": cam.camera_id,
+    "data-domain": "ARCHIVAL_REPLAY" },
+    el("div", { class: "tile-head" },
+      el("span", { class: "vid-chip", text: "RECORDED" }),
+      el("span", { class: "name", text: cam.name || cam.camera_id })),
+    frame,
+    el("div", { class: "tile-foot", text: recordingLabel(cam) }));
+  tile.addEventListener("click", () => openLive(tile, cam.camera_id));
+  paintGovernmentRecording(cam, frame);
+  return tile;
+}
+
+async function paintGovernmentRecording(cam, host) {
+  if (!host) return;
+  const request = {};
+  host._recordingRequest = request;
+  host.classList.add("recording-stage");
+  clear(host);
+  host.append(el("div", { class: "pane-label", text: recordingLabel(cam) }));
+  const media = await loadOwnFeed(cam.camera_id);
+  if (host._recordingRequest !== request || !host.isConnected) return;
+  if (media.failed) {
+    host.append(el("div", { class: "placeholder", text: `Recording unavailable · ${media.why}` }));
+    return;
+  }
+  clear(host);
+  const video = el("video", { class: "intel-video", muted: true, loop: true,
+    playsinline: true, preload: "auto", "aria-label": `${cam.camera_id} recorded footage` });
+  video.muted = true;
+  Object.assign(video.style, { width: "100%", height: "100%", objectFit: "contain" });
+  video.src = media.url;
+  const canvas = el("canvas", { class: "live-overlay", "aria-hidden": "true" });
+  const caption = el("div", { class: "intel-caption" });
+  host.append(video, canvas, el("div", { class: "pane-label", text: recordingLabel(cam) }), caption);
+  const loop = () => {
+    if (!video.isConnected || host._recordingRequest !== request) {
+      video.pause(); video.removeAttribute("src"); video.load(); return;
+    }
+    const rect = video.getBoundingClientRect();
+    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
+    if (visible && video.paused) video.play().catch(() => {});
+    if (!visible && !video.paused) video.pause();
+    if (visible) drawOwnFrame(canvas, video, media.tracks, caption);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
 function drawOwnFrame(canvas, video, tracks, caption) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -6945,8 +7050,8 @@ function drawOwnFrame(canvas, video, tracks, caption) {
   ctx.clearRect(0, 0, w, h);
   const frames = tracks.frames || [];
   if (!frames.length || !video.videoWidth) return;
-  const i = Math.min(frames.length - 1,
-                     Math.max(0, Math.floor(video.currentTime * (tracks.fps || 12))));
+  if (tracks.timing === "presentation_timestamps" && video.currentTime >= tracks.duration_s) return;
+  const i = recordingFrameIndex(tracks, video.currentTime);
   const boxes = frames[i][1] || [];
   const { scale, ox, oy } = videoContentRect(video, w, h);
   let people = 0, vehicles = 0;

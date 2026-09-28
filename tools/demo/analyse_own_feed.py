@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the production pipeline over an own-feed file and keep every frame's result.
+"""Run the production pipeline over a recorded file and keep every frame's result.
 
 The Intelligence view used to show an own feed as a JPEG swapped every 450 ms
 from a snapshot cache with a one-second lifetime, over boxes polled from the
@@ -113,16 +113,23 @@ def _settle_drawn_plates(frames: list[list], track_of: dict[int, str],
 
 
 def analyse(camera_id: str, *, max_seconds: float | None = None,
-            tidy: bool = True, record: str | None = None) -> dict:
+            tidy: bool = True, record: str | None = None,
+            media: Path = MEDIA) -> dict:
     import av
     from render_demo_video import Row, _tidy_drawn  # reuse the render's filter
 
     from saakshya.analytics.pipeline import CameraPipeline, PipelineConfig
     from saakshya.ingest.frame import Frame
 
-    path = MEDIA / f"{camera_id}.mp4"
+    path = media / f"{camera_id}.mp4"
     if not path.is_file():
-        raise SystemExit(f"no own-feed file for {camera_id}: {path}")
+        raise SystemExit(f"no recorded file for {camera_id}: {path}")
+
+    provenance = {}
+    if camera_id.startswith("GOVREC-"):
+        provenance = json.loads(path.with_suffix(".manifest.json").read_text())
+        if provenance.get("camera_id") != camera_id or provenance.get("sha256") != sha256_file(path):
+            raise ValueError("recording manifest does not match footage")
 
     cfg = PipelineConfig()
     cfg.validate_models = True
@@ -139,12 +146,15 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
         store = Store(record)
         store.create_all()
         cam = store.get_camera(camera_id) or {}
+        if provenance and cam.get("source_domain") != "ARCHIVAL_REPLAY":
+            raise ValueError("register this camera as ARCHIVAL_REPLAY before recording findings")
         district = cam.get("district") or district
     pipe = CameraPipeline(camera_id, cfg, district=district)
-    # Observations are stamped with the time this platform processed the file.
-    # The footage's own capture date is not known, and inventing one would put
-    # a fabricated timestamp into an evidence store.
-    epoch = datetime.now(UTC)
+    # Government replays use the measured platform capture window plus file
+    # PTS, never an invented original scene date. Own feeds retain processing
+    # time because their capture date is unknown.
+    epoch = (datetime.fromisoformat(provenance["capture_start_ist"])
+             if provenance else datetime.now(UTC))
     segment = f"SG-{camera_id}-{epoch.strftime('%Y%m%dT%H%M%S')}"
     recorded: list = []
     n_recorded = 0
@@ -162,17 +172,25 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
             fps = float(vs.average_rate) if vs.average_rate else 15.0
         except (TypeError, ValueError):
             fps = 15.0
-        if not (4.0 <= fps <= 60.0):
+        if provenance and not (0 < fps <= 240):
+            raise ValueError("recording frame rate unavailable")
+        if not provenance and not (4.0 <= fps <= 60.0):
             fps = 15.0
         width = vs.codec_context.width
         height = vs.codec_context.height
         codec = vs.codec_context.name
         n = 0
+        first_pts = None
         for i, vf in enumerate(container.decode(video=0)):
-            # Frame index over the measured rate, not the container pts: dumped
-            # clips often carry a collapsed timebase, and the browser plays the
-            # picture at its rate, which is what the overlay must match.
-            pts = i / fps
+            # New captures preserve presentation timestamps, including gaps.
+            # Older own-feed files retain their established frame-rate timing.
+            if provenance:
+                current = float(vf.time) if vf.time is not None else i / fps
+                if first_pts is None:
+                    first_pts = current
+                pts = current - first_pts
+            else:
+                pts = i / fps
             if max_seconds is not None and pts > max_seconds:
                 break
             frame = Frame(camera_id=camera_id, segment_id=segment, pts_s=pts,
@@ -225,7 +243,7 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
                 boxes.append([x1, y1, x2, y2, TYPE_CODE.get(kind, "v"), num,
                               round(r.score * 100), r.plate or "",
                               1 if r.confirmed else 0])
-            frames.append([round(pts, 3), boxes])
+            frames.append([round(pts, 6), boxes])
             n += 1
             if n % 50 == 0:
                 rate = n / max(0.001, time.time() - started)
@@ -242,12 +260,18 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
         n_recorded += store.add_observations(recorded) or len(recorded)
     _settle_drawn_plates(frames, {num: tid for tid, num in short_id.items()}, final_plate)
 
-    duration = len(frames) / fps if fps else 0.0
+    duration = (frames[-1][0] + 1 / fps) if frames else 0.0
     # The plates a track ended with - the published result - not every value
     # the overlay held on the way there.
     plates = sorted(set(final_plate.values()))
     return {
         "camera_id": camera_id,
+        "source_domain": "ARCHIVAL_REPLAY" if provenance else "OWN_FEED",
+        "source_camera_id": provenance.get("source_camera_id"),
+        "capture_start_ist": provenance.get("capture_start_ist"),
+        "synthetic": provenance.get("synthetic", False),
+        "timing": "presentation_timestamps" if provenance else "frame_rate",
+        "timestamp_basis": "capture window + file PTS" if provenance else "processing time",
         "file": path.name,
         "sha256": sha256_file(path),
         "width": width, "height": height, "fps": round(fps, 3),
@@ -265,7 +289,7 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
         "class_counts": classes,
         "plates_accepted": plates,
         "observations_recorded": n_recorded,
-        "recorded_into": record or None,
+        "recorded_into": "configured store" if record else None,
         "frames": frames,
     }
 
@@ -273,6 +297,7 @@ def analyse(camera_id: str, *, max_seconds: float | None = None,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("cameras", nargs="+")
+    ap.add_argument("--media", type=Path, default=MEDIA)
     ap.add_argument("--max-seconds", type=float, default=None)
     ap.add_argument("--record", metavar="DB_URL", default=None,
                     help="also write the pipeline's observations into this "
@@ -280,11 +305,13 @@ def main() -> int:
     a = ap.parse_args()
     for cid in a.cameras:
         print(f"analysing {cid}…", flush=True)
-        out = analyse(cid, max_seconds=a.max_seconds, record=a.record)
-        dest = MEDIA / f"{cid}.tracks.json"
-        dest.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
+        out = analyse(cid, max_seconds=a.max_seconds, record=a.record, media=a.media)
+        dest = a.media / f"{cid}.tracks.json"
+        temporary = dest.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
+        temporary.replace(dest)
         kb = dest.stat().st_size / 1024
-        print(f"wrote {dest.relative_to(ROOT)} — {out['frame_count']} frames, "
+        print(f"wrote {dest.name} — {out['frame_count']} frames, "
               f"{out['tracks']} tracks, plates {out['plates_accepted'] or 'none'}, "
               f"{out['observations_recorded']} observations recorded, "
               f"{kb:.0f} KB, analysed in {out['analysed_in_s']} s")

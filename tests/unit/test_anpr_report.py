@@ -31,7 +31,7 @@ def test_csv_appends_ocr_provenance_without_changing_existing_columns(tmp_path):
     reader = csv.DictReader(io.StringIO(anpr_csv(anpr_rows(store, reads="all"))))
     assert reader.fieldnames == ["plate", "timestamp_utc", "camera_id", "camera_name", "district",
         "department", "object_type", "votes", "timestamp_ist", "confidence", "confirmed",
-        "plate_format_valid", "plate_format_note", "observation_id", "evidence_id", "ocr_model"]
+        "plate_format_valid", "plate_format_note", "observation_id", "evidence_id", "ocr_model", "source_domain"]
     rows = list(reader)
     assert [r["ocr_model"] for r in rows] == ["awiros-anpr-ocr", "earlier", "earlier", "earlier"]
     assert all(r["camera_name"] == "Junction, North" for r in rows)

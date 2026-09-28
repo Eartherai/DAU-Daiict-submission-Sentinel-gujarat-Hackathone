@@ -202,8 +202,8 @@ def test_wall_count_states_the_media_policy_in_force(app: str) -> None:
 #: The content each cache-busting marker was last bumped for. Editing an asset
 #: changes its hash, which fails this test and forces the version alongside it.
 ASSET_VERSIONS = {
-    "app.js": ("cr166", "8920504095ccd278"),
-    "style.css": ("cr127", "e1662e5e5ac1fbd3"),
+    "app.js": ("cr167", "b4af31f12ad60525"),
+    "style.css": ("cr128", "4e8eedc5ccd2b30b"),
 }
 
 

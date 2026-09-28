@@ -833,8 +833,8 @@ async def case_get(state: StateDep, ctx: AuthDep, case_id: str) -> dict[str, Any
 #
 # A recorded file does not have to be sampled like a live camera. These two
 # routes let the browser play the MP4 at its own rate and draw the production
-# pipeline's per-frame output against `currentTime`. Government cameras are
-# never served this way: they are live streams, and there is no file.
+# pipeline's per-frame output against `currentTime`. Original GOVERNMENT rows
+# remain live-only; GOVREC files have separate ARCHIVAL_REPLAY registry rows.
 
 _TRACK_HASH_CACHE: dict[tuple[str, int, int], str] = {}
 
@@ -874,7 +874,7 @@ def _file_sha256(path: Any) -> str:
     import hashlib
 
     st = path.stat()
-    key = (str(path), st.st_size, int(st.st_mtime))
+    key = (str(path), st.st_size, st.st_mtime_ns)
     hit = _TRACK_HASH_CACHE.get(key)
     if hit:
         return hit
@@ -918,7 +918,7 @@ def own_feed_tracks(state: StateDep, ctx: AuthDep, camera_id: str) -> Any:
             "message": (f"{camera_id} has not been analysed frame by frame; run "
                         "tools/demo/analyse_own_feed.py")})
     data = json.loads(side.read_text(encoding="utf-8"))
-    if data.get("sha256") != _file_sha256(path):
+    if data.get("camera_id") != camera_id or data.get("sha256") != _file_sha256(path):
         raise HTTPException(status_code=409, detail={
             "code": "STALE_ANALYSIS",
             "message": (f"the analysis of {camera_id} was made over different "

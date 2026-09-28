@@ -2993,3 +2993,17 @@ body.wall-focus #live-progress {
 .zone-count { margin-top: 4px; font-size: 12.5px; color: var(--ink-2); }
 .zone-count .n { font: 650 18px/1 var(--sans); color: var(--ink); margin-right: 4px; }
 .zone-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* Recorded government files share one picture/canvas rectangle on wall and focus. */
+.recording-stage { position: relative; overflow: hidden; background: #000; }
+.recording-stage video.intel-video, .recording-stage .live-overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+}
+.recording-stage .live-overlay { pointer-events: none; z-index: 2; }
+.recording-stage .pane-label, .recording-stage .intel-caption {
+  position: absolute; left: 6px; z-index: 3; max-width: calc(100% - 12px);
+  background: rgba(0, 0, 0, .75); color: #fff; padding: 4px 6px;
+  font: 600 11px/1.3 var(--sans, system-ui, sans-serif);
+}
+.recording-stage .pane-label { top: 6px; }
+.recording-stage .intel-caption { bottom: 6px; }

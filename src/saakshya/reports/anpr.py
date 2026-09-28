@@ -32,7 +32,7 @@ LEGACY_COLUMNS = ("plate", "timestamp_utc", "camera_id", "camera_name",
                   "district", "department", "object_type", "votes")
 ANPR_COLUMNS = LEGACY_COLUMNS + (
     "timestamp_ist", "confidence", "confirmed", "plate_format_valid",
-    "plate_format_note", "observation_id", "evidence_id", "ocr_model")
+    "plate_format_note", "observation_id", "evidence_id", "ocr_model", "source_domain")
 
 #: A read agreed across this many frames is a confirmation, below it a lead.
 #: Same threshold as `plate_status` in analytics, so the report and the
@@ -127,6 +127,7 @@ def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
             # parsed it keeps parsing it.
             "timestamp_utc": when.isoformat() if when else "",
             "camera_id": cid,
+            "source_domain": cam.get("source_domain") or "UNKNOWN",
             "camera_name": cam.get("name") or cid,
             "district": district,
             "department": m["department"] or cam.get("department"),

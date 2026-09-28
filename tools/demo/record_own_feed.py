@@ -1,484 +1,769 @@
-"""The own-feed demonstration, to the length the challenge allows.
+"""Record the OWNFILM lane: actual UI, 2:30-2:55, no loading screens.
 
-Submission item 3 asks for a screen recording of **maximum 2-3 minutes** on the
-participant's own feed, showing four things:
-
-  1. onboarding and processing of live or recorded CCTV feeds;
-  2. AI-powered detection and analytics;
-  3. correlation of detected entities with a representative watchlist;
-  4. automatic real-time alert generation and visualisation on a match.
-
-The full platform tour runs twenty minutes, which is the wrong artifact for
-this requirement: a reviewer with a three-minute budget should not have to find
-the relevant ninety seconds inside it. This records only those four things, in
-that order, and refuses to finish over the limit.
-
-    python tools/demo/record_own_feed.py --base http://127.0.0.1:8083 \
-        --token-file /path/to/token.raw
-
-Nothing here is staged. Onboarding really onboards through the registry API,
-the detections are drawn by the AI worker on our own feeds, and the alert is
-whatever the watchlist actually fired.
+Run against the primary's prepared local demo server (licensed OWN-* MP4s and
+matching tracks, plus the separately labelled synthetic corpus). Both tokens
+are required: ADMIN has admin:write; an officer has search permission. Tokens
+are read from existing files into memory and entered only in #gate-token.
+No server, ingest, or synthetic sightings are started by this recorder.
 """
 
 from __future__ import annotations
 
 import argparse
+import math
+import re
 import shutil
-import sys
 import subprocess
-import time
-from dataclasses import dataclass, field
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hq_screencast import Screencast, probe  # noqa: E402
+from hq_screencast import Screencast
 
-#: 1440p. Measured against Playwright's own recorder on the same
-#: content: that path stretched a 20.3s interaction into 27.3s of
-#: video and capped at 25fps, which makes the product look slower
-#: than it is. The CDP screencast came back timing-accurate to
-#: 0.1s at 30fps and half the size, with equivalent sharpness.
 VIEW_W, VIEW_H = 2560, 1440
-#: The challenge says 2-3 minutes. Aim under three and fail loudly if over.
-HARD_LIMIT_S = 180.0
+MIN_LENGTH_S, HARD_LIMIT_S = 150.0, 175.0
+MIN_VIDEO_CAPTURE_FPS = 20.0
+SYNTHETIC_PLATE = "GJ18JX7786"
+SYNTHETIC_LABEL = "SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage"
+OWN_LABEL = "DEMO · RECORDED LICENSED MUMBAI FOOTAGE · pipeline analysis replay"
+
+
+def noop() -> None:
+    pass
+
+
+class RecordingError(RuntimeError):
+    """Only fixed, non-sensitive diagnostics may leave the recording driver."""
 
 
 @dataclass
 class Beat:
     title: str
     dwell_s: float
-    action: Callable[[], None] = lambda: None
-    #: What the narrator says over this beat. Its measured length can extend the
-    #: beat, never shorten it, so the voice always finishes over its own screen.
+    action: Callable[[], None] = noop
     say: str = ""
+    prepare: Callable[[], None] = noop
+    label: str = "DEMO · actual application · loading intervals omitted"
+    monitor_video: bool = False
     ok: bool = True
     err: str = ""
-    at: float = field(default=0.0)
+    at: float = 0.0
     say_s: float = 0.0
     audio: Path | None = None
 
 
-def build(page, plate: str, case_id: str = "FIR-000/2026",
-          purpose: str = "tracing a designated vehicle",
-          admin_token: str = "", investigator_token: str = "") -> list[Beat]:
-    def use_token(token: str):
-        """Sign in as a different officer, the way the workspace does it.
+# Observe the application's own drawing calls, without changing any pixel,
+# track, playback cadence, or detection. Installed before app.js is loaded.
+DRAW_PROBE_JS = r"""(() => {
+  const p = CanvasRenderingContext2D.prototype;
+  const stroke = p.strokeRect, text = p.fillText;
+  p.strokeRect = function(...args) {
+    const c = this.canvas;
+    if (c.matches('.intel-stage canvas.live-overlay')) {
+      c.__ownDrawAt = performance.now();
+      c.__ownDrawCount = (c.__ownDrawCount || 0) + 1;
+    }
+    return stroke.apply(this, args);
+  };
+  p.fillText = function(value, ...args) {
+    if (this.canvas.matches('.intel-stage canvas.live-overlay') &&
+        /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/.test(String(value))) {
+      this.canvas.__ownPlateAt = performance.now();
+    }
+    return text.call(this, value, ...args);
+  };
+})();"""
 
-        Not a convenience: onboarding needs `admin:write` and ADMIN holds no
-        search permission, because running the estate and investigating people
-        are different jobs. One token cannot film both halves, and the first
-        take proved it — the onboarding beat recorded
-        `PERMISSION_DENIED: role SUPERVISOR does not hold admin:write`, which
-        is the authorisation model working exactly as designed and the
-        demonstration failing because of it.
-        """
-        def go():
-            if not token:
-                return
-            page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
-            page.reload(wait_until="domcontentloaded")
-            page.wait_for_timeout(3500)
-        return go
+MEDIA_SAMPLE_JS = r"""() => {
+  const visible = e => {
+    const r = e.getBoundingClientRect(), s = getComputedStyle(e);
+    return r.width > 8 && r.height > 8 && r.bottom > 0 && r.right > 0 &&
+      r.top < innerHeight && r.left < innerWidth && s.visibility !== 'hidden' &&
+      s.display !== 'none';
+  };
+  return [...document.querySelectorAll('video')].filter(visible).map(v => {
+    const host = v.closest('.intel-stage'), c = host?.querySelector('canvas.live-overlay');
+    return {id: host?.dataset.camera || '', time: v.currentTime, duration: v.duration,
+      ready: v.readyState, paused: v.paused, width: v.videoWidth,
+      draws: c?.__ownDrawCount || 0, drawAge: performance.now() - (c?.__ownDrawAt ?? -1e9),
+      plate: performance.now() - (c?.__ownPlateAt ?? -1e9) < 1500};
+  });
+}"""
 
-    def nav(view: str, settle: float = 1.5):
-        def go():
-            # A report left open is modal; close it before moving on.
-            if page.evaluate("!!document.querySelector('#report-dialog')?.open"):
-                page.click("#report-close")
-                page.wait_for_timeout(300)
-            page.click(f'button[data-view="{view}"]')
-            page.wait_for_timeout(int(settle * 1000))
-        return go
+
+def check_media_samples(
+    before: list[dict], after: list[dict], *, require_plate: bool = False
+) -> None:
+    """Require every visible video, not merely one video, to advance and draw."""
+    expected = {"OWN-MUM-AUTOSTAND", "OWN-MUM-QUEUE"}
+    if {r["id"] for r in before} != expected or len(before) != 2:
+        raise RecordingError("Both licensed own-feed videos must be visible")
+    if {r["id"] for r in after} != expected or len(after) != 2:
+        raise RecordingError("A visible video disappeared or an unverified video appeared")
+    previous = {r["id"]: r for r in before}
+    for row in after:
+        old = previous[row["id"]]
+        delta = row["time"] - old["time"]
+        if delta < 0 and math.isfinite(row["duration"]):
+            delta += row["duration"]  # native looping is still advancing
+        if row["paused"] or row["ready"] < 2 or row["width"] <= 0 or delta < 0.05:
+            raise RecordingError("A visible own-feed video is stalled")
+        if row["draws"] <= old["draws"] or row["drawAge"] > 500:
+            raise RecordingError("A visible own-feed overlay is not drawing boxes")
+    if require_plate and not any(row["plate"] for row in after):
+        raise RecordingError("No accepted plate was drawn during media preflight")
+
+
+def preflight_media(page, *, require_plate: bool = True) -> list[dict]:
+    page.wait_for_function(
+        """() => [...document.querySelectorAll('.intel-stage video')]
+      .length === 2 && [...document.querySelectorAll('.intel-stage video')]
+      .every(v => v.readyState >= 2 && !v.paused && v.videoWidth > 0)""",
+        timeout=30000,
+    )
+    before = page.evaluate(MEDIA_SAMPLE_JS)
+    page.wait_for_timeout(1000)
+    after = page.evaluate(MEDIA_SAMPLE_JS)
+    check_media_samples(before, after, require_plate=require_plate)
+    return after
+
+
+def wait_text(page, selector: str, text: str) -> None:
+    page.wait_for_function(
+        """([selector, text]) => {
+      const e = document.querySelector(selector);
+      return !!e && e.textContent.includes(text);
+    }""",
+        arg=[selector, text],
+        timeout=30000,
+    )
+
+
+def clean_screen(page) -> None:
+    """Wait out transient UI; fail before capture if sensitive text is visible."""
+    page.wait_for_function(
+        r"""() => {
+      const visible = e => !!e.getClientRects().length &&
+        getComputedStyle(e).visibility !== 'hidden';
+      return ![...document.querySelectorAll('.loading-note, [aria-busy="true"], .toast')]
+        .some(visible) && ![...document.querySelectorAll('button:disabled')]
+        .some(e => visible(e) && /Searching|Loading|Verifying/.test(e.textContent));
+    }""",
+        timeout=30000,
+    )
+    # Return a boolean, never page text or input values, to Python/logs.
+    if page.evaluate(r"""() => {
+      const report = document.querySelector('#report-frame')
+        ?.contentDocument?.body?.innerText || '';
+      const text = document.body.innerText + report;
+      return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) ||
+        /\bskv_[A-Za-z0-9_-]+/.test(text) ||
+        [...document.querySelectorAll('input')].some(e => e.getClientRects().length &&
+          e.type !== 'password' && /\bskv_[A-Za-z0-9_-]+/.test(e.value));
+    }"""):
+        raise RecordingError("Sensitive text is visible; use non-personal demo identities")
+
+
+def label_screen(page, text: str) -> None:
+    # A provenance caption only; never cover or alter application results.
+    page.evaluate(
+        """text => {
+      let e = document.querySelector('#ownfilm-provenance');
+      if (!e) {
+        e = document.createElement('div'); e.id = 'ownfilm-provenance';
+        e.style.cssText = 'position:fixed;top:0;left:400px;right:0;z-index:2147483647;'
+          + 'padding:7px 12px;background:#101821;color:#fff;font:16px monospace;'
+          + 'pointer-events:none;text-align:center';
+        document.body.append(e);
+      }
+      e.textContent = text;
+    }""",
+        text,
+    )
+
+
+def reset_gate(page, base: str, view: str = "cameras") -> None:
+    page.evaluate("sessionStorage.clear()")
+    # A hash-only goto keeps app.js state alive; force a fresh document.
+    page.goto("about:blank")
+    page.goto(f"{base}/ui/#{view}", wait_until="domcontentloaded")
+    page.wait_for_selector("#gate", state="visible")
+    if page.get_attribute("#gate-token", "type") != "password":
+        raise RecordingError("The sign-in token field is not masked")
+
+
+def fill_gate(page, token: str, officer: str, case: str, purpose: str) -> None:
+    if page.get_attribute("#gate-token", "type") != "password":
+        raise RecordingError("The sign-in token field is not masked")
+    for selector, value in (
+        ("#gate-officer", officer),
+        ("#gate-token", token),
+        ("#gate-case", case),
+        ("#gate-purpose", purpose),
+    ):
+        page.fill(selector, value)
+
+
+def enter_gate(page) -> None:
+    page.click('#gate-form button[type="submit"]')
+    page.wait_for_selector("#gate", state="hidden", timeout=20000)
+
+
+def build(
+    page,
+    plate: str,
+    case_id: str = "DEMO-OWN-2026",
+    purpose: str = "demonstrating recorded feed investigation",
+    admin_token: str = "",
+    investigator_token: str = "",
+    *,
+    base: str = "http://127.0.0.1:8083",
+    admin_officer: str = "admin.demo",
+    investigator: str = "supervisor.demo",
+    camera_id: str | None = None,
+) -> list[Beat]:
+    camera_id = camera_id or f"DEMO-OWN-{uuid4().hex[:10].upper()}"
+
+    def nav(view):
+        if page.evaluate("!!document.querySelector('#report-dialog')?.open"):
+            page.click("#report-close")
+        page.click(f'button[data-view="{view}"]')
+        page.wait_for_selector(f"#view-{view}.active", state="visible")
+
+    def onboard_form():
+        enter_gate(page)
+        page.wait_for_selector("#btn-onboard-toggle", state="visible")
+        page.click("#btn-onboard-toggle")
+        page.wait_for_selector("#onboard-manual", state="visible")
 
     def onboard():
-        """Onboard a camera the way an operator does, on camera.
+        for selector, value in (
+            ("#ob-camera-id", camera_id),
+            ("#ob-name", "DEMO camera — no connected stream"),
+            ("#ob-department", "Municipal Corporation"),
+            ("#ob-district", "Ahmedabad"),
+            ("#ob-lat", "23.0301"),
+            ("#ob-lon", "72.5800"),
+            ("#ob-vms", "DEMO registry entry"),
+            ("#ob-retention", "15"),
+        ):
+            page.fill(selector, value)
+            page.wait_for_timeout(160)
 
-        This used to POST to /registry/cameras/import from page.evaluate. The
-        onboarding happened and the recording showed nothing: a reviewer saw a
-        page reload and a new row appear, with no visible cause. Model 1's
-        named deliverable is a *demonstration* of manual and bulk onboarding,
-        and an invisible fetch demonstrates nothing.
+    def validate():
+        page.click("#btn-ob-dry")
+        wait_text(page, "#onboard-result.ok", "Valid — nothing was written. 1 row(s)")
 
-        It now fills the form in the Cameras view, validates first, then
-        commits — which is also the honest order, because the validate step is
-        what proves the dry run writes nothing.
-        """
-        page.click('button[data-view="cameras"]')
-        page.wait_for_timeout(2200)
-        page.click("#btn-onboard-toggle")
-        page.wait_for_timeout(700)
-        for sel, value in (
-                ("#ob-camera-id", "MC-ONBOARD-01"),
-                ("#ob-name", "Onboarded during this recording"),
-                ("#ob-department", "Municipal Corporation"),
-                ("#ob-district", "Ahmedabad"),
-                ("#ob-lat", "23.0301"),
-                ("#ob-lon", "72.5800"),
-                ("#ob-vms", "Milestone"),
-                ("#ob-retention", "15")):
-            try:
-                page.fill(sel, value, timeout=3000)
-                page.wait_for_timeout(110)
-            except Exception:
-                continue
-        page.wait_for_timeout(500)
-        # Validate first: the panel reports what would happen and writes
-        # nothing, which is the guarantee worth filming.
-        try:
-            page.click("#btn-ob-dry", timeout=3000)
-            page.wait_for_timeout(2000)
-        except Exception:
-            pass
-        try:
-            page.click("#btn-ob-submit", timeout=3000)
-            page.wait_for_timeout(2600)
-        except Exception:
-            pass
+    def commit_camera():
+        # This assertion precedes the write, so a validation failure cannot fall through.
+        wait_text(page, "#onboard-result.ok", "Valid — nothing was written. 1 row(s)")
+        page.click("#btn-ob-submit")
+        wait_text(page, "#onboard-result.ok", "Onboarded 1 camera(s)")
 
-    def registry_gaps():
-        """The other half of Model 1: what the registry does not know.
-
-        Filtering to the rows with unsupplied metadata is the gap report made
-        interactive — the same 94% the generated report names, on screen and
-        narrowable.
-        """
-        try:
-            page.click("#btn-onboard-toggle", timeout=2500)
-        except Exception:
-            pass
-        page.wait_for_timeout(500)
-        try:
-            page.check("#reg-missing", timeout=2500)
-            page.wait_for_timeout(1800)
-            page.fill("#reg-q", "panchayat", timeout=2500)
-            page.wait_for_timeout(1800)
-            page.click("#btn-reg-clear", timeout=2500)
-        except Exception:
-            pass
-        page.wait_for_timeout(900)
+    def officer_gate():
+        reset_gate(page, base, "investigate")
 
     def own_feeds():
-        page.click('button[data-view="intelligence"]')
-        # The stages fetch the recording and its frame track before playing;
-        # wait for real playback rather than a fixed sleep, so the beat never
-        # films a still that is about to become a video.
-        try:
-            page.wait_for_function(
-                """() => [...document.querySelectorAll('.intel-stage video')]
-                         .some(v => !v.paused && v.currentTime > 0.5)""",
-                timeout=20000)
-        except Exception:
-            pass
-        page.wait_for_timeout(1500)
+        enter_gate(page)
+        nav("intelligence")
+        page.wait_for_selector("#intel-stage-a video", state="visible", timeout=30000)
+        page.wait_for_selector("#intel-stage-b video", state="visible", timeout=30000)
+        # Seek the recorded files to actual accepted-plate frames from their
+        # authenticated sidecars. No synthetic box or plate is ever inserted.
+        page.evaluate(
+            """async plate => {
+          for (const host of document.querySelectorAll('.intel-stage')) {
+            const path = '/media/own/' + encodeURIComponent(host.dataset.camera) + '/tracks';
+            const r = await fetch(path,
+              {headers: {Authorization: 'Bearer ' + sessionStorage.getItem('saakshya.token')}});
+            if (!r.ok) throw new Error('Track preflight failed');
+            const t = await r.json();
+            const index = t.frames.findIndex(f => f[1].some(b => b[7] === plate));
+            const v = host.querySelector('video');
+            if (index >= 0) v.currentTime = index / t.fps;
+            await v.play();
+          }
+        }""",
+            plate,
+        )
+        preflight_media(page)
+        page.wait_for_selector("#intel-plates .alert-card", state="visible")
 
-    def watchlist_hit():
-        """Correlation on fictional plates, and only on fictional plates.
+    def search(target):
+        nav("investigate")
+        page.fill("#case-id", case_id)
+        page.fill("#purpose", purpose)
+        page.fill("#q-plate", target)
+        page.uncheck("#q-fuzzy")
+        page.uncheck("#q-watchlist")
+        page.press("#q-plate", "Enter")
+        page.wait_for_function(
+            """target => {
+          const button = document.querySelector('#search-form button.primary');
+          return !button.disabled &&
+            document.querySelector('#traj-target')?.textContent === target &&
+            !!document.querySelector('#results .result');
+        }""",
+            arg=target,
+            timeout=30000,
+        )
+        page.wait_for_selector("#map", state="visible")
+        if target == plate:
+            page.wait_for_function("""() => {
+              const rows = [...document.querySelectorAll('#results .result .cam')];
+              return rows.length > 0 && rows.every(r => r.textContent.startsWith('OWN-'));
+            }""")
 
-        The own feed is real footage of real vehicles. Putting one of them on a
-        "stolen" watchlist to make a demonstration fire would show a real owner
-        as a suspect. The watchlist hit is therefore shown on the synthetic
-        corpus, whose plates belong to nobody, and the narration says so.
-        """
-        page.click('button[data-view="alerts"]')
-        page.wait_for_timeout(2500)
+    def alert():
+        nav("alerts")
+        page.click('button[data-alert-status=""]')
+        card = page.locator("#alerts .incident", has_text=SYNTHETIC_PLATE).first
+        card.wait_for(state="visible", timeout=30000)
+        card.scroll_into_view_if_needed()
 
-    def trace_report(report_plate: str = "GJ18JX7786"):
-        """Open the printable trace report for the vehicle the alert named.
+    def route():
+        search(SYNTHETIC_PLATE)
+        wait_text(page, "#traj-body", "C-014")
+        wait_text(page, "#traj-body", "C-021")
+        page.wait_for_selector("#hyp-tabs button", state="visible")
+        # loadTrajectory awaits this GIS response; check the actual map layer too.
+        page.wait_for_function("""() => !!document.querySelector('#map')?.width &&
+          !!window.__saakshya?.map1?.layers?.trajectory &&
+          !document.querySelector('#search-form button.primary').disabled""")
 
-        The alert is on a fictional plate, which is also the one with a route
-        across cameras; the plate read off our own footage was read once and
-        has no route to print. The report opens in place, from the alert card,
-        and is scrolled so the legs, the reads and the signature block are on
-        screen long enough to read.
-        """
-        def go():
-            card = page.locator(".incident", has_text=report_plate).first
-            try:
-                card.locator("button", has_text="Trace report").click(timeout=4000)
-            except Exception:
-                page.click("#btn-trace-report", timeout=3000)
-            page.wait_for_function(
-                "() => (document.querySelector('#report-frame')?.srcdoc || '').length > 1000",
-                timeout=10000)
-            page.wait_for_timeout(2600)
-            # Scrolled from the parent: the report frame runs no script of its
-            # own (it is sandboxed without allow-scripts), but it is same-origin.
-            for y in (520, 1040, 1700, 2600):
-                page.evaluate("y => document.querySelector('#report-frame')"
-                              ".contentWindow.scrollTo({top: y, behavior: 'smooth'})", y)
-                page.wait_for_timeout(1700)
-        return go
+    def report():
+        alert()
+        page.locator("#alerts .incident", has_text=SYNTHETIC_PLATE).first.locator(
+            "button", has_text="Trace report"
+        ).click()
+        page.wait_for_function(
+            """() =>
+          (document.querySelector('#report-frame')?.srcdoc || '').length > 1000""",
+            timeout=30000,
+        )
+        # A modal is in the browser top layer; put the truth caption inside it.
+        page.evaluate(
+            """text => {
+          document.querySelector('#ownfilm-report-label')?.remove();
+          const e = document.createElement('p'); e.id = 'ownfilm-report-label';
+          e.textContent = text;
+          e.style.cssText = 'margin:0;padding:8px;color:#fff;background:#101821;'
+            + 'font:16px monospace';
+          document.querySelector('#report-dialog').prepend(e);
+        }""",
+            SYNTHETIC_LABEL,
+        )
 
-    def bind_purpose():
-        """Purpose binding is a gate, not decoration.
-
-        A vehicle search is refused outright without a case identifier and a
-        stated reason, both of which are written into the audit record. The
-        first take of this recording typed a plate, pressed Enter, and filmed
-        `PURPOSE_REQUIRED` in red with an empty trajectory — the control
-        working exactly as designed, and the demonstration failing because of
-        it. Fill them the way an officer must.
-        """
-        for sel, value in (("#case-id", case_id), ("#purpose", purpose)):
-            try:
-                page.fill(sel, value, timeout=4000)
-            except Exception:
-                continue
-        page.wait_for_timeout(600)
-
-    def search_plate():
-        page.click('button[data-view="investigate"]')
-        page.wait_for_timeout(1800)
-        bind_purpose()
-        for sel in ('#q-plate', '#q', 'input[name="q"]', '.search input'):
-            try:
-                page.fill(sel, plate, timeout=2500)
-                page.press(sel, "Enter")
-                break
-            except Exception:
-                continue
-        page.wait_for_timeout(4000)
+    def evidence():
+        nav("evidence")
+        page.wait_for_selector("#evidence-chain .ev-when", state="visible", timeout=60000)
+        page.wait_for_selector("#evidence-chain table", state="visible", timeout=60000)
 
     return [
-        # The estate administrator onboards; the investigating officer
-        # investigates. Filming the handover is not ceremony: it is the role
-        # separation the bonus criteria ask about, shown rather than asserted.
-        Beat("Signed in as the estate administrator", 3, use_token(admin_token),
-             say="The estate administrator signs in. Registering cameras is "
-                 "their job. Searching for vehicles is not."),
-        Beat("Onboarding — a camera added through the registry portal", 14, onboard,
-             say="A department's camera is onboarded through the registry "
-                 "portal. The form validates first, and writes nothing. Then it "
-                 "commits. Only the camera id is required."),
-        Beat("What the registry does not know", 9, registry_gaps,
-             say="The gap report moves as the camera lands. The two fields "
-                 "supplied leave the missing list. The three not supplied stay "
-                 "named, so a department knows what to send."),
-        Beat("Handing over to the investigating officer", 3,
-             use_token(investigator_token),
-             say="The investigating officer takes over."),
-        Beat("Own feeds, with AI detection drawn on them", 22, own_feeds,
-             say="Our own feed is licensed footage of Mumbai traffic, filmed "
-                 "from a foot-over-bridge and playing at thirty frames a second. "
-                 "Every box is this platform's own pipeline, on that exact frame. "
-                 "A number plate appears only once the pipeline's vote accepts "
-                 "it. Faces are blurred."),
-        Beat("What the analytics produced", 10, nav("analytics", 2.5),
-             say="Detections become counts and read rates, measured from the "
-                 "store rather than declared."),
-        Beat("The mark, traced across the estate", 15, search_plate,
-             say="A plate read off that footage, agreed across hundreds of frames, "
-                 "is now searchable. Every search carries a case number and a "
-                 "stated purpose, or it does not run."),
-        Beat("Watchlist match, and the alert it fired", 16, watchlist_hit,
-             say="Watchlist correlation is shown on fictional plates. We do not "
-                 "put a real person's vehicle on a watchlist for a "
-                 "demonstration. The alert sets the read beside the listed "
-                 "plate, character by character."),
-        Beat("A trace report an officer can sign", 11, trace_report(),
-             say="From the alert, the route becomes a report an officer can "
-                 "print and sign. Every read, each leg timed, and a digest "
-                 "over the rows."),
-        Beat("Evidence, sealed and hash-chained", 9, nav("evidence", 2.0),
-             say="Evidence is sealed with a hash chain."),
-        Beat("Every query attributed", 9, nav("audit", 2.0),
-             say="And every query is attributed: who searched, for which "
-                 "vehicle, when, and why."),
+        Beat(
+            "Sign-in gate · estate administrator",
+            8,
+            action=lambda: fill_gate(page, admin_token, admin_officer, case_id, purpose),
+            say=(
+                "The estate administrator signs in with a masked token. Camera "
+                "registration needs the administrator role."
+            ),
+        ),
+        Beat(
+            "Onboarding · camera form",
+            12,
+            action=onboard,
+            prepare=onboard_form,
+            say=(
+                "A clearly named demonstration camera is entered through the actual "
+                "registry form. No stream is connected to this registry entry."
+            ),
+        ),
+        Beat(
+            "Onboarding · validation before write",
+            7,
+            prepare=validate,
+            say=(
+                "Validate only checks the form. The application confirms that nothing has "
+                "been written."
+            ),
+        ),
+        Beat(
+            "Onboarding · committed registry entry",
+            6,
+            prepare=commit_camera,
+            say="Only after validation does the administrator onboard the camera.",
+        ),
+        Beat(
+            "Administrator → officer handoff",
+            9,
+            prepare=officer_gate,
+            action=lambda: fill_gate(page, investigator_token, investigator, case_id, purpose),
+            say=(
+                "The investigating officer takes over, with a separate token, a case "
+                "identifier and a stated purpose."
+            ),
+        ),
+        Beat(
+            "Own-feed detection · accepted ANPR votes",
+            34,
+            prepare=own_feeds,
+            label=OWN_LABEL + " · Other corpus results: SYNTHETIC RENDERED TEST CORPUS",
+            monitor_video=True,
+            say=(
+                "These are licensed recordings of Mumbai traffic. The browser plays each "
+                "file at its native rate. The production pipeline analysed each frame "
+                "beforehand. Boxes follow the video's frame clock. Plates appear when the "
+                "pipeline's agreement vote holds. This is analysis replay, not a claim of "
+                "live inference speed."
+            ),
+        ),
+        Beat(
+            "ANPR search · licensed own feed",
+            14,
+            prepare=lambda: search(plate),
+            label=OWN_LABEL,
+            say=(
+                "A plate read from the licensed footage is searched under the officer's "
+                "case and purpose. The stored observations are the evidence for this "
+                "result. No real multi-camera journey is claimed."
+            ),
+        ),
+        Beat(
+            "Representative watchlist · automatic match alert",
+            18,
+            prepare=alert,
+            label=SYNTHETIC_LABEL + " · FICTIONAL PLATE · stored automatic alert",
+            say=(
+                "This fictional plate belongs to the synthetic rendered test corpus. The "
+                "stored automatic alert compares the read with the representative "
+                "watchlist. It shows the real-time matching mechanism's output, not a new "
+                "alert firing during this take."
+            ),
+        ),
+        Beat(
+            "Alert visualisation · map and route",
+            20,
+            prepare=route,
+            label=SYNTHETIC_LABEL + " · FICTIONAL PLATE",
+            say=(
+                "The same fictional plate opens its observations, map and timed route. C "
+                "zero fourteen to C zero twenty-one is a synthetic rendered test corpus "
+                "route, not camera footage. It tests route logic; we have no real "
+                "multi-camera evidence to claim."
+            ),
+        ),
+        Beat(
+            "Synthetic route · trace report",
+            16,
+            prepare=report,
+            label=SYNTHETIC_LABEL,
+            say=(
+                "The application produces a trace report from those synthetic "
+                "observations. The report preserves the timed legs and the digest over "
+                "its rows. It is a route-logic demonstration."
+            ),
+        ),
+        Beat(
+            "Evidence · chain verification",
+            18,
+            prepare=evidence,
+            label="DEMO · stored evidence · a verified hash proves bytes, not vehicle identity",
+            say=(
+                "The evidence page recomputes the hash chain. Read any cautions with the "
+                "result: a verified hash proves the stored bytes. Older stills can show a "
+                "different vehicle. The officer must verify the record before relying on "
+                "it."
+            ),
+        ),
     ]
 
-#: Allowance per beat for the clicks and loads the action itself takes, used to
-#: project the take's length before recording rather than discover it after.
-ACTION_ALLOWANCE_S = 2.5
+
+def plan_duration(beats: list[Beat]) -> float:
+    total = sum(b.dwell_s for b in beats)
+    if not MIN_LENGTH_S <= total <= HARD_LIMIT_S - 3:
+        raise RecordingError("The planned film must fit 2:30-2:52 with encoding headroom")
+    return total
 
 
 def narrate(beats: list[Beat], work: Path, voice: str) -> float:
-    """Synthesise every beat's line and project the take's length.
-
-    Refuses a take that cannot fit: finding out at 3m04s that a recording is
-    over the limit costs a whole take, and the government grid's session
-    budget with it on the other film.
-    """
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
     import narration
 
     if not narration.available():
-        raise SystemExit("narration needs macOS `say`, ffmpeg and ffprobe")
-    projected = 0.0
+        raise RecordingError("Narration needs macOS say, ffmpeg and ffprobe")
+    work.mkdir(parents=True, exist_ok=True)
     for i, b in enumerate(beats):
-        if b.say:
-            b.audio = work / f"line_{i:02d}.wav"
-            b.say_s = narration.synth(b.say, b.audio, voice=voice)
-        projected += max(b.dwell_s + ACTION_ALLOWANCE_S, b.say_s + 0.6)
-    if projected > HARD_LIMIT_S - 5:
-        raise SystemExit(
-            f"the narrated take projects to {projected:.0f}s against a "
-            f"{HARD_LIMIT_S:.0f}s limit; shorten a line before recording")
-    return projected
+        b.audio = work / f"line_{i:02d}.wav"
+        b.say_s = narration.synth(b.say, b.audio, voice=voice)
+        if not math.isfinite(b.say_s) or b.say_s <= 0:
+            raise RecordingError(f"Narration produced no measurable audio at beat {i + 1}")
+        if b.say_s + 0.6 > b.dwell_s:
+            raise RecordingError(
+                f"Narration exceeds its fixed slot at beat {i + 1}; shorten the line"
+            )
+    return plan_duration(beats)
 
 
-def finish_narrated(beats: list[Beat], silent: Path, out: Path, work: Path,
-                    offset_s: float) -> None:
-    """Lay each line at its beat's recorded start and burn the captions in."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+def finish_narrated(beats, silent, out, work, offset_s):
     import narration
 
     total = narration.probe_duration(silent)
     lines, chapters = [], []
-    for i, b in enumerate(beats):
+    for b in beats:
         start = max(0.0, b.at - offset_s)
         if b.audio:
             lines.append(narration.Line(start, b.say, b.audio, b.say_s))
-        nxt = (beats[i + 1].at - offset_s) if i + 1 < len(beats) else total
-        chapters.append((start, min(start + 3.2, nxt), b.title))
+        chapters.append((start, min(start + 3.2, total), b.title))
     track = narration.build_track(lines, total, work / "narration.wav")
-    ass = narration.write_ass(lines, work / "captions.ass",
-                              width=VIEW_W, height=VIEW_H, chapter=chapters)
+    ass = narration.write_ass(
+        lines, work / "captions.ass", width=VIEW_W, height=VIEW_H, chapter=chapters
+    )
     narration.finish(silent, track, ass, out)
 
 
-def record(base: str, token: str, plate: str, out_dir: Path,
-           admin_token: str = "", voice: str | None = "Aman") -> list[Beat]:
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:                                # pragma: no cover
-        raise SystemExit("needs Playwright:  pip install -e '.[demo]'") from None
+def validate_base(base: str) -> str:
+    parts = urlsplit(base)
+    if (
+        parts.scheme != "http"
+        or parts.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or parts.username
+        or parts.password
+        or parts.query
+        or parts.fragment
+        or parts.path not in {"", "/"}
+    ):
+        raise RecordingError(
+            "Use a local HTTP server origin without credentials or query parameters"
+        )
+    return base.rstrip("/")
 
-    out_dir.mkdir(parents=True, exist_ok=True)
-    with sync_playwright() as p:
+
+def identity(ctx, base: str, token: str, roles: set[str]) -> str:
+    res = ctx.request.get(f"{base}/me", headers={"Authorization": f"Bearer {token}"})
+    if not res.ok:
+        raise RecordingError("A required sign-in token was refused (PERMISSION_DENIED or expired)")
+    principal = res.json().get("principal", {})
+    name = principal.get("user_id", "")
+    if principal.get("role", "").upper() not in roles:
+        raise RecordingError("The supplied token has the wrong role")
+    if not name or "@" in name or "@" in (principal.get("display_name") or ""):
+        raise RecordingError("Use demo identities without personal email addresses")
+    return name
+
+
+def run_beats(page, cast, beats: list[Beat]) -> float:
+    """Prepare while paused; the entire visible slot includes its UI actions."""
+    origin = cast.timeline_time()
+    for i, b in enumerate(beats):
+        cast.pause()
         try:
-            browser = p.chromium.launch(channel="chrome", headless=True)
+            b.prepare()
+            clean_screen(page)
+            label_screen(page, b.label)
+            if b.monitor_video:
+                preflight_media(page)
+            b.at = cast.timeline_time() - origin
+            cast.resume()
+            start = cast.timeline_time()
+            video_frames = cast.frame_count() if b.monitor_video else 0
+            print(f"  beat {i + 1}: {b.title}", flush=True)
+            b.action()
+            previous = page.evaluate(MEDIA_SAMPLE_JS) if b.monitor_video else None
+            while cast.timeline_time() - start < b.dwell_s:
+                remaining = b.dwell_s - (cast.timeline_time() - start)
+                page.wait_for_timeout(min(500, max(1, int(remaining * 1000))))
+                if b.monitor_video:
+                    current = page.evaluate(MEDIA_SAMPLE_JS)
+                    # Avoid demanding movement over the last few milliseconds.
+                    if remaining >= 0.25:
+                        check_media_samples(previous, current)
+                    previous = current
+            if b.monitor_video:
+                captured_fps = (cast.frame_count() - video_frames) / (cast.timeline_time() - start)
+                if captured_fps < MIN_VIDEO_CAPTURE_FPS:
+                    raise RecordingError("The video beat captured too slowly; take discarded")
+                print(f"  measured video-beat capture: {captured_fps:.1f} fps", flush=True)
+            if cast.timeline_time() - start > b.dwell_s + 1:
+                raise RecordingError("A recorded action exceeded its fixed time slot")
+            if cast.timeline_time() - origin > HARD_LIMIT_S - 1:
+                raise RecordingError("The capture exceeded the 2:55 budget")
         except Exception:
-            browser = p.chromium.launch(headless=True)
-        ctx = browser.new_context(
-            viewport={"width": VIEW_W, "height": VIEW_H})
-        page = ctx.new_page()
-        page.goto(f"{base}/ui/", wait_until="domcontentloaded")
-        page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
-        page.reload(wait_until="domcontentloaded")
-        page.wait_for_timeout(4000)
-        try:
-            page.wait_for_selector('button[data-view="live"]',
-                                   state="visible", timeout=20000)
-        except Exception:
-            ctx.close()
-            browser.close()
-            raise SystemExit(
-                "the workspace did not open — the token is expired or refused. "
-                "Mint one:\n  python tools/admin/users.py "
-                "--db sqlite:///var/live.db token --user supervisor.live --days 7")
-
-        beats = build(page, plate, admin_token=admin_token,
-                      investigator_token=token)
-        mp4 = Path(str(out_dir) + ".mp4")
-        work = out_dir / "narration"
-        if voice:
-            projected = narrate(beats, work, voice)
-            print(f"  narration synthesised; take projects to {projected:.0f}s")
-        silent = Path(str(out_dir) + "_silent.mp4") if voice else mp4
-        with Screencast(page, out_dir / "frames", width=VIEW_W,
-                        height=VIEW_H, quality=98) as cast:
-            t0 = time.time()
-            wall0 = t0
-            for b in beats:
-                b.at = time.time() - t0
-                print(f"  {int(b.at)//60}:{int(b.at) % 60:02d}  {b.title}",
-                      flush=True)
-                try:
-                    b.action()
-                except Exception as exc:
-                    b.ok, b.err = False, f"{type(exc).__name__}: {exc}"[:120]
-                # Hold for the planned dwell, or until the narrator finishes
-                # this beat's line, whichever is later.
-                spent = time.time() - t0 - b.at
-                hold = max(b.dwell_s, b.say_s + 0.6 - spent)
-                page.wait_for_timeout(int(max(0.0, hold) * 1000))
-        res = cast.write(silent, crf=15, fps=30)
-        first = cast.first_timestamp()
-        cast.cleanup()
-        if voice and res.get("ok"):
-            offset = (first - wall0) if first else 0.0
-            finish_narrated(beats, silent, mp4, work, offset)
-            print(f"  narrated and captioned -> {mp4} "
-                  f"(first frame {offset:+.2f}s after start)")
-        if not res.get("ok"):
-            print(f"  capture FAILED: {res.get('why')}")
-        else:
-            print(f"  captured {res['frames']} frames at "
-                  f"{res['captured_fps']} fps -> {res['mb']} MB")
-
-        ctx.close()
-        browser.close()
-        return beats
+            cast.pause()
+            b.ok, b.err = False, "Required beat failed; take discarded"
+            # Playwright exceptions may include the value passed to fill().
+            # Do not stringify or chain one into logs, captions, or a report.
+            raise RecordingError(f"Required beat {i + 1} failed; take discarded") from None
+    return origin
 
 
 def duration_s(mp4: Path) -> float | None:
     if not shutil.which("ffprobe"):
         return None
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(mp4)],
-        capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            str(mp4),
+        ],
+        capture_output=True,
+        text=True,
+    )
     try:
-        return float(out.stdout.strip())
+        return float(result.stdout.strip()) if result.returncode == 0 else None
     except ValueError:
         return None
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="http://127.0.0.1:8083")
-    ap.add_argument("--token")
-    ap.add_argument("--token-file")
-    ap.add_argument("--voice", default="Aman",
-                    help="macOS voice for the narration; 'none' records silently")
-    ap.add_argument("--admin-token-file",
-                    help="ADMIN token. Onboarding needs admin:write, which "
-                         "SUPERVISOR does not hold; without this the "
-                         "onboarding beat films a refusal.")
-    ap.add_argument("--plate", default="MH02GB4920")
-    ap.add_argument("--out", default="var/demo/own_feed")
-    a = ap.parse_args()
+def verify_duration(mp4: Path) -> float:
+    secs = duration_s(mp4)
+    if secs is None or not math.isfinite(secs):
+        raise RecordingError("Cannot verify the final film duration")
+    if secs > HARD_LIMIT_S:
+        raise RecordingError("The film exceeds the hard 2:55 cap")
+    if secs < MIN_LENGTH_S:
+        raise RecordingError("The film is shorter than 2:30")
+    return secs
 
-    if a.token_file:
-        token = Path(a.token_file).read_text(encoding="ascii").strip()
-    elif a.token:
-        token = a.token
-    else:
-        raise SystemExit("need --token-file or --token")
 
-    admin_token = ""
-    if a.admin_token_file:
-        admin_token = Path(a.admin_token_file).read_text(encoding="ascii").strip()
-    else:
-        print("  no --admin-token-file: the onboarding beat will film a "
-              "PERMISSION_DENIED refusal, because SUPERVISOR does not hold "
-              "admin:write.")
+def record(
+    base: str,
+    token: str,
+    plate: str,
+    out_dir: Path,
+    admin_token: str = "",
+    voice: str | None = "Aman",
+) -> list[Beat]:
+    base = validate_base(base)
+    if not token or not admin_token:
+        raise RecordingError(
+            "Both officer and ADMIN token files are required; admin:write is mandatory"
+        )
+    if not re.fullmatch(r"[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}", plate):
+        raise RecordingError("The own-feed search plate must be a canonical registration mark")
+    from playwright.sync_api import sync_playwright
 
-    out_dir = Path(a.out)
     mp4 = Path(str(out_dir) + ".mp4")
-    print(f"recording the own-feed demonstration -> {mp4}")
-    beats = record(a.base, token, a.plate, out_dir, admin_token=admin_token,
-                   voice=None if a.voice.lower() == "none" else a.voice)
-    ok = mp4.exists()
+    # Never allow a previous successful take to masquerade as this failed take.
+    if mp4.exists() or out_dir.exists():
+        raise RecordingError("Choose a fresh output path for each take")
+    out_dir.mkdir(parents=True)
+    candidate, silent = out_dir / "candidate.mp4", out_dir / "silent.mp4"
+    cast = None
+    try:
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch(channel="chrome", headless=True)
+            except Exception:
+                browser = p.chromium.launch(headless=True)
+            ctx = browser.new_context(
+                viewport={"width": VIEW_W, "height": VIEW_H}, service_workers="block"
+            )
+            # Own-film browser requests stay on the selected local origin.
+            ctx.route(
+                "**/*",
+                lambda route: (
+                    route.continue_() if route.request.url.startswith(base + "/") else route.abort()
+                ),
+            )
+            ctx.add_init_script(DRAW_PROBE_JS)
+            page = ctx.new_page()
+            page.set_default_timeout(15000)
+            admin = identity(ctx, base, admin_token, {"ADMIN"})
+            officer = identity(ctx, base, token, {"SUPERVISOR", "INVESTIGATOR"})
+            page.goto(f"{base}/ui/#investigate", wait_until="domcontentloaded")
+            page.wait_for_selector("#gate", state="visible")
+            fill_gate(
+                page, token, officer, "DEMO-OWN-2026", "demonstrating recorded feed investigation"
+            )
+            # The own-feed prepare action enters the filled gate, then verifies both feeds.
+            beats = build(
+                page,
+                plate,
+                admin_token=admin_token,
+                investigator_token=token,
+                base=base,
+                admin_officer=admin,
+                investigator=officer,
+            )
+            plan_duration(beats)
+            if voice:
+                narrate(beats, out_dir / "narration", voice)
+            # Rehearsal catches missing footage, search, synthetic alert, route,
+            # report and evidence before capture/onboarding. Searches are audited.
+            for b in beats[5:]:
+                print(f"  preflight: {b.title}", flush=True)
+                b.prepare()
+                clean_screen(page)
+            reset_gate(page, base)
+            clean_screen(page)
+            label_screen(page, beats[0].label)
+            cast = Screencast(page, out_dir / "frames", width=VIEW_W, height=VIEW_H, quality=98)
+            with cast:
+                origin = run_beats(page, cast, beats)
+            res = cast.write(silent if voice else candidate, crf=15, fps=30)
+            if not res.get("ok"):
+                raise RecordingError("Screen capture encoding failed")
+            if voice:
+                offset = (cast.first_timestamp() or origin) - origin
+                finish_narrated(beats, silent, candidate, out_dir / "narration", offset)
+            verify_duration(candidate)
+            ctx.close()
+            browser.close()
+        candidate.replace(mp4)
+        return beats
+    except RecordingError:
+        candidate.unlink(missing_ok=True)
+        raise
+    except Exception:
+        candidate.unlink(missing_ok=True)
+        raise RecordingError(
+            "Own-film preflight/capture failed; no submission MP4 published"
+        ) from None
+    finally:
+        if cast:
+            cast.cleanup()
 
-    print()
-    failed = [b for b in beats if not b.ok]
-    print(f"beats  : {len(beats) - len(failed)}/{len(beats)} driven cleanly")
-    for b in failed:
-        print(f"  could not drive: {b.title}: {b.err}")
-    if ok:
-        secs = duration_s(mp4)
-        if secs is not None:
-            print(f"length : {int(secs)//60}m{int(secs) % 60:02d}s "
-                  f"(limit {int(HARD_LIMIT_S)//60}m{int(HARD_LIMIT_S) % 60:02d}s)")
-            if secs > HARD_LIMIT_S:
-                raise SystemExit(
-                    f"the recording is {secs - HARD_LIMIT_S:.0f}s over the "
-                    "challenge's three-minute limit. Shorten a beat rather "
-                    "than submitting something that will be cut off.")
-    print(f"video  : {mp4 if ok else out_dir}")
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--base", default="http://127.0.0.1:8083")
+    ap.add_argument("--token-file", required=True, help="Existing officer token file; never echoed")
+    ap.add_argument(
+        "--admin-token-file", required=True, help="Existing ADMIN token file (admin:write)"
+    )
+    ap.add_argument("--voice", default="Aman", help="macOS voice, or none for a silent film")
+    ap.add_argument("--plate", default="MH02GB4920")
+    ap.add_argument("--out", default="var/demo/own_feed_final")
+    a = ap.parse_args()
+    try:
+        token = Path(a.token_file).read_text(encoding="ascii").strip()
+        admin = Path(a.admin_token_file).read_text(encoding="ascii").strip()
+        beats = record(
+            a.base,
+            token,
+            a.plate,
+            Path(a.out),
+            admin_token=admin,
+            voice=None if a.voice.lower() == "none" else a.voice,
+        )
+        secs = verify_duration(Path(a.out + ".mp4"))
+    except Exception as exc:
+        # Only our fixed messages are safe; never print a raw library exception.
+        raise SystemExit(
+            str(exc)
+            if isinstance(exc, RecordingError)
+            else "Own-film failed; check local prerequisites"
+        ) from None
+    print(f"Verified {len(beats)} beats; {secs:.1f}s (hard cap 175s). Video: {a.out}.mp4")
 
 
 if __name__ == "__main__":

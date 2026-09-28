@@ -48,6 +48,38 @@ class Screencast:
     _cdp: Any = field(default=None, repr=False)
     _frames: list[tuple[float, Path]] = field(default_factory=list, repr=False)
     _n: int = 0
+    _paused_at: float | None = field(default=None, repr=False)
+    _paused_s: float = 0.0
+    _accept_after: float = 0.0
+
+    @property
+    def paused(self) -> bool:
+        return self._paused_at is not None
+
+    def pause(self) -> None:
+        """Exclude content preparation from both frames and the output clock."""
+        if self._paused_at is None:
+            self._paused_at = time.time()
+            self._cdp.send("Page.stopScreencast")
+
+    def resume(self) -> None:
+        if self._paused_at is not None:
+            now = time.time()
+            self._paused_s += now - self._paused_at
+            self._accept_after = now
+            self._paused_at = None
+            self._start()
+
+    def timeline_time(self) -> float:
+        """Epoch-like capture time, matching the timestamps stored for frames."""
+        return (self._paused_at or time.time()) - self._paused_s
+
+    def _start(self) -> None:
+        self._cdp.send("Page.startScreencast", {
+            "format": "jpeg", "quality": self.quality,
+            "maxWidth": self.width, "maxHeight": self.height,
+            "everyNthFrame": 1,
+        })
 
     def __enter__(self) -> Screencast:
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -55,13 +87,7 @@ class Screencast:
             stale.unlink()
         self._cdp = self.page.context.new_cdp_session(self.page)
         self._cdp.on("Page.screencastFrame", self._on_frame)
-        self._cdp.send("Page.startScreencast", {
-            "format": "jpeg",
-            "quality": self.quality,
-            "maxWidth": self.width,
-            "maxHeight": self.height,
-            "everyNthFrame": 1,
-        })
+        self._start()
         return self
 
     def _on_frame(self, params: dict) -> None:
@@ -72,8 +98,13 @@ class Screencast:
                            {"sessionId": params["sessionId"]})
         except Exception:
             return
+        if self._paused_at is not None:
+            return
         meta = params.get("metadata") or {}
-        ts = float(meta.get("timestamp") or time.time())
+        raw_ts = float(meta.get("timestamp") or time.time())
+        if raw_ts < self._accept_after:
+            return  # A queued frame from before resume must not enter this beat.
+        ts = raw_ts - self._paused_s
         path = self.out_dir / f"f_{self._n:06d}.jpg"
         try:
             path.write_bytes(base64.b64decode(params["data"]))

@@ -3758,7 +3758,12 @@ function fillLiveActions(cam) {
   });
   const mapBtn = el("button", { type: "button", text: "Show on estate map" });
   mapBtn.addEventListener("click", () => show("map"));
-  bar.append(seal, search, next, mapBtn);
+  const track = el("button", { type: "button", text: "Track / route a plate" });
+  track.addEventListener("click", () => {
+    $("#here-plates")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("#here-plate-row button")?.focus();
+  });
+  bar.append(seal, search, track, next, mapBtn);
 }
 
 async function snapshotSeal(cam) {
@@ -3807,14 +3812,16 @@ function herePlateCard(m) {
     show("investigate");
     $("#search-form")?.requestSubmit();
   });
-  return card;
+  return el("div", { class: "here-entry" }, card,
+    el("button", { class: "ghost", type: "button", text: "Track vehicle",
+      onclick: () => trackEntity(m.plate, m) }));
 }
 
 async function fillHerePlates(cameraId) {
   const row = $("#here-plate-row");
   const kicker = $("#here-plates .here-kicker");
   if (!row || !cameraId) return;
-  if (kicker) kicker.textContent = `Plates read on ${cameraId}`;
+  if (kicker) kicker.textContent = `Plates read on ${cameraId} · select a plate for its route`;
   try {
     const res = await api(`/marks?camera_id=${encodeURIComponent(cameraId)}`);
     clear(row);
@@ -3865,8 +3872,9 @@ function renderSidecar(cam, ctx) {
   side.append(
     el("h3", { text: registry.name || cam.name || cam.camera_id }),
     el("div", { class: "sid", text:
-      `${cam.camera_id} · ${registry.district || cam.district || "—"} · ${registry.codec || cam.codec || ""} · ${registry.width || cam.width || "?"}×${registry.height || cam.height || "?"}` }),
-    el("div", { class: "side-label", text: "Measured capability" }),
+      `${cam.camera_id} · ${registry.district || cam.district || "—"}` }));
+  const capability = el("details", { class: "side-capability" },
+    el("summary", { text: "Measured capability" }),
     capMeter("Plate reading", anpr, yieldTxt,
       "Computed from this camera's own stream. Not graded means too little evidence — never a poor grade."),
     capMeter("Appearance", veh, String(veh).toLowerCase(),
@@ -3881,14 +3889,22 @@ function renderSidecar(cam, ctx) {
     ["Site", registry.site || registry.name || "—"],
     ["District", registry.district || "—"],
     ["Department", registry.department || "—"],
+    ["Source", sourceDomain(registry)],
     ["Stream", `${registry.codec || cam.codec || "—"} · ${registry.width || cam.width || "?"}×${registry.height || cam.height || "?"}`],
+    ["Measured FPS", ctx?.health?.measured_fps ?? cam.measured_fps ?? "not measured"],
+    ["AI state", cam.ai_state || "not measured"],
     ["Basis", (registry.location_basis || cam.location_basis || "UNKNOWN").toLowerCase().replace(/_/g, " ")],
   ];
   const table = el("table", { class: "reg-table" });
   for (const [k, v] of rows) {
-    table.append(el("tr", {}, el("th", { text: k }), el("td", { text: String(v || "—") })));
+    table.append(el("tr", {}, el("th", { text: k }), el("td", { text: String(v ?? "—") })));
   }
   side.append(el("div", { class: "side-label", text: "Registry" }), table);
+  side.append(el("div", { class: "side-label", text: "Recent observations" }),
+    el("div", { id: "live-scene-counts", class: "sid",
+      text: $("#live-counts")?.textContent || "Counts not measured",
+      title: "Recent store observations in the overlay window; not a live detector HUD." }),
+    capability);
   const basis = String(registry.location_basis || cam.location_basis || "").toUpperCase();
   if (basis && basis !== "SURVEYED") {
     side.append(el("div", { class: "cap-note warn", text:
@@ -3963,6 +3979,7 @@ function startDetectionOverlay(cameraId, canvas) {
         anpr: String(intelState.anpr),
       });
       const res = await api(`/command/cameras/${encodeURIComponent(cameraId)}/boxes?${qs}`);
+      if (overlayState?.cameraId !== cameraId) return;
       const marks = intelState.analytics ? (res.boxes || []) : [];
       const now = performance.now();
       overlayState.lastMetaAt = now;
@@ -3991,10 +4008,16 @@ function startDetectionOverlay(cameraId, canvas) {
         node.textContent =
           `People: ${Number(counts.people || 0)} · Vehicles: ${Number(counts.vehicles || 0)} · Tracked: ${Number(counts.tracked || 0)} · Plates: ${Number(counts.plates || 0)}`;
       }
+      const scene = $("#live-scene-counts");
+      if (scene && node) scene.textContent = node.textContent;
       if (state.telemetry) {
         state.telemetry.overlayLatencyMs = overlayState.overlayLatencyMs;
       }
     } catch {
+      const scene = $("#live-scene-counts");
+      if (scene && overlayState?.cameraId === cameraId) {
+        scene.textContent = "Recent observation counts unavailable";
+      }
       /* overlay must never take down live video */
     }
   };
@@ -4071,6 +4094,8 @@ function fillLiveStage(id) {
   const cam = (liveCamsAll || []).find((c) => c.camera_id === id) || { camera_id: id };
   const isSimulation = sourceDomain(cam) === "ARCHIVAL_REPLAY";
   clear(stage);
+  const counts = $("#live-counts");
+  if (counts) counts.textContent = "Counts not measured";
   const img = el("img", { alt: `Live ${id}` });
   if (isSimulation) img.style.display = "none";
   const fps = cam.measured_fps ? `${Number(cam.measured_fps).toFixed(0)} fps` : "";
@@ -4141,13 +4166,14 @@ function liveTile(cam, health) {
   const aiDeclared = cam.ai_state || (isSimulation ? "NOT_MEASURED" : "OFF");
   const aiLabel = onDemand ? "OFF" : aiDeclared;
   const tile = el("div", { class: "live-tile", "data-camera": id,
+    title: `${id} · ${cam.name || id} · ${loc}`,
     "data-priority": streamPriority(cam).toLowerCase(),
     "data-domain": sourceDomain(cam) },
     el("div", { class: "tile-head" },
       el("span", { class: "vid-chip", "data-plane": "HEADVID",
                    "data-state": initialVideo.toLowerCase(), text: initialVideo }),
       el("span", { class: "name", text: cam.name || id }),
-      el("span", { class: "cid mono", text: id }),
+      el("span", { class: "cid mono", text: id, title: id }),
       el("span", { class: "ai-head", text: aiLabel === "ACTIVE" ? "AI" : "" }),
       el("span", { class: `domain-badge ${domainClass}`, text: domain })),
     frame,
@@ -4158,7 +4184,7 @@ function liveTile(cam, health) {
                    text: `VIDEO ${initialVideo}` }),
       el("span", { class: "plane-chip", "data-plane": "AI", text: `AI ${aiLabel}` })),
     el("div", { class: "tile-foot" },
-      el("span", { class: "loc", text: loc }),
+      el("span", { class: "loc", text: loc, title: loc }),
       el("span", { class: "mono res", text: codecLabel }),
       el("span", { class: "fps", text: "" })));
   tile._img = img;
@@ -5064,10 +5090,12 @@ let wallTimer = null;
 
 function startWallHeartbeat() {
   stopWallHeartbeat();
+  refreshAnalyticsCoverage();
   wallTimer = setInterval(() => {
     if (!$("#view-live")?.classList.contains("active")) return;
     reviewRenderedFrames();
     syncTileWhep();
+    refreshAnalyticsCoverage();
   }, WALL_HEARTBEAT_MS);
 }
 
@@ -6268,8 +6296,12 @@ function paintIntelCommand(cmd) {
     );
     for (const row of Object.values(cmd?.isolation || {})) {
       if (row?.chip) health.append(el("div", {
-        class: /DEGRADED|UNAVAILABLE/.test(row.chip) ? "chip verify" : "chip", text: row.chip }));
+        class: /DEGRADED|UNAVAILABLE/.test(row.chip) ? "chip verify" : "chip", text: row.chip,
+        title: [row.note, row.detail].filter(Boolean).join("\n") }));
     }
+    const worker = cmd?.isolation?.ai_worker;
+    if (worker?.note) health.append(el("div", { class: "analytics-coverage",
+      text: worker.note, title: worker.detail || "" }));
   }
   const kpiBox = $("#intel-kpis");
   if (kpiBox && cmd?.kpis) {
@@ -6339,6 +6371,14 @@ function paintMeasuredOnly(box, heading, order, data) {
 }
 
 function paintCommandStatus(cmd, o) {
+  if (cmd?.isolation) state.isolation = cmd.isolation;
+  const worker = cmd?.isolation?.ai_worker;
+  const coverage = $("#live-ai-coverage");
+  if (coverage) {
+    coverage.hidden = !worker?.note;
+    coverage.textContent = worker?.note || "";
+    coverage.title = worker?.detail || "";
+  }
   const health = $("#cc-health");
   const alerts = $("#cc-alerts");
   const ai = $("#cc-ai");
@@ -6355,9 +6395,30 @@ function paintCommandStatus(cmd, o) {
       .map((row) => row?.chip).filter(Boolean);
     const p50 = cmd?.kpis?.ai_latency_p50?.display ?? "NOT_MEASURED";
     ai.textContent = chips.length ? chips.join(" · ") : `AI P50 ${p50}`;
+    ai.title = [worker?.note, worker?.detail].filter(Boolean).join("\n");
     // Amber only for a fault. "AI ACTIVE · OCR ACTIVE" in warning colour
     // told the operator something was wrong when nothing was.
     ai.classList.toggle("verify", chips.some((c) => /DEGRADED|UNAVAILABLE/.test(c)));
+  }
+}
+
+let coveragePending = false;
+async function refreshAnalyticsCoverage() {
+  if (coveragePending) return;
+  coveragePending = true;
+  try {
+    const cmd = await api("/command/summary");
+    if ($("#view-live")?.classList.contains("active")) paintCommandStatus(cmd, null);
+  } catch {
+    if ($("#view-live")?.classList.contains("active")) {
+      paintCommandStatus({ isolation: { ai_worker: {
+        chip: "AI NOT MEASURED",
+        note: "Analytics coverage unavailable · deep inference not measured",
+        detail: "The summary could not be refreshed. Retry on the next status update.",
+      } } }, null);
+    }
+  } finally {
+    coveragePending = false;
   }
 }
 

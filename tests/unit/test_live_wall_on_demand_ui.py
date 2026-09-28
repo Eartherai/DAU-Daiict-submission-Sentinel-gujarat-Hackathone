@@ -7,9 +7,8 @@ for calling a cached preview live, or calling AI live because a toggle is on.
 There is no JS runner in this repo, so the contract is pinned against the
 shipped ui/ sources.
 """
-from pathlib import Path
-
 import re
+from pathlib import Path
 
 import pytest
 
@@ -189,15 +188,16 @@ def test_live_preset_does_not_start_two_competing_loaders(app: str) -> None:
 def test_wall_count_states_indexed_with_bounded_previews(app: str) -> None:
     assert "government cameras indexed" in app
     assert (
-        "BOUNDED PREVIEWS — cached stills rotate across the wall; select one camera for verified WHEP"
+        "BOUNDED PREVIEWS — cached stills rotate across the wall; "
+        "select one camera for verified WHEP"
     ) in app
 
 
 #: The content each cache-busting marker was last bumped for. Editing an asset
 #: changes its hash, which fails this test and forces the version alongside it.
 ASSET_VERSIONS = {
-    "app.js": ("cr161", "c5b530c3d749c2b6"),
-    "style.css": ("cr126", "e44189b4883da756"),
+    "app.js": ("cr162", "15cddedd13e54a19"),
+    "style.css": ("cr127", "e1662e5e5ac1fbd3"),
 }
 
 

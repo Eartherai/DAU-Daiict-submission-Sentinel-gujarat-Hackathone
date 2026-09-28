@@ -1,6 +1,8 @@
 """Final product: source domains, jump playback honesty, golden own feeds."""
 from __future__ import annotations
 
+import pytest
+
 from saakshya.command.domain import (
     AI_CADENCE,
     GOVERNMENT,
@@ -174,6 +176,52 @@ def test_command_summary_stale_heartbeat_is_not_measured(tmp_path, monkeypatch):
     res = command_summary(store)["resources"]
     for key in ("ai_workers", "detector_fps", "inference_p50", "queue_depth"):
         assert res[key]["display"] == "NOT_MEASURED"
+
+
+@pytest.mark.parametrize("heartbeat,deep,chip,cadence", [
+    ({"pid": 4242, "cameras": {"cam01": {"ai": "ACTIVE"},
+                               "cam02": {"ai": "CONNECTING"}}},
+     "1 of 2 active", "AI ACTIVE", "sampled"),
+    ({"pid": 4242, "cameras": {"cam01": {"ai": "CONNECTING"}}},
+     "0 of 2 active", "AI STARTING", "sampled"),
+    ({}, "not measured of 2 with stream", "AI DEGRADED", "not measured"),
+    ({"pid": 4242, "stale": True, "cameras": {"cam01": {"ai": "ACTIVE"}}},
+     "not measured of 2 with stream", "AI DEGRADED", "not measured"),
+    ({"cameras": {"cam01": {"ai": "ACTIVE"}}},
+     "not measured of 2 with stream", "AI DEGRADED", "not measured"),
+])
+def test_ai_coverage_distinguishes_registry_health_and_inference(
+        tmp_path, monkeypatch, heartbeat, deep, chip, cadence):
+    monkeypatch.setattr("saakshya.analytics.worker.read_heartbeat", lambda: heartbeat)
+    store = Store(f"sqlite:///{tmp_path / 'coverage.db'}")
+    store.create_all()
+    for cid, url in (("cam01", "rtsp://example.invalid/one"),
+                     ("cam02", "rtsp://example.invalid/two"),
+                     ("slot", "   ")):
+        store.upsert_camera({"camera_id": cid, "rtsp_url": url})
+    store.upsert_health("cam01", {"state": "STREAMING"})
+    # A health record outside the registry must not inflate coverage.
+    monkeypatch.setattr(store, "list_health", lambda: {
+        "cam01": {"state": "STREAMING"}, "removed": {"state": "UNKNOWN"}})
+    ai = command_summary(store)["isolation"]["ai_worker"]
+    assert ai["chip"] == chip
+    assert ai["note"] == (
+        "COVERAGE 3 registered · 2 with stream · 1 with stored health | "
+        f"DEEP INFERENCE {deep} | CADENCE {cadence}")
+    assert "throughput on this machine" in ai["detail"]
+    assert "Stored health may be old" in ai["detail"]
+    assert "idle hub cameras are not probed" in ai["detail"]
+    assert "ADAPTIVE" not in ai["note"]
+    assert "rotation" not in ai["note"]
+
+
+def test_ai_coverage_empty_registry_keeps_denominator(tmp_path, monkeypatch):
+    monkeypatch.setattr("saakshya.analytics.worker.read_heartbeat", lambda: {})
+    store = Store(f"sqlite:///{tmp_path / 'empty-coverage.db'}")
+    store.create_all()
+    note = command_summary(store)["isolation"]["ai_worker"]["note"]
+    assert "COVERAGE 0 registered · 0 with stream · 0 with stored health" in note
+    assert "DEEP INFERENCE not measured of 0 with stream" in note
 
 
 def test_government_seed_urls_have_no_userinfo(tmp_path):

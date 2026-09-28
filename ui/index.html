@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAAKSHYA — Gujarat Police CCTV Intelligence</title>
-<link rel="stylesheet" href="/ui/style.css?v=cr126">
+<link rel="stylesheet" href="/ui/style.css?v=cr127">
 </head>
 <body>
 <!-- Keyboard users reach the workspace without tabbing the whole rail. GIGW 3.0
@@ -352,6 +352,7 @@
                     aria-expanded="false" aria-controls="live-telemetry">Telemetry</button>
           </div>
         </div>
+        <div class="analytics-coverage" id="live-ai-coverage" hidden></div>
         <div class="live-intel" id="live-intel" role="toolbar" aria-label="Analytics overlay">
           <span class="live-control-label">Analytics</span>
           <button type="button" data-viewmode="video">OFF</button>
@@ -361,7 +362,7 @@
           <button type="button" data-viewmode="anpr">ANPR</button>
           <button type="button" class="on" data-viewmode="full" aria-pressed="true">FULL</button>
           <button type="button" data-viewmode="incident">INCIDENT</button>
-          <span class="live-control-label">AI cadence</span>
+          <span class="live-control-label" title="Refreshes displayed metadata; does not change worker inference.">Overlay refresh</span>
           <button type="button" data-cadence="FAST">FAST</button>
           <button type="button" class="on" data-cadence="BALANCED" aria-pressed="true">BALANCED</button>
           <button type="button" data-cadence="DEEP">DEEP</button>
@@ -726,7 +727,7 @@
             <b>Investigate</b> — type a registration mark. Results, route and evidence open from the same search.<br>
             <b>Alerts</b> — watchlist hits raised by ingest, not by refreshing this page. Stolen / wanted / missing lists are ours, not a government feed.<br>
             <b>Evidence</b> — hash-chained records. A still is never enhanced.<br>
-            <b>Live</b> — select a camera for moving video. Government playback uses same-origin Direct WHEP signaling, with a measured 12-session ceiling; a tile is called LIVE only after its browser player starts. Any cached image is explicitly labelled PREVIEW, never live video.<br>
+            <b>Live</b> — select a camera for moving video. Government playback uses authenticated same-origin WHEP signalling. OPTIMIZED VIEW budgets up to 12 sessions near the viewport; CONTROL ROOM (Dense 6×5) opens up to 30, staggered. These are viewing policies, not a sandbox limit. A tile is called LIVE only after its browser player starts. Any cached image is explicitly labelled PREVIEW, never live video.<br>
             <b>Cameras</b> — ANPR / appearance grades measured from the stream, not claimed by the catalogue.<br>
             <b>Analytics</b> — distinct marks, person observations, which clocks may share a timeline.<br>
             <b>System</b> — hybrid of Models 1 + 2 + 3, with Model 4's central analytics on selected cameras. Model 4's statewide central recording is declined on arithmetic. Departmental VMS systems are not replaced.<br>
@@ -856,7 +857,7 @@
   </div>
 </div>
 
-<script type="module" src="/ui/app.js?v=cr161"></script>
+<script type="module" src="/ui/app.js?v=cr162"></script>
 <dialog id="jump-dialog">
   <form method="dialog" class="jump-form">
     <h3>JUMP TO EVENT</h3>

@@ -483,6 +483,19 @@ def build(
     ]
 
 
+#: Map tile and Maps script hosts the workspace's basemap loads from. Nothing
+#: else leaves the local origin during a take.
+BASEMAP_HOSTS = ("tile.openstreetmap.org", "maps.googleapis.com", "maps.gstatic.com",
+                 "khms0.googleapis.com", "khms1.googleapis.com")
+
+
+def _basemap(url: str) -> bool:
+    from urllib.parse import urlsplit
+    host = urlsplit(url).hostname or ""
+    return url.startswith("https://") and any(
+        host == h or host.endswith("." + h) for h in BASEMAP_HOSTS)
+
+
 def plan_duration(beats: list[Beat]) -> float:
     total = sum(b.dwell_s for b in beats)
     if not MIN_LENGTH_S <= total <= HARD_LIMIT_S - 3:
@@ -667,11 +680,14 @@ def record(
             ctx = browser.new_context(
                 viewport={"width": VIEW_W, "height": VIEW_H}, service_workers="block"
             )
-            # Own-film browser requests stay on the selected local origin.
+            # Own-film browser requests stay on the selected local origin, except
+            # the basemap: without its tiles the route is drawn over a blank map.
             ctx.route(
                 "**/*",
                 lambda route: (
-                    route.continue_() if route.request.url.startswith(base + "/") else route.abort()
+                    route.continue_()
+                    if route.request.url.startswith(base + "/") or _basemap(route.request.url)
+                    else route.abort()
                 ),
             )
             ctx.add_init_script(DRAW_PROBE_JS)

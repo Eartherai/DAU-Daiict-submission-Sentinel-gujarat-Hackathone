@@ -5429,6 +5429,9 @@ $$("[data-live-layout]").forEach((b) => b.addEventListener("click", () => {
   const liveView = $("#view-live");
   if (liveView) liveView.dataset.layout = liveLayout;
   applyMediaPolicy();
+  /* The status line names the policy, so it follows the layout; without this
+   * it kept saying OPTIMIZED VIEW over a Dense control-room wall. */
+  if (!liveLoadError) renderLiveCount(liveCamsAll);
   /* Reuse existing sessions across the switch. A layout change is not a
    * reason to renegotiate a stream that is already playing. */
   scheduleTileWhepSync();

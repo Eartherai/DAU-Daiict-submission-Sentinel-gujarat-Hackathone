@@ -233,9 +233,12 @@ async def camera_snapshot(state: StateDep, ctx: AuthDep, camera_id: str,
         refused = bool(why and "refused this connection" in why)
         raise HTTPException(status_code=502 if refused else 503, detail={
             "code": "UPSTREAM_REFUSED" if refused else "NO_FRAME",
-            "message": why or ("could not capture a frame from this camera. It "
-                               "may be down, or the grid may be refusing "
-                               "another consumer.")})
+            # The organisers state there is no fixed participant-facing session
+            # limit and that availability varies with shared sandbox load, so
+            # this fallback names the observation, not a refusal we never saw.
+            "message": why or ("could not capture a frame from this camera just "
+                               "now; the upstream feed may be unavailable or "
+                               "busy.")})
     src = {
         "ingest": "ingest preview, already decoded, not a second stream",
         "ingest-stale": "ingest preview, older than the refresh window",

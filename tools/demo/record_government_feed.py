@@ -331,6 +331,13 @@ def wait_view(page, view: str, content: str, timeout: float = 45000,
                            ("; }" if allow_error else " && !s.fatal; }"), timeout=timeout)
 
 
+def wait_search_idle(page) -> None:
+    """Enter is ignored while the previous search, or its route panel, is loading."""
+    page.wait_for_function("() => { const b = document.querySelector('#search-form button[type=submit]'); "
+                           "const s = (" + UI_SAMPLE + ")(); return !!b && !b.disabled && !s.loading; }",
+                           timeout=90000)
+
+
 def navigate(page, view: str, content: str, *, allow_error: bool = False) -> None:
     if page.locator("#report-dialog[open]").count():
         page.click("#report-close")
@@ -608,6 +615,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.fill('#q-plate', mark)
         page.fill('#q-camera', camera)
         page.fill('#q-type', object_type)
+        wait_search_idle(page)
         with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as pending:
             page.press('#q-plate', 'Enter')
         response = pending.value
@@ -717,7 +725,14 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         return {"csv": str(csv_path), "rows": len(rows)}
 
     def evidence():
-        page.goto(base.rstrip('/') + '/ui/#evidence', wait_until='domcontentloaded')
+        # From inside the app a goto to /ui/#evidence is a hash-only change: no
+        # document loads and the view never switches. Use the navigation there.
+        if page.url.startswith(base.rstrip('/') + '/ui/'):
+            if page.locator("#report-dialog[open]").count():
+                page.click("#report-close")
+            page.click('button[data-view="evidence"]')
+        else:
+            page.goto(base.rstrip('/') + '/ui/#evidence', wait_until='domcontentloaded')
         wait_view(page, 'evidence', '#evidence-chain table', timeout=120000)
 
     def onboarded():
@@ -746,7 +761,10 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.fill('#case-id', 'FIR-000/2026')
         page.fill('#purpose', 'checking the registry role separation')
         page.fill('#q-plate', plate)
-        with page.expect_response(lambda r: '/search?' in r.url) as pending:
+        wait_search_idle(page)
+        mine = 'Bearer ' + admin_token
+        with page.expect_response(lambda r: '/search?' in r.url and f'plate={plate}' in r.url
+                                  and r.request.headers.get('authorization') == mine) as pending:
             page.press('#q-plate', 'Enter')
         if pending.value.status != 403:
             raise RecorderFailure('expected administrator refusal not observed')
@@ -829,7 +847,15 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         except Exception:
             require_ui(page, selector)  # Absent output is a logged skip.
             raise
-        page.locator(selector).first.scroll_into_view_if_needed()
+        # The loader can render twice (old DOM, then fresh); re-locate after a detach.
+        for attempt in range(3):
+            try:
+                page.locator(selector).first.scroll_into_view_if_needed()
+                break
+            except Exception as exc:
+                if attempt == 2 or 'not attached' not in str(exc):
+                    raise
+                page.wait_for_timeout(400)
 
     def feature(title, action, selectors, source, say='', dwell=20):
         return Beat(title, dwell, action, say, optional=True,
@@ -906,7 +932,8 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as baseline:
             exact.action()
         if kind == 'partial':
-            page.fill('#q-plate', plate[:4] + '*')
+            # GJ11S*: a prefix the replayed recordings' plates do not share.
+            page.fill('#q-plate', plate[:5] + '*')
         elif kind == 'fuzzy':
             page.check('#q-fuzzy')
             replacement = '0' if plate[-1:] != '0' else '1'
@@ -922,14 +949,19 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
             page.fill('#q-colour', row.get('colour') or row['color'])
             page.fill('#q-type', row['object_type'])
             page.fill('#q-camera', row['camera_id'])
+        wait_search_idle(page)
         with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as pending:
             page.press('#q-plate', 'Enter')
         if pending.value.status != 200:
             raise RecorderFailure('search variant failed')
-        rows = pending.value.json().get('candidates', [])
-        if any(r.get('camera_id') not in (government or []) for r in rows):
+        body = pending.value.json()
+        rows = body.get('candidates', [])
+        # A pattern search answers with marks, each naming its cameras.
+        cams = [r.get('camera_id') for r in rows] + [c for m in body.get('marks', []) for c in m.get('cameras', [])]
+        if any(c not in (government or []) for c in cams):
             raise SkipBeat('search variant returned non-government sources; omitted from government film')
-        wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice')
+        wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice, #results .mark-row')
+        rows = rows or body.get('marks', [])
         return {'variant': kind, 'returned_observations': len(rows)}
 
     def trajectory():
@@ -996,7 +1028,7 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
             page.press('#chat-input', 'Enter')
         if pending.value.status != 200 or not pending.value.json().get('grounded'):
             raise SkipBeat('copilot did not return a grounded answer')
-        page.wait_for_selector('#chat-log .msg.bot:not(.dim) .md')
+        page.wait_for_selector('#chat-log .msg.bot:not(.dim) .md', timeout=90000)
         page.locator('#chat-log .msg.bot .md').last.scroll_into_view_if_needed()
 
     def manual():
@@ -1070,12 +1102,17 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
 
     def selected_incident():
         queue()
+        # "All" re-renders the queue into a new container. Its old render can
+        # hold the same number of cards, so wait for the new node, not a count.
+        page.evaluate("() => document.querySelector('#alerts .incidents')?.setAttribute('data-stale', '1')")
         with page.expect_response(lambda r: '/alerts?grouped=true&status=&' in r.url) as pending:
             page.click('[data-alert-status=""]')
         if pending.value.status != 200:
             raise RecorderFailure('all-status alert queue unavailable')
         groups = pending.value.json().get('groups', [])
-        page.wait_for_function("n => document.querySelectorAll('#alerts .incident').length === n", arg=len(groups))
+        page.wait_for_function("n => { const box = document.querySelector('#alerts .incidents'); "
+                               "return !!box && !box.hasAttribute('data-stale') && "
+                               "box.querySelectorAll('.incident').length === n; }", arg=len(groups))
         wait_view(page, 'alerts', '#alerts .inc-summary')
         cards = page.locator('#alerts .incident')
         if incident.get('group'):
@@ -1095,11 +1132,21 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         card.scroll_into_view_if_needed()
         return card
 
+    def settled(fn, attempts=3):
+        """Re-run a locate-and-act step a render detached; nothing was sent yet."""
+        for i in range(attempts):
+            try:
+                return fn()
+            except Exception as exc:
+                if i == attempts - 1 or 'not attached' not in str(exc):
+                    raise
+                page.wait_for_timeout(400)
+
     def open_incident():
-        selected_incident().focus()
+        settled(lambda: selected_incident().focus())
 
     def transition(action):
-        card = selected_incident()
+        card = settled(selected_incident)
         label = {'acknowledge': 'Acknowledge', 'investigate': 'Investigate', 'resolve': 'Resolve…'}[action]
         button = card.get_by_role('button', name=re.compile('^' + re.escape(label)))
         if not button.count():

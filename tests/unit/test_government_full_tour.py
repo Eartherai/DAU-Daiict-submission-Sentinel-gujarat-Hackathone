@@ -222,7 +222,7 @@ def test_search_variants_use_ui_case_purpose_and_clear_stale_filters(monkeypatch
     assert page.fields['#case-id'] and len(page.fields['#purpose']) >= 12
     assert page.fields['#q-from'] == page.fields['#q-to'] == ''
     if kind == 'partial':
-        assert page.fields['#q-plate'] == 'GJ11*'
+        assert page.fields['#q-plate'] == 'GJ11S*'
     elif kind == 'fuzzy':
         assert page.fields['#q-fuzzy'] is True
         assert page.fields['#q-plate'] != 'GJ11S7924'
@@ -231,6 +231,17 @@ def test_search_variants_use_ui_case_purpose_and_clear_stale_filters(monkeypatch
         assert page.fields['#q-colour'] == 'white'
         assert page.fields['#q-type'] == 'car'
         assert page.fields['#q-camera'] == 'cam06'
+
+
+def test_pattern_marks_from_replay_cameras_keep_the_variant_out_of_the_film(monkeypatch):
+    monkeypatch.setattr(gov, 'navigate', lambda *a, **k: None)
+    monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
+    page = Page()
+    page.response.json = lambda: {'candidates': [], 'marks': [
+        {'plate': 'GJ11S7924', 'cameras': ['cam06']},
+        {'plate': 'GJ11SX0001', 'cameras': ['GOVREC-cam06']}]}
+    with pytest.raises(gov.SkipBeat, match='non-government'):
+        beat(plan(page), 'Investigate — partial').action()
 
 
 def test_attribute_search_does_not_invent_unmeasured_colour(monkeypatch):

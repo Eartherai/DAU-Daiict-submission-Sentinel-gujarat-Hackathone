@@ -87,7 +87,7 @@ at 80,000".
 | **Measured** | 50 concurrent replica cameras, 52,637 frames, 0 decoder errors |
 | **Measured** | 10 of 10 hot queries indexed; API p95 1.8–4.4 ms |
 | **Measured** | Analytics saturates at ~11 cameras per CPU process; keyframe-only decoding for T0 is what made 30 fit |
-| **`MODELLED`** | 80,000 cameras across ~33 district nodes. **Never quoted as tested** |
+| **`MODELLED`** | 80,000 cameras across 40 district cells, 6 regions and a state tier (HLD §21). **Never quoted as tested** |
 | **Documented** | `docs/SCALE_MODEL.md` names where it breaks first |
 
 ### A7 · Submission completeness

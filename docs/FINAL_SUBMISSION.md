@@ -14,8 +14,9 @@ has been rebuilt.
 | `00_CHECKLIST.md` | Required | Final checks and limitations |
 | `01_SAAKSHYA_deck.pptx`, `01_SAAKSHYA_deck.pdf` | Required | Model justification, workflow, analytics, watchlist, technologies, deployment and benefits |
 | `02_HLD.md` | Required | Technical proposal; portal headings mapped to HLD sections |
-| `02_HLD_diagrams.pdf` | Optional in builder; include when present | Architecture, authorisation, evidence and capability diagrams |
+| `02_HLD_diagrams.pdf` | Optional in builder; include when present | Architecture, authorisation, evidence and capability diagrams, plus the statewide architecture and one-read data flow (HLD §21) |
 | `02_SECURITY.md` | Optional in builder; include when present | Application controls and deployment security boundaries |
+| `02_STATEWIDE_ARCHITECTURE.md` | Required | DESIGNED statewide target architecture (40 cells, 6 regions, state + DR) with its MODELLED capacity and binding-constraint analysis; summarised in HLD §21, reproduced by `tools/sizing/capacity_model.py` |
 | `03_own_feed.mp4` | Required | Onboarding, own-feed detection, representative watchlist, automatic alerts and evidence; 2:53 (`var/demo/own_feed.mp4`, ffprobe) |
 | `04_government_feed.mp4` | Required | Government viewing, selected-camera analytics and designated-vehicle SINGLE-CAMERA evidence; **re-recorded — duration stamped at pack build** |
 | `04_government_feed_1080p.mp4` | Optional | Alternate government film encode; verify it is from the final take |
@@ -57,14 +58,14 @@ vehicle's frame; stills sealed before it are unchanged. See `reports/SUBMISSION_
 | Requirement | Where the judge can inspect it |
 |---|---|
 | Model justification, overview, features (Q29) | Presentation; `02_HLD.md` §§1–3; hybrid source paths below |
-| Architecture and diagrams (Q24/Q30) | `02_HLD.md` §§3–4, §6; `02_HLD_diagrams.pdf` — include the diagram PDF even though the builder treats it as optional |
+| Architecture and diagrams (Q24/Q30) | `02_HLD.md` §§3–4, §6, §21; `02_STATEWIDE_ARCHITECTURE.md`; `02_HLD_diagrams.pdf` — include the diagram PDF even though the builder treats it as optional |
 | IP/analog, multi-vendor cameras/VMS (Q30) | HLD §10, §13; `05_ADAPTERS.md` — distinguish direct integration from federation |
-| Dispersed sites, edge/central split, low bandwidth (Q30/Q35) | HLD §§6, 20.1, 20.4 |
+| Dispersed sites, edge/central split, low bandwidth (Q30/Q35) | HLD §§6, 20.1, 20.4, 21 |
 | ANPR and cross-camera tracking (Q24/Q30) | HLD §§4.2–4.5, 11; government SINGLE-CAMERA and controlled own-feed trace reports above |
 | Privacy, RBAC, audit and security (Q24) | HLD §§4.8, 18; `02_SECURITY.md` |
 | Department technical inputs (Q24/Q30) | HLD §13, including Home/Police, Food & Civil Supplies, RTO and sandbox departments |
-| Compute/GPU sizing and costs (Q24/Q35) | HLD §§17, 20.2–20.3, 20.8–20.9; synthetic registry load report |
-| Hot/warm/cold retention, scaling, monitoring, HA/backup/DR (Q35) | HLD §§15, 20.5–20.7; assumptions and untested deployment work labelled |
+| Compute/GPU sizing and costs (Q24/Q35) | HLD §§17, 20.2–20.3, 20.8–20.9, 21; synthetic registry load report |
+| Hot/warm/cold retention, scaling, monitoring, HA/backup/DR (Q35) | HLD §§15, 20.5–20.7, 21; assumptions and untested deployment work labelled |
 | Phased statewide rollout (Q35) | HLD §§14, 16 |
 | Working software films and timestamped output (Q31–Q33) | Own-feed film, final government film and ANPR CSV above; no mock-ups, animations or concept films satisfy these requirements |
 | Delivery and completeness (Q34/Q36) | Pack inventory above; signed-out viewer-link checks below |
@@ -108,10 +109,12 @@ is the Model 4 part of this hybrid (official FAQ Q12–Q23).
   (`var/reports/camera_load.json`). No recovery is claimed.
 - **MEASURED:** 1,331.7 B per serialised observation
   (`var/reports/bandwidth.json`). **MODELLED:** ~400 B compact payload.
-  Sizing uses the measured row; both daily/storage cases are in `docs/SCALE_MODEL.md`.
+  Sizing uses the measured row at a pessimistic 3,000 observations per
+  camera-hour, batch-compressed 8.0× (`reports/measure_compression.json`);
+  the capacity model is `tools/sizing/capacity_model.py` (HLD §21).
 - **MEASURED:** laptop GPU benchmark had matching observation counts but no
   plates on either device (`var/reports/pipeline_device.json`); it predates
-  the current recogniser. GPU pool capacities and district deployment are
+  the current recogniser. GPU pool capacities and the 40-cell deployment are
   **MODELLED/SIZED**, not measured cluster results.
 - **DESIGNED:** statewide rollout, distributed HA/DR, retention tiers and
   authorised government database integrations. FRS is designed and gated.

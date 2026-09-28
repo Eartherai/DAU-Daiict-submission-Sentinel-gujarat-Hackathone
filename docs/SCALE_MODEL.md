@@ -5,6 +5,12 @@ local stream load (`var/reports/camera_load.json`), and synthetic registry/GIS
 load (`reports/SCALE_80K_LOAD_TEST.md`). **DESIGNED:** statewide live media and
 inference. These are separate workloads, not interchangeable camera counts.
 
+The statewide target architecture and its full capacity model are in
+`docs/STATEWIDE_ARCHITECTURE.md` (HLD §21), produced by
+`tools/sizing/capacity_model.py`. This file keeps the arithmetic that declines
+central recording and the earlier gated metadata model, and states which one
+sizes the design.
+
 ---
 
 ## The arithmetic that shapes everything
@@ -28,6 +34,8 @@ per serialised observation. At an assumed 20 observations per camera-minute,
 10–20% of that activity; it is not measured against a statewide estate.
 Decimal GB/TB are used throughout.
 
+**Earlier gated model — kept for reference, no longer the sizing basis.**
+
 | MODELLED volume | 400 B optimised payload | 1,331.7 B measured row basis |
 |---|---:|---:|
 | Statewide raw / day | 921.60 GB | 3,068.24 GB (3.068 TB) |
@@ -39,10 +47,31 @@ Decimal GB/TB are used throughout.
 | District gated, 30 days, ×2 assumed index overhead | 0.173–0.346 TB | 0.575–1.151 TB |
 | District gated, 365 days, ×2 assumed index overhead | 2.10–4.20 TB | 7.00–14.00 TB |
 
-**Sizing uses the measured row basis**, including the upper gated bound for
-storage. Replicas, queue copies, audit and evidence need separate allowance.
 The 19.3× video/metadata ratio in `bandwidth.json` used the measured row and
 the event rate during that test window; it does not describe the 400 B model.
+
+**Planning basis (supersedes the gated model for sizing).** The government
+store measures 902.6 observations per active camera-hour (1,155,325
+observations over 1,280 camera-hours with at least one; VERIFIED read-only on
+`var/live.db`), and its busiest camera averages 2,529 per active hour. The
+design sizes on a pessimistic **3,000 observations per camera-hour** (ASSUMED,
+above that camera) on the measured 1,331.7 B row, and ships metadata in
+compressed batches: 100 real rows compress 8.0× to 154.0 B each
+(`reports/measure_compression.json`). All MODELLED
+(`reports/capacity_model.json`):
+
+| MODELLED at 3,000 observations per camera-hour | Per full cell (2,500 cameras) | Statewide (80,000) |
+|---|---:|---:|
+| Observations/s | 2,083 | 66,667 |
+| Metadata off the cell, raw | 22.2 Mbps | 710 Mbps |
+| Metadata off the cell, compressed, with plate and health lanes | 3.83 Mbps | 82 Mbps compressed bulk |
+| Hot store, 30 days, ×2 assumed index overhead | 14.4 TB (4.3 TB at the measured mean rate) | — |
+| Compressed lake, per year | — | 324 TB (97.4 TB at the measured mean rate) |
+
+The earlier gated model put 30 days of a district's metadata at 0.575–1.151 TB
+(the "~1.2 TB per district" HLD §20.5 used to provision). At the measured rate
+and row that was 3–12× too small; the cell now provisions 32 TB of NVMe per
+copy. Replicas, queue copies, audit and evidence need separate allowance.
 
 ---
 
@@ -51,39 +80,44 @@ the event rate during that test window; it does not describe the 400 B model.
 ```
 80,000 cameras
    │
-   ├── ~33 district nodes            each: 2,000–3,000 cameras
+   ├── site edge boxes               only where a site's uplink is too thin
+   │
+   ├── 40 district cells             each: ≤ 2,500 cameras or ≤ 4,000 obs/s
    │      ingest · analytics · local store · durable queue
    │      local watchlist · local alerts · local evidence
    │      — continues with the uplink down —
    │
-   └── central                       aggregation, cross-district search,
-          PostgreSQL + PostGIS + pgvector, evidence chain, audit
+   ├── 6 regions                     viewing fan-out, backups, forensic GPUs
+   │
+   └── state + DR                    registry and GIS, plate index, lake,
+          cross-district search, evidence chain, audit
 ```
 
-Districts are the unit because they match how the estate is actually
-administered and how connectivity actually fails. A node's failure removes one
-district's *reporting*, never its detection.
+Cells follow districts because districts match how the estate is actually
+administered and how connectivity actually fails; a large district splits
+into two cells. A cell's failure removes one district's *reporting*, never
+its detection.
 
 ---
 
 ## What each tier must sustain
 
-**Per district node — 2,500 cameras:**
+**Per full district cell — 2,500 cameras:**
 
 | | Requirement | Basis |
 |---|---|---|
-| Decode | 2,500 streams | Not all at full rate: T0 gating samples quiet cameras at ~1 fps |
-| Analytics | ~250 concurrent at T1+ | ~10% of cameras active at once, measured against no real estate |
-| Metadata out | 2.88–5.76 GB/day at 400 B; 9.59–19.18 GB/day at 1,331.7 B | MODELLED from the assumptions above; sizing uses the measured row |
-| Local storage | 30 days of metadata + sealed evidence | Video stays where it already is |
+| Decode | 2,500 streams, ~625 cores | 0.25 core per stream, ASSUMED from the 50-stream load run |
+| Analytics | Every camera at 1 fps; ANPR-grade cameras (20%, ASSUMED) at 5 fps | Two agreeing frames confirm a plate; T0 gating would reduce this but is not counted |
+| Metadata out | 3.83 Mbps compressed at 3,000 observations per camera-hour | MODELLED on the measured row and compression |
+| Local storage | 30 days of metadata (14.4 TB) + sealed evidence | Video stays where it already is |
 
-**Central:**
+**State:**
 
 | | Requirement |
 |---|---|
-| Ingest | ~2.3 B rows/day worst case, ~10× less with T0 gating |
-| Query | Plate lookup on an indexed column; district-scoped windows on a composite index |
-| Storage | Partition by month; observations are append-only |
+| Ingest | 66,667 observations/s pessimistic, as compressed micro-batches to the lake; plates, alerts and health on the event bus |
+| Query | Plate lookup on one shard keyed by plate; district-scoped windows on a composite index |
+| Storage | Partition by day; observations are append-only |
 
 All **MODELLED**. None measured.
 
@@ -129,7 +163,9 @@ there isn't one.
 5. **Deep inference concurrency is hardware-bound.** The historical full-pipeline
    baseline is ~5.6 fps (`reports/SCALE_80K_LOAD_TEST.md`); the 11.4 fps
    component run must not size the whole worker. A 2,500-camera district at
-   1 Hz therefore needs ceil(2,500 / (5.6 × S)) inference units (**MODELLED**).
+   1 Hz therefore needs ceil(2,500 / (5.6 × S)) inference units (**MODELLED**);
+   with ANPR-grade cameras at 5 fps the statewide planning case is 2,652 GPUs at
+   an ASSUMED S = 10 (HLD §17.6).
    S = 2.0 was measured on a laptop GPU (`var/reports/pipeline_device.json`),
    before the current recogniser; target accelerators must be benchmarked.
    Adaptive scheduling changes cadence, not camera selection. Current

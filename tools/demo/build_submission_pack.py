@@ -37,6 +37,7 @@ ITEMS: list[tuple[str, str, bool]] = [
     ("02_HLD.md", "docs/HLD.md", True),
     ("02_HLD_diagrams.pdf", "var/demo/diagrams/HLD_diagrams.pdf", False),
     ("02_SECURITY.md", "docs/SECURITY.md", False),
+    ("02_STATEWIDE_ARCHITECTURE.md", "docs/STATEWIDE_ARCHITECTURE.md", True),
     ("03_own_feed.mp4", "var/demo/own_feed.mp4", True),
     ("04_government_feed.mp4", "var/demo/government_feed.mp4", True),
     ("04_government_feed_1080p.mp4", "var/demo/government_feed_1080.mp4", False),

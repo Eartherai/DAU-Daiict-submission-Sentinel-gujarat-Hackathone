@@ -43,12 +43,18 @@ Reads = Literal["latest", "all"]
 
 def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
               limit: int = 1000, districts: Iterable[str] | None = None,
-              t_from: datetime | None = None, t_to: datetime | None = None
+              t_from: datetime | None = None, t_to: datetime | None = None,
+              domains: Iterable[str] | None = None,
               ) -> list[dict[str, Any]]:
     """Rows for the report, newest first.
 
     `districts` is the caller's jurisdiction (None means statewide). A district
     officer's export must not carry reads from cameras they may not search.
+
+    `domains` keeps only cameras registered with those source domains. The
+    government-feed report must not silently carry own-feed or synthetic
+    reads beside government ones; it is filtered in SQL, before the limit, so
+    another domain's newer reads cannot crowd government rows out.
     """
     from saakshya.store import schema as S
     from saakshya.store.repository import from_us, to_us
@@ -65,6 +71,10 @@ def anpr_rows(store: Any, *, plate: str | None = None, reads: Reads = "latest",
         where.append(o.c.t_norm_us >= to_us(t_from))
     if t_to:
         where.append(o.c.t_norm_us <= to_us(t_to))
+    if domains is not None:
+        wanted = [str(d).upper() for d in domains]
+        where.append(o.c.camera_id.in_(
+            select(S.cameras.c.camera_id).where(S.cameras.c.source_domain.in_(wanted))))
     scope = list(districts) if districts is not None else None
 
     q = select(*cols).where(*where)

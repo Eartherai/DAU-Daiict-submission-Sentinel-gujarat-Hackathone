@@ -490,6 +490,7 @@ def test_opening_recheck_aborts_capture_if_wall_freezes(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, 'playwright.sync_api', module)
     monkeypatch.setattr(gov, 'preflight', lambda *a, **k: {'passed': True, 'government_ids': ['cam06']})
     monkeypatch.setattr(gov, 'fetch_report', lambda *a: {'ok': True})
+    monkeypatch.setattr(gov, 'OPENING_WAIT_S', 0)
     monkeypatch.setattr(gov, 'wall_ids', lambda *a: ['cam06'])
     monkeypatch.setattr(gov, 'sample_video', lambda *a: gov.evaluate_tiles(
         [tile()], [tile(sample_ms=2100)], 1))
@@ -557,3 +558,15 @@ def test_a_stalled_focus_is_handed_over_a_bounded_number_of_times():
     assert "visible_motion=True, retry=focus" in src
     assert "switches >= FOCUS_SWITCHES" in src
     assert "until += time.monotonic() - paused_at" in src
+
+
+def test_the_opening_gate_is_the_preflight_gate():
+    ok = {'passed': True, 'visible_live': 3, 'connected': 6}
+    clean = {'shell': True, 'fatal': 0, 'loading': 0, 'loadingText': False}
+    assert gov.opening_ready(ok, clean, 5)
+    assert not gov.opening_ready({**ok, 'passed': False}, clean, 5)
+    assert not gov.opening_ready({**ok, 'visible_live': 0}, clean, 5)
+    assert not gov.opening_ready({**ok, 'connected': 4}, clean, 5)
+    assert not gov.opening_ready(ok, {**clean, 'loadingText': True}, 5)
+    assert not gov.opening_ready(ok, {**clean, 'fatal': 1}, 5)
+    assert 30 <= gov.OPENING_WAIT_S <= 180

@@ -120,6 +120,18 @@ FOCUS_SWITCHES = 2
 FOCUS_START_S = 12
 
 
+#: How long the opening may wait, after narration is prepared, for the wall
+#: to meet the preflight threshold again before the take is abandoned.
+OPENING_WAIT_S = 90
+
+
+def opening_ready(sample: dict, ui: dict, min_live: int) -> bool:
+    """The film may start: enough advancing tiles on screen, a clean view."""
+    return bool(sample['passed'] and sample['visible_live']
+                and sample['connected'] >= min_live and ui['shell']
+                and not ui['fatal'] and not ui['loading'] and not ui['loadingText'])
+
+
 def focus_order(live_ids: list[str], preferred: str = "cam06") -> list[str]:
     """Focus candidates: the designated vehicle's camera first, if advancing."""
     ids = list(dict.fromkeys(live_ids))
@@ -704,10 +716,12 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
              lambda: use_token(officer_token, 'officer', 'cameras', '#cameras table tbody tr'),
              'The investigating officer takes over. Searches remain attributable to the signed-in role.'),
     ]
-def fetch_report(base: str, token: str, out: Path, limit: int = 1000) -> dict:
+def fetch_report(base: str, token: str, out: Path, limit: int = 5000) -> dict:
     """The output report the submission must carry beside the video."""
     req = urllib.request.Request(
-        f"{base}/reports/anpr.csv?limit={limit}",
+        # Every government read, not the latest per mark and never another
+        # domain's: this CSV is delivered as the government-feed output report.
+        f"{base}/reports/anpr.csv?reads=all&domain=GOVERNMENT&limit={limit}",
         headers={"Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
@@ -843,14 +857,24 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                 'beats': [{'title': b.title, 'dwell_s': b.dwell_s,
                            'narration_s': b.say_s, 'optional': b.optional} for b in beats]})
             # Narration/report preparation may take time: gate the opening again.
-            opening = sample_video(page, wall_ids(page, government), min_live)
-            ui = page.evaluate(UI_SAMPLE)
-            if (not opening['passed'] or not opening['visible_live']
-                    or opening['connected'] < min_live or not ui['shell']
-                    or ui['fatal'] or ui['loading'] or ui['loadingText']):
-                save_json(out_dir / 'opening.json', {'passed': False, 'sample': opening, 'ui': ui})
+            # One sample was too brittle on a shared sandbox (take 6: 4 live
+            # against 5, a minute after preflight measured 6), so re-sample for
+            # a bounded time; the gate itself is unchanged and nothing is
+            # filmed until it passes.
+            deadline = time.monotonic() + OPENING_WAIT_S
+            tries = []
+            while True:
+                opening = sample_video(page, wall_ids(page, government), min_live)
+                ui = page.evaluate(UI_SAMPLE)
+                ready = opening_ready(opening, ui, min_live)
+                tries.append({'live': opening['live'], 'visible_live': opening['visible_live'],
+                              'connected': opening['connected'], 'ready': ready})
+                if ready or time.monotonic() >= deadline:
+                    break
+            save_json(out_dir / 'opening.json',
+                      {'passed': ready, 'sample': opening, 'ui': ui, 'tries': tries})
+            if not ready:
                 raise SystemExit('opening readiness changed after preflight; no recording started')
-            save_json(out_dir / 'opening.json', {'passed': True, 'sample': opening, 'ui': ui})
             show_caption(page, live_caption(opening['live']))
             mp4 = Path(str(out_dir) + '.mp4')
             silent = Path(str(out_dir) + '_silent.mp4') if voice else mp4

@@ -879,6 +879,8 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
                       plate: Annotated[str | None, Query(max_length=24)] = None,
                       reads: Annotated[str | None, Query(pattern="^(latest|all)$")] = None,
                       t_from: str | None = None, t_to: str | None = None,
+                      domain: Annotated[str | None, Query(
+                          pattern="^(GOVERNMENT|OWN_FEED|SYNTHETIC_CONTROL|ARCHIVAL_REPLAY)$")] = None,
                       ) -> PlainTextResponse:
     """The submission artifact: every mark read, with when and where.
 
@@ -890,7 +892,9 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
 
     `plate` narrows it to one vehicle; `reads=all` lists every read instead of
     the latest per mark (and is the default once a plate is given, because the
-    latest read alone is not a movement history). Columns are documented in
+    latest read alone is not a movement history). `domain=GOVERNMENT` keeps
+    only government cameras, so the report delivered with the government-feed
+    film carries no own-feed or synthetic reads. Columns are documented in
     `saakshya.reports.anpr`.
     """
     # The report is every plate with place and time: a bulk search. It needs
@@ -903,7 +907,7 @@ async def anpr_report(state: StateDep, ctx: AuthDep,
     tf, tt = parse_time(t_from, "t_from"), parse_time(t_to, "t_to")
     rows = anpr_rows(state.store, plate=plate, reads=mode,  # type: ignore[arg-type]
                      limit=limit, districts=ctx.principal.scope_filter(),
-                     t_from=tf, t_to=tt)
+                     t_from=tf, t_to=tt, domains=[domain] if domain else None)
     ctx.audit(state.store, "anpr_report_export", target=plate or "ALL",
               result_count=len(rows))
     body = anpr_csv(rows)

@@ -51,6 +51,7 @@ class Screencast:
     _paused_at: float | None = field(default=None, repr=False)
     _paused_s: float = 0.0
     _accept_after: float = 0.0
+    _ended_at: float | None = field(default=None, repr=False)
 
     @property
     def paused(self) -> bool:
@@ -72,7 +73,7 @@ class Screencast:
 
     def timeline_time(self) -> float:
         """Epoch-like capture time, matching the timestamps stored for frames."""
-        return (self._paused_at or time.time()) - self._paused_s
+        return (self._paused_at if self._paused_at is not None else time.time()) - self._paused_s
 
     def _start(self) -> None:
         self._cdp.send("Page.startScreencast", {
@@ -114,6 +115,7 @@ class Screencast:
         self._n += 1
 
     def __exit__(self, *exc: object) -> None:
+        self._ended_at = self.timeline_time()
         try:
             self._cdp.send("Page.stopScreencast")
         except Exception:
@@ -157,6 +159,10 @@ class Screencast:
             if i + 1 < len(self._frames):
                 dur = max(0.001, self._frames[i + 1][0] - ts)
                 lines.append(f"duration {dur:.6f}")
+            elif self._ended_at is not None:
+                # A static final screen may emit no further compositor frames.
+                # Preserve its actual held duration, including the narration.
+                lines.append(f"duration {max(0.001, self._ended_at - ts):.6f}")
         # The concat demuxer ignores the final entry's duration unless the last
         # file is repeated, which is the documented idiom.
         lines.append(f"file '{self._frames[-1][1].name}'")

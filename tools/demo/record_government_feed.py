@@ -44,6 +44,7 @@ class Beat:
     wall: bool = False
     optional: bool = False
     motion: Callable | None = None
+    visible_motion: bool = False
     ok: bool = False
     err: str = ""
     at: float = 0.0
@@ -95,7 +96,9 @@ def evaluate_tiles(before: list[dict], after: list[dict], min_live: int) -> dict
     # Duplicated filmstrip elements must never inflate the count.
     live = sorted({r["camera"] for r in rows if r["advancing"]})
     connected = sorted({r["camera"] for r in rows if r.get("pc") == "connected"})
-    return {"live": len(live), "live_ids": live, "connected": len(connected),
+    visible_live = sorted({r["camera"] for r in rows if r["advancing"] and r.get("visible")})
+    return {"live": len(live), "live_ids": live, "visible_live": len(visible_live),
+            "visible_live_ids": visible_live, "connected": len(connected),
             "passed": len(live) >= min_live, "min_live": min_live, "tiles": rows}
 
 
@@ -174,12 +177,19 @@ INSTRUMENT = """() => {
       }
     }
     const tracks = v?.srcObject?.getTracks?.() || [];
+    const rect = v?.getBoundingClientRect();
+    const bounds = (focus ? document.querySelector('#live-stage') :
+      document.querySelector('#live-grid'))?.getBoundingClientRect();
+    const visible = !!rect && !!bounds && rect.width > 0 && rect.height > 0 &&
+      getComputedStyle(v).visibility !== 'hidden' &&
+      rect.bottom > Math.max(0, bounds.top) && rect.top < Math.min(innerHeight, bounds.bottom) &&
+      rect.right > Math.max(0, bounds.left) && rect.left < Math.min(innerWidth, bounds.right);
     const pc = [...peers].find(p => p.getReceivers().some(r =>
       r.track && tracks.some(t => t.id === r.track.id)));
     return {camera, sample_ms: performance.now(), video_id: stat?.id ?? null,
       width: v?.videoWidth || 0, ready: v?.readyState || 0,
       time: v?.currentTime || 0, vfc: stat?.frames || 0,
-      pc: pc?.connectionState || 'absent'};
+      pc: pc?.connectionState || 'absent', visible};
   });
 }"""
 
@@ -190,7 +200,7 @@ UI_SAMPLE = """() => {
   const loading = view ? [...view.querySelectorAll('.loading-note')].filter(visible).length : 0;
   const loadingText = view ? /\\bLoading\\b/i.test(view.innerText) : true;
   const fatal = [...document.querySelectorAll(
-    '#toast-stack .toast.bad, .view.active .notice.bad, .view.active .onboard-result.bad, [role="alert"].bad')]
+    '#toast-stack .toast.bad, .view.active .notice.bad, .view.active .onboard-result.bad')]
     .filter(visible).length;
   return {shell: visible(document.querySelector('.shell')) && visible(view)
       && !visible(document.querySelector('#gate')), loading, loadingText, fatal,
@@ -238,6 +248,17 @@ def wall_ids(page, government: list[str]) -> list[str]:
     ids = page.locator('#live-grid .live-tile').evaluate_all(
         'es => es.map(e => e.dataset.camera)')
     return list(dict.fromkeys(cid for cid in ids if cid in government))
+
+
+def wait_wall_motion(page, government: list[str], threshold: int, samples: list) -> dict:
+    deadline = time.monotonic() + 30
+    while True:
+        sample = sample_video(page, wall_ids(page, government), threshold)
+        samples.append(sample)
+        if sample['passed'] and sample['visible_live']:
+            return sample
+        if time.monotonic() >= deadline:
+            raise RecorderFailure('wall motion threshold not met')
 
 
 def wall_mode(page, layout: str) -> None:
@@ -319,7 +340,7 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
             gate("NO_FATAL_TOAST", ui["fatal"] == 0, {"visible_errors": ui["fatal"]})
             gate("WHEP_READY", len(ids) == 30 and sample["connected"] >= min_live,
                  {"connected": sample["connected"], "tiles": len(ids), "policy": "control-room"})
-            gate("VIDEO_ADVANCING", sample["passed"], sample)
+            gate("VIDEO_ADVANCING", sample["passed"] and sample['visible_live'] > 0, sample)
             print(f"  preflight: {sample['live']}/{len(ids)} advancing; "
                   f"{sample['connected']} connected", flush=True)
             if all(g["passed"] for g in result["gates"].values()):
@@ -356,12 +377,14 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
     selected = {"camera": None}
     gallery = gallery or ROOT / "var/demo/plate_gallery/gallery.html"
 
-    def use_token(token, view, content):
+    def use_token(token, role, view, content):
         if not token:
             raise RecorderFailure("role token missing")
         page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", token)
-        page.goto(base.rstrip('/') + '/ui/#' + view, wait_until='domcontentloaded')
-        page.reload(wait_until='domcontentloaded')
+        # A different query forces exactly one document navigation (a hash-only
+        # navigation would leave the previous principal in app state).
+        page.goto(base.rstrip('/') + '/ui/?recorder-role=' + role + '#' + view,
+                  wait_until='domcontentloaded')
         wait_view(page, view, content)
 
     def wall_group(fraction):
@@ -388,7 +411,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             measured = sample_video(page, [cid], 1, focus=True)
-            if measured["passed"]:
+            if measured["passed"] and measured['visible_live']:
                 wait_view(page, "live", "#live-sidecar")
                 return {"camera": cid, "video": measured}
         raise RecorderFailure("selected video stopped advancing")
@@ -403,11 +426,62 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.locator('#here-plate-row .here-plate').first.scroll_into_view_if_needed()
         return {"camera": cid}
 
+    def search_form(mark='', camera='', object_type=''):
+        if page.url.startswith('file:'):
+            page.goto(base.rstrip('/') + '/ui/#investigate', wait_until='domcontentloaded')
+            wait_view(page, 'investigate', '#q-plate')
+        else:
+            navigate(page, 'investigate', '#q-plate')
+        page.fill('#case-id', 'FIR-000/2026')
+        page.fill('#purpose', 'reviewing government camera observations')
+        # Person and plate beats share a form: no stale camera/type/date filter.
+        for selector in ('#q-colour', '#q-district', '#q-from', '#q-to', '#q-event', '#q-severity'):
+            page.fill(selector, '')
+        page.uncheck('#q-fuzzy')
+        page.uncheck('#q-watchlist')
+        page.fill('#q-plate', mark)
+        page.fill('#q-camera', camera)
+        page.fill('#q-type', object_type)
+        with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as pending:
+            page.press('#q-plate', 'Enter')
+        response = pending.value
+        if response.status != 200:
+            raise RecorderFailure('search refused or unavailable')
+        rows = response.json().get('candidates', [])
+        page.wait_for_function("() => !document.querySelector('#search-form button[type=submit]').disabled")
+        wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice')
+        return rows
+
+    def persons():
+        if 'cam12' not in government:
+            raise RecorderFailure('cam12 is not a government camera in this registry')
+        rows = search_form(camera='cam12', object_type='person')
+        if not rows or any(r.get('camera_id') != 'cam12' or r.get('object_type') != 'person' for r in rows):
+            raise RecorderFailure('government person detections were not returned')
+        page.wait_for_selector('#results .result')
+        return {'camera': 'cam12', 'object_type': 'person', 'returned_observations': len(rows)}
+
+    def restricted_zone():
+        status, data = api_read(base, officer_token, '/zones')
+        name = 'No pedestrians on the toll-lane carriageway'
+        rules = [r for r in data.get('rules', []) if r.get('camera_id') == 'cam12'
+                 and r.get('name') == name and 'person' in r.get('classes', [])]
+        if status != 200 or len(rules) != 1:
+            raise RecorderFailure('cam12 demonstration person-zone rule is unavailable')
+        navigate(page, 'analytics', '#analytics .zone-rule')
+        rule = page.locator('#analytics .zone-rule').filter(has_text=name)
+        rule.locator('.zone-count').wait_for(state='visible')
+        rule.scroll_into_view_if_needed()
+        return {'camera': 'cam12', 'rule_id': rules[0]['rule_id'],
+                'name': name, 'label': 'DEMONSTRATION RULE',
+                'rendered_entries': rule.locator('.zone-count').inner_text()}
+
     def plate_gallery():
         # plateCard uses snapshots. herePlateCard calls /plate.jpg, whose route
         # crops the CURRENT still with a stored box, not the captured evidence.
         # Neither qualifies as a gallery of stored evidence crops.
         manifest = gallery.with_name('selected.json')
+        stats_path = gallery.with_name('stats.json')
         if not gallery.is_file() or not manifest.is_file():
             raise SkipBeat("plate gallery or selected.json absent")
         rows = json.loads(manifest.read_text(encoding='utf-8'))
@@ -416,30 +490,23 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
                 not isinstance(r, dict) or not required <= r.keys()
                 or r['camera'] not in government or not r['provenance'] for r in rows):
             raise SkipBeat("gallery contract or government provenance missing")
+        # The producer does not put source_domain in selected.json. Its camera
+        # is checked against our registry; stats cover all reads, not selection.
+        if not stats_path.is_file():
+            raise SkipBeat('gallery stats.json absent')
+        stats = json.loads(stats_path.read_text(encoding='utf-8'))
+        stat_keys = ('total_reads', 'distinct_plates', 'confirmed_registrations',
+                     'confirmed_reads', 'cameras_with_reads', 'government_cameras_in_registry')
+        if not isinstance(stats, dict) or any(type(stats.get(k)) is not int or stats[k] < 0 for k in stat_keys):
+            raise SkipBeat('gallery stats.json contract missing')
         page.goto(gallery.resolve().as_uri(), wait_until='domcontentloaded')
         page.wait_for_function("() => document.images.length > 0 && "
                                "[...document.images].every(i => i.complete && i.naturalWidth > 16)")
-        return {"manifest": str(manifest), "crops": len(rows)}
+        return {"manifest": str(manifest), "crops": len(rows),
+                "store_stats": {k: stats[k] for k in stat_keys}}
 
     def search():
-        if page.url.startswith('file:'):
-            page.goto(base.rstrip('/') + '/ui/#investigate', wait_until='domcontentloaded')
-            wait_view(page, 'investigate', '#q-plate')
-        else:
-            navigate(page, 'investigate', '#q-plate')
-        page.fill('#case-id', 'FIR-000/2026')
-        page.fill('#purpose', 'tracing a designated vehicle')
-        page.fill('#q-plate', plate)
-        # Observe the real search response rather than inferring from an old card.
-        with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as pending:
-            page.press('#q-plate', 'Enter')
-        response = pending.value
-        if response.status != 200:
-            raise RecorderFailure('search refused or unavailable')
-        data = response.json()
-        rows = data.get('candidates', [])
-        page.wait_for_function("() => !document.querySelector('#search-form button[type=submit]').disabled")
-        wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice')
+        rows = search_form(mark=plate)
         search_beat.title = search_caption(rows, government)
         return {"sightings": len(rows), "cameras": sorted({r.get('camera_id', '') for r in rows}),
                 "single_camera": single_camera(rows)}
@@ -472,7 +539,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         # A local read-only view of the exact CSV delivered beside the film.
         rows = list(csv.DictReader(io.StringIO(csv_path.read_text(encoding='utf-8'))))
         if not rows:
-            raise SkipBeat('ANPR CSV contains no observations')
+            raise RecorderFailure('ANPR CSV contains no observations')
         import html
         keys = list(rows[0])
         table = '<tr>' + ''.join('<th>' + html.escape(k) + '</th>' for k in keys) + '</tr>'
@@ -488,7 +555,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         wait_view(page, 'evidence', '#evidence-chain table', timeout=120000)
 
     def onboarded():
-        use_token(admin_token, 'cameras', '#cameras table tbody tr')
+        use_token(admin_token, 'administrator', 'cameras', '#cameras table tbody tr')
 
     def system_status():
         navigate(page, 'system', '#system .command-grid .health-row')
@@ -526,11 +593,15 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
                wall=True, motion=lambda fraction=fraction: scroll_wall(page, fraction))
           for name, fraction in [('top', 0.0), ('middle', 0.5), ('bottom', 1.0)]],
         Beat('One advancing government camera, with its intelligence panel', 28, focus,
-             'A camera with measured advancing frames, beside its intelligence panel. The panel states the available observations.'),
+             'A camera with measured advancing frames, beside its intelligence panel. The panel states the available observations.', visible_motion=True),
         Beat('Analytics output on the selected government camera', 18, analytics,
              'These are the observations available for this camera. Viewing a stream does not imply that every camera is under deep analysis.', optional=True),
+        Beat('Government person detections — cam12, stored observations', 18, persons,
+             'Stored person detections on government camera cam12, with camera and timestamps. These are object observations, not identified people.'),
+        Beat('cam12 restricted zone — DEMONSTRATION RULE set by the estate administrator', 18, restricted_zone,
+             'No pedestrians on the toll-lane carriageway. This is a demonstration rule set by the estate administrator. The screen reports sightings against that rule, not identities or a claim of unlawful intrusion.'),
         Beat('Government ANPR — measured observations (crops from the evidence store)', 24, plate_gallery,
-             'Stored government plate crops, with their provenance and read confidence. These are observations to verify.', optional=True),
+             'Retained government crops and recorded reads. Older sealed stills can show a different vehicle from the recorded plate. Verify each crop against its provenance; a hash alone does not establish that match.', optional=True),
         search_beat,
         Beat('GIS — selected camera and recorded location', 18, gis,
              'The selected camera at its recorded location. Read the location basis beside the map.', optional=True),
@@ -549,7 +620,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         Beat('Role separation — administrator search refused', 8, refused,
              'The administrator may manage the estate but may not search vehicle observations.'),
         Beat('Handing back to the investigating officer', 8,
-             lambda: use_token(officer_token, 'cameras', '#cameras table tbody tr'),
+             lambda: use_token(officer_token, 'officer', 'cameras', '#cameras table tbody tr'),
              'The investigating officer takes over. Searches remain attributable to the signed-in role.'),
     ]
 def fetch_report(base: str, token: str, out: Path, limit: int = 1000) -> dict:
@@ -564,9 +635,15 @@ def fetch_report(base: str, token: str, out: Path, limit: int = 1000) -> dict:
         return {"ok": False, "why": f"HTTP {exc.code}"}
     except Exception as exc:                            # pragma: no cover
         return {"ok": False, "why": type(exc).__name__}
+    reader = csv.DictReader(io.StringIO(body))
+    required = {'plate', 'timestamp_utc', 'camera_id'}
+    if not required <= set(reader.fieldnames or []):
+        return {'ok': False, 'why': 'ANPR CSV columns missing'}
+    rows = list(reader)
+    if not rows or any(not all(r.get(k) for k in required) for r in rows):
+        return {'ok': False, 'why': 'ANPR CSV has no complete observations'}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(body, encoding="utf-8")
-    rows = list(csv.DictReader(io.StringIO(body)))
     plates = {r.get("plate") for r in rows if r.get("plate")}
     cams = {r.get("camera_id") for r in rows if r.get("camera_id")}
     return {"ok": True, "rows": len(rows), "plates": len(plates),
@@ -684,7 +761,8 @@ def record(base: str, token: str, plate: str, out_dir: Path,
             # Narration/report preparation may take time: gate the opening again.
             opening = sample_video(page, wall_ids(page, government), min_live)
             ui = page.evaluate(UI_SAMPLE)
-            if (not opening['passed'] or opening['connected'] < min_live or not ui['shell']
+            if (not opening['passed'] or not opening['visible_live']
+                    or opening['connected'] < min_live or not ui['shell']
                     or ui['fatal'] or ui['loading'] or ui['loadingText']):
                 save_json(out_dir / 'opening.json', {'passed': False, 'sample': opening, 'ui': ui})
                 raise SystemExit('opening readiness changed after preflight; no recording started')
@@ -699,29 +777,34 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                     # No loading screen or role-token reload can enter the film.
                     cast.pause()
                     started = time.monotonic()
+                    capture_started = False
                     try:
                         detail = beat.action()
                         if detail:
                             beat.samples.append({'preparation': detail})
                         if beat.wall:
                             threshold = min_live if i == 0 else 1
-                            deadline = time.monotonic() + 30
-                            while True:
-                                sample = sample_video(page, wall_ids(page, government), threshold)
-                                beat.samples.append(sample)
-                                if sample['passed']:
-                                    break
-                                if time.monotonic() >= deadline:
-                                    raise RecorderFailure('wall motion threshold not met')
+                            sample = wait_wall_motion(page, government, threshold, beat.samples)
                             beat.title = live_caption(sample['live'])
+                        if beat.wall:
+                            wait_view(page, 'live', '#live-grid .live-tile')
                         show_caption(page, beat.title)
                         beat.prepare_s = round(time.monotonic() - started, 3)
                         cast.resume()
+                        capture_started = True
                         beat.at = cast.timeline_time() - t0
                         print(f'  {beat.at:.1f}s  {beat.title}', flush=True)
                         hold = max(beat.dwell_s, beat.say_s + 0.6)
                         if beat.motion:
                             beat.motion()
+                            # The app may need to attach newly visible tiles after
+                            # the filmed scroll. Exclude that wait from the hold.
+                            cast.pause()
+                            ready_at = time.monotonic()
+                            sample = wait_wall_motion(page, government, threshold, beat.samples)
+                            beat.prepare_s += round(time.monotonic() - ready_at, 3)
+                            show_caption(page, live_caption(sample['live']))
+                            cast.resume()
                         until = time.monotonic() + hold
                         beat.ok = True
                         while time.monotonic() < until:
@@ -730,8 +813,13 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                                 sample['at_s'] = cast.timeline_time() - t0
                                 beat.samples.append(sample)
                                 show_caption(page, live_caption(sample['live']))
-                                if not sample['passed']:
+                                if not sample['passed'] or not sample['visible_live']:
                                     raise RecorderFailure('wall motion fell below threshold during hold')
+                            elif beat.visible_motion and time.monotonic() + 1.1 < until:
+                                sample = sample_video(page, [detail['camera']], 1, focus=True)
+                                beat.samples.append(sample)
+                                if not sample['passed'] or not sample['visible_live']:
+                                    raise RecorderFailure('focused government video stopped advancing')
                             ui = page.evaluate(UI_SAMPLE) if not page.url.startswith('file:') else None
                             if ui and (ui['loading'] or ui['loadingText']):
                                 raise RecorderFailure('loading appeared during hold')
@@ -741,17 +829,18 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                         beat.recorded_s = round(cast.timeline_time() - t0 - beat.at, 3)
                         filmed.append(beat)
                     except SkipBeat as exc:
-                        beat.skipped, beat.err = True, str(exc)
+                        beat.skipped, beat.err = beat.optional, str(exc)
                         print(f'  skipped: {beat.title}: {beat.err}', flush=True)
+                        if not beat.optional:
+                            break
                     except Exception as exc:
                         # Exception text can include auth headers or server replies.
                         beat.ok, beat.err = False, str(exc) if isinstance(exc, RecorderFailure) else type(exc).__name__
                         print(f'  failed: {beat.title}: {beat.err}', flush=True)
-                        if not cast.paused:
+                        if capture_started:
                             beat.recorded_s = round(cast.timeline_time() - t0 - beat.at, 3)
                             filmed.append(beat)
-                        if not beat.optional:
-                            break
+                        break  # Unexpected failures must never become a usable take.
                     finally:
                         cast.pause()
                         beat.prepare_s = beat.prepare_s or round(time.monotonic() - started, 3)

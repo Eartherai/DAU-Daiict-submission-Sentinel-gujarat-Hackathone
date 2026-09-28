@@ -46,54 +46,50 @@ def test_a_missing_report_is_reported_as_a_failure():
     assert "needs" in src.split("NOT WRITTEN", 1)[1][:200]
 
 
-def test_the_wall_waits_for_decoded_frames_not_attached_elements():
-    """An empty wall filmed confidently is worse than one that is connecting.
-
-    Matched without whitespace: the guarantee is the threshold, not how the
-    expression happens to be spaced.
-    """
-    src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
-    flat = "".join(src.split())
-    assert "videoWidth>16" in flat, (
-        "videoWidth > 0 is satisfied by the 2x2 placeholder Chrome reports "
-        "before a WHEP track's first keyframe")
-    assert "videoWidth>0" not in flat, "the placeholder threshold is back"
+def test_the_wall_rejects_placeholder_frames():
+    before = {'camera': 'cam06', 'video_id': 1, 'sample_ms': 0,
+              'time': 0, 'vfc': 0}
+    after = {**before, 'sample_ms': 1100, 'time': 1.1, 'vfc': 30,
+             'ready': 3, 'width': 2, 'pc': 'connected'}
+    assert gov.evaluate_tiles([before], [after], 1)['live'] == 0
+    assert gov.evaluate_tiles([before], [{**after, 'width': 1920}], 1)['live'] == 1
 
 
-def test_the_wall_waits_for_every_visible_tile_to_show_something():
-    """Four decoding tiles was a quorum, not a wall.
-
-    A tile shows CONNECTING when it holds neither a decoded frame nor a
-    cached still, so waiting only on a decode count filmed black boxes beside
-    live video.
-    """
-    src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
-    flat = "".join(src.split())
-    assert "decoding>=8" in flat
-    assert "shown===vis.length" in flat
+def test_live_threshold_is_measured_and_configurable():
+    before = [{'camera': f'cam{i:02}', 'video_id': i, 'sample_ms': 0,
+               'time': 0, 'vfc': 0} for i in range(1, 13)]
+    after = [{**t, 'sample_ms': 1100, 'time': 1.1, 'vfc': 30,
+              'ready': 3, 'width': 1920} for t in before]
+    assert gov.evaluate_tiles(before, after, 12)['passed']
+    assert not gov.evaluate_tiles(before, after[:-1], 12)['passed']
 
 
-def test_stills_are_pre_warmed_before_the_browser_opens():
-    """A capture takes 1-10s; a camera first asked during filming is filmed
-    before it answers."""
-    src = (ROOT / "tools" / "demo" / "record_government_feed.py").read_text()
-    assert "def prewarm_stills" in src
-    body = src.split("def prewarm_stills", 1)[1].split("\ndef ", 1)[0]
-    assert "/snapshot" in body
-    # It must not invent a frame for a camera that cannot produce one.
-    assert "honest outcome" in body
-    main = src.split("def main(", 1)[1]
-    assert "prewarm_stills(" in main
+def test_recorder_never_prewarms_upstream_stills():
+    src = Path(gov.__file__).read_text()
+    assert '/snapshot' not in src
+    assert 'prewarm_stills' not in src
+    assert 'new RTCPeerConnection(' not in src
 
 
-def test_report_summary_counts_distinct_plates(tmp_path):
-    """A hundred sightings of one vehicle is not a hundred plates."""
-    import csv, io
+def test_report_summary_counts_downloaded_distinct_plates(tmp_path, monkeypatch):
+    """Exercise the report exporter, including the file delivered to the judge."""
+    import io
     body = ("plate,timestamp_utc,camera_id\n"
             "GJ01AA1111,2026-09-21T10:00:00Z,cam06\n"
             "GJ01AA1111,2026-09-21T10:00:05Z,cam06\n"
             "GJ02BB2222,2026-09-21T10:01:00Z,cam12\n")
-    rows = list(csv.DictReader(io.StringIO(body)))
-    plates = {r["plate"] for r in rows}
-    cams = {r["camera_id"] for r in rows}
-    assert len(rows) == 3 and len(plates) == 2 and len(cams) == 2
+    monkeypatch.setattr(gov.urllib.request, 'urlopen', lambda *a, **k: io.BytesIO(body.encode()))
+    target = tmp_path / 'report.csv'
+    assert gov.fetch_report('http://unused', 'fixture', target) == {
+        'ok': True, 'rows': 3, 'plates': 2, 'cameras': 2}
+    assert target.read_text() == body
+
+
+def test_empty_or_invalid_download_is_not_a_submission_report(tmp_path, monkeypatch):
+    import io
+    for body in ('<html>Unavailable</html>', 'plate,timestamp_utc,camera_id\n',
+                 'plate,timestamp_utc,camera_id\nX,,cam06\n'):
+        monkeypatch.setattr(gov.urllib.request, 'urlopen', lambda *a, **k: io.BytesIO(body.encode()))
+        target = tmp_path / 'report.csv'
+        assert not gov.fetch_report('http://unused', 'fixture', target)['ok']
+        assert not target.exists()

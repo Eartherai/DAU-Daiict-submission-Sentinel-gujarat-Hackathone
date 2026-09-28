@@ -20,7 +20,7 @@ def no_network(monkeypatch):
 
 def tile(camera='cam06', **updates):
     return {'camera': camera, 'sample_ms': 1000, 'video_id': 1, 'width': 1920,
-            'ready': 3, 'time': 10, 'vfc': 100, 'pc': 'connected', **updates}
+            'ready': 3, 'time': 10, 'vfc': 100, 'pc': 'connected', 'visible': True, **updates}
 
 
 def advancing(camera='cam06', **updates):
@@ -235,8 +235,8 @@ def test_recorder_observes_only_the_app_media_sessions():
     assert src.count('browser.new_context(') == 1
 
 
-@pytest.mark.parametrize('passed', [True, False])
-def test_preflight_only_returns_before_capture_or_report(tmp_path, monkeypatch, passed):
+@pytest.mark.parametrize(('passed', 'preflight_only'), [(True, True), (False, True), (False, False)])
+def test_failed_or_preflight_only_run_never_captures(tmp_path, monkeypatch, passed, preflight_only):
     """Exercise the entrypoint orchestration without importing a real browser."""
     from types import ModuleType, SimpleNamespace
     calls = []
@@ -257,10 +257,12 @@ def test_preflight_only_returns_before_capture_or_report(tmp_path, monkeypatch, 
     monkeypatch.setattr(gov, 'fetch_report', lambda *a: pytest.fail('preflight-only must not fetch report'))
     monkeypatch.setattr(gov, 'Screencast', lambda *a, **k: pytest.fail('must not start recording'))
     if passed:
-        assert gov.record('http://unused', 'test-placeholder', 'X', tmp_path, preflight_only=True) == []
+        assert gov.record('http://unused', 'test-placeholder', 'X', tmp_path,
+                       admin_token='admin-placeholder', preflight_only=preflight_only) == []
     else:
         with pytest.raises(SystemExit, match='preflight failed: 0 advancing'):
-            gov.record('http://unused', 'test-placeholder', 'X', tmp_path, preflight_only=True)
+            gov.record('http://unused', 'test-placeholder', 'X', tmp_path,
+                       admin_token='admin-placeholder', preflight_only=preflight_only)
     assert calls == ['closed']
 
 
@@ -292,3 +294,208 @@ def test_unstable_wall_stops_at_deadline_without_reopening(tmp_path, monkeypatch
     assert not result['passed']
     assert len(result['samples']) == 2 and result['elapsed_s'] <= 5
     assert sum(a[0] == 'goto' for a in page.actions) == 1
+
+
+def test_offscreen_motion_is_reported_separately():
+    measured = gov.evaluate_tiles([tile()], [advancing(visible=False)], 1)
+    assert measured['live'] == 1
+    assert measured['visible_live'] == 0
+    assert measured['visible_live_ids'] == []
+
+
+class ActionPage:
+    """Small browser protocol fake: records the actual actions/response use."""
+    url = 'http://unused/ui/#live'
+
+    def __init__(self, rows=()):
+        self.fields = {}
+        self.actions = []
+        self.rows = list(rows)
+
+    def goto(self, url, **kwargs):
+        self.actions.append(('goto', url))
+        self.url = url
+
+    def evaluate(self, script, *args):
+        self.actions.append(('evaluate', script))
+
+    def fill(self, selector, value):
+        self.fields[selector] = value
+
+    def uncheck(self, selector):
+        self.fields[selector] = False
+
+    def expect_response(self, predicate):
+        from types import SimpleNamespace
+        response = SimpleNamespace(url='http://unused/search?object_type=person',
+                                   request=SimpleNamespace(method='GET'), status=200,
+                                   json=lambda: {'candidates': self.rows})
+        assert predicate(response)
+        class Pending:
+            value = response
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+        return Pending()
+
+    def press(self, *args):
+        self.actions.append(('press', args))
+
+    def wait_for_selector(self, selector, **kwargs):
+        self.actions.append(('wait', selector))
+
+    def wait_for_function(self, *args, **kwargs):
+        pass
+
+
+def test_person_search_and_plate_search_clear_each_others_filters(monkeypatch):
+    page = ActionPage([{'camera_id': 'cam12', 'object_type': 'person'}])
+    monkeypatch.setattr(gov, 'navigate', lambda *a, **k: None)
+    monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
+    beats = gov.build(page, 'GJ11S7924', government=['cam12', 'cam06'])
+    person = next(b for b in beats if 'person detections' in b.title)
+    assert person.action()['returned_observations'] == 1
+    assert page.fields['#q-type'] == 'person'
+    assert page.fields['#q-camera'] == 'cam12'
+    assert page.fields['#q-plate'] == ''
+    page.rows = [{'camera_id': 'cam06'}]
+    search = next(b for b in beats if 'Designated plate' in b.title)
+    assert search.action()['single_camera']
+    assert page.fields['#q-type'] == page.fields['#q-camera'] == ''
+    assert page.fields['#q-plate'] == 'GJ11S7924'
+    assert search.title.startswith('SINGLE-CAMERA GOVERNMENT')
+
+
+@pytest.mark.parametrize('rows', [[], [{'camera_id': 'OWN-1', 'object_type': 'person'}],
+                                 [{'camera_id': 'cam12', 'object_type': 'car'}]])
+def test_person_beat_cannot_claim_missing_or_wrong_detections(monkeypatch, rows):
+    monkeypatch.setattr(gov, 'navigate', lambda *a, **k: None)
+    monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
+    beats = gov.build(ActionPage(rows), 'X', government=['cam12'])
+    with pytest.raises(gov.RecorderFailure, match='person detections'):
+        next(b for b in beats if 'person detections' in b.title).action()
+
+
+def test_cam12_rule_is_verified_then_waited_and_scrolled_into_view(monkeypatch):
+    calls = []
+    name = 'No pedestrians on the toll-lane carriageway'
+    class Zone:
+        def filter(self, **kwargs):
+            assert kwargs == {'has_text': name}
+            return self
+        def locator(self, selector):
+            assert selector == '.zone-count'
+            return self
+        def wait_for(self, **kwargs):
+            calls.append('wait')
+        def scroll_into_view_if_needed(self):
+            calls.append('scroll')
+        def inner_text(self):
+            return '0 entries in the zone during its hours, of 3 sightings on this camera'
+    class Page:
+        def locator(self, selector):
+            assert selector == '#analytics .zone-rule'
+            return Zone()
+    monkeypatch.setattr(gov, 'api_read', lambda *a: (200, {'rules': [{
+        'camera_id': 'cam12', 'classes': ['person'], 'name': name, 'rule_id': 'rule-fixture'}]}))
+    monkeypatch.setattr(gov, 'navigate', lambda *a, **k: calls.append('navigate'))
+    beat = next(b for b in gov.build(Page(), 'X') if 'restricted zone' in b.title)
+    detail = beat.action()
+    assert detail['camera'] == 'cam12' and detail['label'] == 'DEMONSTRATION RULE'
+    assert calls == ['navigate', 'wait', 'scroll']
+    assert detail['rendered_entries'].startswith('0 entries')  # Zero is never an intrusion claim.
+
+
+def test_role_handoff_uses_one_document_navigation_per_role(monkeypatch):
+    monkeypatch.setattr(gov, 'wait_view', lambda *a, **k: None)
+    page = ActionPage()
+    beats = gov.build(page, 'X', 'admin-placeholder', 'officer-placeholder', base='http://unused')
+    next(b for b in beats if 'Model 1' in b.title).action()
+    beats[-1].action()
+    assert [a for a in page.actions if a[0] == 'goto'] == [
+        ('goto', 'http://unused/ui/?recorder-role=administrator#cameras'),
+        ('goto', 'http://unused/ui/?recorder-role=officer#cameras')]
+
+
+def test_gallery_consumes_producer_fields_without_inventing_source_domain(tmp_path):
+    (tmp_path / 'gallery.html').write_text('<html><img></html>')
+    selected = {'image': 'retained.jpg#xywh=0,0,20,10', 'original_image': 'originals/retained.jpg',
+                'original_sha256': 'fixture', 'display_image': 'display/01.png', 'display_scale': 4,
+                'camera': 'cam06', 'timestamp': '2026-09-24T16:10:00+05:30',
+                'plate_text': 'X', 'confidence': '0.9', 'agreeing_reads': '2',
+                'provenance': 'retained evidence; verify read-frame correspondence'}
+    (tmp_path / 'selected.json').write_text(json.dumps([selected]))
+    stats = {'total_reads': 10, 'distinct_plates': 4, 'confirmed_registrations': 2,
+             'confirmed_reads': 5, 'cameras_with_reads': 1, 'government_cameras_in_registry': 30,
+             'window_start': 'fixture', 'window_end': 'fixture', 'source': 'fixture.db',
+             'generated_at': 'fixture', 'definitions': {}, 'note': 'all reads, not selection'}
+    (tmp_path / 'stats.json').write_text(json.dumps(stats))
+    page = ActionPage()
+    beat = next(b for b in gov.build(page, 'X', government=['cam06'],
+                gallery=tmp_path / 'gallery.html') if 'crops from' in b.title)
+    detail = beat.action()
+    assert detail['crops'] == 1
+    assert detail['store_stats']['total_reads'] == 10
+    assert detail['store_stats']['confirmed_registrations'] == 2
+    assert page.url.startswith('file:')
+    del stats['confirmed_registrations']
+    (tmp_path / 'stats.json').write_text(json.dumps(stats))
+    with pytest.raises(gov.SkipBeat, match='stats.json contract'):
+        beat.action()
+
+
+def test_final_static_screen_keeps_held_duration(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    cast = hq.Screencast(None, tmp_path)
+    cast._frames = [(100.0, tmp_path / 'f_000000.jpg')]
+    cast._ended_at = 112.0
+    monkeypatch.setattr(hq.shutil, 'which', lambda *a: '/fixture/ffmpeg')
+    def encode(*args, **kwargs):
+        (tmp_path / 'out.mp4').write_bytes(b'fixture')
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(hq.subprocess, 'run', encode)
+    assert cast.write(tmp_path / 'out.mp4')['ok']
+    assert (tmp_path / 'frames.txt').read_text().splitlines() == [
+        "file 'f_000000.jpg'", 'duration 12.000000', "file 'f_000000.jpg'"]
+
+
+def test_scroll_wait_requires_visible_motion_and_never_reopens(monkeypatch):
+    page = PreflightPage()
+    offscreen = gov.evaluate_tiles([tile()], [advancing(visible=False)], 1)
+    visible = gov.evaluate_tiles([tile()], [advancing()], 1)
+    queue = iter([offscreen, visible])
+    monkeypatch.setattr(gov, 'sample_video', lambda *a: next(queue))
+    samples = []
+    result = gov.wait_wall_motion(page, ['cam06'], 1, samples)
+    assert result is visible and samples == [offscreen, visible]
+    assert not page.actions
+
+
+def test_opening_recheck_aborts_capture_if_wall_freezes(tmp_path, monkeypatch):
+    from types import ModuleType, SimpleNamespace
+    calls = []
+    ui = {'shell': True, 'fatal': 0, 'loading': 0, 'loadingText': False}
+    page = SimpleNamespace(set_default_timeout=lambda *a: None, evaluate=lambda *a: ui)
+    ctx = SimpleNamespace(add_init_script=lambda *a: None, new_page=lambda: page)
+    browser = SimpleNamespace(new_context=lambda **k: ctx, close=lambda: calls.append('closed'))
+    class Playwright:
+        chromium = SimpleNamespace(launch=lambda **k: browser)
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            pass
+    module = ModuleType('playwright.sync_api')
+    module.sync_playwright = Playwright
+    monkeypatch.setitem(sys.modules, 'playwright.sync_api', module)
+    monkeypatch.setattr(gov, 'preflight', lambda *a: {'passed': True, 'government_ids': ['cam06']})
+    monkeypatch.setattr(gov, 'fetch_report', lambda *a: {'ok': True})
+    monkeypatch.setattr(gov, 'wall_ids', lambda *a: ['cam06'])
+    monkeypatch.setattr(gov, 'sample_video', lambda *a: gov.evaluate_tiles(
+        [tile()], [tile(sample_ms=2100)], 1))
+    monkeypatch.setattr(gov, 'Screencast', lambda *a, **k: pytest.fail('must not start recording'))
+    with pytest.raises(SystemExit, match='no recording started'):
+        gov.record('http://unused', 'test-placeholder', 'X', tmp_path,
+                   admin_token='admin-placeholder', voice=None)
+    assert not json.loads((tmp_path / 'opening.json').read_text())['passed']
+    assert calls == ['closed']

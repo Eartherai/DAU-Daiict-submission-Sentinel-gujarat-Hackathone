@@ -3273,9 +3273,15 @@ function renderLiveCount(cams) {
       + `LIVE SIMULATION / ARCHIVAL REPLAY · 12h virtual window · repeated 4-minute assets`;
   } else if (directGovernmentOnDemand()
              && cams.every((c) => sourceDomain(c) === "GOVERNMENT")) {
+    /* This used to describe a stills-only wall that needed one camera selected,
+     * written before the wall streamed. syncTileWhep opens a session per
+     * visible tile up to tileWhepBudget(), so the line names that policy. */
     node.textContent =
       `${cams.length} government cameras indexed · wall ${liveWallMode} · `
-      + "BOUNDED PREVIEWS — cached stills rotate across the wall; select one camera for verified WHEP";
+      + (liveLayout === "dense"
+        ? "CONTROL ROOM — one WHEP session per tile, up to 30, staggered"
+        : "OPTIMIZED VIEW — up to 12 WHEP sessions near the viewport")
+      + "; a tile is LIVE only after its player starts";
   } else if (liveDomain === "intelligence") {
     /* No Domain button names this wall (INTELLIGENCE DEMO left that group),
      * so the status line does. */

@@ -185,18 +185,24 @@ def test_live_preset_does_not_start_two_competing_loaders(app: str) -> None:
     assert 'if (spec.view === "live") loaders.live?.();' not in app
 
 
-def test_wall_count_states_indexed_with_bounded_previews(app: str) -> None:
+def test_wall_count_states_the_media_policy_in_force(app: str) -> None:
+    """The status line names the policy the tile scheduler applies.
+
+    It used to say cached stills rotated across the wall and one camera had to
+    be selected for WHEP, after the wall had started streaming its visible
+    tiles; a judge watching moving tiles under that line would be told the
+    opposite of what they see.
+    """
     assert "government cameras indexed" in app
-    assert (
-        "BOUNDED PREVIEWS — cached stills rotate across the wall; "
-        "select one camera for verified WHEP"
-    ) in app
+    assert "CONTROL ROOM — one WHEP session per tile, up to 30, staggered" in app
+    assert "OPTIMIZED VIEW — up to 12 WHEP sessions near the viewport" in app
+    assert "cached stills rotate across the wall" not in app
 
 
 #: The content each cache-busting marker was last bumped for. Editing an asset
 #: changes its hash, which fails this test and forces the version alongside it.
 ASSET_VERSIONS = {
-    "app.js": ("cr163", "34fee6d8f24c38bd"),
+    "app.js": ("cr164", "f343fde6998e106d"),
     "style.css": ("cr127", "e1662e5e5ac1fbd3"),
 }
 

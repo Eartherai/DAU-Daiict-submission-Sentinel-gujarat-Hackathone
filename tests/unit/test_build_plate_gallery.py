@@ -209,3 +209,19 @@ def test_the_committed_manifest_is_well_formed():
         assert r.data["source_domain"] == "GOVERNMENT"
         assert r.data["camera"].startswith("cam")
         assert r.data["plate_text"] and r.data["confidence"]
+
+
+def test_stats_stop_at_the_verified_snapshot(world):
+    """Reads made after the snapshot (the recording sessions) do not move the
+    figures the deck and HLD quote."""
+    con = sqlite3.connect(world / "var/live.db")
+    con.execute("INSERT INTO observations VALUES (?,?,?,?,?)",
+                ("late", "cam06", "GJ99ZZ9999", 5, gallery.SNAPSHOT_UNTIL_US + 1))
+    con.commit()
+    con.close()
+    _manifest(world, [_row("var/evidence/EZTEST.png#xywh=40,20,120,50", "cam06",
+                           "GOVERNMENT", "GJ11S7924", selected=True)])
+    _, out = _build(world)
+    stats = json.loads((out / "stats.json").read_text())
+    assert stats["total_reads"] == 5 and stats["distinct_plates"] == 4
+    assert stats["snapshot_until"]

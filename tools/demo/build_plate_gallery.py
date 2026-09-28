@@ -183,19 +183,31 @@ def _iso(us: int | None) -> str:
         timespec="seconds")
 
 
-def government_stats(con: sqlite3.Connection, store_label: str) -> dict[str, Any]:
+#: The verified store snapshot closes at 24 Sep 2026 16:10:09 IST, the same
+#: pin `tools/sizing/measure_compression.py` uses. Reads made after it (the
+#: 28 Sep recording sessions) are reported with the film, not folded into
+#: the snapshot statistics the deck and HLD quote.
+SNAPSHOT_UNTIL_US = 1790246409848994
+
+
+def government_stats(con: sqlite3.Connection, store_label: str,
+                     until_us: int | None = SNAPSHOT_UNTIL_US) -> dict[str, Any]:
     gov = sorted(c for c, d in camera_domains(con).items() if d == GOVERNMENT)
     marks = ",".join("?" * len(gov)) or "NULL"
     base = ("FROM observations WHERE plate IS NOT NULL AND plate != '' "
             f"AND camera_id IN ({marks})")
+    args: list[Any] = list(gov)
+    if until_us is not None:
+        base += " AND t_norm_us <= ?"
+        args.append(until_us)
     total, distinct, cams, t0, t1 = con.execute(
         f"SELECT COUNT(*), COUNT(DISTINCT plate), COUNT(DISTINCT camera_id), "
-        f"MIN(t_norm_us), MAX(t_norm_us) {base}", gov).fetchone()
+        f"MIN(t_norm_us), MAX(t_norm_us) {base}", args).fetchone()
     confirmed = con.execute(
         f"SELECT COUNT(DISTINCT plate) {base} AND plate_votes >= ?",
-        [*gov, CONFIRM_VOTES]).fetchone()[0]
+        [*args, CONFIRM_VOTES]).fetchone()[0]
     confirmed_reads = con.execute(
-        f"SELECT COUNT(*) {base} AND plate_votes >= ?", [*gov, CONFIRM_VOTES]).fetchone()[0]
+        f"SELECT COUNT(*) {base} AND plate_votes >= ?", [*args, CONFIRM_VOTES]).fetchone()[0]
     return {
         "total_reads": int(total or 0),
         "distinct_plates": int(distinct or 0),
@@ -205,6 +217,7 @@ def government_stats(con: sqlite3.Connection, store_label: str) -> dict[str, Any
         "government_cameras_in_registry": len(gov),
         "window_start": _iso(t0),
         "window_end": _iso(t1),
+        "snapshot_until": _iso(until_us) if until_us is not None else None,
         "source": store_label,
         "generated_at": datetime.now(UTC).astimezone(IST).isoformat(timespec="seconds"),
         "definitions": {

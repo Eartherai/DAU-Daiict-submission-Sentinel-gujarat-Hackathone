@@ -973,7 +973,10 @@ def _film_meta(path: Path) -> str:
         secs = float(j["format"]["duration"])
         v = next(s for s in j["streams"] if s.get("codec_type") == "video")
         audio = any(s.get("codec_type") == "audio" for s in j["streams"])
-        return (f"{int(secs) // 60}:{int(secs) % 60:02d}  ·  {v['width']}×{v['height']}"
+        # Nearest second, halves down: 339.97 s is 5:40 (truncation said
+        # 5:39) and the own feed's 173.5 s stays 2:53, as the documents say.
+        whole = math.ceil(secs - 0.5)
+        return (f"{whole // 60}:{whole % 60:02d}  ·  {v['width']}×{v['height']}"
                 f"  ·  {'audio present' if audio else 'silent'}")
     except Exception:
         return "not rendered on this host"
@@ -990,8 +993,11 @@ def films() -> Image.Image:
          "form; live detection on the GPU; a plate read off the footage, searched; a fictional "
          "watchlist hit; the trace report; sealed evidence; the audit log."),
         ("government_feed.mp4 + ANPR report CSV", _film_meta(ROOT / "var/demo/government_feed.mp4"),
-         "The government grid: live wall, detections drawn on the frame that produced them, plate "
-         "reads with timestamps. The report lists timestamped reads; its window is separate from the film duration."),
+         "The government grid, recorded live on 28 Sep: the live count measured on the wall, all "
+         "thirty in the control room, a focused live camera with its intelligence panel, person "
+         "detections and the demonstration zone rule, the ANPR gallery, the single-camera trace, "
+         "GIS and the trace report. The CSV holds every government read: 901 to the 24 Sep "
+         "snapshot and 200 read live during the recording."),
     ]
     y = 280
     for head, meta, body in cards:
@@ -1003,7 +1009,8 @@ def films() -> Image.Image:
             yy += 28
         y = yy + 28
     footer(d,
-           "Sources: var/demo/own_feed.mp4 and government_feed.mp4 (ffprobe at render). The existing films predate the Indian recogniser; the government film may be replaced.",
+           "Sources: var/demo/own_feed.mp4 and government_feed.mp4 (ffprobe at render). The own-feed plate read is from an earlier recogniser; "
+           "the government session reads are the current recogniser's (docs/FINAL_SUBMISSION.md).",
            dark=True)
     return img
 

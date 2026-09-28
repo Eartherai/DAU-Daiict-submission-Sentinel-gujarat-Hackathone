@@ -393,7 +393,10 @@ def main() -> int:
             fontname="DiagramText", fontsize=17, render_mode=3)
         if remaining < 0:
             raise ValueError("PDF text layer overflow")
-    document.save(pdf)
+    # Without these the PDF stored each page raster as an uncompressed pixmap
+    # and the whole font four times: 25.7 MB for four pages that were 465 KB.
+    document.subset_fonts()
+    document.save(pdf, garbage=3, deflate=True)
     document.close()
     print(f"\ndiagrams: {display(out)}/*.png")
     print(f"combined: {display(pdf)}")

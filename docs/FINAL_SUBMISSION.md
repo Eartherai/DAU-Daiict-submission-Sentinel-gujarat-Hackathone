@@ -6,7 +6,7 @@ status below follow that builder’s `ITEMS`; optional files must be checked for
 presence in its build output. Do not infer that an index entry proves a file
 has been rebuilt.
 
-Repository background: [Live integration timeline](LIVE_INTEGRATION_STORY.md) — measurements reported to Sentinel, its guidance, the implementation response and the 28 September recording session.
+`07_LIVE_INTEGRATION_STORY.md` (in this pack) — what integrating the shared live grid took: measurements reported to Sentinel, the question we sent and its answer, the implementation we rebuilt in response, and the 28 September recording session.
 
 ## What to upload and what it proves
 
@@ -18,7 +18,7 @@ Repository background: [Live integration timeline](LIVE_INTEGRATION_STORY.md) �
 | `02_HLD_diagrams.pdf` | Required | Architecture, authorisation, evidence and capability diagrams, plus the statewide architecture and one-read data flow (HLD §21) |
 | `02_SECURITY.md` | Optional in builder; include when present | Application controls and deployment security boundaries |
 | `02_STATEWIDE_ARCHITECTURE.md` | Required | DESIGNED statewide target architecture (40 cells, 6 regions, state + DR) with its MODELLED capacity and binding-constraint analysis; summarised in HLD §21, reproduced by `tools/sizing/capacity_model.py` |
-| `03_own_feed.mp4` | Required | Onboarding, own-feed detection, representative watchlist, automatic alerts and evidence; 2:53 (`var/demo/own_feed.mp4`, ffprobe) |
+| `03_own_feed.mp4` | Required | **2 m 43 s** (163.0 s) · 2560×1440 · narrated and captioned (`var/demo/own_feed.mp4`, ffprobe); recorded 28 Sep 2026. From the masked sign-in gate: registry-form onboarding validated before write, the administrator → officer handoff, both licensed Mumbai feeds with the pipeline's per-frame boxes (plates drawn only when the vote holds; heads blurred), an ANPR search, a fictional-plate watchlist alert with its map, route and trace report (SYNTHETIC RENDERED TEST CORPUS, labelled on screen), and the evidence chain. The recorder refuses a take if either video stalls for a second or its boxes stop drawing |
 | `04_government_feed.mp4` | Required | **5 m 40 s** · 2560×1440 · encoded 30 fps (screen captured at 6.2 fps, `var/demo/gov_take7/capture.json`) · narrated and captioned; recorded on the live government grid on 28 Sep 2026, 12:41–12:47 IST. Opens on the OPTIMIZED VIEW wall with the live count measured on screen (8 of 30 at the opening, 6–13 across the wall beats), then the thirty-tile CONTROL ROOM layout (12 of 30 live in this recording), a focused live government camera with its intelligence panel, analytics, cam12 person detections and the demonstration restricted-zone rule, the government ANPR gallery, team-chosen stand-in `GJ11S7924` (SINGLE-CAMERA, cam06), GIS, the trace report, the ANPR CSV, evidence, system status and the Model 1 registry as estate administrator. This shows the result of government onboarding, not an onboarding action; bulk-validation, administrator-refusal and handoff beats were not filmed. The own-feed film shows single-camera form onboarding and the administrator → officer handoff. |
 | `04_government_feed_1080p.mp4` | Optional | The same take re-encoded to 1920×1080 |
 | `04_government_feed_anpr_report.csv` | Required | 1,101 government reads · 264 distinct plates · 9 cameras, government cameras only (`/reports/anpr.csv?reads=all&domain=GOVERNMENT`): 901 reads to the 24 Sep snapshot (earlier recogniser) and 200 read live on cam06 during the 28 Sep session (11:15–12:53 IST) by the current recogniser. The appended CSV `ocr_model` column uses each observation's `model_versions.ocr`, or `earlier` when absent; the session rows have `awiros-anpr-ocr`. Columns: plate, camera, UTC/IST timestamps, votes, confidence, confirmation, observation and evidence ids. |
@@ -30,12 +30,19 @@ Repository background: [Live integration timeline](LIVE_INTEGRATION_STORY.md) �
 | `05_FEDERATED_ANALYTICS_REPORT.md` | Required | Federated metadata analysis with source/truth labels; DEMO adapters distinguished |
 | `06_designated_vehicle_trace_report.html` | Required | `GJ11S7924` on cam06 only: government SINGLE-CAMERA evidence |
 | `06_own_feed_trace_report.html` | Optional in builder; include when present | `GJ18JX7786`, C-014 then C-021: SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage |
+| `07_LIVE_INTEGRATION_STORY.md` | Required | The live-grid integration timeline: 19 Sep measurements reported to Sentinel, the question sent and Sentinel's answer (sanitised, no names or addresses), the rebuild it prompted, and the 28 Sep session (eight attempts, the 5:40 take, 401 from 12:57 IST) |
 
-The own-feed film was recorded on 24 September with Apple Vision. Its footage
-read is historical recogniser output. The separate synthetic route uses
+The own-feed film was recorded on 28 September. Its boxes and plates are the
+per-frame sidecars the production pipeline wrote over each file on 28 Sep
+(00:55 and 01:17 IST) with the Indian-trained recogniser, replayed against
+the video clock: analysis replay, not a live-inference speed claim. On the
+queue clip that vote published 56 marks: 40 checked correct by eye, 4 wrong
+and 12 not settled by a crop (`var/reports/ocr_indian_eval.json`,
+`final_pipeline`). The film's ANPR search returns the 23 stored `MH02GB4920`
+reads, written on 24 Sep by the previous recogniser (Apple Vision); the final
+pipeline's sidecar publishes the same mark on the same clip. The separate synthetic route uses
 computer-rendered clips from `tools/sandbox/make_media.py`, not licensed Mumbai
-footage. Its legacy report filename does not describe its source domain. Submitted code now uses the Indian-trained
-recogniser; its evaluation is `var/reports/ocr_indian_eval.json`, not the film.
+footage. Its legacy report filename does not describe its source domain.
 
 The delivered government CSV contains **1,101 reads, 264 distinct plates and
 9 cameras**: 901 reads from the 24 Sep snapshot plus 200 from the 28 Sep

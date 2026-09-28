@@ -32,7 +32,8 @@ def test_full_story_duration_order_and_selector_citations(layout):
     beats = plan(opening_layout=layout)
     assert beats[0].gate and not beats[0].optional
     assert beats[1].title.startswith('Overview')
-    assert 600 <= gov.beat_plan_duration(beats) <= 900
+    # The team set no length limit for this film; 20 minutes bounds a runaway plan.
+    assert 600 <= gov.beat_plan_duration(beats) <= 1200
     assert beats[-2].title.endswith('administrator search refused')
     assert beats[-1].title == 'Handing back to the investigating officer'
     assert all(b.sources for b in beats)
@@ -61,12 +62,17 @@ def test_standard_plan_retains_wall_opening_and_short_duration():
 def test_unimplemented_ui_features_are_explicit_skips():
     beats = plan()
     for prefix, reason in [('Watchlist entry creation', 'No watchlist add form'),
-                           ('Watchlist revocation', 'no entry'),
-                           ('GIS camera text filter', 'no handler')]:
+                           ('Watchlist revocation', 'no entry')]:
         b = beat(beats, prefix)
         assert b.optional
         with pytest.raises(gov.SkipBeat, match=reason):
             b.action()
+
+
+def test_estate_map_camera_search_is_filmed_not_skipped():
+    b = beat(plan(), 'GIS — camera search on the estate map')
+    assert b.optional and b.dwell_s >= 12
+    assert '#map-filter-q' in b.selectors and b.sources[0].startswith('ui/app.js:')
 
 
 def registry(**updates):

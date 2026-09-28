@@ -43,6 +43,10 @@ ITEMS: list[tuple[str, str, bool]] = [
     ("04_government_feed_1080p.mp4", "var/demo/government_feed_1080.mp4", False),
     ("04_government_feed_anpr_report.csv",
      "var/demo/government_feed_anpr_report.csv", True),
+    # Every feature from sign-in, on RECORDED government footage (15 Sep
+    # capture, replayed and labelled ARCHIVAL_REPLAY, never live).
+    ("04b_government_tour.mp4", "var/demo/government_tour_1080.mp4", False),
+    ("04b_government_tour_replay_reads.csv", "var/demo/government_tour_replay_reads.csv", False),
     ("05_MODEL1_GAP_ANALYSIS.md", "reports/MODEL1_GAP_ANALYSIS.md", True),
     ("05_REGISTRY_API.md", "reports/REGISTRY_API.md", True),
     ("05_sample_camera_metadata.csv", "reports/sample_camera_metadata.csv", True),
@@ -55,6 +59,9 @@ ITEMS: list[tuple[str, str, bool]] = [
     # vehicle the government film traces.
     ("06_designated_vehicle_trace_report.html", "var/demo/designated_vehicle_trace.html", True),
     ("06_own_feed_trace_report.html", "var/demo/own_feed_trace.html", False),
+    # What integrating the shared live grid took: measurements, the question to
+    # Sentinel and its answer (sanitised), the rebuild, the 28 Sep session.
+    ("07_LIVE_INTEGRATION_STORY.md", "docs/LIVE_INTEGRATION_STORY.md", True),
 ]
 
 

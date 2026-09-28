@@ -1427,16 +1427,28 @@ function legendFor(mode, node) {
   }
 }
 
+/* The estate map's "search camera" box. It narrows the markers and the
+ * registry strip to cameras whose id, name, district, department or site
+ * contains the text. It hides nothing from any other view. */
+let mapFilterQ = "";
+function mapFilterMatch(c) {
+  return !mapFilterQ || [c.camera_id, c.name, c.district, c.department, c.site]
+    .some((v) => String(v ?? "").toLowerCase().includes(mapFilterQ));
+}
+
 function renderRegistryRail(located, unlocated) {
   const rail = $("#registry-rail");
   if (!rail) return;
   clear(rail);
-  const all = [...(located || []), ...(unlocated || [])]
+  located = (located || []).filter(mapFilterMatch);
+  unlocated = (unlocated || []).filter(mapFilterMatch);
+  const all = [...located, ...unlocated]
     .sort((a, b) => String(a.camera_id).localeCompare(String(b.camera_id)));
   rail.append(el("div", { class: "registry-rail-head", text:
-    `Registry ${all.length} cameras · `
-    + `${(located || []).length} on the map · `
-    + `${(unlocated || []).length} without surveyed coordinates` }));
+    (mapFilterQ ? `${all.length} cameras match “${mapFilterQ}” · `
+      : `Registry ${all.length} cameras · `)
+    + `${located.length} on the map · `
+    + `${unlocated.length} without surveyed coordinates` }));
   const row = el("div", { class: "registry-rail-row" });
   for (const c of all) {
     const unlocatedCam = c.located === false || c.lat == null || c.lon == null;
@@ -1511,14 +1523,18 @@ function fillRegistryStill(img, id) {
 
 async function refreshMapLayers(map, bbox) {
   const q = new URLSearchParams();
-  if (bbox) {
+  // A filtered estate map asks for every camera, unclustered: a match off
+  // screen or folded into a cluster would read as "no such camera".
+  const filtering = map === map2 && !!mapFilterQ;
+  if (bbox && !filtering) {
     q.set("bbox", `${bbox.west.toFixed(4)},${bbox.south.toFixed(4)},`
       + `${bbox.east.toFixed(4)},${bbox.north.toFixed(4)}`);
   }
-  q.set("zoom", String(Math.round(map.zoom)));
+  q.set("zoom", filtering ? "16" : String(Math.round(map.zoom)));
   try {
     const cams = await api(`/gis/cameras?${q}`);
-    map.set("cameras", cams.features);
+    map.set("cameras", filtering
+      ? cams.features.filter((f) => !f.cluster && mapFilterMatch(f)) : cams.features);
     state.cameras = cams.features;
     state.derivedLocations = cams.features.some(
       (f) => f.location_basis === "DERIVED_FROM_NAME");
@@ -1528,7 +1544,11 @@ async function refreshMapLayers(map, bbox) {
         ? `${cams.returned} clusters · ${cams.matched} cameras in view`
         : `${cams.matched} cameras in view`;
     }
-    if (map === map2) {
+    if (map === map2 && filtering) {
+      $("#map2-count").textContent =
+        `${map.layers.cameras.length} match “${mapFilterQ}” on the map`;
+      renderRegistryRail((cams.features || []).filter((f) => !f.cluster), cams.unlocated || []);
+    } else if (map === map2) {
       $("#map2-count").textContent = `${cams.matched} on the map`
         + (cams.cameras_without_location
           ? ` · ${cams.cameras_without_location} in the registry without coordinates`
@@ -1640,6 +1660,25 @@ async function initMaps() {
   legendFor("health", $("#legend2"));
   wireMapControls(document, map1, $("#legend"), "data-mode", "data-toggle");
   wireMapControls(document, map2, $("#legend2"), "data-mode2", "data-toggle2");
+
+  const filterBox = $("#map-filter-q");
+  let filterTimer = null;
+  filterBox?.addEventListener("input", () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(async () => {
+      mapFilterQ = filterBox.value.trim().toLowerCase();
+      await refreshMapLayers(map2, map2.bbox());
+      const pts = (map2.layers.cameras || []).filter((f) => f.lat != null && f.lon != null);
+      if (mapFilterQ && pts.length) {
+        const lats = pts.map((f) => f.lat), lons = pts.map((f) => f.lon);
+        // A single match still gets a street-level window, not an infinite zoom.
+        map2.fit({ south: Math.min(...lats) - 0.004, north: Math.max(...lats) + 0.004,
+                   west: Math.min(...lons) - 0.004, east: Math.max(...lons) + 0.004 });
+      } else if (!mapFilterQ && state.extent) {
+        map2.fit(state.extent);
+      }
+    }, 250);
+  });
 
   try {
     const ext = await api("/gis/extent");

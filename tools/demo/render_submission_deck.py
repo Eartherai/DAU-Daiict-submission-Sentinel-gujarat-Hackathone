@@ -1007,7 +1007,7 @@ def _film_meta(path: Path) -> str:
         v = next(s for s in j["streams"] if s.get("codec_type") == "video")
         audio = any(s.get("codec_type") == "audio" for s in j["streams"])
         # Nearest second, halves down: 339.97 s is 5:40 (truncation said
-        # 5:39) and the own feed's 173.5 s stays 2:53, as the documents say.
+        # 5:39); halves round down, as the documents do.
         whole = math.ceil(secs - 0.5)
         return (f"{whole // 60}:{whole % 60:02d}  ·  {v['width']}×{v['height']}"
                 f"  ·  {'audio present' if audio else 'silent'}")
@@ -1019,19 +1019,31 @@ def films() -> Image.Image:
     img, d = canvas(True, tags=('MEASURED', 'DEMO'))
     rail(img, d, "FILMS", "23", dark=True)
     kicker(d, "What to play, in this pack", dark=True, y=64)
-    title(d, "Two films. One plate report. No mock-ups.", dark=True, y=108, size=44)
+    tour = ROOT / "var/demo/government_tour.mp4"
     cards = [
         ("own_feed.mp4  ·  controlled own feed", _film_meta(ROOT / "var/demo/own_feed.mp4"),
-         "Licensed Mumbai street footage, heads blurred. A camera onboarded through the registry "
-         "form; live detection on the GPU; a plate read off the footage, searched; a fictional "
-         "watchlist hit; the trace report; sealed evidence; the audit log."),
+         "Licensed Mumbai street footage, heads blurred. Masked sign-in; a camera onboarded through "
+         "the registry form, validated before write; the administrator → officer handoff; the "
+         "production pipeline's per-frame boxes replayed on the video clock, plates drawn only when "
+         "the vote holds; a plate searched; a fictional watchlist alert, its route and trace report "
+         "(synthetic corpus, labelled); the evidence chain."),
         ("government_feed.mp4 + ANPR report CSV", _film_meta(ROOT / "var/demo/government_feed.mp4"),
-         "The government grid, recorded 28 Sep 12:41–12:47 IST: onboarded registry (no onboarding action), "
+         "The government grid, recorded live 28 Sep 12:41–12:47 IST: onboarded registry (no onboarding action), "
          "30 control-room tiles with varying live availability, a focused camera, person "
          "detections and the demonstration zone rule, the ANPR gallery, the single-camera trace, "
          "GIS and the trace report. The CSV holds every government read: 901 to the 24 Sep "
          "snapshot and 200 during the 28 Sep recording session (11:15–12:53 IST). Only 21 reads fall inside the filmed take."),
     ]
+    if tour.exists():
+        cards.append((
+            "government_tour.mp4  ·  every feature, from sign-in", _film_meta(tour),
+            "RECORDED GOVERNMENT FOOTAGE (captured 15 Sep, replayed, never called live) on the wall "
+            "and in focus, with the pipeline's per-frame boxes; then alerts, searches, evidence "
+            "verification, cases and export, the Gemini copilot, the audit chain, Model 1 grades, "
+            "gaps and validation, Model 3 systems, Model 4 analytics, the administrator refusal "
+            "and the handoff."))
+    title(d, f"{'Three' if len(cards) == 3 else 'Two'} films. One plate report. No mock-ups.",
+          dark=True, y=108, size=44)
     y = 280
     for head, meta, body in cards:
         d.text((ML, y), head, font=SANS_B(26), fill=WHITE)
@@ -1042,8 +1054,8 @@ def films() -> Image.Image:
             yy += 28
         y = yy + 28
     footer(d,
-           "Sources: var/demo/own_feed.mp4 and government_feed.mp4 (ffprobe at render). The own-feed plate read is from an earlier recogniser; "
-           "the government session reads are the current recogniser's (docs/FINAL_SUBMISSION.md).",
+           "Sources: var/demo/*.mp4 (ffprobe at render). Own-feed plates come from the final pipeline's sidecars (Indian-trained recogniser); "
+           "government session reads are the current recogniser's (docs/FINAL_SUBMISSION.md).",
            dark=True)
     return img
 

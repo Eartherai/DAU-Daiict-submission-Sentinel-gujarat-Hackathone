@@ -57,7 +57,7 @@ Real Chrome tab against a live API — overview → government Focus → plates 
 
 | Film | What it is |
 |---|---|
-| **Own feed** `03_own_feed.mp4` | Onboarding, detection, watchlist and alerts; 2:53 (`var/demo/own_feed.mp4`, ffprobe) |
+| **Own feed** `03_own_feed.mp4` | 2:43, recorded 28 Sep: masked sign-in, form onboarding validated before write, administrator → officer handoff, per-frame detection and voted plates, ANPR search, watchlist alert, route and trace report (synthetic corpus, labelled), evidence chain (`var/demo/own_feed.mp4`, ffprobe) |
 | **Government workspace** `04_government_feed.mp4` | 5 m 40 s · 1440p · recorded live 28 Sep 2026; single-camera designated vehicle evidence; `04_government_feed_anpr_report.csv` carries 1,101 government reads |
 | **Detection overlays** | Same `CameraPipeline` drawn onto government + own frames |
 
@@ -84,7 +84,7 @@ Upload `var/demo/SUBMIT/`, built by `python tools/demo/build_submission_pack.py`
 |---|---|---|
 | **1 · Presentation** | `01_SAAKSHYA_deck.pptx` + `.pdf` | Rendered by `tools/demo/render_submission_deck.py` |
 | **2 · High-level design** | `docs/HLD.md` + architecture diagrams | [docs/HLD.md](docs/HLD.md) · [docs/readme/hld-fabric.jpg](docs/readme/hld-fabric.jpg) |
-| **3 · Own-feed demo** | `03_own_feed.mp4` (2:53; source above) | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
+| **3 · Own-feed demo** | `03_own_feed.mp4` (2:43; source above) | Still: [docs/readme/detect/own-street.jpg](docs/readme/detect/own-street.jpg) |
 | **4 · Government-feed demo** | `04_government_feed.mp4` + `04_government_feed_anpr_report.csv` | Stills: [docs/readme/detect/](docs/readme/detect/) |
 | **Working platform** | This repository · `make demo && make serve` | Steps below |
 

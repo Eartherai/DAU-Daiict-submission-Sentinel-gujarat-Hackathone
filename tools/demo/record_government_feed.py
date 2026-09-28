@@ -1037,6 +1037,15 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         page.wait_for_selector('[data-mode2="capability"].on')
         page.locator('#legend2').scroll_into_view_if_needed()
 
+    def map_filter():
+        view('map', '#map2')
+        require_ui(page, '#map-filter-q')
+        page.fill('#map-filter-q', 'junagadh')
+        page.wait_for_function("() => /match .junagadh./.test("
+                               "document.querySelector('#map2-count')?.textContent || '')")
+        page.wait_for_function("() => /match .junagadh./.test("
+                               "document.querySelector('#registry-rail .registry-rail-head')?.textContent || '')")
+
     def systems():
         view('system', '#system .panel')
         panel = page.locator('#system .panel').filter(has_text='Connected systems · DEMO / TEST')
@@ -1181,8 +1190,9 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
                 'A fresh demonstration identifier is validated through the form. No camera is imported.'),
         bulk,
         feature('Model 1 — GIS capability layer', layers, ('[data-mode2="capability"]', '#legend2'), 'ui/app.js:1642'),
-        feature('GIS camera text filter — unavailable handler', absent_feature('The #map-filter-q input has no handler in ui/app.js'),
-                ('#map-filter-q',), 'ui/index.html:293', dwell=0),
+        feature('GIS — camera search on the estate map', map_filter,
+                ('#map-filter-q', '#map2-count', '#registry-rail'), 'ui/app.js:1664',
+                'The estate map narrows to the cameras matching a district, name or identifier, and the registry strip follows.', 16),
         feature('Model 3 — connected systems and adapters · DEMO / TEST', systems,
                 ('#system .panel',), 'ui/app.js:2516',
                 'These demo and test systems exercise the federation adapter contract. They are not verified government VMS integrations.'),

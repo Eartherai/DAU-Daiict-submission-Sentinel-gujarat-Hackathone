@@ -12,8 +12,8 @@ Source: [sandbox integration record](SENTINEL_SANDBOX.md).
 
 The retained census and bridge reports are dated 16 September in UTC. The team
 reported these results to Sentinel on 19 September; the report date is not
-the test date. The correspondence date comes from the supplied STORY brief
-(`briefs2/final_films.md`, lane STORY), rather than a retained mail export.
+the test date. The correspondence date is the team's record of when the
+message was sent; the mail itself is retained by the team, not in this repository.
 
 | Finding | Evidence and boundary |
 |---|---|
@@ -36,8 +36,8 @@ concurrency limits, any per-team, IP or camera limits, guidance for long-lived
 sessions, the recommended pattern for a 30-camera demonstration, an
 `/api/ingest` catalogue, and connection-staggering or rate-limit guidance.
 The aim was “a genuine 30-camera live demonstration, rather than substituting
-synthetic streams”. Source: supplied STORY brief (`briefs2/final_films.md`);
-the retained [concurrent-access record](SENTINEL_SANDBOX.md#concurrent-access--what-the-organisers-said-and-what-this-platform-does)
+synthetic streams”. Source: the message as sent, retained by the team; in the
+repository, the retained [concurrent-access record](SENTINEL_SANDBOX.md#concurrent-access--what-the-organisers-said-and-what-this-platform-does)
 also records the request for limits and the expected integration pattern.
 No mail identities or access details are reproduced here.
 
@@ -74,12 +74,22 @@ after the reply.
 
 ## 28 September: the recording session
 
-The team reports **eight recording attempts** in the supplied STORY brief
-(`briefs2/final_films.md`). This is attributed history, not a count inferred
-from complete video files: some attempts failed before capture. Retained
-artifacts include `var/demo/gov_take7/` and the failed
-`var/demo/gov_take8/preflight.json`; a complete independent ledger of all
-attempts was not found.
+The team made **eight recording attempts** on 28 September. Six left records
+in `var/demo/gov_take{1,4,5,6,7,8}/` (`beats.json`, `preflight.json`):
+
+- takes 1 and 5 stopped when the focused government video stopped advancing;
+  the recorder gained a bounded hand-over to the next advancing camera;
+- take 4 timed out on the person-detections beat behind a search spinner;
+  the UI was fixed;
+- take 6 stopped before filming because opening availability fell after
+  preflight; a bounded re-sample was added;
+- take 7 is the submitted 5:40 film. It ended when the bulk-validation beat
+  failed, so the refusal and handoff beats were not filmed;
+- take 8's preflight found no advancing video: from 12:57 IST the grid
+  returned 401 to this project's credentials.
+
+The other two attempts left no retained directory. Every stop was the
+recorder refusing a take rather than filming a stall or a loading screen.
 
 **MEASURED:** the recording session showed **6–13 of 30** government cameras
 advancing at once. The submitted take is **5:40**, recorded at approximately

@@ -16,7 +16,7 @@ slide-by-slide script and its obsolete film names. It is no longer input for
 | Payload and scale | ~400 B MODELLED optimised payload; 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`). Sizing uses the measured row. MODELLED gated daily volumes: 92.16–184.32 GB vs 306.82–613.65 GB (`SCALE_MODEL.md`). |
 | Load | Local streams: 50 initially, 44 streaming / 6 down at end, no recovery, 0 decoder errors (`var/reports/camera_load.json`). Synthetic registry/GIS load is separate (`reports/SCALE_80K_LOAD_TEST.md`). |
 | GPU | Equal observation counts, no plates on either device in the historical pipeline sample (`var/reports/pipeline_device.json`); target GPU pools MODELLED/SIZED. |
-| Films | Own feed 2:53 (`var/demo/own_feed.mp4`, ffprobe); government re-recorded — duration stamped at pack build. Recogniser provenance in `FINAL_SUBMISSION.md`. |
+| Films | Own feed 2:53 (`var/demo/own_feed.mp4`, ffprobe); government 5:40 (`var/demo/government_feed.mp4`, recorded live 28 Sep 2026). Recogniser provenance in `FINAL_SUBMISSION.md`. |
 
 **Model 2 media policies (VERIFIED, `ui/app.js`, `tileWhepBudget`).**
 CONTROL ROOM (Dense 6×5) opens one direct WHEP session per tile, up to 30,

@@ -111,6 +111,21 @@ WHERE plate IN (?, ?, ?) GROUP BY plate, category, priority, status;
 ```
 
 Apply the observation query to `var/demo.db` for the own-feed plate.
-The government film is being re-recorded; its duration and CSV statistics must
-be stamped from the final files at pack build. These stored-read counts should
-be rechecked if the store changes.
+## 28 Sep 2026 live recording session (MEASURED)
+
+Between 11:15 and 12:53 IST the four deep-inference slots (cam06, cam12, cam10,
+cam08) wrote 4,465 government observations after the snapshot: cam06 2,480,
+cam10 1,050, cam08 708, cam12 227. Among them are 200 plate reads, 124 distinct
+plates, all on cam06, by the current recogniser (`ocr: awiros-anpr-ocr` in the
+row's `model_versions`; the 901 snapshot reads carry no `ocr` key: earlier
+recogniser). The film `04_government_feed.mp4` (5 m 40 s) was recorded in this
+session; its CSV holds every government read: 901 + 200 = 1,101 (264 distinct
+plates, 9 cameras). Query: the snapshot queries above with
+`t_norm_us > 1790246409848994` (24 Sep 16:10:09 IST).
+
+During the session the shared sandbox delivered 6–13 of 30 government cameras
+as advancing video at once (MEASURED DURING THIS TEST WINDOW, recorder samples in
+`var/demo/gov_take7/beats.json`); 18 cameras advanced at some point in one
+five-minute preflight. The organisers state there is no fixed participant-facing
+session limit and that availability varies with shared load; these counts are
+measurements, not a limit.

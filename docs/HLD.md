@@ -253,6 +253,15 @@ rule is an administrator-created demonstration rule. These are stored
 analytics outputs, not ground-truth accuracy or a completed government
 multi-location vehicle trace (official FAQ Q27–Q31).
 
+**MEASURED live session (28 Sep 2026, 11:15–12:53 IST).** The four
+deep-inference slots (cam06, cam12, cam10, cam08) wrote 4,465 government
+observations, including 200 plate reads (124 distinct plates) on cam06 by the
+current recogniser (`ocr: awiros-anpr-ocr` in each row's provenance). The
+government film was recorded in this session; its CSV holds every government
+read, 901 + 200 = 1,101. The sandbox delivered 6–13 of 30 cameras as advancing
+video at once in that window — a measurement, not a limit
+(`docs/SENTINEL_SUPPORT_CLARIFICATION.md`).
+
 ### 4.3 Retrieval — graph-first
 ```
 structured prune → graph prune → candidate scoring → decomposed rerank

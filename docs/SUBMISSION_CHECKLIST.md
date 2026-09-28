@@ -3,7 +3,7 @@
 Last reconciled 28 September 2026. The authoritative upload inventory and
 commands are in [FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Counts below belong
 to their named snapshot, not the current runtime estate. The government film
-is being re-recorded; validate the final take and CSV together at pack build.
+was recorded live on 28 September 2026 (5 m 40 s).
 
 ## 1 · The four required items
 
@@ -12,7 +12,7 @@ is being re-recorded; validate the final take and CSV together at pack build.
 | 1 | Solution presentation | `var/demo/SAAKSHYA_deck.pptx` and `var/demo/SAAKSHYA_deck.pdf` | Generated deck, 16:9, rendered from the repository (`tools/demo/render_submission_deck.py`) so no claim lives only on a slide. Adds the measured GPU speed-up with its parity check, the vehicle trace report, the evidence chain and own-feed screens from the current build; the films page reads each film's length off the file. Upload the PPTX if the field wants PowerPoint; attach the PDF as well. |
 | 2 | Technical proposal / high-level design | `docs/HLD.md` (§1–20) plus `var/demo/diagrams/` | §4.2 the models and why each (tiled plate search, on-device OCR, position typing, restricted-zone rules), §4.5 the printable trace, §4.9 the Gemini copilot over all four models with its gates, §15 disaster recovery, §16 statewide rollout with exit gates, §17 the cost model with **S measured** (2.0× whole pipeline on a laptop GPU, 3.4× detector; equal observation counts but no plates in the pipeline sample), §18 the cybersecurity architecture, §19 the claims this proposal declines to make. |
 | 3 | Demo video — own feed, **maximum 2–3 minutes** | `var/demo/own_feed.mp4` | **2 m 53 s** · 2560×1440 · 98 MB · narrated, captioned. Eleven beats, all driven cleanly. Licensed Mumbai street footage with heads blurred. An estate administrator onboards a camera through the portal form (validated before it writes) and hands over to the investigating officer. Both feeds play at 30 fps with this platform's boxes on every frame and plates drawn once the vote holds; the live AI worker analyses them on the GPU during the take (AI ACTIVE · OCR ACTIVE, measured inference figures on screen). MH02GB4920 (historical Apple Vision output), read off the footage and agreed across 267 frames, is searched and shown CONFIRMED BY PLATE. The watchlist hit and its trace report are on fictional plates. |
-| 4 | Demo video — government feed, with plate/timestamp output report | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | **Re-recorded — duration stamped at pack build.** Verify replacement take, recogniser provenance and CSV together. Government designated vehicle `GJ11S7924`, cam06 only: SINGLE-CAMERA evidence (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). The prior take used earlier recognisers; do not attribute its reads to the current Indian recogniser. |
+| 4 | Demo video — government feed, with plate/timestamp output report | `var/demo/government_feed.mp4` + `var/demo/government_feed_anpr_report.csv` | **5 m 40 s** · 2560×1440 · 30 fps · narrated and captioned; recorded on the live government grid on 28 Sep 2026, 12:41–12:47 IST. Opens on the OPTIMIZED VIEW wall with the live count measured on screen (8 of 30 at the opening, 6–13 across the wall beats), then all thirty in the CONTROL ROOM, a focused live government camera with its intelligence panel, analytics, cam12 person detections and the demonstration restricted-zone rule, the government ANPR gallery, designated vehicle `GJ11S7924` (SINGLE-CAMERA, cam06), GIS, the trace report, the ANPR CSV, evidence, system status and the Model 1 registry as estate administrator. The administrator → officer handoff is shown in the own-feed film. CSV: 1,101 government reads · 264 distinct plates · 9 cameras, government cameras only (`/reports/anpr.csv?reads=all&domain=GOVERNMENT`): 901 reads to the 24 Sep snapshot (earlier recogniser) and 200 read live on cam06 during the 28 Sep recording session by the current recogniser (`ocr: awiros-anpr-ocr` in each row's model provenance). Government designated vehicle `GJ11S7924`, cam06 only: SINGLE-CAMERA evidence (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). The prior take used earlier recognisers; do not attribute its reads to the current Indian recogniser. |
 
 The recorder refuses to finish an own-feed film over three minutes rather than
 producing something an assessor will have cut off. That check passed.
@@ -46,9 +46,9 @@ drifted the first time a report was regenerated.
 01_SAAKSHYA_deck.pptx                    01_SAAKSHYA_deck.pdf
 02_HLD.md   02_HLD_diagrams.pdf   02_SECURITY.md
 03_own_feed.mp4                          2 m 53 s · 2560×1440
-04_government_feed.mp4                   re-recorded — duration stamped at pack build
-04_government_feed_1080p.mp4             re-encode final take — duration stamped at pack build
-04_government_feed_anpr_report.csv       901 reads · 178 marks · 9 cameras
+04_government_feed.mp4                   5 m 40 s · 2560×1440 · 30 fps
+04_government_feed_1080p.mp4             5 m 40 s · 1920×1080 (same take)
+04_government_feed_anpr_report.csv       1,101 government reads · 264 plates · 9 cameras
 05_MODEL1_GAP_ANALYSIS.md   05_REGISTRY_API.md
 05_SCALE_80K_LOAD_TEST.md   05_sample_camera_metadata.csv
 06_designated_vehicle_trace_report.html  GJ11S7924: cam06 only, SINGLE-CAMERA (snapshot report)

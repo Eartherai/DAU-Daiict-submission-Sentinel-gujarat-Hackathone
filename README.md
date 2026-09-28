@@ -58,7 +58,7 @@ Real Chrome tab against a live API — overview → government Focus → plates 
 | Film | What it is |
 |---|---|
 | **Own feed** `03_own_feed.mp4` | Onboarding, detection, watchlist and alerts; 2:53 (`var/demo/own_feed.mp4`, ffprobe) |
-| **Government workspace** `04_government_feed.mp4` | Re-recorded — duration stamped at pack build; single-camera designated vehicle evidence |
+| **Government workspace** `04_government_feed.mp4` | 5 m 40 s · 1440p · recorded live 28 Sep 2026; single-camera designated vehicle evidence; `04_government_feed_anpr_report.csv` carries 1,101 government reads |
 | **Detection overlays** | Same `CameraPipeline` drawn onto government + own frames |
 
 <p align="center">

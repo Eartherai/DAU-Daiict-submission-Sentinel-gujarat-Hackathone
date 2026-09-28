@@ -1616,6 +1616,53 @@ def statewide_binding() -> Image.Image:
     return img
 
 
+def live_integration_story() -> Image.Image:
+    img, d = canvas(False, tags=("MEASURED", "VERIFIED"))
+    rail(img, d, "Government integration", "")
+    kicker(d, "Government grid · integration timeline")
+    title(d, "What it took to integrate the live grid", size=48)
+    columns = [
+        ("19 SEP · REPORTED TO SENTINEL", [
+            "MEASURED in the retained 16 Sep UTC reports: 30/30 IDs yielded RTSP frames; 15 direct WHEP, 15 bridge candidates.",
+            "VideoToolbox reached 15 preview bridges in the scale test. The mixed wall held 19 browser-visible cameras for 60 s: 15 direct + 4 bridged; 0 NO_SIGNAL.",
+            "That wall classified 8 LIVE + 11 PREVIEW. Fan-in failures did not establish a bridge maximum or a sandbox quota.",
+        ]),
+        ("SENTINEL · GUIDANCE", [
+            "We asked about concurrency, long-lived sessions, the 30-camera pattern, a catalogue and connection pacing.",
+            "No fixed participant-facing session limit; availability varies with shared load. Open only needed streams; design independently of camera count.",
+            "Isolate cameras, stagger opens and back off. No separate /api/ingest catalogue. Fan-in variation is not a local-bridge limit.",
+        ]),
+        ("VERIFIED · IMPLEMENTATION", [
+            "Direct WHEP via authenticated signalling; credentials stay server-side. CONTROL ROOM / OPTIMIZED VIEW state the local session policy.",
+            "On-demand hub; 4 deep-inference slots, prioritised by measured capability. Viewing is separate from AI coverage.",
+            "Playback progress governs LIVE; preflight gates and stall hand-over constrain recording. The ANPR export filters GOVERNMENT.",
+        ]),
+    ]
+    for i, (heading, paragraphs) in enumerate(columns):
+        x = ML + i * 578
+        d.line((x, 205, x + 536, 205), fill=GREEN, width=3)
+        d.text((x, 224), heading, font=SANS_B(19), fill=INK)
+        y = 272
+        for paragraph in paragraphs:
+            for line in wrap(d, paragraph, SANS(23), 526):
+                d.text((x, y), line, font=SANS(23), fill=INK)
+                y += 30
+            y += 22
+    d.rounded_rectangle((ML, 755, W - MR, 956), radius=8, fill=NAVY)
+    d.text((ML + 24, 774), "28 SEP · RECORDED GOVERNMENT DEMONSTRATION", font=SANS_B(21), fill=GOLD)
+    lines = [
+        "Eight attempts (team-reported). MEASURED: 6–13 of 30 advancing; submitted take 5:40, 12:41–12:47 IST.",
+        "200 live cam06 reads in the 11:15–12:53 IST session; 21 within the filmed take. Single-camera evidence.",
+        "401 refusals from 12:57 IST prevented further recording. Cause unestablished; no fixed quota inferred.",
+    ]
+    for i, line in enumerate(lines):
+        d.text((ML + 24, 817 + i * 39), line, font=SANS(23), fill=WHITE)
+    footer(d, "Sources: docs/LIVE_INTEGRATION_STORY.md (claim-by-claim references); reports/PHASE14_REAL_CAMERA_SOURCE_CENSUS.md; "
+           "reports/PHASE16_30_CAMERA_BROWSER_COVERAGE.md; docs/SENTINEL_SUPPORT_CLARIFICATION.md; "
+           "reports/FINAL_SUBMISSION_CERTIFICATION.md; var/demo/gov_take7/beats.json.", y=993)
+    return img
+
+
 def build() -> list[Image.Image]:
     gallery = government_anpr_gallery()
     pages = [
@@ -1644,6 +1691,7 @@ def build() -> list[Image.Image]:
         scale_security(),
         benefits(),
         media_policies(),
+        live_integration_story(),
         shot_page(SHOTS / "gov_live_grid.png",
                   "Live wall  ·  Model 2  ·  a frame of the government film",
                   "Wall viewing and AI coverage are separate",

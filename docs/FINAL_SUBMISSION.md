@@ -6,6 +6,8 @@ status below follow that builder’s `ITEMS`; optional files must be checked for
 presence in its build output. Do not infer that an index entry proves a file
 has been rebuilt.
 
+Repository background: [Live integration timeline](LIVE_INTEGRATION_STORY.md) — measurements reported to Sentinel, its guidance, the implementation response and the 28 September recording session.
+
 ## What to upload and what it proves
 
 | Pack file | Status | Evidence / purpose |

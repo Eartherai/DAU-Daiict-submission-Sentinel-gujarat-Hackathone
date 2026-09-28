@@ -7,6 +7,12 @@ Live command (run by the primary after merging; never run during offline work):
         --admin-token-file /path/to/admin.token --min-live 12 \
         --preflight-timeout 300 --plate GJ11S7924 --out var/demo/government_feed
 Add --preflight-only to write preflight.json without starting capture.
+Add --tour full for the complete operator story, beginning at the masked
+sign-in gate. --wall-domain replay uses the REPLAY lane's registered GOVREC
+files, dated public GIS metadata and replay domain button; choose --min-live
+no higher than the number of files. In replay mode this legacy option counts
+advancing recordings, never live government sessions. Synthetic test clips
+cannot qualify. The separate ANPR deliverable remains GOVERNMENT-only.
 
 One context and page; only the application's own media sessions. Transition
 waits are cut out of capture, with their durations retained in beats.json.
@@ -18,8 +24,10 @@ import argparse
 import csv
 import io
 import json
+import re
 import sys
 import time
+import uuid
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -56,6 +64,9 @@ class Beat:
     prepare_s: float = 0.0
     recorded_s: float = 0.0
     samples: list = field(default_factory=list)
+    selectors: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
+    gate: bool = False
 
 
 class SkipBeat(Exception):
@@ -125,14 +136,14 @@ FOCUS_START_S = 12
 OPENING_WAIT_S = 90
 
 
-def opening_ready(sample: dict, ui: dict, min_live: int) -> bool:
+def opening_ready(sample: dict, ui: dict, min_live: int, wall_domain: str = 'government') -> bool:
     """The film may start: enough advancing tiles on screen, a clean view."""
     return bool(sample['passed'] and sample['visible_live']
-                and sample['connected'] >= min_live and ui['shell']
+                and (wall_domain == 'replay' or sample['connected'] >= min_live) and ui['shell']
                 and not ui['fatal'] and not ui['loading'] and not ui['loadingText'])
 
 
-def dry_run_rows(sample_csv: str, rows: int = 7) -> str:
+def dry_run_rows(sample_csv: str, rows: int = 7, namespace: str = '') -> str:
     """The sample spreadsheet's first rows under fresh DRYRUN-NN ids.
 
     The sample cameras are onboarded already, so validating them returns 409
@@ -140,7 +151,8 @@ def dry_run_rows(sample_csv: str, rows: int = 7) -> str:
     department's new rows being validated; it is a dry run and writes nothing.
     """
     lines = sample_csv.splitlines()
-    body = [f"DRYRUN-{i:02d},{line.split(',', 1)[1]}"
+    prefix = f'DRYRUN-{namespace}-' if namespace else 'DRYRUN-'
+    body = [f"{prefix}{i:02d},{line.split(',', 1)[1]}"
             for i, line in enumerate(lines[1:rows + 1], 1)]
     return "\n".join([lines[0], *body])
 
@@ -160,6 +172,43 @@ def live_caption(live: int, total: int = 30) -> str:
     if not 0 <= live <= total:
         raise ValueError("live count must be within the measured wall size")
     return f"{live} of {total} government cameras live in this recording"
+
+
+def replay_catalog(body: dict) -> dict[str, str]:
+    """Only government-linked archival files qualify; never the simulation plane.
+
+    REPLAY integration contract: GIS rows have camera_id GOVREC-<government id>,
+    source_domain ARCHIVAL_REPLAY, recorded_file=true, synthetic=false, and
+    capture_start_ist (ISO timestamp, supplied by live.recordings metadata).
+    An explicit government_camera_id/source_camera_id is also accepted.
+    Only these allowlisted fields are retained, never a source URL.
+    """
+    _, government = registry_composition(body)
+    dates = {}
+    for row in body.get('features', []) + body.get('unlocated', []):
+        cid = str(row.get('camera_id', ''))
+        parent = row.get('government_camera_id') or row.get('source_camera_id')
+        if not parent and cid.startswith('GOVREC-'):
+            parent = cid.removeprefix('GOVREC-')
+        captured = str(row.get('capture_start_ist') or row.get('captured_at') or row.get('capture_start') or '')
+        if (row.get('source_domain') == 'ARCHIVAL_REPLAY' and parent in government
+                and row.get('recorded_file') is True and row.get('synthetic') is False
+                and re.fullmatch(r'[A-Za-z0-9_-]+', cid)
+                and re.match(r'^\d{4}-\d{2}-\d{2}(?:T| |$)', captured)):
+            from datetime import date
+            try:
+                date.fromisoformat(captured[:10])
+            except ValueError:
+                continue
+            dates[cid] = captured[:10]
+    return dates
+
+
+def playback_caption(sample: dict, domain: str, ids: list[str], dates: dict[str, str]) -> str:
+    if domain == 'government':
+        return live_caption(sample['live'], len(ids))
+    captured = ', '.join(sorted({dates[c] for c in sample['live_ids']}))
+    return f"RECORDED GOVERNMENT FOOTAGE · captured {captured} · replayed"
 
 
 def single_camera(sightings: list[dict]) -> bool:
@@ -383,7 +432,7 @@ def opening_beats(page, layout: str, wall_group: Callable[[float], Callable]) ->
 
 
 def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: float,
-              layout: str = "dense") -> dict:
+              layout: str = "dense", wall_domain: str = 'government') -> dict:
     started = time.monotonic()
     deadline = started + timeout
     result = {"passed": False, "min_live": min_live, "timeout_s": timeout,
@@ -409,8 +458,11 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
                                 min(30, remaining_ms() / 1000))
         counts, government = registry_composition(body)
         result["government_ids"] = government
+        dates = replay_catalog(body) if wall_domain == 'replay' else {}
+        media_ids = sorted(dates) if wall_domain == 'replay' else government
+        result.update(wall_domain=wall_domain, wall_ids=media_ids, replay_dates=dates)
         gate("DB_READY", status == 200 and not body.get("clustered")
-             and counts["GOVERNMENT"] >= 30,
+             and counts["GOVERNMENT"] >= 30 and len(media_ids) >= min_live,
              {"status": status, "composition": counts,
               "expected_baseline": {"GOVERNMENT": 30, "OWN_FEED": 2, "SYNTHETIC_CONTROL": 18},
               "clustered": body.get("clustered")})
@@ -425,23 +477,27 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
         gate("MAP_READY", True, page.evaluate(MAP_SAMPLE))
         page.click('button[data-view="live"]', timeout=remaining_ms())
         page.wait_for_selector('#live-grid .live-tile', timeout=remaining_ms())
-        page.click('[data-live-domain="government"]', timeout=remaining_ms())
+        page.click(f'[data-live-domain="{wall_domain}"]', timeout=remaining_ms())
         policy = OPENING_POLICY[layout]
         page.click(f'[data-live-layout="{layout}"]', timeout=remaining_ms())
         page.wait_for_selector(f'#media-policy[data-policy="{policy}"]', timeout=remaining_ms())
-        page.wait_for_selector(f'#live[data-wall="30"][data-layout="{layout}"] .live-tile',
+        wall_attr = '[data-wall="30"]' if wall_domain == 'government' else ''
+        page.wait_for_selector(f'#live{wall_attr}[data-layout="{layout}"] .live-tile',
                                timeout=remaining_ms())
         warmed = False
         while time.monotonic() + 1.1 < deadline:
-            ids = wall_ids(page, government)
+            ids = wall_ids(page, media_ids)
             sample = sample_video(page, ids, min_live)
             result["samples"].append(sample)
             result["latest"] = sample
             ui = page.evaluate(UI_SAMPLE)
             gate("UI_READY", ui["shell"] and not ui["loading"] and not ui["loadingText"], ui)
             gate("NO_FATAL_TOAST", ui["fatal"] == 0, {"visible_errors": ui["fatal"]})
-            gate("WHEP_READY", len(ids) == 30 and sample["connected"] >= min_live,
-                 {"connected": sample["connected"], "tiles": len(ids), "policy": policy})
+            transport_ok = (len(ids) == 30 and sample['connected'] >= min_live
+                            if wall_domain == 'government' else len(ids) >= min_live)
+            gate("WHEP_READY", transport_ok,
+                 {"connected": sample["connected"], "tiles": len(ids), "policy": policy,
+                  "transport": 'file replay; WHEP not required' if dates else 'WHEP'})
             gate("VIDEO_ADVANCING", sample["passed"] and sample['visible_live'] > 0, sample)
             print(f"  preflight: {sample['live']}/{len(ids)} advancing; "
                   f"{sample['connected']} connected", flush=True)
@@ -475,8 +531,9 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
 def build(page, plate: str, admin_token: str = "", officer_token: str = "",
           *, base: str = "http://127.0.0.1:8083", government: list[str] | None = None,
           gallery: Path | None = None, csv_path: Path | None = None,
-          opening_layout: str = "dense") -> list[Beat]:
+          opening_layout: str = "dense", wall_cameras: list[str] | None = None) -> list[Beat]:
     government = government or []
+    wall_cameras = government if wall_cameras is None else wall_cameras
     selected = {"camera": None}
     gallery = gallery or ROOT / "var/demo/plate_gallery/gallery.html"
 
@@ -501,7 +558,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         # Candidates are measured on the wall, before Focus: in Focus the strip
         # tiles hold no session, so their motion cannot be measured there.
         if "candidates" not in selected:
-            latest = sample_video(page, wall_ids(page, government), 1)
+            latest = sample_video(page, wall_ids(page, wall_cameras), 1)
             ids = latest["live_ids"]
             if not ids:
                 raise RecorderFailure("no advancing government camera for focus")
@@ -671,10 +728,12 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.locator('#system .command-grid .health-row').first.scroll_into_view_if_needed()
 
     def bulk():
-        page.click('#btn-onboard-toggle')
+        if page.locator('#btn-onboard-toggle').get_attribute('aria-expanded') != 'true':
+            page.click('#btn-onboard-toggle')
         page.click('[data-onboard="bulk"]')
         text = (ROOT / 'reports/sample_camera_metadata.csv').read_text(encoding='utf-8')
-        page.fill('#ob-csv', dry_run_rows(text))
+        page.fill('#ob-csv', dry_run_rows(text, namespace=uuid.uuid4().hex[:10]))
+        page.uncheck('#ob-bulk-update')
         with page.expect_response(lambda r: '/registry/cameras/import.csv?dry_run=true' in r.url) as pending:
             page.click('#btn-ob-bulk-dry')
         if pending.value.status != 200:
@@ -729,6 +788,436 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
              lambda: use_token(officer_token, 'officer', 'cameras', '#cameras table tbody tr'),
              'The investigating officer takes over. Searches remain attributable to the signed-in role.'),
     ]
+def require_ui(page, *selectors: str) -> None:
+    for selector in selectors:
+        if not page.locator(selector).count():
+            raise SkipBeat(f'UI unavailable: {selector}')
+
+
+def absent_feature(reason: str):
+    def skip():
+        raise SkipBeat(reason)
+    return skip
+
+
+def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
+               *, base: str = 'http://127.0.0.1:8083', government=None, gallery=None,
+               csv_path=None, opening_layout='dense', wall_domain='government',
+               wall_cameras=None, replay_dates=None, officer_id='') -> list[Beat]:
+    """Executable operator story. Selectors and source citations travel with the plan.
+
+    Missing UI/data produces a named skip. A present control that fails its
+    response/readiness checks fails the take. No invented watchlist CRUD UI.
+    """
+    old = build(page, plate, admin_token, officer_token, base=base,
+                government=government, gallery=gallery, csv_path=csv_path,
+                opening_layout=opening_layout, wall_cameras=wall_cameras)
+    wall_count = 4 if opening_layout == 'dense' else 5
+    wall = old[:wall_count]
+    (focus, analytics, persons, zone, crops, exact, gis, trace, csv_beat,
+     evidence, health, registry, bulk, refused, handoff) = old[wall_count:]
+    dates = replay_dates or {}
+    downloads = Path(csv_path).parent if csv_path else ROOT / 'var/demo'
+
+    def view(name, selector):
+        require_ui(page, f'button[data-view="{name}"]')
+        navigate(page, name, f'#view-{name}')
+        # Some loaders (alerts/cases) leave the old DOM in place or start with
+        # no loading-note. Wait for the output, not merely the active section.
+        try:
+            page.wait_for_selector(selector, timeout=30000)
+        except Exception:
+            require_ui(page, selector)  # Absent output is a logged skip.
+            raise
+        page.locator(selector).first.scroll_into_view_if_needed()
+
+    def feature(title, action, selectors, source, say='', dwell=20):
+        return Beat(title, dwell, action, say, optional=True,
+                    selectors=tuple(selectors), sources=(source,))
+
+    def gate():
+        if not officer_id or '@' in officer_id:
+            raise RecorderFailure('a non-email officer user_id is required for gate sign-in')
+        page.evaluate("() => { sessionStorage.setItem('gov.recorder.gate', '1'); "
+                      "sessionStorage.removeItem('saakshya.token'); }")
+        page.goto(base.rstrip('/') + '/ui/?recorder-gate=1#overview', wait_until='domcontentloaded')
+        page.wait_for_selector('#gate:not([hidden]) #gate-token')
+        require_ui(page, '#gate-officer', '#gate-case', '#gate-purpose')
+        if page.locator('#gate-token').get_attribute('type') != 'password':
+            raise RecorderFailure('gate token input is not masked')
+        page.fill('#gate-officer', officer_id)
+        page.fill('#gate-case', 'FIR-000/2026')
+        page.fill('#gate-purpose', 'demonstrating review of government observations')
+        page.fill('#gate-token', officer_token)
+
+    def overview():
+        page.click('#gate-form button[type="submit"]')
+        wait_view(page, 'overview', '#overview .command-grid, #overview .ov-card')
+        page.evaluate("() => sessionStorage.removeItem('gov.recorder.gate')")
+
+    def return_wall():
+        view('live', '#live-grid .live-tile')
+        require_ui(page, f'[data-live-domain="{wall_domain}"]')
+        page.click(f'[data-live-domain="{wall_domain}"]')
+        wall_mode(page, opening_layout)
+        wait_view(page, 'live', '#live-grid .live-tile')
+
+    wall[0].action = return_wall
+    for b in wall:
+        b.selectors = ('#live-grid .live-tile', '#media-policy', f'[data-live-domain="{wall_domain}"]')
+        b.sources = ('ui/index.html:308', 'ui/app.js:2764')
+        if wall_domain == 'replay':
+            b.title = 'Recorded government wall — ' + ('CONTROL ROOM' if 'CONTROL ROOM' in b.title else 'OPTIMIZED VIEW')
+            b.say = 'Recorded government footage, replayed from captured files. Playback is measured separately from stored analytics.'
+    if wall_domain == 'replay':
+        focus.title = 'RECORDED GOVERNMENT FOOTAGE · captured ' + ', '.join(sorted(set(dates.values()))) + ' · replayed'
+        focus.say = 'This government recording is replayed beside its intelligence panel. It is recorded footage.'
+        analytics.say = 'The panel states the observations available for this recorded camera. Replay findings retain their archival source domain.'
+
+    # Existing guarded actions remain the authority for these features.
+    for b, selectors, source in [
+        (focus, ('#live-stage video', '#live-sidecar'), 'ui/app.js:5231'),
+        (analytics, ('#here-plate-row .here-plate',), 'ui/app.js:3754'),
+        (persons, ('#q-type', '#q-camera', '#results .result'), 'ui/index.html:149'),
+        (zone, ('#analytics .zone-rule', '.zone-count'), 'ui/app.js:2435'),
+        (crops, ('img',), 'tools/demo/record_government_feed.py:plate_gallery'),
+        (exact, ('#case-id', '#purpose', '#q-plate', '#results'), 'ui/index.html:149'),
+        (gis, ('#map2', '#registry-rail .registry-chip'), 'ui/app.js:1438'),
+        (trace, ('#btn-trace-report', '#report-frame'), 'ui/app.js:7699'),
+        (csv_beat, ('table tr td',), 'tools/demo/record_government_feed.py:fetch_report'),
+        (evidence, ('#evidence-chain table',), 'ui/app.js:5953'),
+        (registry, ('#cameras table tbody tr', '#cap-note'), 'ui/app.js:5629'),
+        (bulk, ('#btn-ob-bulk-dry', '#ob-csv'), 'ui/app.js:7418'),
+        (health, ('#system .command-grid .health-row',), 'ui/app.js:2543'),
+        (refused, ('#q-plate', '#results .notice.bad'), 'ui/app.js:646'),
+        (handoff, ('#cameras table tbody tr',), 'ui/app.js:619'),
+    ]:
+        if source.startswith('tools/'):
+            source = f'tools/demo/record_government_feed.py:{b.action.__code__.co_firstlineno}'
+        b.selectors, b.sources = selectors, (source,)
+        b.dwell_s = max(b.dwell_s, 20)
+    exact.title = 'Representative plate — case, purpose and timestamped observations'
+    exact.say = 'This plate is a team-selected representative from government reads, not the organiser-issued evaluation mark. Government histories in this store are single-camera.'
+    analytics.visible_motion, analytics.retry = True, focus.action
+
+    def search_variant(kind):
+        # Reuse the UI response, including its case/purpose headers. No hidden
+        # unaudited API search and no invented colour/type values.
+        with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as baseline:
+            exact.action()
+        if kind == 'partial':
+            page.fill('#q-plate', plate[:4] + '*')
+        elif kind == 'fuzzy':
+            page.check('#q-fuzzy')
+            replacement = '0' if plate[-1:] != '0' else '1'
+            page.fill('#q-plate', plate[:-1] + replacement)
+        else:
+            data = baseline.value.json()
+            rows = [r for r in data.get('candidates', []) if r.get('camera_id') in (government or [])
+                    and r.get('object_type') and (r.get('colour') or r.get('color'))]
+            if not rows:
+                raise SkipBeat('no government observation has colour, type and camera for attribute search')
+            row = rows[0]
+            page.fill('#q-plate', '')
+            page.fill('#q-colour', row.get('colour') or row['color'])
+            page.fill('#q-type', row['object_type'])
+            page.fill('#q-camera', row['camera_id'])
+        with page.expect_response(lambda r: '/search?' in r.url and r.request.method == 'GET') as pending:
+            page.press('#q-plate', 'Enter')
+        if pending.value.status != 200:
+            raise RecorderFailure('search variant failed')
+        rows = pending.value.json().get('candidates', [])
+        if any(r.get('camera_id') not in (government or []) for r in rows):
+            raise SkipBeat('search variant returned non-government sources; omitted from government film')
+        wait_view(page, 'investigate', '#results .result, #results .empty, #results .notice')
+        return {'variant': kind, 'returned_observations': len(rows)}
+
+    def trajectory():
+        exact.action()
+        require_ui(page, '#traj-body', '#map')
+        page.locator('#traj-body').scroll_into_view_if_needed()
+
+    def verify():
+        evidence.action()
+        button = page.locator('#evidence-chain button').filter(has_text='Verify now')
+        if not button.count():
+            raise SkipBeat('UI unavailable: #evidence-chain button Verify now')
+        with page.expect_response(lambda r: '/evidence/chain/verify?fresh=1' in r.url,
+                                  timeout=180000) as pending:
+            button.click()
+        if pending.value.status != 200:
+            raise RecorderFailure('fresh evidence verification unavailable')
+        wait_view(page, 'evidence', '#evidence-chain .ev-when', timeout=180000, allow_error=True)
+        return {'integrity_ok': bool(pending.value.json().get('ok'))}
+
+    def cases():
+        with page.expect_response(lambda r: '/cases' in r.url and r.request.method == 'GET') as pending:
+            view('cases', '#case-list')
+        if pending.value.status != 200:
+            raise SkipBeat('case list unavailable to this role')
+        page.wait_for_selector('#case-list .result, #case-list .empty')
+        require_ui(page, '#case-list .result')
+        page.locator('#case-list .result').first.click()
+        page.wait_for_selector('#case-detail dl')
+
+    def export_case():
+        cases()
+        require_ui(page, '#btn-export-case')
+        with page.expect_download() as pending:
+            page.click('#btn-export-case')
+        destination = downloads / 'government_tour_case_export.json'
+        retain_download(pending.value, destination, (officer_token, admin_token))
+        return {'export': str(destination)}
+
+    def native_gallery():
+        restore_officer_workspace()
+        view('overview', '#overview .plate-gallery')
+        page.wait_for_function("() => [...document.querySelectorAll('#overview .plate-gallery img')]"
+                               ".every(i => i.complete)")
+
+    def ui_csv():
+        native_gallery()
+        button = page.get_by_role('button', name='Download ANPR report (CSV)', exact=True)
+        if not button.count():
+            raise SkipBeat('ANPR CSV download button is unavailable')
+        with page.expect_download() as pending:
+            button.click()
+        destination = downloads / 'government_tour_ui_anpr_all_domains.csv'
+        retain_download(pending.value, destination, (officer_token, admin_token))
+        return {'export': str(destination), 'scope': 'UI export; all source domains'}
+
+    def copilot():
+        status, config = api_read(base, officer_token, '/copilot/describe')
+        if status != 200 or not config.get('available') or 'gemini' not in str(config.get('backend', '')).lower():
+            raise SkipBeat('Gemini is not configured')
+        view('copilot', '#chat-input')
+        page.fill('#chat-input', 'Which government cameras have measured ANPR capability, and what are its limitations?')
+        with page.expect_response(lambda r: '/copilot/ask' in r.url, timeout=120000) as pending:
+            page.press('#chat-input', 'Enter')
+        if pending.value.status != 200 or not pending.value.json().get('grounded'):
+            raise SkipBeat('copilot did not return a grounded answer')
+        page.wait_for_selector('#chat-log .msg.bot:not(.dim) .md')
+        page.locator('#chat-log .msg.bot .md').last.scroll_into_view_if_needed()
+
+    def manual():
+        view('cameras', '#btn-onboard-toggle')
+        if page.locator('#btn-onboard-toggle').get_attribute('aria-expanded') != 'true':
+            page.click('#btn-onboard-toggle')
+        page.click('[data-onboard="manual"]')
+        for selector, value in {'#ob-camera-id': 'DRYRUN-' + uuid.uuid4().hex[:10],
+                                '#ob-name': 'DEMO validation only', '#ob-department': 'Police',
+                                '#ob-district': 'Ahmedabad', '#ob-lat': '23.03',
+                                '#ob-lon': '72.58', '#ob-retention': '15'}.items():
+            page.fill(selector, value)
+        page.uncheck('#ob-update-existing')
+        with page.expect_response(lambda r: r.url.endswith('/registry/cameras/import')
+                                  and r.request.method == 'POST') as pending:
+            page.click('#btn-ob-dry')
+        response = pending.value
+        if response.status != 200 or response.request.post_data_json.get('dry_run') is not True:
+            raise RecorderFailure('manual dry-run validation failed')
+        wait_view(page, 'cameras', '#onboard-result.ok')
+
+    def grades():
+        view('cameras', '#reg-anpr')
+        page.select_option('#reg-anpr', 'GOOD')
+        page.wait_for_function("() => document.querySelector('#reg-count').textContent.length > 0")
+
+    def gaps():
+        page.click('#btn-reg-clear')
+        card = page.locator('#cameras .ov-card').filter(has_text='Registry gap analysis')
+        if not card.count():
+            raise SkipBeat('registry gap analysis is unavailable')
+        card.scroll_into_view_if_needed()
+
+    def layers():
+        view('map', '#map2')
+        require_ui(page, '[data-mode2="capability"]')
+        page.click('[data-mode2="capability"]')
+        page.wait_for_selector('[data-mode2="capability"].on')
+        page.locator('#legend2').scroll_into_view_if_needed()
+
+    def systems():
+        view('system', '#system .panel')
+        panel = page.locator('#system .panel').filter(has_text='Connected systems · DEMO / TEST')
+        if not panel.count():
+            raise SkipBeat('connected systems panel is unavailable')
+        panel.scroll_into_view_if_needed()
+
+    def audit():
+        # ADMIN has audit:read; the investigator does not. State the role explicitly.
+        page.evaluate("t => sessionStorage.setItem('saakshya.token', t)", admin_token)
+        page.goto(base.rstrip('/') + '/ui/?recorder-role=administrator#audit', wait_until='domcontentloaded')
+        wait_view(page, 'audit', '#audit table')
+        page.wait_for_function("() => /chain verified|CHAIN BROKEN/.test(document.querySelector('#audit-chain').textContent)")
+
+    incident = {}
+
+    def queue():
+        with page.expect_response(lambda r: '/alerts?grouped=true' in r.url) as pending:
+            view('alerts', '#alerts .inc-summary')
+        if pending.value.status != 200:
+            raise RecorderFailure('alert queue unavailable')
+
+    def selected_incident():
+        queue()
+        with page.expect_response(lambda r: '/alerts?grouped=true&status=&' in r.url) as pending:
+            page.click('[data-alert-status=""]')
+        if pending.value.status != 200:
+            raise RecorderFailure('all-status alert queue unavailable')
+        groups = pending.value.json().get('groups', [])
+        page.wait_for_function("n => document.querySelectorAll('#alerts .incident').length === n", arg=len(groups))
+        wait_view(page, 'alerts', '#alerts .inc-summary')
+        cards = page.locator('#alerts .incident')
+        if incident.get('group'):
+            # Exact group identity survives queue reordering after transitions.
+            cards = page.locator('#alerts .incident').filter(
+                has=page.locator('.inc-plate', has_text=re.compile('^' + re.escape(plate) + '$')))
+            cards = cards.filter(has=page.locator('.inc-cat'))
+            cards = [c for c in cards.all() if c.get_attribute('data-group') == incident['group']]
+            if not cards:
+                raise SkipBeat('selected representative incident no longer present')
+            return cards[0]
+        cards = cards.filter(has=page.locator('.inc-plate', has_text=re.compile('^' + re.escape(plate) + '$')))
+        if not cards.count():
+            raise SkipBeat('no incident for the representative plate')
+        card = cards.first
+        incident['group'] = card.get_attribute('data-group')
+        card.scroll_into_view_if_needed()
+        return card
+
+    def open_incident():
+        selected_incident().focus()
+
+    def transition(action):
+        card = selected_incident()
+        label = {'acknowledge': 'Acknowledge', 'investigate': 'Investigate', 'resolve': 'Resolve…'}[action]
+        button = card.get_by_role('button', name=re.compile('^' + re.escape(label)))
+        if not button.count():
+            raise SkipBeat(f'no {action} control for the selected incident')
+        if action == 'resolve':
+            button.click()
+            card.locator('[aria-label="Disposition"]').select_option('cleared')
+            card.locator('[aria-label="Reason"]').fill('Representative demonstration concluded; no operational determination.')
+            button = card.get_by_role('button', name='Resolve all reads')
+        with page.expect_response(lambda r: '/alerts/transition' in r.url
+                                  and r.request.method == 'POST') as pending:
+            button.click()
+        if pending.value.status != 200:
+            raise RecorderFailure('incident transition did not change any alert')
+        if not pending.value.json().get('changed'):
+            raise SkipBeat('representative incident already transitioned; no alert changed')
+        if action == 'investigate':
+            wait_view(page, 'investigate', '#results .result, #results .empty')
+        else:
+            wait_view(page, 'alerts', '#alerts .inc-summary')
+        return {'action': action, 'changed': len(pending.value.json()['changed'])}
+
+    def watchlist():
+        view('intelligence', '#intel-watchlist')
+        page.locator('#intel-wl-cats').scroll_into_view_if_needed()
+
+    def restore_officer_workspace():
+        page.goto(base.rstrip('/') + '/ui/#overview', wait_until='domcontentloaded')
+        wait_view(page, 'overview', '#overview .ov-card, #overview .command-grid')
+
+    result = [
+        Beat('Sign-in gate — officer, masked token, case and purpose', 14, gate,
+             'The officer signs in with a masked access token, a case identifier and a stated purpose.',
+             selectors=('#gate-officer', '#gate-token', '#gate-case', '#gate-purpose'),
+             sources=('ui/index.html:823', 'ui/app.js:449'), gate=True),
+        feature('Overview — command dashboard', overview, ('#overview',), 'ui/index.html:303',
+                'The command dashboard reports the signed-in role, estate status and available observations.', 26),
+        *wall, focus, analytics, persons, zone, crops,
+        feature('ANPR gallery — current previews and stored reads · mixed sources', native_gallery,
+                ('#overview .plate-gallery',), 'ui/app.js:1937',
+                'Current previews sit beside stored reads. This view can include own feeds and the synthetic rendered test corpus; these previews are not sealed evidence.', 14),
+        feature('ANPR CSV — UI export across source domains', ui_csv,
+                ('#overview button',), 'ui/app.js:2018',
+                'The UI exports stored reads across source domains. The separate government-only CSV accompanies this film.', 14),
+        csv_beat,
+        # The CSV/gallery are local documents; return to the application first.
+        feature('Return to officer workspace', restore_officer_workspace,
+                ('#overview',), 'ui/index.html:303', dwell=1),
+        feature('Watchlist matches and categories — own-feed intelligence workspace', watchlist,
+                ('#intel-watchlist', '#intel-wl-cats'), 'ui/index.html:477',
+                'This panel lists watchlist matches by category. The own-feed intelligence workspace is separate from the government wall.'),
+        feature('Watchlist entry creation — unavailable UI', absent_feature('No watchlist add form in ui/index.html or ui/app.js'),
+                (), 'ui/app.js:7198', dwell=0),
+        feature('Alerts — queue and incident grouping', queue, ('#alerts .inc-summary', '#alerts .incident'), 'ui/app.js:8050',
+                'The queue groups reads into vehicle incidents. Categories and recorded reasons remain visible.'),
+        feature('Open the representative alert incident', open_incident, ('#alerts .incident', '.inc-plate'), 'ui/app.js:7995'),
+        *[feature('Representative alert — ' + action, lambda action=action: transition(action),
+                  ('#alerts .incident button',), 'ui/app.js:7958',
+                  'A representative demonstration incident. The transition is recorded in the audit log.')
+          for action in ('acknowledge', 'investigate', 'resolve')],
+        exact,
+        *[feature('Investigate — ' + kind + ' search', lambda kind=kind: search_variant(kind),
+                  ('#q-plate', '#q-fuzzy', '#q-colour', '#q-type', '#q-camera'), 'ui/index.html:153',
+                  'Results remain observations to review; near matches do not establish vehicle identity.')
+          for kind in ('partial', 'fuzzy', 'attribute')],
+        feature('Trajectory and route panel — government single-camera history', trajectory,
+                ('#traj-body', '#map'), 'ui/app.js:1139',
+                'The government history is single-camera. This does not demonstrate a real cross-camera route.'),
+        gis, evidence,
+        feature('Evidence — fresh integrity verification', verify, ('#evidence-chain button',), 'ui/app.js:6000',
+                'Verification checks stored bytes and the chain. It cannot prove that an older still depicts the recorded vehicle.'),
+        # A prior local document navigation cleared in-memory search state.
+        feature('Trace report — restore the representative search', trajectory, ('#q-plate',), 'ui/app.js:7699', dwell=1),
+        trace,
+        feature('Cases — case file and attached evidence', cases, ('#case-list .result', '#case-detail'), 'ui/app.js:5790'),
+        feature('Evidence export — case package', export_case, ('#btn-export-case',), 'ui/app.js:5917',
+                'The case export contains the selected case and its attachments; the package reports audit integrity.'),
+        feature('Gemini copilot — grounded capability question, if configured', copilot,
+                ('#chat-input', '#chat-log'), 'ui/app.js:6240'),
+        feature('Audit log — administrator hash-chain check', audit, ('#audit', '#audit-chain'), 'ui/app.js:5934',
+                'The estate administrator can inspect the audit chain. Investigator access remains separate.'),
+        registry,
+        feature('Model 1 — measured capability grades and registry filters', grades,
+                ('#reg-anpr', '#reg-count'), 'ui/index.html:651'),
+        feature('Model 1 — registry gap analysis', gaps, ('#cameras .ov-card',), 'ui/app.js:5645'),
+        feature('Model 1 — manual onboarding, validation only', manual,
+                ('#onboard-manual', '#btn-ob-dry'), 'ui/app.js:7378',
+                'A fresh demonstration identifier is validated through the form. No camera is imported.'),
+        bulk,
+        feature('Model 1 — GIS capability layer', layers, ('[data-mode2="capability"]', '#legend2'), 'ui/app.js:1642'),
+        feature('GIS camera text filter — unavailable handler', absent_feature('The #map-filter-q input has no handler in ui/app.js'),
+                ('#map-filter-q',), 'ui/index.html:293', dwell=0),
+        feature('Model 3 — connected systems and adapters · DEMO / TEST', systems,
+                ('#system .panel',), 'ui/app.js:2516',
+                'These demo and test systems exercise the federation adapter contract. They are not verified government VMS integrations.'),
+        # Analytics needs the officer; preserve the final administrator refusal later.
+        feature('Officer handoff for Model 4 analytics', handoff.action, ('#cameras',), 'ui/app.js:619', dwell=1),
+        feature('Model 4 — selected analytics output and timebase', lambda: view('analytics', '#analytics .command-grid'),
+                ('#analytics .command-grid',), 'ui/app.js:2370',
+                'Selected cameras run detection, tracking and ANPR. Deep-inference slots are prioritised by measured capability; they do not rotate at runtime.'),
+        health,
+        feature('Watchlist revocation — no entry created', absent_feature('No watchlist revoke control exists; this tour added no entry'),
+                (), 'ui/app.js:7198', dwell=0),
+        feature('Administrator handoff for RBAC check', registry.action, ('#cameras',), 'ui/app.js:619', dwell=1),
+        refused, handoff,
+    ]
+    return result
+
+
+def private_text(value: str, secrets: tuple[str, ...] = ()) -> bool:
+    """Fail closed without returning the offending text to logs or reports."""
+    return any(s and s in value for s in secrets) or bool(
+        re.search(r'[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}', value))
+
+
+def retain_download(download, destination: Path, secrets: tuple[str, ...]) -> None:
+    """Never trust a download filename or retain an export containing secrets."""
+    try:
+        raw = Path(download.path()).read_text(encoding='utf-8')
+        if private_text(raw, secrets):
+            raise RecorderFailure('export contains private text; download discarded')
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        download.save_as(destination)
+    finally:
+        download.delete()
+
+
 def fetch_report(base: str, token: str, out: Path, limit: int = 5000) -> dict:
     """The output report the submission must carry beside the video."""
     req = urllib.request.Request(
@@ -750,6 +1239,8 @@ def fetch_report(base: str, token: str, out: Path, limit: int = 5000) -> dict:
     rows = list(reader)
     if not rows or any(not all(r.get(k) for k in required) for r in rows):
         return {'ok': False, 'why': 'ANPR CSV has no complete observations'}
+    if private_text(body, (token,)):
+        return {'ok': False, 'why': 'ANPR CSV contains private text'}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(body, encoding="utf-8")
     plates = {r.get("plate") for r in rows if r.get("plate")}
@@ -796,7 +1287,7 @@ def beats_report(beats: list[Beat]) -> list[dict]:
     return [{"title": b.title, "passed": b.ok, "skipped": b.skipped,
              "error": b.err, "at_s": b.at, "prepare_s": b.prepare_s,
              "recorded_s": b.recorded_s, "dwell_s": b.dwell_s,
-             "samples": b.samples} for b in beats]
+             "samples": b.samples, "selectors": b.selectors, "sources": b.sources} for b in beats]
 
 
 def show_caption(page, title: str) -> None:
@@ -817,7 +1308,8 @@ def show_caption(page, title: str) -> None:
 def record(base: str, token: str, plate: str, out_dir: Path,
            admin_token: str = "", voice: str | None = "Aman", *, min_live: int = 12,
            preflight_timeout: float = 300, preflight_only: bool = False,
-           gallery: Path | None = None, opening_layout: str = "dense") -> list[Beat]:
+           gallery: Path | None = None, opening_layout: str = "dense",
+           tour: str = 'standard', wall_domain: str = 'government') -> list[Beat]:
     from urllib.parse import urlsplit
 
     from playwright.sync_api import sync_playwright
@@ -839,12 +1331,13 @@ def record(base: str, token: str, plate: str, out_dir: Path,
             origin = f'{parsed.scheme}://{parsed.netloc}'
             # Seed once. Subsequent administrator/officer handoffs survive reload.
             ctx.add_init_script('if (location.origin === ' + json.dumps(origin) +
+                                ' && !sessionStorage.getItem("gov.recorder.gate")'
                                 ' && !sessionStorage.getItem("saakshya.token")) '
                                 'sessionStorage.setItem("saakshya.token", ' + json.dumps(token) + ');')
             page = ctx.new_page()
             page.set_default_timeout(30000)
             ready = preflight(page, base, token, out_dir, min_live, preflight_timeout,
-                              layout=opening_layout)
+                              layout=opening_layout, wall_domain=wall_domain)
             if not ready['passed']:
                 latest = ready.get('latest', {})
                 failed = [k for k, v in ready['gates'].items() if not v['passed']]
@@ -858,17 +1351,29 @@ def record(base: str, token: str, plate: str, out_dir: Path,
             if not report['ok']:
                 raise SystemExit('ANPR report NOT WRITTEN; submission needs the report beside the video')
             government = ready['government_ids']
-            beats = build(page, plate, admin_token, token, base=base,
-                          government=government, gallery=gallery, csv_path=csv_path,
-                          opening_layout=opening_layout)
+            media_ids = ready.get('wall_ids', government)
+            dates = ready.get('replay_dates', {})
+            builder = build_full if tour == 'full' else build
+            options = {}
+            if tour == 'full':
+                status, me = api_read(base, token, '/me')
+                officer_id = me.get('principal', {}).get('user_id', '')
+                if status != 200 or not officer_id or private_text(officer_id):
+                    raise RecorderFailure('officer user_id is unavailable or contains private text')
+                options = {'wall_domain': wall_domain, 'replay_dates': dates, 'officer_id': officer_id}
+            beats = builder(page, plate, admin_token, token, base=base,
+                            government=government, gallery=gallery, csv_path=csv_path,
+                            opening_layout=opening_layout, wall_cameras=media_ids, **options)
             work = out_dir / 'narration'
             work.mkdir(parents=True, exist_ok=True)
             if voice:
                 narrate(beats, work, voice)
             save_json(out_dir / 'plan.json', {
-                'label': 'DESIGNED', 'dwell_s': beat_plan_duration(beats),
+                'label': 'DESIGNED', 'tour': tour, 'wall_domain': wall_domain,
+                'dwell_s': beat_plan_duration(beats),
                 'beats': [{'title': b.title, 'dwell_s': b.dwell_s,
-                           'narration_s': b.say_s, 'optional': b.optional} for b in beats]})
+                           'narration_s': b.say_s, 'optional': b.optional,
+                           'selectors': b.selectors, 'sources': b.sources} for b in beats]})
             # Narration/report preparation may take time: gate the opening again.
             # One sample was too brittle on a shared sandbox (take 6: 4 live
             # against 5, a minute after preflight measured 6), so re-sample for
@@ -877,9 +1382,9 @@ def record(base: str, token: str, plate: str, out_dir: Path,
             deadline = time.monotonic() + OPENING_WAIT_S
             tries = []
             while True:
-                opening = sample_video(page, wall_ids(page, government), min_live)
+                opening = sample_video(page, wall_ids(page, media_ids), min_live)
                 ui = page.evaluate(UI_SAMPLE)
-                ready = opening_ready(opening, ui, min_live)
+                ready = opening_ready(opening, ui, min_live, wall_domain)
                 tries.append({'live': opening['live'], 'visible_live': opening['visible_live'],
                               'connected': opening['connected'], 'ready': ready})
                 if ready or time.monotonic() >= deadline:
@@ -888,7 +1393,12 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                       {'passed': ready, 'sample': opening, 'ui': ui, 'tries': tries})
             if not ready:
                 raise SystemExit('opening readiness changed after preflight; no recording started')
-            show_caption(page, live_caption(opening['live']))
+            caption = lambda sample: playback_caption(sample, wall_domain, media_ids, dates)
+            if tour == 'full':
+                beats[0].action()  # Gate must be the very first captured frame.
+                show_caption(page, beats[0].title)
+            else:
+                show_caption(page, caption(opening))
             mp4 = Path(str(out_dir) + '.mp4')
             silent = Path(str(out_dir) + '_silent.mp4') if voice else mp4
             filmed = []
@@ -900,15 +1410,25 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                     started = time.monotonic()
                     capture_started = False
                     try:
-                        detail = beat.action()
+                        detail = None if tour == 'full' and i == 0 else beat.action()
                         if detail:
                             beat.samples.append({'preparation': detail})
                         if beat.wall:
-                            threshold = min_live if i == 0 else 1
-                            sample = wait_wall_motion(page, government, threshold, beat.samples)
-                            beat.title = live_caption(sample['live'])
+                            threshold = min_live if not any(b.wall and b.ok for b in beats[:i]) else 1
+                            sample = wait_wall_motion(page, media_ids, threshold, beat.samples)
+                            beat.title = caption(sample)
                         if beat.wall:
                             wait_view(page, 'live', '#live-grid .live-tile')
+                        if wall_domain == 'replay' and beat.visible_motion:
+                            beat.title = ('RECORDED GOVERNMENT FOOTAGE · captured '
+                                          + dates[detail['camera']] + ' · replayed · intelligence panel')
+                        if tour == 'full' and not beat.gate and not page.url.startswith('file:'):
+                            page.wait_for_function("() => { const s = (" + UI_SAMPLE + ")(); "
+                                                   "return s.shell && !s.loading && !s.loadingText; }")
+                        if tour == 'full':
+                            text_on_screen = page.locator('body').inner_text()
+                            if private_text(text_on_screen, (token, admin_token)):
+                                raise RecorderFailure('private text is present; capture remains paused')
                         show_caption(page, beat.title)
                         beat.prepare_s = round(time.monotonic() - started, 3)
                         cast.resume()
@@ -922,9 +1442,9 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                             # the filmed scroll. Exclude that wait from the hold.
                             cast.pause()
                             ready_at = time.monotonic()
-                            sample = wait_wall_motion(page, government, threshold, beat.samples)
+                            sample = wait_wall_motion(page, media_ids, threshold, beat.samples)
                             beat.prepare_s += round(time.monotonic() - ready_at, 3)
-                            show_caption(page, live_caption(sample['live']))
+                            show_caption(page, caption(sample))
                             cast.resume()
                         until = time.monotonic() + hold
                         beat.ok = True
@@ -932,10 +1452,10 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                         switches = 0
                         while time.monotonic() < until:
                             if beat.wall and time.monotonic() + 1.1 < until:
-                                sample = sample_video(page, wall_ids(page, government), threshold)
+                                sample = sample_video(page, wall_ids(page, media_ids), threshold)
                                 sample['at_s'] = cast.timeline_time() - t0
                                 beat.samples.append(sample)
-                                show_caption(page, live_caption(sample['live']))
+                                show_caption(page, caption(sample))
                                 held.append(bool(sample['passed'] and sample['visible_live']))
                                 if hold_stalled(held):
                                     raise RecorderFailure('wall motion fell below threshold during hold')
@@ -952,13 +1472,17 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                                     paused_at = time.monotonic()
                                     stalled = detail['camera']
                                     detail = beat.retry()
+                                    if wall_domain == 'replay':
+                                        beat.title = ('RECORDED GOVERNMENT FOOTAGE · captured '
+                                                      + dates[detail['camera']] + ' · replayed · intelligence panel')
+                                        show_caption(page, beat.title)
                                     switches += 1
                                     held.clear()
                                     beat.samples.append({'switched': {'from': stalled,
                                                                       'to': detail['camera']}})
                                     until += time.monotonic() - paused_at
                                     cast.resume()
-                            ui = page.evaluate(UI_SAMPLE) if not page.url.startswith('file:') else None
+                            ui = page.evaluate(UI_SAMPLE) if not beat.gate and not page.url.startswith('file:') else None
                             if ui and (ui['loading'] or ui['loadingText']):
                                 raise RecorderFailure('loading appeared during hold')
                             if ui and ui['fatal'] and 'administrator search refused' not in beat.title:
@@ -1013,11 +1537,18 @@ def main() -> None:
     ap.add_argument('--min-live', type=int, default=12)
     ap.add_argument('--preflight-timeout', type=float, default=300)
     ap.add_argument('--preflight-only', action='store_true')
+    ap.add_argument('--tour', choices=('standard', 'full'), default='standard')
+    ap.add_argument('--wall-domain', choices=('government', 'replay'), default='government',
+                    help='replay requires the REPLAY lane UI and dated government-linked ARCHIVAL_REPLAY GIS rows')
     ap.add_argument('--opening-layout', choices=sorted(OPENING_POLICY), default='dense',
                     help='wall layout the preflight measures and the film opens on')
     ap.add_argument('--gallery', type=Path, default=ROOT / 'var/demo/plate_gallery/gallery.html')
     ap.add_argument('--voice', default='Aman', help="macOS voice; 'none' records silently")
     a = ap.parse_args()
+    if a.wall_domain == 'replay' and a.tour != 'full':
+        ap.error('--wall-domain replay requires --tour full')
+    if not re.fullmatch(r'[A-Za-z0-9]+', a.plate):
+        ap.error('--plate must contain only letters and digits')
     if not 1 <= a.min_live <= 30 or a.preflight_timeout <= 0:
         ap.error('--min-live must be in 1..30 and --preflight-timeout must be positive')
     if a.opening_layout == 'grid' and a.min_live > GRID_SESSION_BUDGET:
@@ -1034,7 +1565,7 @@ def main() -> None:
                    voice=None if a.voice.lower() == 'none' else a.voice,
                    min_live=a.min_live, preflight_timeout=a.preflight_timeout,
                    preflight_only=a.preflight_only, gallery=a.gallery,
-                   opening_layout=a.opening_layout)
+                   opening_layout=a.opening_layout, tour=a.tour, wall_domain=a.wall_domain)
     if a.preflight_only:
         print(f'preflight passed: {out_dir / "preflight.json"}')
         return

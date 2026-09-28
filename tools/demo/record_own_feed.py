@@ -27,6 +27,8 @@ from hq_screencast import Screencast
 VIEW_W, VIEW_H = 2560, 1440
 MIN_LENGTH_S, HARD_LIMIT_S = 150.0, 175.0
 MIN_VIDEO_CAPTURE_FPS = 20.0
+#: Consecutive failed 0.5 s media samples that discard a take.
+STALL_SAMPLES = 2
 SYNTHETIC_PLATE = "GJ18JX7786"
 SYNTHETIC_LABEL = "SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage"
 OWN_LABEL = "DEMO · RECORDED LICENSED MUMBAI FOOTAGE · pipeline analysis replay"
@@ -320,9 +322,14 @@ def build(
 
     def alert():
         nav("alerts")
-        page.click('button[data-alert-status=""]')
+        # "All" re-renders the queue; a card found before that response is detached.
+        with page.expect_response(
+            lambda r: "/alerts?grouped=true&status=&" in r.url, timeout=30000
+        ):
+            page.click('button[data-alert-status=""]')
         card = page.locator("#alerts .incident", has_text=SYNTHETIC_PLATE).first
         card.wait_for(state="visible", timeout=30000)
+        page.wait_for_timeout(300)
         card.scroll_into_view_if_needed()
 
     def route():
@@ -586,6 +593,7 @@ def run_beats(page, cast, beats: list[Beat]) -> float:
             print(f"  beat {i + 1}: {b.title}", flush=True)
             b.action()
             previous = page.evaluate(MEDIA_SAMPLE_JS) if b.monitor_video else None
+            misses = 0
             while cast.timeline_time() - start < b.dwell_s:
                 remaining = b.dwell_s - (cast.timeline_time() - start)
                 page.wait_for_timeout(min(500, max(1, int(remaining * 1000))))
@@ -593,7 +601,16 @@ def run_beats(page, cast, beats: list[Beat]) -> float:
                     current = page.evaluate(MEDIA_SAMPLE_JS)
                     # Avoid demanding movement over the last few milliseconds.
                     if remaining >= 0.25:
-                        check_media_samples(previous, current)
+                        try:
+                            check_media_samples(previous, current)
+                            misses = 0
+                        except RecordingError:
+                            # A 0.5 s sample can span a native loop's seek back
+                            # to frame 0 (AUTOSTAND is 17 s long). Two misses in
+                            # a row, a second or more, is a stall.
+                            misses += 1
+                            if misses >= STALL_SAMPLES:
+                                raise
                     previous = current
             if b.monitor_video:
                 captured_fps = (cast.frame_count() - video_frames) / (cast.timeline_time() - start)
@@ -604,12 +621,14 @@ def run_beats(page, cast, beats: list[Beat]) -> float:
                 raise RecordingError("A recorded action exceeded its fixed time slot")
             if cast.timeline_time() - origin > HARD_LIMIT_S - 1:
                 raise RecordingError("The capture exceeded the 2:55 budget")
-        except Exception:
+        except Exception as exc:
             cast.pause()
             b.ok, b.err = False, "Required beat failed; take discarded"
             # Playwright exceptions may include the value passed to fill().
-            # Do not stringify or chain one into logs, captions, or a report.
-            raise RecordingError(f"Required beat {i + 1} failed; take discarded") from None
+            # Do not stringify or chain one into logs, captions, or a report;
+            # only this module's fixed RecordingError texts are safe to show.
+            reason = f" ({exc})" if isinstance(exc, RecordingError) else ""
+            raise RecordingError(f"Required beat {i + 1} failed{reason}; take discarded") from None
     return origin
 
 

@@ -273,8 +273,9 @@ demo-reset: media
 
 serve:
 	set -a; [ -f .env.local ] && . ./.env.local; set +a; \
+	osm='https://tile.openstreetmap.org/{z}/{x}/{y}.png'; \
 	SAAKSHYA_DB="$(DEMO_DB)" SAAKSHYA_EVIDENCE="$(DEMO_EVID)" \
-	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}" \
+	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-$$osm}" \
 	SAAKSHYA_MAP_ATTRIBUTION="© OpenStreetMap contributors" \
 	$(PY) -m uvicorn saakshya.api.app:build --factory \
 	      --host 127.0.0.1 --port $(PORT) --no-access-log --log-level warning
@@ -311,8 +312,9 @@ live-watch:
 
 live-serve:
 	set -a; [ -f .env.local ] && . ./.env.local; set +a; \
+	osm='https://tile.openstreetmap.org/{z}/{x}/{y}.png'; \
 	SAAKSHYA_DB="$(LIVE_DB)" SAAKSHYA_EVIDENCE=var/live_evidence \
-	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}" \
+	SAAKSHYA_MAP_TILES="$${SAAKSHYA_MAP_TILES:-$$osm}" \
 	$(PY) -m uvicorn saakshya.api.app:build --factory \
 	      --host 127.0.0.1 --port $(PORT) --no-access-log --log-level warning
 

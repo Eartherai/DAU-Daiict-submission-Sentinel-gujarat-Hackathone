@@ -330,6 +330,36 @@ def test_handoff_loads_a_fresh_document_not_only_a_hash():
     assert calls[2] == ("goto", "http://127.0.0.1:8083/ui/#investigate")
 
 
+@pytest.mark.parametrize("pattern, accepted", [
+    ([False, True, True, False, True, True, True], True),   # isolated misses: loop seeks
+    ([True, False, False, True, True, True, True], False),  # two in a row: a stall
+])
+def test_one_media_miss_is_tolerated_but_two_in_a_row_discard(monkeypatch, pattern, accepted):
+    clock = Clock()
+    clock.frame_count = lambda: int(clock.now * 30)
+    page = SimpleNamespace(
+        wait_for_timeout=lambda ms: setattr(clock, "now", clock.now + ms / 1000),
+        evaluate=lambda *_: [],
+    )
+    results = iter(pattern + [True] * 20)
+
+    def check(*_a, **_kw):
+        if not next(results):
+            raise own.RecordingError("A visible own-feed video is stalled")
+
+    monkeypatch.setattr(own, "clean_screen", lambda *_: None)
+    monkeypatch.setattr(own, "label_screen", lambda *_: None)
+    monkeypatch.setattr(own, "preflight_media", lambda *_: None)
+    monkeypatch.setattr(own, "check_media_samples", check)
+    beats = [own.Beat("video", 4, monitor_video=True)]
+    if accepted:
+        own.run_beats(page, clock, beats)
+        assert beats[0].ok
+    else:
+        with pytest.raises(own.RecordingError, match="stalled"):
+            own.run_beats(page, clock, beats)
+
+
 @pytest.mark.parametrize("fps, accepted", [(10, False), (25, True)])
 def test_video_capture_cadence_is_measured_before_publishing(monkeypatch, fps, accepted):
     clock = Clock()

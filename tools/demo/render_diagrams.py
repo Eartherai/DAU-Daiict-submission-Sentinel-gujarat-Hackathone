@@ -63,6 +63,9 @@ class Node:
     title: str
     lines: list[str] = field(default_factory=list)
     kind: str = "centre"
+    #: Smaller type for the dense statewide pages; the renderer refuses any
+    #: line that does not fit its box, so a small box cannot silently clip.
+    small: bool = False
 
     @property
     def cx(self) -> int:
@@ -85,6 +88,28 @@ class Edge:
     route: str = "h"
     dashed: bool = False
     drop: int = 0
+    #: Explicit waypoints, for pages too dense for the four routes above.
+    path: list[tuple[int, int]] | None = None
+    #: Label centre, when the midpoint of the route would sit on a box.
+    at: tuple[int, int] | None = None
+    #: Arrowheads at both ends: one line for a flow that runs both ways.
+    both: bool = False
+
+
+@dataclass
+class Band:
+    """A tier: a tinted column behind its nodes, named at the top."""
+    x0: int
+    y0: int
+    x1: int
+    y1: int
+    label: str
+
+
+def _facing(p: tuple[int, int], q: tuple[int, int]) -> str:
+    if p[0] == q[0]:
+        return "down" if q[1] > p[1] else "up"
+    return "right" if q[0] > p[0] else "left"
 
 
 def _dash_line(d: ImageDraw.ImageDraw, pts: list[tuple[int, int]],
@@ -114,8 +139,9 @@ def _arrow(d: ImageDraw.ImageDraw, at: tuple[int, int], facing: str,
 
 
 def draw(title: str, subtitle: str, nodes: list[Node], edges: list[Edge],
-         footer: str = "") -> Image.Image:
+         footer: str = "", bands: list[Band] | None = None) -> Image.Image:
     PAGE_TEXT.append("\n".join([title, subtitle,
+        *[band.label for band in bands or []],
         *[text for node in nodes for text in [node.title, *node.lines]],
         *[edge.label for edge in edges if edge.label], footer]))
     img = Image.new("RGB", (W, H), PAPER)
@@ -135,11 +161,19 @@ def draw(title: str, subtitle: str, nodes: list[Node], edges: list[Edge],
         d.text((70, 190), subtitle, font=SANS(23), fill=INK_2)
     d.line([(70, 240), (W - 70, 240)], fill=RULE, width=1)
 
+    for band in bands or []:
+        d.rounded_rectangle([band.x0, band.y0, band.x1, band.y1], 8,
+                            fill=(238, 241, 245), outline=(222, 227, 234), width=1)
+        _text(d, (band.x0 + 12, band.y0 + 8), band.label, SANS_B(13), INK_2, spacing=1.6)
+
     # ── edges first, so a box always sits on top of its own connectors ──────
     for e in edges:
         a, b = by[e.a], by[e.b]
         col = INK_3 if e.dashed else (90, 102, 118)
-        if e.route == "h":
+        if e.path:
+            pts = list(e.path)
+            face = _facing(pts[-2], pts[-1])
+        elif e.route == "h":
             y = a.cy
             x1, x2 = (a.x + a.w, b.x) if b.x > a.x else (a.x, b.x + b.w)
             pts = [(x1, y), (x2, y)]
@@ -165,11 +199,15 @@ def draw(title: str, subtitle: str, nodes: list[Node], edges: list[Edge],
         else:
             d.line(pts, fill=col, width=2)
         _arrow(d, pts[-1], face, col)
+        if e.both:
+            _arrow(d, pts[0], _facing(pts[1], pts[0]), col)
 
         if e.label:
             mid = pts[len(pts) // 2]
             lx = (pts[0][0] + pts[-1][0]) // 2 if e.route != "down" else mid[0]
             ly = (pts[0][1] + pts[-1][1]) // 2 if e.route != "down" else mid[1]
+            if e.at:
+                lx, ly = e.at
             f = SANS(17)
             tw = d.textlength(e.label, font=f)
             d.rectangle([lx - tw / 2 - 8, ly - 13, lx + tw / 2 + 8, ly + 13],
@@ -181,22 +219,34 @@ def draw(title: str, subtitle: str, nodes: list[Node], edges: list[Edge],
         fill, border, ink = KIND[n.kind]
         d.rounded_rectangle([n.x, n.y, n.x + n.w, n.y + n.h], 5,
                             fill=fill, outline=border, width=2)
-        ty = n.y + 18
+        pad = 14 if n.small else 20
+        ty = n.y + (12 if n.small else 18)
+        head = SANS_B(18) if n.small else SANS_B(22)
         for line in n.title.split("\n"):
-            d.text((n.x + 20, ty), line, font=SANS_B(22), fill=ink)
-            ty += 28
-        ty += 6
+            _fits(d, n, line, head, pad)
+            d.text((n.x + pad, ty), line, font=head, fill=ink)
+            ty += 23 if n.small else 28
+        ty += 4 if n.small else 6
         sub = ink if n.kind == "edge" else INK_2
         for line in n.lines:
-            f = MONO(16) if line.startswith("·") else SANS(17)
-            d.text((n.x + 20, ty), line, font=f, fill=sub)
-            ty += 24
+            f = (MONO(14) if n.small else MONO(16)) if line.startswith("·") else (
+                SANS(15) if n.small else SANS(17))
+            _fits(d, n, line, f, pad)
+            d.text((n.x + pad, ty), line, font=f, fill=sub)
+            ty += 19 if n.small else 24
+        if n.small and ty > n.y + n.h:
+            raise ValueError(f"node {n.id!r}: text runs past the bottom of its box")
 
     if footer:
         d.line([(70, H - 92), (W - 70, H - 92)], fill=RULE, width=1)
         for k, line in enumerate(footer.split("\n")):
             d.text((70, H - 74 + k * 26), line, font=SANS(19), fill=INK_2)
     return img
+
+
+def _fits(d: ImageDraw.ImageDraw, n: Node, line: str, font, pad: int) -> None:
+    if n.small and d.textlength(line, font=font) > n.w - 2 * pad:
+        raise ValueError(f"node {n.id!r}: {line!r} is wider than its box")
 
 
 def d_logical() -> Image.Image:
@@ -351,11 +401,155 @@ def d_capability() -> Image.Image:
         "Historical capability results: docs/MEASURED_RESULTS.md; current policy: docs/HLD.md.")
 
 
+# Statewide pages share one grid: five rows, and columns per tier.
+_ROW = [290 + i * 132 for i in range(5)]
+_RH = 104
+_CW = 210
+_COL = {"A": 70, "B1": 410, "B2": 680, "C": 1000, "D1": 1330, "D2": 1600}
+
+
+def _sn(id_: str, col: str, row: int, title: str, lines: list[str], kind: str,
+        rows: int = 1) -> Node:
+    return Node(id_, _COL[col], _ROW[row - 1], _CW, _RH + (rows - 1) * 132, title, lines, kind, small=True)
+
+
+def d_statewide() -> Image.Image:
+    """Tiers, and what crosses between them. Video never leaves its tier."""
+    cy = [y + _RH // 2 for y in _ROW]
+    n = [
+        _sn("cam_ip", "A", 1, "IP cameras", ["RTSP / ONVIF, main + sub", "26 departments", "keep recording to NVR"], "estate"),
+        _sn("edge", "A", 2, "Site edge box", ["thin links only", "T0/T1, SQLite, queue", "only metadata leaves"], "edge"),
+        _sn("cam_an", "A", 3, "Analog cameras", ["ONVIF encoder at site", "turns analog into RTSP"], "estate"),
+        _sn("nvr", "A", 4, "NVR / VMS", ["video stays 7/15/30 days", "Profile G / VMS export"], "estate"),
+        _sn("pvt", "A", 5, "Private cameras", ["public-facing, view-only", "consent; outbound link"], "estate"),
+        _sn("c_ing", "B1", 1, "Ingest + decode", ["one session per camera", "sub-stream; main on", "ANPR-grade cameras"], "edge"),
+        _sn("c_gpu", "B1", 2, "GPU pool (Triton)", ["T1 detect + track", "T2 plate, OCR, attributes", "batched"], "edge"),
+        _sn("c_bus", "B1", 3, "Cell event bus", ["NATS JetStream, 3 nodes", "priority lanes", "store-and-forward"], "edge"),
+        _sn("c_fed", "B1", 4, "VMS adapters", ["Model 3: one per", "departmental VMS"], "edge"),
+        _sn("c_api", "B1", 5, "Cell API", ["district control room", "local alerts, evidence"], "edge"),
+        _sn("c_note", "B2", 1, "Each cell", ["≤ 2,500 cameras or", "≤ 4,000 observations/s", "",
+                                             "keeps detecting, matching,", "alerting and sealing", "with the WAN down"], "note", rows=2),
+        _sn("c_db", "B2", 4, "Cell database", ["PostgreSQL + PostGIS", "30-day hot, sync standby", "rollups"], "store"),
+        _sn("c_media", "B2", 5, "Media gateway", ["MediaMTX WHEP", "copy or transcode"], "edge"),
+        _sn("r_obj", "C", 1, "Backups + mirror", ["WAL, base backups", "image + model mirror"], "store"),
+        _sn("r_gpu", "C", 2, "Forensic GPU pool", ["T3 re-processing of", "NVR clips (selected", "Model 4)"], "centre"),
+        _sn("r_sfu", "C", 5, "SFU + TURN", ["pulls once per camera,", "fans out to viewers"], "centre"),
+        _sn("s_reg", "D1", 1, "Model 1 registry", ["+ GIS: source of truth", "for 80,000 cameras;", "replicated to cells"], "centre"),
+        _sn("s_ext", "D1", 2, "Gov. DB adapters", ["VAHAN, SARATHI,", "eGujCop, AFIS, NAFIS", "(stubs refuse today)"], "gate"),
+        _sn("s_kafka", "D1", 3, "State event bus", ["Kafka: plate-reads by", "folded plate; alerts,", "health, audit heads"], "centre"),
+        _sn("s_lake", "D1", 4, "Observation lake", ["S3-compatible,", "erasure-coded; Trino"], "store"),
+        _sn("s_api", "D1", 5, "State API", ["command centre; search,", "routes, designated", "vehicle"], "centre"),
+        _sn("s_sec", "D2", 1, "Identity + policy", ["Keycloak OIDC, OPA,", "SPIRE, KMS"], "centre"),
+        _sn("s_obs", "D2", 2, "Observability", ["Thanos, logs, SLOs,", "capacity panels"], "centre"),
+        _sn("s_plate", "D2", 3, "Plate index", ["64 virtual hash shards", "on 4 PostgreSQL hosts"], "store"),
+        _sn("s_worm", "D2", 4, "Evidence WORM", ["object lock; daily", "Merkle root of cell", "audit-chain heads"], "store"),
+        _sn("dr", "D2", 5, "DR data centre", ["bus mirror, async", "replicas, lake replica"], "centre"),
+    ]
+    A, B1, B2, C, D1, D2 = (_COL[k] for k in ("A", "B1", "B2", "C", "D1", "D2"))
+    e = [
+        Edge("cam_ip", "c_ing", "RTSP pull"),
+        Edge("cam_ip", "edge", "", "v"),
+        Edge("edge", "c_bus", "metadata only", path=[(A + _CW, cy[1]), (320, cy[1]), (320, cy[2] - 16), (B1, cy[2] - 16)],
+             at=(345, (cy[1] + cy[2]) // 2)),
+        Edge("cam_an", "c_ing", "via encoder", path=[(A + _CW, cy[2] + 24), (370, cy[2] + 24), (370, cy[0] + 24), (B1, cy[0] + 24)],
+             at=(345, cy[2] + 50)),
+        Edge("nvr", "c_fed", "VMS API"),
+        Edge("nvr", "r_gpu", "clip pull on request",
+             path=[(A + _CW, cy[3] + 32), (300, cy[3] + 32), (300, _ROW[4] - 14), (1060, _ROW[4] - 14), (1060, _ROW[1] + _RH)],
+             at=(640, _ROW[4] - 14)),
+        Edge("pvt", "c_media", "consented view-only",
+             path=[(A + _CW // 2, _ROW[4] + _RH), (A + _CW // 2, 946), (B2 + _CW // 2, 946), (B2 + _CW // 2, _ROW[4] + _RH)],
+             at=(480, 946)),
+        Edge("c_ing", "c_gpu", "frames", "v"),
+        Edge("c_gpu", "c_bus", "observations", "v"),
+        Edge("c_bus", "c_db", path=[(B1 + _CW, cy[2] + 24), (650, cy[2] + 24), (650, cy[3] - 18), (B2, cy[3] - 18)]),
+        Edge("c_ing", "c_media", path=[(B1 + _CW, cy[0] + 38), (665, cy[0] + 38), (665, cy[4] + 10), (B2, cy[4] + 10)]),
+        Edge("c_bus", "s_kafka", "plates · alerts · health · audit heads · deltas back",
+             path=[(B1 + _CW, cy[2]), (D1, cy[2])], at=(985, cy[2]), both=True),
+        Edge("c_db", "s_lake", "compressed micro-batches ≥ 1 min", at=(1110, cy[3])),
+        Edge("c_db", "r_obj", "backups", path=[(B2 + _CW, cy[3] - 26), (945, cy[3] - 26), (945, cy[0]), (C, cy[0])],
+             at=(945, (cy[0] + cy[1]) // 2 + 30)),
+        Edge("c_media", "r_sfu", "viewing"),
+        Edge("r_sfu", "s_api", "WebRTC"),
+        Edge("s_api", "c_api", "scatter-gather search",
+             path=[(D1 + _CW // 2, _ROW[4] + _RH), (D1 + _CW // 2, 968), (B1 + _CW // 2, 968), (B1 + _CW // 2, _ROW[4] + _RH)],
+             at=(1180, 968)),
+        Edge("s_ext", "s_kafka", "vehicle-keyed", "v"),
+        Edge("s_kafka", "s_plate"),
+        Edge("s_api", "s_plate", path=[(D1 + _CW, cy[4] - 10), (1570, cy[4] - 10), (1570, cy[2] + 24), (D2, cy[2] + 24)]),
+    ]
+    bottom = _ROW[4] + _RH + 8
+    bands = [
+        Band(A - 10, 256, A + _CW + 10, bottom, "CAMERA / SITE"),
+        Band(B1 - 10, 256, B2 + _CW + 10, bottom, "DISTRICT CELL × 40"),
+        Band(C - 10, 256, C + _CW + 10, bottom, "REGION × 6"),
+        Band(D1 - 10, 256, D2 + _CW + 10, bottom, "STATE + DR"),
+    ]
+    return draw(
+        "Statewide target architecture",
+        "Video stays where it is recorded; metadata, events, requested clips and viewed streams move",
+        n, e,
+        "DESIGNED (docs/STATEWIDE_ARCHITECTURE.md §2–§6; HLD §3, §6, §21). Registry and watchlist deltas, DR mirroring and evidence replication are in the boxes.\n"
+        "Only inference compute grows in proportion to cameras analysed (MODELLED, reports/capacity_model.json). Nothing here ran at 80,000 cameras.",
+        bands)
+
+
+def d_dataflow() -> Image.Image:
+    """One vehicle, one read: from a frame to an alert, a route and the lake."""
+    xs = [70 + i * 312 for i in range(6)]
+    ys = [300, 500, 700]
+    w, h = 220, 120
+
+    def fn(id_: str, c: int, r: int, title: str, lines: list[str], kind: str, rows: int = 1) -> Node:
+        return Node(id_, xs[c - 1], ys[r - 1], w, h + (rows - 1) * 200, title, lines, kind, small=True)
+
+    n = [
+        fn("f1", 1, 1, "Frame", ["sub-stream, or main on", "ANPR-grade cameras"], "estate"),
+        fn("f2", 2, 1, "T0 motion gate", ["cheap, on the CPU"], "edge"),
+        fn("f3", 3, 1, "T1 detect + track", ["RT-DETRv2, ByteTrack"], "edge"),
+        fn("f4", 4, 1, "T2 plate + OCR", ["plate crop, OCR;", "vote: ≥ 2 frames agree"], "edge"),
+        fn("f5", 5, 1, "Observation", ["dedup_key;", "1,331.7 B serialised", "(MEASURED)"], "centre"),
+        fn("f14", 6, 1, "Bulk lane", ["compressed micro-batch", "≥ 1 min → state lake;", "154.0 B/row (MEASURED)"], "store"),
+        fn("f6", 5, 2, "Cell store + match", ["cell database; local", "hashed-watchlist match"], "store"),
+        fn("f7", 4, 2, "Incident", ["grouped per vehicle", "and watchlist entry"], "gate"),
+        fn("f8", 3, 2, "Alert", ["district control room;", "p95 ≤ 5 s (target)"], "gate"),
+        fn("f9", 2, 2, "Evidence sealed", ["hash chain, before", "acknowledgement"], "store"),
+        fn("note", 1, 2, "Crosses the WAN", ["real-time lanes,", "compressed bulk,", "watchlist deltas.", "", "Never video."], "note", rows=2),
+        fn("f16", 6, 2, "Hashed delta", ["< 1 min, WAN up;", "last valid bundle", "if the WAN is down"], "centre"),
+        fn("f15", 6, 3, "Watchlist entry", ["at the state, e.g.", "DESIGNATED, with", "case and purpose"], "centre"),
+        fn("f10", 5, 3, "Plate lane", ["Kafka plate-reads,", "keyed by folded plate"], "centre"),
+        fn("f11", 4, 3, "Plate-index shard", ["one shard holds every", "read of that plate"], "store"),
+        fn("f12", 3, 3, "Route builder", ["Camera Link Model"], "centre"),
+        fn("f13", 2, 3, "Designated route", ["+ vehicle trace report,", "timestamped per place"], "centre"),
+    ]
+    mid = [y + h // 2 for y in ys]
+    gap5 = xs[4] + w + (xs[5] - xs[4] - w) // 2
+    e = [
+        Edge("f1", "f2"), Edge("f2", "f3", "if motion"), Edge("f3", "f4"),
+        Edge("f4", "f5", "at close"), Edge("f5", "f14", "always"),
+        Edge("f5", "f6", "", "v"),
+        Edge("f6", "f7", "hit"), Edge("f7", "f8"), Edge("f8", "f9"),
+        Edge("f15", "f16", "", "v"), Edge("f16", "f6"),
+        Edge("f5", "f10", "if plate confirmed",
+             path=[(xs[4] + w, mid[0] + 32), (gap5, mid[0] + 32), (gap5, mid[2]), (xs[4] + w, mid[2])],
+             at=(gap5, (ys[1] + h + ys[2]) // 2)),
+        Edge("f10", "f11"), Edge("f11", "f12"), Edge("f12", "f13", "typed legs"),
+    ]
+    return draw(
+        "Data flow — one vehicle, one read",
+        "Detected and matched in the cell; the plate lane builds the route at the state; everything else goes to the lake",
+        n, e,
+        "Row size and compression MEASURED (var/reports/bandwidth.json, reports/measure_compression.json); two-frame vote VERIFIED (reports/anpr.py).\n"
+        "Lanes, lake, plate index and SLOs are DESIGNED (docs/STATEWIDE_ARCHITECTURE.md §5, §6, §9, §18b).")
+
+
 DIAGRAMS = {
     "01_logical_architecture": d_logical,
     "02_search_path": d_search,
     "03_evidence_chain": d_evidence,
     "04_camera_capability": d_capability,
+    "05_statewide_architecture": d_statewide,
+    "06_statewide_data_flow": d_dataflow,
 }
 
 
@@ -388,10 +582,15 @@ def main() -> int:
         page.insert_image(page.rect, stream=buf.getvalue())
         font_path = SANS(17).path
         page.insert_font(fontname="DiagramText", fontfile=font_path)
-        remaining = page.insert_textbox(
-            fitz.Rect(70, 100, W - 70, H - 70), page_text,
-            fontname="DiagramText", fontsize=17, render_mode=3)
-        if remaining < 0:
+        # The statewide pages carry several times the text of the others; the
+        # layer is invisible, so it steps down in size rather than overflow.
+        for size in (17, 12, 9, 7, 6, 5):
+            remaining = page.insert_textbox(
+                fitz.Rect(70, 100, W - 70, H - 70), page_text,
+                fontname="DiagramText", fontsize=size, render_mode=3)
+            if remaining >= 0:
+                break
+        else:
             raise ValueError("PDF text layer overflow")
     # Without these the PDF stored each page raster as an uncompressed pixmap
     # and the whole font four times: 25.7 MB for four pages that were 465 KB.

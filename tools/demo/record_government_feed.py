@@ -45,6 +45,8 @@ class Beat:
     optional: bool = False
     motion: Callable | None = None
     visible_motion: bool = False
+    #: Re-selects after a visible stall (another advancing camera), or None.
+    retry: Callable | None = None
     ok: bool = False
     err: str = ""
     at: float = 0.0
@@ -108,6 +110,20 @@ def evaluate_tiles(before: list[dict], after: list[dict], min_live: int) -> dict
 #: and the strict rule threw the take away. Two in a row is a freeze of about
 #: 3.5 s, which a viewer would see. Every sample is still written to beats.json.
 STALL_SAMPLES = 2
+
+
+#: A stalled focused camera is replaced by the next one measured advancing on
+#: the wall, at most this many times per beat; each gets this long to advance.
+#: On 28 Sep cam06 played 28 s cleanly in one take and froze after 6 s in the
+#: next: no single shared-sandbox stream can be relied on for a whole beat.
+FOCUS_SWITCHES = 2
+FOCUS_START_S = 12
+
+
+def focus_order(live_ids: list[str], preferred: str = "cam06") -> list[str]:
+    """Focus candidates: the designated vehicle's camera first, if advancing."""
+    ids = list(dict.fromkeys(live_ids))
+    return ([preferred] if preferred in ids else []) + [c for c in ids if c != preferred]
 
 
 def hold_stalled(history: list[bool], tolerance: int = STALL_SAMPLES) -> bool:
@@ -457,26 +473,32 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         return go
 
     def focus():
-        latest = sample_video(page, wall_ids(page, government), 1)
-        ids = latest["live_ids"]
-        if not ids:
-            raise RecorderFailure("no advancing government camera for focus")
-        cid = "cam06" if "cam06" in ids else ids[0]
-        selected["camera"] = cid
-        # Command chrome hides the filmstrip even in Focus; expose it first.
-        if page.locator('#btn-command-bar').get_attribute('aria-pressed') != 'true':
-            page.click('#btn-command-bar')
-        # Layout changes preserve tile decoders; selecting uses the app's shared PC.
-        wall_mode(page, "focus")
-        page.locator(f'#live-strip .live-tile[data-camera="{cid}"]').click()
-        page.wait_for_selector('#live-stage video', timeout=30000)
-        deadline = time.monotonic() + 30
-        while time.monotonic() < deadline:
-            measured = sample_video(page, [cid], 1, focus=True)
-            if measured["passed"] and measured['visible_live']:
-                wait_view(page, "live", "#live-sidecar")
-                return {"camera": cid, "video": measured}
-        raise RecorderFailure("selected video stopped advancing")
+        # Candidates are measured on the wall, before Focus: in Focus the strip
+        # tiles hold no session, so their motion cannot be measured there.
+        if "candidates" not in selected:
+            latest = sample_video(page, wall_ids(page, government), 1)
+            ids = latest["live_ids"]
+            if not ids:
+                raise RecorderFailure("no advancing government camera for focus")
+            selected["candidates"] = focus_order(ids)
+            selected["tried"] = []
+            # Command chrome hides the filmstrip even in Focus; expose it first.
+            if page.locator('#btn-command-bar').get_attribute('aria-pressed') != 'true':
+                page.click('#btn-command-bar')
+            # Layout changes preserve tile decoders; selecting uses the app's shared PC.
+            wall_mode(page, "focus")
+        for cid in [c for c in selected["candidates"] if c not in selected["tried"]]:
+            selected["tried"].append(cid)
+            selected["camera"] = cid
+            page.locator(f'#live-strip .live-tile[data-camera="{cid}"]').click()
+            page.wait_for_selector('#live-stage video', timeout=30000)
+            deadline = time.monotonic() + FOCUS_START_S
+            while time.monotonic() < deadline:
+                measured = sample_video(page, [cid], 1, focus=True)
+                if measured["passed"] and measured['visible_live']:
+                    wait_view(page, "live", "#live-sidecar")
+                    return {"camera": cid, "video": measured}
+        raise RecorderFailure("no measured-advancing government camera held in focus")
 
     def analytics():
         cid = selected["camera"]
@@ -651,7 +673,8 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
     return [
         *opening_beats(page, opening_layout, wall_group),
         Beat('One advancing government camera, with its intelligence panel', 28, focus,
-             'A camera with measured advancing frames, beside its intelligence panel. The panel states the available observations.', visible_motion=True),
+             'A camera with measured advancing frames, beside its intelligence panel. The panel states the available observations.',
+             visible_motion=True, retry=focus),
         Beat('Analytics output on the selected government camera', 18, analytics,
              'These are the observations available for this camera. Viewing a stream does not imply that every camera is under deep analysis.', optional=True),
         Beat('Government person detections — cam12, stored observations', 18, persons,
@@ -869,6 +892,7 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                         until = time.monotonic() + hold
                         beat.ok = True
                         held: list[bool] = []
+                        switches = 0
                         while time.monotonic() < until:
                             if beat.wall and time.monotonic() + 1.1 < until:
                                 sample = sample_video(page, wall_ids(page, government), threshold)
@@ -883,7 +907,20 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                                 beat.samples.append(sample)
                                 held.append(bool(sample['passed'] and sample['visible_live']))
                                 if hold_stalled(held):
-                                    raise RecorderFailure('focused government video stopped advancing')
+                                    if not beat.retry or switches >= FOCUS_SWITCHES:
+                                        raise RecorderFailure('focused government video stopped advancing')
+                                    # Off camera: select the next camera measured
+                                    # advancing, then give the beat its time back.
+                                    cast.pause()
+                                    paused_at = time.monotonic()
+                                    stalled = detail['camera']
+                                    detail = beat.retry()
+                                    switches += 1
+                                    held.clear()
+                                    beat.samples.append({'switched': {'from': stalled,
+                                                                      'to': detail['camera']}})
+                                    until += time.monotonic() - paused_at
+                                    cast.resume()
                             ui = page.evaluate(UI_SAMPLE) if not page.url.startswith('file:') else None
                             if ui and (ui['loading'] or ui['loadingText']):
                                 raise RecorderFailure('loading appeared during hold')

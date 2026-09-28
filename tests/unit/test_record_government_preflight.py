@@ -541,3 +541,19 @@ def test_a_visible_freeze_ends_a_hold():
     assert gov.hold_stalled([True, True, False, False])
     assert gov.hold_stalled([False, False])
     assert gov.STALL_SAMPLES == 2
+
+
+def test_focus_prefers_the_designated_camera_then_the_others_measured_advancing():
+    assert gov.focus_order(["cam13", "cam06", "cam05"]) == ["cam06", "cam13", "cam05"]
+    assert gov.focus_order(["cam13", "cam05", "cam13"]) == ["cam13", "cam05"]
+    assert gov.focus_order([]) == []
+
+
+def test_a_stalled_focus_is_handed_over_a_bounded_number_of_times():
+    """cam06 played 28 s in one take and froze after 6 s in the next."""
+    assert gov.FOCUS_SWITCHES == 2
+    assert 5 <= gov.FOCUS_START_S <= 30
+    src = (Path(gov.__file__)).read_text(encoding="utf-8")
+    assert "visible_motion=True, retry=focus" in src
+    assert "switches >= FOCUS_SWITCHES" in src
+    assert "until += time.monotonic() - paused_at" in src

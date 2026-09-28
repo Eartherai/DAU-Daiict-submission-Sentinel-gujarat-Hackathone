@@ -1570,8 +1570,15 @@ async function refreshMapLayers(map, bbox) {
       }
     }
     if (map.show.alerts) {
-      const al = await api(`/gis/alerts?${q}`);
-      map.set("alerts", al.features);
+      // The estate administrator holds no alert:read. For that role the alert
+      // layer is empty by design; a 403 here is not a map failure to toast.
+      try {
+        const al = await api(`/gis/alerts?${q}`);
+        map.set("alerts", al.features);
+      } catch (err) {
+        if (err.status !== 403) throw err;
+        map.set("alerts", []);
+      }
     } else { map.set("alerts", []); }
     if (map.show.coverage) {
       const cov = await api(`/gis/coverage?${q}`);

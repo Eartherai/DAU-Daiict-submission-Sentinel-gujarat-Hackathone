@@ -115,3 +115,44 @@ count nor the rejection proves a fixed sandbox concurrency limit.
 This account describes the submitted take identified above. A later replay
 or replacement film needs its own capture date, source-domain label and
 measured results; it must not inherit these live-session claims.
+
+## After the 401: recorded government footage, replayed and labelled
+
+With the grid closed to this project, the full-feature film could not be
+recorded live. It uses government footage this project had already
+downloaded, labelled on every tile as recorded and never as live.
+
+- **Capture (15 Sep 2026).** `tools/demo/capture_live_clips.py` opened each
+  government stream in turn and kept 12 seconds of the stream's own clock per
+  camera, recording frame counts and sizes in
+  `var/demo/live_clips/scores.json`. Fifteen of those clips are still exactly
+  the bytes recorded then (size and frame count re-checked). Four others
+  (cam03, cam10, cam11, cam23) were damaged later and are not used; two
+  (cam07, cam09) were scored an unusable picture at capture; nine cameras
+  produced no clip that day (connection refused, no frames or invalid data).
+- **Import (28 Sep).** `tools/demo/import_gov_clips.py` refuses any clip whose
+  size or frame count differs from the capture record, rebuilds the broken
+  container clock at the measured rate (frames / 12 s) without adding or
+  dropping a frame, blurs heads with the production person detector
+  (`tools/demo/blur_heads.py`), and registers each clip as a separate camera
+  `GOVREC-camNN` of source domain **ARCHIVAL_REPLAY**, linked to its
+  government camera. The manifest beside each file records the capture window,
+  frame rate, hashes before and after blurring, and that the date is the
+  download date, not the scene date: the cameras' own overlays show June 2026,
+  the sandbox's recorded scene clock.
+- **Analysis.** The production `CameraPipeline` analysed every frame of every
+  clip (`tools/demo/analyse_own_feed.py --record`): 3,159 frames,
+  1,319 tracks and 1,548 stored observations, all ARCHIVAL_REPLAY. Its vote
+  published four plates in seven reads, all on cam06. Checked by eye against
+  the frame on which each is drawn, `GJ11UU5040` (an auto-rickshaw),
+  `GJ11CR5499` and `GJ11CN1504` (scooters) match the plate in the picture;
+  `RJ12J8713` is never drawn on a frame and its stored box, at its stored
+  time, shows empty road, so it is unverified. The browser plays each file at its native rate
+  and draws the stored boxes against the video clock, as for the own feeds.
+- **Kept apart.** Replay reads never enter the government report
+  (`/reports/anpr.csv?domain=GOVERNMENT`); they export separately with
+  `domain=ARCHIVAL_REPLAY` and a `source_domain` column. cam08's clip is a
+  decode mosaic from the source and is not shown on the wall.
+
+Every step here runs offline: no stream was opened on 28 September after the
+401.

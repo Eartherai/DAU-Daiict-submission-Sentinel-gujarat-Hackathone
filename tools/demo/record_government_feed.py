@@ -1040,7 +1040,9 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
         if status != 200 or not config.get('available') or 'gemini' not in str(config.get('backend', '')).lower():
             raise SkipBeat('Gemini is not configured')
         view('copilot', '#chat-input')
-        page.fill('#chat-input', 'Which government cameras have measured ANPR capability, and what are its limitations?')
+        # A focused question: the broad capability question ran into the
+        # coordinator's six-step limit without a final answer (measured twice).
+        page.fill('#chat-input', f'Where has {plate} been seen, and how strong is that evidence?')
         # The coordinator makes several model calls in turn: 17-108 s measured.
         # Capture is paused meanwhile; an answer that never comes is a named skip.
         try:

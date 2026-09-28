@@ -2,8 +2,8 @@
 
 Historical planning / measurement record. For the current submission use
 [FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
-`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
-C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; synthetic `GJ18JX7786` on
+C-014 then C-021 is a SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage
 (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
 screenshot counts, timings and dates below belong to their recorded run.
 Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;
@@ -96,7 +96,7 @@ at 80,000".
 |---|---|
 | Solution presentation | `var/demo/SAAKSHYA_deck.pdf` — 54 pages, generated from `docs/PPT_CONTENT.md`. Full-page live UI. |
 | Launch demonstration (live grid) | `var/demo/SAAKSHYA_launch.mp4` — 15 min 03 s, every surface, Gemini on in the masthead, boxed government stills |
-| Designated-vehicle UI on own-feed corpus | `var/demo/SAAKSHYA_designated.mp4` — `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021; labelled LOCAL SYNTHETIC |
+| Designated-vehicle UI on synthetic rendered corpus | `var/demo/SAAKSHYA_designated.mp4` — `GJ05AB1234` / `GJ35BV6925` on C-014 + C-021; labelled LOCAL SYNTHETIC |
 | Technical proposal / HLD | `docs/HLD.md` + `var/demo/diagrams/` |
 | Own-feed demonstration video (2–3 min) | `var/demo/own_feed.mp4` — 2 min 47 s · 1920×1080 · 25 fps, plus CSV/JSON report |
 | Government-feed demonstration + output report | Video: `var/demo/government_feed.mp4` + that render's CSV/JSON. **Full live-store report:** Markdown/JSON in `var/reports/detections/` refreshed from SQL on 6 Sep 2026 21:02 UTC (store still growing — quote Overview or `docs/MEASURED_RESULTS.md` on the day). The CSV beside it is an earlier snapshot — do not quote CSV and Markdown as one run, and do not quote the video CSV as the live store |

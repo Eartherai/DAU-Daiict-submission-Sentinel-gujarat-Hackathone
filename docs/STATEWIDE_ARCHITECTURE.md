@@ -1,4 +1,4 @@
-# SAAKSHYA statewide target architecture — only compute binds
+# SAAKSHYA statewide target architecture — capacity and limits
 
 **Status of this document.** The architecture is **DESIGNED**. Unit costs are
 **MEASURED** on this project's development host (Apple M5, 10 cores, no NVIDIA GPU)
@@ -33,9 +33,11 @@ from zero to 80,000. Only one resource then needs procurement in proportion to t
 number, and it is inference compute: GPU, CPU for decode, and the RAM inside those
 servers. Metadata bytes, rows and stored terabytes also grow linearly. They are
 provisioned per cell, where a cell holds at most 2,500 cameras or 4,000
-observations/s. At the pessimistic
-rate they keep at least 5× headroom on camera-driven throughput and 2.2× on hot
-storage at 100% analysed. The 3-year warm lake has 1.5×, and it is bought per
+observations/s. At 2,500 cameras × 3,000 observations/hour, the model gives
+WAN 5.2× and DB 6.8× headroom, conditional on the compressed-payload assumption
+in §10, and hot storage 2.2×. At the 4,000 observations/s cap, DB has 3.5×
+(1.8× at half the measured rate), WAN 3.2× and hot storage 1.16×
+(`reports/capacity_model.json:hostile`). The 3-year warm lake has 1.5×, and it is bought per
 retention year. Together they are about a fifth of the hardware bill
 (§11, §14). Three resources grow with viewers and users, not cameras: viewing
 bandwidth, media gateway sessions and API requests. Each has its own admission
@@ -100,9 +102,11 @@ per-camera inference.
 every camera: identity, department, owner, type, coordinates with basis and precision,
 transport, main and sub-stream profiles, NVR/VMS, retention, consent, health, and
 measured capability per time band. Cells hold a replica of their own cameras.
-Onboarding is by CSV/JSON/API (built: `api/routes_registry.py:193,205`) and by
-discovery. Registry and GIS were measured at 80,000 rows: PostGIS viewport p50 1.3 ms
-(M `var/reports/gis_postgis.json`).
+Onboarding is by CSV/JSON/API (built: `api/routes_registry.py:193,205`);
+ONVIF discovery is DESIGNED, with no vendor SDK client yet (`docs/ADAPTERS.md`).
+On 80,000 synthetic camera rows, a 0.1° PostGIS bounding-box query averaging
+81 cameras took 1.3 ms p50 (`var/reports/gis_postgis.json`); the largest
+measured viewport took 426.2 ms (§11), above the 100 ms target.
 
 | Source kind | Path | Where it terminates | Model |
 |---|---|---|---|
@@ -220,7 +224,7 @@ The design:
 | Kafka `registry`, `watchlist` | State → cells | key = camera_id / entry id, log-compacted | cells rebuild state from the compacted log |
 | Bulk observations | Cell → object store | **not on Kafka.** Compressed micro-batches of ≥ 1 min, path `obs/date=/district=/cell=/hour=/` | removes the only large flow from the state bus (§11) |
 | Cell `observations` table | Cell PostgreSQL | range-partitioned by day on `t_norm_us`. Existing indexes kept: plate+time, camera+time, district+time (10/10 hot queries indexed, M `var/reports/query_plans.json`). BRIN on time | 30-day hot window; drop or detach is O(1) |
-| Rollups `camera_minute_counts`, `class_hour_counts` | Cell, streamed | camera, minute | `/overview` (965 ms at 1.16 M rows, M) and `/cameras/{id}` (183 ms, M) read rollups, not raw rows |
+| Rollups `camera_minute_counts`, `class_hour_counts` (DESIGNED) | Cell, streamed | camera, minute | Planned to replace raw-row aggregates for `/overview` (965 ms at 1.16 M rows, M) and `/cameras/{id}` (183 ms, M); not built tables |
 | State plate index | 4 PostgreSQL hosts | 64 virtual hash shards on the folded plate; monthly range sub-partitions | re-sharding moves virtual shards; the key matches the Kafka key |
 | Lake | S3-compatible, Trino | date / district / cell | warm search and statewide analytics |
 | Evidence | Cell object store, replicated to state WORM | case_id | sealed before acknowledgement (HLD §15) |
@@ -318,12 +322,25 @@ targets HLD §20.7 set before this design; HLD §15 now carries this whole table
 Demand parameters are listed first, then each tier. The formulas are those in
 `tools/sizing/capacity_model.py`.
 
+**Compression basis.** `reports/measure_compression.json` measured 20,000
+government rows averaging **1,230.6 B**, compressed in batches of 100 to
+**154.0 B/row**, an **8.0× ratio on that sample's own base**. The separate
+`var/reports/bandwidth.json` sample averages **1,331.7 B/row**. The capacity
+model uses the latter for raw demand and assumes the government compression
+sample's 154.0 B represents compressed demand; this is an ASSUMED transfer
+between samples, not a measured compression result on 1,331.7 B rows. It
+implies an effective **8.65×** against that raw base. If only 8.0× transfers,
+use 166.5 B/row: about 89 Mbps statewide bulk, 4.04 Mbps per full cell including
+plates/health, and **4.95× WAN headroom**, below 5× (MODELLED from the stated
+inputs). The baseline 82 Mbps / 3.83 Mbps / 5.2× figures are conditional on
+154.0 B/row and must be remeasured on the deployment payload.
+
 **Demand parameters**
 
 | Parameter | Value | Label and source |
 |---|---:|---|
 | Bytes per observation, serialised | 1,331.7 B | (M) `var/reports/bandwidth.json:observation_bytes_each` |
-| Same, zlib-6, batches of 100 | 154.0 B (ratio 8.0) | (V) `reports/measure_compression.json:batches.100` |
+| Separate 1,230.6 B sample, zlib-6, batches of 100 | 154.0 B (8.0× on its own base) | (M) `reports/measure_compression.json:batches.100`; transferable compressed size is (A) |
 | Observations per **active** camera-hour, government store | 902.6 | (V) 1,155,325 / 1,280 camera-hours with ≥ 1 observation |
 | Observations per camera-calendar-hour | 71.7 | (Mod) 1,155,325 / (30 × 537.26 h); understates because 4 slots |
 | Pessimistic statewide average | **3,000 / camera-hour** | (A) above the busiest camera's own average (2,529/h, V) |
@@ -350,7 +367,7 @@ Demand parameters are listed first, then each tier. The formulas are those in
 | State plate index | 6,667 rows/s | 14,187 rows/s per host (M) | 4 hosts × (primary + sync standby) | 8.5× | move virtual shards |
 | Lake, 3 years | 66,667 obs/s × 154.0 B | (V) compression | 1.5 PB usable | 1.5× (pess), 5.1× (mean) | TB per retention year |
 | State API | 5,000 users × 1 req/s (A) | 10.38 ms/req (M PG plate search p50) | 8 servers × 16 workers | 2.5× | stateless servers; users-driven |
-| Registry and GIS | fixed 80,000 rows | 1.3 ms viewport (M) | 1 + standby | 77× on a 100 ms SLO | none needed |
+| Registry and GIS | 80,000 synthetic camera rows | Largest measured viewport 426.2 ms (M, `reports/SCALE_80K_LOAD_TEST.md`) | 1 + standby | 0.23× on a 100 ms target — missed | Query performance requires improvement |
 
 ## 11. Binding-constraint analysis
 
@@ -360,7 +377,7 @@ row names the design choice that keeps it from binding.
 
 | Resource | Demand (Mod) | Capacity (label) | Headroom | Design choice that removes the bottleneck |
 |---|---:|---:|---:|---|
-| **WAN backhaul, cell → state** (2,500-camera cell) | 3.83 Mbps (bulk 2.57 compressed + plates, health 1.27) | 20 Mbps = 50 Mbps link − 30 Mbps viewing budget (A/D) | **5.2×** | Batch-compressed metadata lane (8.0× measured, V); video never on WAN; viewing budget admission-controlled |
+| **WAN backhaul, cell → state** (2,500-camera cell) | 3.83 Mbps (bulk 2.57 compressed + plates, health 1.27) | 20 Mbps = 50 Mbps link − 30 Mbps viewing budget (A/D) | **5.2×** | Batch-compressed metadata lane (154.0 B sample payload assumed transferable; effective 8.65× vs raw base); video never on WAN; viewing budget admission-controlled |
 | Same, if metadata were sent uncompressed over the 20 Mbps link HLD §20.4 used to provision | 23.46 Mbps | 20 Mbps (A, earlier HLD §20.4) | **0.85× — would bind** | Therefore compression is mandatory in the design, not an optimisation |
 | **Site uplinks** (site → cell) | n_site × 1.0 Mbps sub-stream (A) | site uplink (surveyed) | **≥ 1.5× by rule** | Pull only if the link carries it at 1.5×; else an edge box analyses on site. The bottleneck becomes compute. |
 | Cell ingest LAN | 3.0 Gbps (2,000 sub-streams × 1 Mbps + 500 ANPR-grade main streams × 2 Mbps) | 50 Gbps (2 × 25 GbE, D) | 16.7× | Sub-stream for T0/T1; main stream only on ANPR-grade cameras |
@@ -373,7 +390,7 @@ row names the design choice that keeps it from binding.
 | **DB storage, cell hot 30 d** | 14.4 TB (2× wire row, A); 4.2 TB on the measured SQLite on-disk size (V) | 32 TB NVMe per copy (D) | 2.2× | Day partitions; hot window is a setting; older days detach to the lake and stay queryable |
 | **Object storage, lake 3 y** | 971 TB (pess), 292 TB (mean rate) | 1.5 PB usable (D) | 1.5× / 5.1× | Bought per retention year; grows with years retained, not with frames |
 | **Object storage request rate** | 334 PUT/s (40 cells × 1 batch/min + 333 evidence stills/s in an alert storm) | 4,000 PUT/s = 4 gateways × 1,000 (A) | 12× | ≥ 1-minute micro-batches keep object count low |
-| **Spatial queries** | viewport on 80,000 cameras | 1.3 ms p50 (M) vs 100 ms SLO | 77× | Camera count is fixed by the estate; server-side clustering, max 1,500 features (M `var/reports/final/model1/gis_80k.json`) |
+| **Spatial queries** | Largest measured viewport: zoom 11, 1,665 features from 80,000 synthetic camera rows | 426.2 ms (M) vs 100 ms target | **0.23× — target missed** | `reports/SCALE_80K_LOAD_TEST.md`; separate map-layer run 217.54 ms (`var/reports/final/model1/gis_80k.json`), also above target. The 1.3 ms PostGIS result is only a 0.1° bounding box averaging 81 cameras (`var/reports/gis_postgis.json`). |
 | **Media gateway sessions** per cell | 200 cameras viewed at once (A) | 450 = 3 nodes × 150 copy sessions (A; not measured) | 2.25× | One upstream session per camera shared by AI and all viewers (built); set by viewers, not analysed cameras |
 | **Remote viewing** (state + investigators) | 650 Mbps (1,000 preview × 0.5 + 100 full × 1.5) | 2 Gbps state ingress (A) | 3.1× | Regional SFU pulls once per camera; per-role tile budgets |
 | **TURN** | 100 Mbps (200 relayed tiles) | 6 Gbps (6 regions × 2 coturn × 0.5 Gbps, A) | 60× | Police-network clients connect directly |
@@ -409,14 +426,17 @@ row names the design choice that keeps it from binding.
 
 **Conclusion — what binds first.**
 
-1. **Inference compute binds first, by construction.** GPUs are bought to demand with
+1. **Inference compute binds first in the provisioning model.** GPUs are bought to demand with
    N+2 spares per cell, so at planning load their headroom is only the spares (~1.03×).
-   Every other camera-driven resource keeps ≥ 5× headroom on throughput and ≥ 2.2× on
-   hot storage at 100% analysed.
-2. **The first non-compute resource to bind, if analysed cameras kept growing, is
-   storage.** The 3-year lake (1.5×) binds first, then cell hot NVMe (2.2×). Both are
+   At 2,500 cameras × 3,000 observations/hour, the modelled cell WAN and DB
+   have 5.2× and 6.8× headroom, conditional on 154.0 B compressed rows; hot
+   storage has 2.2×. At the 4,000 observations/s cap, DB has 3.5× (1.8× at
+   half the measured rate), WAN 3.2× and hot storage 1.16×
+   (`reports/capacity_model.json:hostile`). The measured viewport misses its
+   target, so no universal ≥ 5× claim is made.
+2. **Within the modelled ingestion/storage resources, storage binds next.** The 3-year lake (1.5×) binds first, then cell hot NVMe (2.2×). Both are
    bought per TB and are policy-elastic (retention days).
-3. **Among throughput resources the lowest headroom is not camera-driven.** API (2.5×)
+3. **Viewer/user resources have separate limits.** API (2.5×)
    and media gateway sessions (2.25×) are driven by people and have their own
    admission control.
 4. **What cannot be claimed.** The capacities of Kafka, JetStream, gateway sessions,
@@ -555,7 +575,8 @@ edge box, and the WAN rates. Hardware only, before services and taxes (Mod,
 | PostGIS store, same schema as SQLite | BUILT, MEASURED | `var/reports/store_engines.json`, `var/reports/gis_postgis.json` |
 | Direct RTSP ingest, one session per camera, on-demand hub | BUILT+TESTED | `live/hub.py`, `ingest/stream.py`; `tests/unit/test_media_hub.py` |
 | Detector, tracker, tiled plate detection, Indian OCR, per-track voting | BUILT, MEASURED | `analytics/*`; `var/reports/detector_device.json`, `var/reports/pipeline_device.json`, `var/reports/ocr_indian_eval.json` |
-| 4 deep-inference slots by measured grade; cadence by priority mode | BUILT+TESTED | `analytics/worker.py:363-371`, `runtime/inference_scheduler.py` |
+| 4 deep-inference slots selected by measured grade at boot; fixed-interval sampling | BUILT+TESTED | `analytics/worker.py`, `SAAKSHYA_AI_SAMPLE_S` default 0.20 s; no rotation |
+| Priority cadence and tier selection | VERIFIED in harness/unit tests; live-worker wiring DESIGNED | `runtime/inference_scheduler.py`, `runtime/budget.py`, `command/certify.py`; neither wired into `analytics/worker.py` |
 | Edge store-and-forward, idempotent replay, fail-closed watchlist bundles | BUILT+TESTED | `edge/queue.py`, `edge/node.py`; `tests/e2e/test_offline_mode.py` |
 | Watchlist near-match, incidents, alerts workflow | BUILT+TESTED | `watchlist/service.py:230`, `watchlist/incidents.py:334` |
 | Camera Link Model, typed-leg trajectories, trace report | BUILT+TESTED | `intelligence/graph.py`, `intelligence/trajectory.py`, `reports/vehicle_trace.py` |
@@ -661,65 +682,6 @@ Edge labels:
 | f12 | f13 | typed legs |
 | f16 | f6 | < 1 min WAN up; last valid bundle if down |
 
-## 19. Deck content — three slides (in `tools/demo/render_submission_deck.py`)
-
-**Slide 1 — "80,000 cameras: only compute grows with cameras analysed"**
-
-- Video stays with the department. Only metadata crosses the WAN: 82 Mbps statewide
-  compressed at a pessimistic rate, against 160 Gbps for central video (modelled).
-- A cell holds at most 2,500 cameras or 4,000 observations/s and runs detection, ANPR,
-  alerts and evidence locally.
-- Plates are partitioned by plate. A designated-vehicle route touches one shard.
-- Camera-driven non-compute resources keep ≥ 5× headroom on throughput and ≥ 2.2× on
-  hot storage at 100% analysed. The 3-year lake (1.5×) is bought per retention year.
-- Unit costs measured on this project: 1,331.7 B per observation, 8× compression,
-  14,187 rows/s PostgreSQL, 1.3 ms PostGIS viewport on 80,000 cameras.
-
-Table: the growth table from §11 (analysed cameras → GPUs, cell WAN, state bus, DB
-rows/s).
-
-**Slide 2 — "Three tiers, and what survives each failure"**
-
-- Camera/site: nothing new at most sites; edge boxes only where the link is thin.
-- Cell (40): GPU pool, bus, PostgreSQL, media gateway, federation adapters. It keeps
-  working with the WAN down.
-- Region (6): SFU/TURN, backups, forensic GPUs. State + DR: Kafka, plate index,
-  registry, lake, identity.
-- Model 1 everywhere, Model 2 direct, Model 3 for VMS departments, Model 4 selected
-  only.
-
-Table: the §8 degradation table (what fails / keeps working / degrades).
-
-**Slide 3 — "Binding-constraint check (pessimistic)"**
-
-- Every resource's demand is compared with its capacity at 80,000 cameras, all
-  analysed.
-- Would-be bottlenecks found and removed: uncompressed WAN (0.85×), all observations on
-  Kafka (1.13×), highway-heavy cells (0.91× on DB at half the measured write rate).
-- Inference compute binds first. S is measured on tendered hardware before purchase.
-- Capacities of Kafka, JetStream, gateway and TURN are assumed and are Phase 1 gates.
-
-Table: the §11 rows for WAN, bus, DB, storage, media, API and watchlist (resource,
-demand, capacity, headroom).
-
-## 20. HLD insertion note (applied: `docs/HLD.md` §21 and the sections below)
-
-| HLD section | Action |
-|---|---|
-| §3 Logical architecture | **Extend**: add the cell / region / state tiers and the Model 1–4 hybrid split table from §3 here |
-| §6 Deployment | **Replace**: "33 district nodes" becomes "40 cells (≤ 2,500 cameras or ≤ 4,000 obs/s) + 6 regions + state/DR" |
-| §12 Statewide operations table | **Replace rows** Central/regional/edge, Bandwidth, Storage, HA with pointers to §10–§13 here |
-| §13 Prerequisites | **Extend** with the §16 department table |
-| §15 DR | **Extend** with the §8 RPO/RTO and degradation tables |
-| §16 Rollout | **Replace** the gates with §15's measured gates |
-| §17 Cost model | **Keep** the S-solved model; **extend** with the ANPR 5 fps case; note that the 5.6 fps baseline has no JSON key (C4). The §7/§17.1 wording of the 11.4 fps run has already been corrected in the main tree. |
-| §18 Cybersecurity | **Extend** with SPIFFE/SPIRE, OPA, audit-head anchoring and hashed watchlists (§7) |
-| §20.1–20.7 | **Replace** the sizing with §10 and the storage sizes with §13. Hot metadata per district was 1.2 TB and becomes 14.4 TB pessimistic / 4.3 TB mean per cell. |
-| §20.8–20.9 | **Keep** the unit rates; **add** §14's reconciliation table |
-| New §21 | **Insert** §11 Binding-constraint analysis in full |
-
----
-
 ## Self-check (§11 attacked as a hostile reviewer)
 
 Each row was recomputed with pessimistic assumptions
@@ -727,7 +689,7 @@ Each row was recomputed with pessimistic assumptions
 
 | Attack | Recomputed | Result | What changed in the design |
 |---|---|---|---|
-| "Your 8× compression is optimistic." Assume 4×. | Cell WAN 6.82 Mbps vs 20 | 2.9× | None needed. Compression stays mandatory, and a Phase 1 gate (≥ 4×) was added. |
+| "The transferred 154.0 B compressed payload is optimistic." Assume 4× on the 1,331.7 B raw base. | Cell WAN 6.82 Mbps vs 20 | 2.9× | None needed. Compression stays mandatory, and a Phase 1 gate (≥ 4×) was added. |
 | "Uncompressed, on HLD's link?" | 23.46 Mbps vs 20 | **0.85× — binds** | Compression made a requirement, not an optimisation; the cell link planned at 50 Mbps with a 30 Mbps viewing budget. |
 | "Put everything on Kafka like everyone does." | 88.8 MB/s vs 100 | 1.13× | Bulk observations moved off Kafka to micro-batches into the lake. The state bus carries 5.73 MB/s. |
 | "Kafka brokers do 10 MB/s, not 50." | 5.73 vs 20 MB/s | 3.5× | None; the scaling axis is brokers. |

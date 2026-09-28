@@ -1,7 +1,8 @@
 # Registry API
 
-Generated 2026-09-22 18:46:07Z from the running service's own OpenAPI schema, so it
-cannot describe an endpoint the platform does not serve.
+Generated 2026-09-28 10:54:37Z from this worktree's OpenAPI schema in process,
+without starting a server or contacting a network. This verifies the declared
+contract, not a live endpoint test.
 
 The registry is Model 1: camera metadata, onboarding and gap reporting.
 It holds what departments supply and reports what they have not — it
@@ -45,6 +46,7 @@ Camera locations, health and capability.
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ### `GET /gis/capability`
@@ -59,6 +61,7 @@ Measured capability per camera.
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ### `GET /gis/gaps`
@@ -72,6 +75,7 @@ What the registry does not yet know about its own estate.
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ### `GET /registry/cameras/export.csv`
@@ -91,6 +95,7 @@ accepts, so an export can be corrected in a spreadsheet and re-imported.
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ### `POST /registry/cameras/import`
@@ -102,6 +107,7 @@ Bulk camera onboarding (JSON).
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ### `POST /registry/cameras/import.csv`
@@ -121,6 +127,7 @@ none of this registry's business.
 | `authorization` | header | string | — |
 | `X-Case-Id` | header | string | — |
 | `X-Purpose` | header | string | — |
+| `X-Purpose-Encoding` | header | string | — |
 
 
 ## Camera record
@@ -203,19 +210,21 @@ MC-0002,Riverfront east,Municipal Corporation,23.02,72.57,Milestone,15
 
 ### Ask the registry what it does not know
 
+Example response fields, read-only 28 Sep snapshot (`reports/MODEL1_GAP_ANALYSIS.md`).
+
 ```
 GET /gis/gaps
 
 {
-  "cameras": 34,
+  "cameras": 38,
   "capacity_slots": 18,
   "departments_absent": [],
   "field_gaps": [
     {
       "field": "vms",
-      "missing": 32,
-      "of": 34,
-      "pct": 94.1
+      "missing": 36,
+      "of": 38,
+      "pct": 94.7
     }
   ]
 }
@@ -237,3 +246,6 @@ GET /gis/gaps
 - **Unknown CSV columns are ignored, not refused**, because a
   departmental export carries operational columns that are none of this
   registry's business.
+
+For investigation, alerts, cases, operations and edge APIs, see `docs/API.md`
+in the repository. That full API document is not currently in the pack.

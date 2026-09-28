@@ -67,10 +67,11 @@ rotate at runtime. This configured default is separate from the historical
 four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
 `command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
-surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
-inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
-it does not rotate which cameras receive deep inference. GPU pool capacities
-in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` implements
+priority cadence and is VERIFIED in the certification harness; `AnalyticsBudget` tier selection is unit-tested. Neither
+is wired into the live worker (DESIGNED integration). The worker samples at a
+fixed interval (`SAAKSHYA_AI_SAMPLE_S`, default 0.20 s); it does not rotate cameras.
+GPU pool capacities in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
 
 
 ```

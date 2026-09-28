@@ -56,8 +56,12 @@ observations over 1,280 camera-hours with at least one; VERIFIED read-only on
 `var/live.db`), and its busiest camera averages 2,529 per active hour. The
 design sizes on a pessimistic **3,000 observations per camera-hour** (ASSUMED,
 above that camera) on the measured 1,331.7 B row, and ships metadata in
-compressed batches: 100 real rows compress 8.0× to 154.0 B each
-(`reports/measure_compression.json`). All MODELLED
+compressed batches. The separate sample in `reports/measure_compression.json`
+averages 1,230.6 B and compresses 8.0× to 154.0 B in batches of 100. Using
+154.0 B against the 1,331.7 B raw base implies an effective 8.65×; transferring
+that compressed size is ASSUMED, not measured on the larger row. At 8.0× on
+1,331.7 B, the result would instead be 166.5 B, about 89 Mbps statewide bulk
+and 4.04 Mbps/cell (4.95× WAN headroom); see HLD §20.4. All MODELLED
 (`reports/capacity_model.json`):
 
 | MODELLED at 3,000 observations per camera-hour | Per full cell (2,500 cameras) | Statewide (80,000) |

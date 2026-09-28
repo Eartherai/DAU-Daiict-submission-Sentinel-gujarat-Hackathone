@@ -96,7 +96,7 @@ Forbidden phrases on every slide and in this README: *production ready* · *lega
 
 | Criterion | Where the evidence is |
 |---|---|
-| **1. Successful test case** | Government designated vehicle `GJ11S7924` on cam06: SINGLE-CAMERA evidence. `GJ18JX7786` on C-014 then C-021: CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
+| **1. Successful test case** | Team-chosen stand-in `GJ11S7924` (not organiser-issued) on cam06: SINGLE-CAMERA evidence. `GJ18JX7786` on C-014 then C-021: SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Chain: ingest → observation → search → trajectory → watchlist → alert → evidence |
 | **2. Solution presentation** | Portal deck PPTX/PDF · content from measured sheet · [docs/JUDGE_QA.md](docs/JUDGE_QA.md) |
 | **3. Solution architecture** | [docs/HLD.md](docs/HLD.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · 10 ADRs · Statewide Model 4 recording declined on bandwidth arithmetic; selected-camera Model 4 analytics kept |
 | **4. Working platform & demonstration** | `make install && make media && make demo && make serve` → http://127.0.0.1:8080 · bearer gate · OpenAPI `/docs` |
@@ -205,8 +205,8 @@ We do **not** say “tested at 80,000”. Night ANPR **UNSUITABLE** is a geometr
 
 | Store | What we show |
 |---|---|
-| **Live government** | `GJ11S7924`: 57 reads on cam06 only (52 to the 24 Sep snapshot, 5 read live during the 28 Sep recording), SINGLE-CAMERA evidence. `GJ38BH5815` on cam21 is an evaluation-designated watchlist entry, not stolen (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
-| **Own-feed corpus** | `GJ18JX7786` on **C-014 then C-021** — CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
+| **Live government** | Team-chosen stand-in `GJ11S7924` (not organiser-issued): 57 reads on cam06 only (52 to the 24 Sep snapshot, 5 read during the 28 Sep session, 11:15–12:53 IST; the film is 12:41–12:47 IST), SINGLE-CAMERA evidence. `GJ38BH5815` on cam21 is an evaluation-designated watchlist entry, not stolen (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
+| **Synthetic rendered corpus** | `GJ18JX7786` on **C-014 then C-021** — SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`) |
 
 ---
 
@@ -263,10 +263,11 @@ rotate at runtime. This configured default is separate from the historical
 four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
 `command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
-surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
-inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
-it does not rotate which cameras receive deep inference. GPU pool capacities
-in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` implements
+priority cadence and is VERIFIED in the certification harness; `AnalyticsBudget` tier selection is unit-tested. Neither
+is wired into the live worker (DESIGNED integration). The worker samples at a
+fixed interval (`SAAKSHYA_AI_SAMPLE_S`, default 0.20 s); it does not rotate cameras.
+GPU pool capacities in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
 
 The chain runs **with no language model in the loop** — a test fails if one is imported while it runs.
 
@@ -278,7 +279,7 @@ The chain runs **with no language model in the loop** — a test fails if one is
 |---|---|
 | Central / regional / edge | **District cell (40):** ingest + analytics + local store + durable queue, ≤ 2,500 cameras or ≤ 4,000 observations/s each. **Region (6):** viewing fan-out, backups, forensic GPUs. **State + DR:** registry, plate index, observation lake, cross-district search, evidence chain, audit. **DESIGNED**, sized in [docs/STATEWIDE_ARCHITECTURE.md](docs/STATEWIDE_ARCHITECTURE.md) (HLD §21) |
 | GPU | The detector and the plate recogniser run on the GPU where there is one (Metal measured here; CUDA in deployment); plate detection stays on CPU (ONNX). Every stage has a CPU path, so a GPU is acceleration, not a requirement for the PoC |
-| Bandwidth | Video stays at the camera. Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses the measured row, batch-compressed 8.0× (`reports/measure_compression.json`): 82 Mbps statewide at a pessimistic rate, **MODELLED**. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why statewide central recording is declined |
+| Bandwidth | Video stays at the camera. Metadata ~400 B MODELLED optimised payload vs 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`); sizing uses 1,331.7 B raw and assumes 154.0 B compressed from a separate 1,230.6 B sample (8.0× on that sample’s base, effective 8.65× vs the raw base; `reports/measure_compression.json`, HLD §20.4): 82 Mbps statewide at a pessimistic rate, **MODELLED**. Central video at 80k × 2 Mbps ≈ **160 Gbps** — why statewide central recording is declined |
 | Storage | Hot metadata (30 days) in each cell, compressed observations in a state lake, sealed evidence in a write-once store; video remains on departmental NVR/VMS |
 | HA / ops | Edge continues with uplink down; SERVICE token sync; reconnect with exponential backoff; credentials from environment only |
 | Cost | Quantities and indicative ranges from `tools/sizing/capacity_model.py` (HLD §20.8, §21) on ASSUMED unit rates for procurement to replace |

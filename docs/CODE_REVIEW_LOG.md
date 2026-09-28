@@ -2,8 +2,8 @@
 
 Historical planning / measurement record. For the current submission use
 [FINAL_SUBMISSION.md](FINAL_SUBMISSION.md). Current roles: government
-`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; own-feed `GJ18JX7786` on
-C-014 then C-021 is a CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence; synthetic `GJ18JX7786` on
+C-014 then C-021 is a SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage
 (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). Earlier rehearsal plate names,
 screenshot counts, timings and dates below belong to their recorded run.
 Current wall policy: CONTROL ROOM up to 30 direct WHEP sessions, 400 ms apart;

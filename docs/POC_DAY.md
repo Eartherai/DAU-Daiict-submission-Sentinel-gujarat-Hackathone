@@ -1,8 +1,8 @@
 # On-site PoC — 22–23 September 2026
 
 Use `FINAL_SUBMISSION.md` for current commands and pack names. Government
-`GJ11S7924` on cam06 is SINGLE-CAMERA evidence. Own-feed `GJ18JX7786` is the
-CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION
+`GJ11S7924` on cam06 is SINGLE-CAMERA evidence. Synthetic `GJ18JX7786` is the
+SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage
 (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`).
 
 Venue: i-Hub, Ahmedabad (portal). Bring this machine if it still holds
@@ -32,12 +32,13 @@ the submission evidence.
 6. Alerts — `GJ38BH5815` evaluation_designated HIGH; representative evaluation entry, not stolen.
 7. OCR lookalike on the live store: `GJ32K5587` / `GJ3ZK5587` (2 vs Z, both
    cam07). Two marks, not merged. Typed lookalike `6J1VV0119` still works.
-8. If they hand a **new** mark: watchlist (authority + reason required) → wait
-   for ingest match → search → trajectory. Timebase ALLOWED / RESTRICTED /
+8. For the organiser-issued mark: enter it under a case and purpose → search
+   the whole estate retrospectively → watchlist (authority + reason required)
+   for live alerts → open the trace report. Timebase ALLOWED / RESTRICTED /
    REFUSED, never guessed.
 9. If they want two cameras: say the live store has 0 repeats; switch to
    port **8081** (`sqlite:///var/demo.db`) and `GJ18JX7786`.
-   8081 is the own-feed workspace — never the live grid. Label it LOCAL
+   8081 is the synthetic demonstration workspace — never the live grid. Label it LOCAL
    SYNTHETIC out loud. Live tiles come from the local corpus (MediaMTX on
    this machine, or last stills in `var/demo_evidence/preview/`). Do not
    point 8081 at the government RTSP host.
@@ -63,5 +64,5 @@ print('bytes', len(tok))
 
 ## If the grid is down
 
-Own-feed corpus on port **8081** (not 8080): `GJ18JX7786` (C-014 then C-021),
+Synthetic rendered corpus on port **8081** (not 8080): `GJ18JX7786` (C-014 then C-021),
 watchlist alerts. Label it LOCAL SYNTHETIC out loud.

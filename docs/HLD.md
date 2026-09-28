@@ -153,12 +153,13 @@ backoff and jitter. Dual-signal discontinuity detection (PTS regression *and*
 block-grid scene cut), because a looping publisher advances PTS across the loop
 and a PTS-only detector misses it.
 
-### 4.2 Analytics — adaptive tiers
+### 4.2 Analytics — live pipeline and designed tier integration
 **T0** motion presence · **T1** detection and tracking · **T2** plate and
 attributes · **T3** forensic re-processing.
 
-Tier is selected from measured capability, observation quality, event priority
-and resource pressure. **Priority never overrides a capability ceiling**: asking
+`AnalyticsBudget` selects tiers from measured capability, observation quality,
+event priority and resource pressure in unit tests (`tests/unit/test_runtime_routing.py`).
+Live-worker integration is DESIGNED; the running worker does not select these tiers. **Priority never overrides a capability ceiling**: asking
 harder does not make an unreadable plate readable.
 
 The models, and what each is for: **RT-DETRv2-R18** (Apache-2.0) detects vehicles
@@ -174,9 +175,10 @@ a rule - a polygon on one camera's frame, the IST hours it applies, the classes
 it concerns, the authority it rests on - and the platform reports every stored
 sighting whose ground point (the bottom centre of its box) falls inside it in
 those hours, with how long the person stayed (`/zones`, admin:write to set,
-alert:read to read, both audited). On the government grid, a rule on the toll
-lane at Tri Mandir Adalaj reports 142 of 1,533 person sightings on the lane's
-carriageway.
+alert:read to read, both audited). On the government grid, the cam12 toll-lane rule at Tri Mandir Adalaj
+is an administrator-created DEMONSTRATION rule, “No pedestrians on the toll-lane
+carriageway” (`var/live.db:zone_rules`). Its count depends on the query window;
+no undated count is used here.
 
 *Finding plates.* A camera whose frame is wider than 1920 px is searched in
 **overlapping full-resolution tiles** as well as whole: the detector's input is
@@ -237,12 +239,13 @@ rotate at runtime. This configured default is separate from the historical
 four-camera measurement in `reports/SCALE_80K_LOAD_TEST.md`.
 `command/summary.py` reports “N of M camera(s) with a stream under
 analysis”. Integrated cameras remain available to the viewer and health
-surfaces, subject to source availability. `AdaptiveInferenceScheduler` changes
-inference **cadence** by NORMAL / HIGH_PRIORITY / ALERT / FORENSIC priority;
-it does not rotate which cameras receive deep inference. GPU pool capacities
-in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
+surfaces, subject to source availability. `AdaptiveInferenceScheduler` implements
+priority cadence and is VERIFIED in the certification harness; `AnalyticsBudget` tier selection is unit-tested. Neither
+is wired into the live worker (DESIGNED integration). The worker samples at a
+fixed interval (`SAAKSHYA_AI_SAMPLE_S`, default 0.20 s); it does not rotate cameras.
+GPU pool capacities in this proposal are **MODELLED/SIZED**, not measured cluster throughput.
 
-**MEASURED government output (historical store, not simultaneous coverage).**
+**MEASURED government output (24 Sep snapshot, not simultaneous coverage).**
 `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md` records 1,155,325 observations,
 including 529,966 car and 307,290 person observations; persons were detected
 across all 30 government cameras over the stored date range. ANPR has 901
@@ -257,10 +260,24 @@ multi-location vehicle trace (official FAQ Q27–Q31).
 deep-inference slots (cam06, cam12, cam10, cam08) wrote 4,465 government
 observations, including 200 plate reads (124 distinct plates) on cam06 by the
 current recogniser (`ocr: awiros-anpr-ocr` in each row's provenance). The
-government film was recorded in this session; its CSV holds every government
-read, 901 + 200 = 1,101. The sandbox delivered 6–13 of 30 cameras as advancing
+government film was recorded at 12:41–12:47 IST within this session; only 21
+reads fall inside the take (`var/demo/government_feed_anpr_report.csv`,
+12:40:59–12:47:22 IST). Its delivered CSV holds 901 + 200 = 1,101 government
+reads and 264 distinct plates on 9 cameras. The sandbox delivered 6–13 of 30 cameras as advancing
 video at once in that window — a measurement, not a limit
 (`docs/SENTINEL_SUPPORT_CLARIFICATION.md`).
+
+*Counting and anomaly signals (FAQ Q22/Q38).* VERIFIED code groups stored
+vehicle/person observations by detector class (`store/repository.py::stats`),
+reports person long-stay flags (`model_versions.dwell_exceeded`), and checks
+impossible-speed route legs as possible misreads or cloned plates
+(`reports/vehicle_trace.py`). Restricted-zone entries are rule-based reports
+(`api/routes_zones.py`), not automatic judgements of unlawful activity. Counts
+are sightings, not de-duplicated people or traffic-flow ground truth.
+`camera_minute_counts` and `class_hour_counts` rollups are DESIGNED (§21 and
+`docs/STATEWIDE_ARCHITECTURE.md` §6); they are not built tables in this version.
+Crowd-density estimation and general learned anomaly detection are DESIGNED,
+not measured analytics on the government feed.
 
 ### 4.3 Retrieval — graph-first
 ```
@@ -409,12 +426,19 @@ was 11.4 frames/s; sizing uses the historical ~5.6 fps full-pipeline baseline
 (`var/reports/api_latency.json`). Offline replay is VERIFIED in
 `tests/e2e/test_offline_mode.py`.
 
+**Not measured for the government evaluation estate (FAQ Q28):** wall-clock
+onboarding time, probe-to-first-analysed-frame time, and frame-PTS-to-alert-row
+p50/p95 latency. `var/reports/final_evaluation.json` reports AI latency as
+UNAVAILABLE. Registry insertion on synthetic rows is not an end-to-end
+onboarding measurement; read-to-incident p95 ≤ 5 s remains a Phase 1 gate (§16).
+
 **MODELLED** — 80,000 cameras across 40 district cells, 6 regions and a state
 data centre with DR (§21); 160 Gbps / 52 PB for central video. Metadata is
 sized on the MEASURED 1,331.7 B row at a pessimistic 3,000 observations per
 camera-hour, above the busiest government camera's own average per active hour
 (2,529/h, VERIFIED on `var/live.db`): 710 Mbps statewide raw, 82 Mbps once batch-compressed
-(8.0×, `reports/measure_compression.json`). The earlier gated model (10–20%
+(154.0 B/row assumed transferable from a separate sample; compression bases
+and sensitivity are stated in §20.4). The earlier gated model (10–20%
 activity at 20 observations per camera-minute: 306.82–613.65 GB/day on the
 measured row, 92.16–184.32 GB/day on the MODELLED 400 B payload) is kept in
 `docs/SCALE_MODEL.md` for reference; it is no longer the sizing basis.
@@ -489,15 +513,22 @@ target — created by the team. No government stolen-vehicle or wanted-person
 database is integrated. An adapter that received such a feed would be the same
 match path; the feed is what is missing.
 
-**MEASURED, read-only store snapshot:** government designated vehicle
-`GJ11S7924` has 57 reads on cam06 only (52 to the 24 Sep snapshot, 5 read
-live during the 28 Sep recording session): **SINGLE-CAMERA** evidence.
+**MEASURED, read-only store checked 28 Sep:** `GJ11S7924` was chosen by the
+team from its cam06 reads on 20 Sep as a stand-in, not an organiser-issued
+number. It has 57 reads on cam06 only (52 to the 24 Sep snapshot + 5 during
+the 28 Sep session, 11:15–12:53 IST; those five precede the 12:41–12:47 film):
+**SINGLE-CAMERA** evidence. On evaluation day the officer enters the issued
+plate under a case and purpose, searches the whole estate retrospectively,
+adds a watchlist entry for live alerts and opens the trace report.
 `GJ38BH5815` has one read and a HIGH OPEN `evaluation_designated` alert on
 cam21; it is not listed as stolen. The older `GJ1VV0119` rehearsal is an
 `investigation_target` on cam07. **DEMO:** `GJ18JX7786`, C-014 then C-021,
-is the **CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION**. Sources and SQL
-are in `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`; no government cross-camera
-trajectory is claimed.
+is the **SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage**. Sources and SQL
+are in `reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`. The C-014/C-021 clips are
+computer-rendered by `tools/sandbox/make_media.py`, separate from the licensed
+Mumbai own-feed film. No real multi-camera evidence is available. The active
+government-store watchlist includes a representative `stolen_vehicle` entry
+(`GJ07XZ4409`, no government reads); categories are test data, not allegations.
 
 ### 11.1 Alert workflow — from a read to an officer's decision
 
@@ -580,10 +611,10 @@ the same discipline as the rest of the proposal.
 |---|---|---|
 | Central / regional / edge | 40 district cells (≤ 2,500 cameras or ≤ 4,000 observations/s each), 6 regions, state + DR; site edge boxes only on thin links. §6, §21 | **DESIGNED** tiers; **MODELLED** sizing (`docs/STATEWIDE_ARCHITECTURE.md` §10) |
 | GPU / accelerators | One CPU process: 11.4 fps local-load benchmark; historical 5.6 fps full pipeline (size on this, §17.1). A 2,500-camera node at that rate needs GPU inference at the district, not a rewrite. Profiles: `DEV_CPU` / `CLOUD_GPU` / `TARGET_GPU` | **MEASURED** throughput; **DESIGNED** GPU split |
-| Bandwidth | Do not copy video to the centre. Wall policies are in §3. Metadata at a pessimistic 3,000 observations per camera-hour on the measured 1,331.7 B row, batch-compressed 8.0×: 3.83 Mbps per 2,500-camera cell, 82 Mbps statewide (§20.4, §21). Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** row, compression and offline tests |
+| Bandwidth | Do not copy video to the centre. Wall policies are in §3. Metadata at a pessimistic 3,000 observations per camera-hour on the measured 1,331.7 B raw row and an assumed transferable 154.0 B compressed payload (§20.4): 3.83 Mbps per 2,500-camera cell, 82 Mbps statewide (§20.4, §21). Low-connectivity: edge continues, queue replays | **MODELLED** / **MEASURED** row and compression; **VERIFIED** offline tests |
 | Hot / warm / cold storage | Video stays at the camera/NVR. Hot: 30 days of metadata in the cell, 14.4 TB pessimistic / 4.3 TB at the measured mean rate per 2,500-camera cell. Warm: compressed observations in the state lake, 324 TB a year pessimistic. Cold per policy (§20.5, §21). Retention is a policy decision | **DESIGNED**; sizes **MODELLED**; **UNTESTED** at 80k |
 | Load balancing / health | Horizontal processes per node; `/system/health`; hash-chained audit | **MEASURED** on 30 cameras; **UNTESTED** as a cluster scheduler |
-| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (`tests/e2e/test_offline_mode.py`). Cell, region and state HA, backup and DR with RPO/RTO targets and a degradation table in §15; still **UNTESTED** multi-node | **MEASURED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
+| HA / backup / DR | Edge detection, watchlist, alerts and evidence continue with the uplink down (`tests/e2e/test_offline_mode.py`). Cell, region and state HA, backup and DR with RPO/RTO targets and a degradation table in §15; still **UNTESTED** multi-node | **VERIFIED** offline; **DESIGNED** §15; **UNTESTED** multi-node |
 | Cybersecurity | Four gates (auth, role, jurisdiction, purpose). ADMIN cannot search. Tokens not in query strings. No secrets in the repository | **MEASURED** on the API; statewide SOC integration **UNTESTED** |
 | Cost | §17 gives the model and its measured inputs (5.6 fps full pipeline; **S = 2.0** whole-pipeline on an Apple M5 integrated GPU, 3.4 for the detector alone); the target accelerator's **S** comes from the same scripted benchmark before any figure is signed. §20.8 prices the model on an assumed **S** and assumed unit rates, as ranges, for procurement to replace | **MODELLED** §17; **S MEASURED** on dev hardware; unit rates **ASSUMED** §20.8 |
 
@@ -683,7 +714,7 @@ centre does not stop a district detecting, matching or sealing evidence.
 
 | Failure | Blast radius | Behaviour | Label |
 |---|---|---|---|
-| Centre unreachable | Statewide search, cross-district correlation | Districts continue: detection, watchlist, alerts and evidence all local. Metadata queues and replays on reconnect. | **MEASURED** — `tests/e2e/test_offline_mode.py` |
+| Centre unreachable | Statewide search, cross-district correlation | Districts continue: detection, watchlist, alerts and evidence all local. Metadata queues and replays on reconnect. | **VERIFIED** — `tests/e2e/test_offline_mode.py` |
 | District node lost | That district's live analytics | Cameras keep recording to their own NVR. No central video was being written, so no footage is lost — only analysis is paused. | **DESIGNED** |
 | Store corruption at a node | That node's metadata | Restore from the last snapshot; replay the queue from the centre's copy of that district's metadata. | **DESIGNED**, **UNTESTED** |
 | Evidence tampering | One record | Hash chain detects it. 5 of 5 tamper tests detected. | **MEASURED** |
@@ -724,7 +755,7 @@ confirm or change:
 | State event bus | Cells | Plate and alert lanes queue in the cell; a 7-day queue of every observation is 194 GB compressed per cell at the pessimistic rate (**MODELLED**) |
 | State database | Cells; the state bus retains 7 days | Statewide routes pause and replay from the bus |
 | Whole state data centre | Everything local | DR takes over; cells keep their last valid watchlist, fail-closed (built) |
-| GPU pool saturation | ALERT and HIGH_PRIORITY cadence, ANPR-grade cameras first | NORMAL frames shed (`runtime/inference_scheduler.py`) |
+| GPU pool saturation | DESIGNED live-worker integration: ALERT and HIGH_PRIORITY cadence, ANPR-grade cameras first | Scheduler tested in harness only; live worker samples at a fixed interval (`runtime/inference_scheduler.py`, `analytics/worker.py`) |
 
 **Redundancy that is deliberately absent.** There is no central video farm to
 replicate, because no video is centralised. Removing that requirement is the
@@ -866,7 +897,7 @@ The costs avoided are as material as the ones incurred.
 | Central video storage (~52 PB modelled) | Video stays at the camera/NVR |
 | Central video bandwidth (~160 Gbps modelled) | Metadata uplink sized separately from on-demand wall viewing (§20.4) |
 | Per-camera VMS licensing at the centre | Departmental VMS platforms are integrated, not replaced |
-| Registry sharding | 80,000 camera rows occupy **58.05 MB**; onboarding runs at **57,647 cameras/s**, gap analysis over all 80,000 in **181.7 ms**, single lookup **0.69 ms** — all **MEASURED**, and regenerated by `tools/reports/scale_load_test.py` rather than transcribed (`reports/SCALE_80K_LOAD_TEST.md`) |
+| Registry sharding | 80,000 synthetic camera rows occupy **58.05 MB**; onboarding runs at **57,647 cameras/s**, gap analysis over all 80,000 in **181.7 ms**, single lookup **0.69 ms** — all **MEASURED**, and regenerated by `tools/reports/scale_load_test.py` rather than transcribed (`reports/SCALE_80K_LOAD_TEST.md`) |
 
 **Operational cost is dominated by inference, not by storage or transport.**
 That is the opposite of the assumption a central-VMS design starts from, and it
@@ -1061,7 +1092,7 @@ in this build.
 - Not legally admissible. BSA s.63 stays `DRAFT_PENDING_SIGNATURE`.
 - Not tested at 80,000 cameras.
 - Not that ANPR works on this estate uniformly — 0 cameras grade GOOD.
-- Not that the live government grid has a multi-camera plate identity. It has **0** exact cross-camera repeats. That demonstration is on the own-feed corpus.
+- Not that the live government grid has a multi-camera plate identity. It has **0** exact cross-camera repeats. Route logic is shown only on the SYNTHETIC RENDERED TEST CORPUS — not camera footage; no real multi-camera evidence is available.
 
 ## 20. Infrastructure sizing, costs and cost-benefit
 
@@ -1204,14 +1235,27 @@ platforms keep their own licences; this platform does not replace them (§10).
 
 ### 20.4 Network and bandwidth
 
+**Compression basis.** `reports/measure_compression.json` measured 20,000
+government rows averaging **1,230.6 B**, compressed in batches of 100 to
+**154.0 B/row**, an **8.0× ratio on that sample's own base**. The separate
+`var/reports/bandwidth.json` sample averages **1,331.7 B/row**. The capacity
+model uses the latter for raw demand and assumes the government compression
+sample's 154.0 B represents compressed demand; this is an ASSUMED transfer
+between samples, not a measured compression result on 1,331.7 B rows. It
+implies an effective **8.65×** against that raw base. If only 8.0× transfers,
+use 166.5 B/row: about 89 Mbps statewide bulk, 4.04 Mbps per full cell including
+plates/health, and **4.95× WAN headroom**, below 5× (MODELLED from the stated
+inputs). The baseline 82 Mbps / 3.83 Mbps / 5.2× figures are conditional on
+154.0 B/row and must be remeasured on the deployment payload.
+
 | Flow | Rate | Crosses | Label |
 |---|---|---|---|
 | Camera → cell, video | Sub-stream at 1 Mbps (**ASSUMED**, pessimistic: measured government streams ran at 0.26–0.66 Mbps each) for T0/T1; the 2 Mbps main stream only on ANPR-grade cameras. A full cell: 2,000 × 1 + 500 × 2 = **3 Gbps** | Departmental / district network only, on a camera VLAN; never the WAN | **MODELLED** |
-| Cell → state, metadata | The serialised row is **1,331.7 B** (`var/reports/bandwidth.json`); batches of 100 real rows compress 8.0× to 154.0 B (`reports/measure_compression.json`). At a pessimistic 3,000 observations per camera-hour a full cell sends **3.83 Mbps** (2.57 compressed bulk + 1.27 plates and health); 2.04 Mbps at the measured mean rate | WAN | Row and compression **MEASURED**; rate **MODELLED** |
+| Cell → state, metadata | The serialised row is **1,331.7 B** (`var/reports/bandwidth.json`); the separate 1,230.6 B sample compresses 8.0× to 154.0 B (`reports/measure_compression.json`), assumed transferable as explained above. At a pessimistic 3,000 observations per camera-hour a full cell sends **3.83 Mbps** (2.57 compressed bulk + 1.27 plates and health); 2.04 Mbps at the measured mean rate | WAN | Row and compression **MEASURED**; rate **MODELLED** |
 | Same, uncompressed | 23.46 Mbps per full cell — more than the 20 Mbps link this section used to provision, so batch compression is a requirement, not an optimisation | WAN | **MODELLED** — rejected |
 | Wall video / still fallback | CONTROL ROOM up to 30 streams; OPTIMIZED VIEW at most 12 (§3). At an assumed 2 Mbps per stream: 60 / 24 Mbps per wall. Remote viewing is admission-controlled at 30 Mbps per cell. Fallback JPEG size and rate must be measured separately. | Viewing network; WAN if viewed remotely | Policy **VERIFIED** in `ui/app.js`; bandwidth **MODELLED** |
 | Evidence | Sealed stills and manifests, per case | WAN, on demand | **DESIGNED** |
-| State inbound, statewide | 80,000 cameras × 3,000/h × 1,331.7 B × 8: **710 Mbps** raw, **82 Mbps** compressed, metadata only; remote viewing adds 650 Mbps at an **ASSUMED** 1,000 preview and 100 full tiles | WAN | **MODELLED** |
+| State inbound, statewide | 80,000 cameras × 3,000/h × 1,331.7 B × 8: **710 Mbps** raw; independently, 80,000 × 3,000/h × 154.0 B × 8 gives **82 Mbps** compressed, metadata only; remote viewing adds 650 Mbps at an **ASSUMED** 1,000 preview and 100 full tiles | WAN | **MODELLED** |
 
 **Provisioning (ASSUMED).** Per cell: a 50 Mbps primary link to the state, of
 which 30 Mbps is an admission-controlled viewing budget and 20 Mbps carries
@@ -1226,15 +1270,16 @@ actually serialises (identifiers, the `dedup_key`, the box, the raw OCR),
 and a compact wire encoding is an optimisation not yet made. Batch
 compression recovers most of that difference without changing the row.
 
-**Low bandwidth and disconnection (MEASURED, `tests/e2e/test_offline_mode.py`).** The
+**Low bandwidth and disconnection (VERIFIED, `tests/e2e/test_offline_mode.py`).** The
 cell keeps detecting, matching the watchlist, raising alerts and sealing
 evidence with the uplink down (§15). Observations wait in a durable local
 queue that is acknowledged, not deleted, so a lost acknowledgement replays
 rather than losing data; the state applies each event once by its
-`dedup_key`. A full cell produces 27.7 GB a day compressed at the pessimistic
+`dedup_key`. In the capacity model (§21), a full cell produces 27.7 GB a day compressed (MODELLED) at the pessimistic
 rate, so a week of disconnection is 194 GB of queue (**MODELLED**) — a disk,
 not a design problem. After a 24-hour outage a 5,000-camera district drains
-its backlog in 1.33 h with viewing paused. Watchlist bundles travel the other
+its backlog in 1.33 h with viewing paused (MODELLED,
+`reports/capacity_model.json`; not an outage timing measurement). Watchlist bundles travel the other
 way and fail closed on integrity, issuer or version, so a node offline keeps
 its last valid list rather than none.
 
@@ -1290,8 +1335,9 @@ append-only and every hot query is time-bounded.
 | API scaling | Stateless handlers over a shared store | N instances behind a load balancer (20.3 has 3 per cell, 8 at the state) |
 | Analytics scaling | More processes, each taking a set of cameras — the architectural answer the load test names (`camera_load.json`) | A scheduler assigning cameras to workers and moving them on failure: **UNTESTED** as a cluster scheduler (§12) |
 
-Everything in the middle column is **MEASURED** on the API and covered by
-tests; everything in the right-hand column is **SPECIFIED**.
+The API controls in the middle column are **VERIFIED** in code/tests.
+Horizontal API and analytics scaling describe **DESIGNED** deployment behavior,
+not measured cluster throughput. The right-hand column is **SPECIFIED**.
 
 ### 20.7 HA, backup and DR targets
 
@@ -1423,23 +1469,27 @@ investigation).**
   ad-hoc exports whose integrity has to be argued afterwards. The certificate
   remains a draft for a signing authority.
 
-**What limits the benefit.** On the evaluation grid 28 of 30 cameras grade
-UNSUITABLE for ANPR and none GOOD (`docs/MEASURED_RESULTS.md`). The
+**What limits the benefit.** In the 6 Sep historical measurement, 28 of 30
+government cameras graded UNSUITABLE for ANPR and none GOOD
+(`docs/MEASURED_RESULTS.md`); this is not a current capability census. The
 plate-trace benefits above accrue only where cameras can read plates; the
 registry's capability grades are how a district finds out, per camera, before
-counting on them. Presence and appearance grades are higher (27 and 20 GOOD),
-so detection, counting and restricted-zone reports reach more of the estate
-than plate traces do.
+counting on them. Presence and appearance grades must be read with their capture date and
+query window; no undated grade totals are claimed here. Detection and
+restricted-zone reporting can apply where plate recognition is unsuitable.
 
-## 21. Statewide target architecture — only compute binds
+## 21. Statewide target architecture — capacity and limits
 
 **The claim, stated so it can be attacked.** The number of cameras analysed can
 grow from zero to 80,000, and only one resource then needs procurement in
 proportion to that number: inference compute (GPU, CPU for decode, and the RAM
 inside those servers). Metadata bytes, rows and stored terabytes also grow
 linearly, but they are provisioned per cell (≤ 2,500 cameras or ≤ 4,000
-observations/s) and keep at least 5× headroom on camera-driven throughput and
-2.2× on hot storage at 100% analysed; the 3-year lake has 1.5× and is bought per
+observations/s). At 2,500 cameras × 3,000 observations/hour, the model gives
+WAN 5.2× and DB 6.8× headroom, conditional on the compressed-payload assumption
+in §20.4, and hot storage 2.2×. At the 4,000 observations/s cap: DB 3.5×
+(1.8× at half measured throughput), WAN 3.2× and hot storage 1.16×
+(`reports/capacity_model.json:hostile`); the 3-year lake has 1.5× and is bought per
 retention year. Three resources grow with viewers and users, not cameras —
 viewing bandwidth, media-gateway sessions and API requests — and each has its
 own admission control.
@@ -1460,7 +1510,7 @@ row names the design choice that keeps it from binding.
 
 | Resource | Demand (Mod) | Capacity (label) | Headroom | Design choice that removes the bottleneck |
 |---|---:|---:|---:|---|
-| **WAN backhaul, cell → state** (2,500-camera cell) | 3.83 Mbps (bulk 2.57 compressed + plates, health 1.27) | 20 Mbps = 50 Mbps link − 30 Mbps viewing budget (A/D) | **5.2×** | Batch-compressed metadata lane (8.0× measured, V); video never on WAN; viewing budget admission-controlled |
+| **WAN backhaul, cell → state** (2,500-camera cell) | 3.83 Mbps (bulk 2.57 compressed + plates, health 1.27) | 20 Mbps = 50 Mbps link − 30 Mbps viewing budget (A/D) | **5.2×** | Batch-compressed metadata lane (154.0 B sample payload assumed transferable; effective 8.65× vs raw base); video never on WAN; viewing budget admission-controlled |
 | Same, if metadata were sent uncompressed over the 20 Mbps district link this HLD used to provision | 23.46 Mbps | 20 Mbps (A, earlier §20.4) | **0.85× — would bind** | Therefore compression is mandatory in the design, not an optimisation |
 | **Site uplinks** (site → cell) | n_site × 1.0 Mbps sub-stream (A) | site uplink (surveyed) | **≥ 1.5× by rule** | Pull only if the link carries it at 1.5×; else an edge box analyses on site. The bottleneck becomes compute. |
 | Cell ingest LAN | 3.0 Gbps (2,000 sub-streams × 1 Mbps + 500 ANPR-grade main streams × 2 Mbps) | 50 Gbps (2 × 25 GbE, D) | 16.7× | Sub-stream for T0/T1; main stream only on ANPR-grade cameras |
@@ -1473,7 +1523,7 @@ row names the design choice that keeps it from binding.
 | **DB storage, cell hot 30 d** | 14.4 TB (2× wire row, A); 4.2 TB on the measured SQLite on-disk size (V) | 32 TB NVMe per copy (D) | 2.2× | Day partitions; hot window is a setting; older days detach to the lake and stay queryable |
 | **Object storage, lake 3 y** | 971 TB (pess), 292 TB (mean rate) | 1.5 PB usable (D) | 1.5× / 5.1× | Bought per retention year; grows with years retained, not with frames |
 | **Object storage request rate** | 334 PUT/s (40 cells × 1 batch/min + 333 evidence stills/s in an alert storm) | 4,000 PUT/s = 4 gateways × 1,000 (A) | 12× | ≥ 1-minute micro-batches keep object count low |
-| **Spatial queries** | viewport on 80,000 cameras | 1.3 ms p50 (M) vs 100 ms SLO | 77× | Camera count is fixed by the estate; server-side clustering, max 1,500 features (M `var/reports/final/model1/gis_80k.json`) |
+| **Spatial queries** | Largest measured viewport: zoom 11, 1,665 features from 80,000 synthetic camera rows | 426.2 ms (M) vs 100 ms target | **0.23× — target missed** | `reports/SCALE_80K_LOAD_TEST.md`; separate map-layer run 217.54 ms (`var/reports/final/model1/gis_80k.json`), also above target. The 1.3 ms PostGIS result is only a 0.1° bounding box averaging 81 cameras (`var/reports/gis_postgis.json`). |
 | **Media gateway sessions** per cell | 200 cameras viewed at once (A) | 450 = 3 nodes × 150 copy sessions (A; not measured) | 2.25× | One upstream session per camera shared by AI and all viewers (built); set by viewers, not analysed cameras |
 | **Remote viewing** (state + investigators) | 650 Mbps (1,000 preview × 0.5 + 100 full × 1.5) | 2 Gbps state ingress (A) | 3.1× | Regional SFU pulls once per camera; per-role tile budgets |
 | **TURN** | 100 Mbps (200 relayed tiles) | 6 Gbps (6 regions × 2 coturn × 0.5 Gbps, A) | 60× | Police-network clients connect directly |
@@ -1509,14 +1559,17 @@ row names the design choice that keeps it from binding.
 
 **Conclusion — what binds first.**
 
-1. **Inference compute binds first, by construction.** GPUs are bought to demand with
+1. **Inference compute binds first in the provisioning model.** GPUs are bought to demand with
    N+2 spares per cell, so at planning load their headroom is only the spares (~1.03×).
-   Every other camera-driven resource keeps ≥ 5× headroom on throughput and ≥ 2.2× on
-   hot storage at 100% analysed.
-2. **The first non-compute resource to bind, if analysed cameras kept growing, is
-   storage.** The 3-year lake (1.5×) binds first, then cell hot NVMe (2.2×). Both are
+   At 2,500 cameras × 3,000 observations/hour, the modelled cell WAN and DB
+   have 5.2× and 6.8× headroom, conditional on 154.0 B compressed rows; hot
+   storage has 2.2×. At the 4,000 observations/s cap, DB has 3.5× (1.8× at
+   half the measured rate), WAN 3.2× and hot storage 1.16×
+   (`reports/capacity_model.json:hostile`). The measured viewport misses its
+   target, so no universal ≥ 5× claim is made.
+2. **Within the modelled ingestion/storage resources, storage binds next.** The 3-year lake (1.5×) binds first, then cell hot NVMe (2.2×). Both are
    bought per TB and are policy-elastic (retention days).
-3. **Among throughput resources the lowest headroom is not camera-driven.** API (2.5×)
+3. **Viewer/user resources have separate limits.** API (2.5×)
    and media gateway sessions (2.25×) are driven by people and have their own
    admission control.
 4. **What cannot be claimed.** The capacities of Kafka, JetStream, gateway sessions,

@@ -465,3 +465,9 @@ def test_full_capture_starts_at_gate_and_pauses_for_submission(tmp_path, monkeyp
     index = events.index('gate submitted')
     assert events[index - 1] == 'paused' and events[index + 1] == 'resumed'
     assert 'officer-placeholder' not in (tmp_path / 'beats.json').read_text()
+
+
+def test_replay_focus_starts_on_the_designated_cameras_recording():
+    assert gov.focus_order(['GOVREC-cam12', 'GOVREC-cam06', 'GOVREC-cam01'])[0] == 'GOVREC-cam06'
+    assert gov.focus_order(['cam12', 'cam06'])[0] == 'cam06'
+    assert gov.focus_order(['GOVREC-cam12']) == ['GOVREC-cam12']

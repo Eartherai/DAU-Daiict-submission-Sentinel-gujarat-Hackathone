@@ -212,3 +212,15 @@ assert.equal(recordingFrameIndex(t, .16), 3);
 assert.equal(recordingFrameIndex(t, .04), 1);
 '''
     subprocess.run(["node", "-e", script], check=True)
+
+
+def test_wall_shows_a_recording_once_its_first_frame_loads():
+    """The wall keeps tile videos transparent until data-ready="1" (a WHEP track
+    starts 2x2). The recording player must set it, or boxes draw over black."""
+    app = (ROOT / "ui/app.js").read_text(encoding="utf-8")
+    css = (ROOT / "ui/style.css").read_text(encoding="utf-8")
+    assert '.live-tile .frame video:not([data-ready="1"]) { opacity: 0; }' in css
+    player = app[app.index("async function paintGovernmentRecording"):]
+    player = player[:player.index("\nfunction drawOwnFrame")]
+    assert 'video.addEventListener("loadeddata", () => { video.dataset.ready = "1"; }' in player
+    assert player.index('addEventListener("loadeddata"') < player.index("video.src = media.url")

@@ -158,9 +158,13 @@ def dry_run_rows(sample_csv: str, rows: int = 7, namespace: str = '') -> str:
 
 
 def focus_order(live_ids: list[str], preferred: str = "cam06") -> list[str]:
-    """Focus candidates: the designated vehicle's camera first, if advancing."""
+    """Focus candidates: the designated vehicle's camera first, if advancing.
+
+    On the recorded wall that camera is its replay row, GOVREC-<camera>.
+    """
     ids = list(dict.fromkeys(live_ids))
-    return ([preferred] if preferred in ids else []) + [c for c in ids if c != preferred]
+    first = [c for c in ids if c in (preferred, f"GOVREC-{preferred}")][:1]
+    return first + [c for c in ids if c not in first]
 
 
 def hold_stalled(history: list[bool], tolerance: int = STALL_SAMPLES) -> bool:
@@ -1037,11 +1041,21 @@ def build_full(page, plate: str, admin_token: str = '', officer_token: str = '',
             raise SkipBeat('Gemini is not configured')
         view('copilot', '#chat-input')
         page.fill('#chat-input', 'Which government cameras have measured ANPR capability, and what are its limitations?')
-        with page.expect_response(lambda r: '/copilot/ask' in r.url, timeout=120000) as pending:
-            page.press('#chat-input', 'Enter')
-        if pending.value.status != 200 or not pending.value.json().get('grounded'):
+        # The coordinator makes several model calls in turn: 17-108 s measured.
+        # Capture is paused meanwhile; an answer that never comes is a named skip.
+        try:
+            with page.expect_response(lambda r: '/copilot/ask' in r.url, timeout=240000) as pending:
+                page.press('#chat-input', 'Enter')
+            answer = pending.value.json() if pending.value.status == 200 else {}
+        except Exception as exc:
+            if 'Timeout' not in type(exc).__name__:
+                raise
+            raise SkipBeat('Gemini did not answer within 240 s') from None
+        if not answer.get('grounded'):
             raise SkipBeat('copilot did not return a grounded answer')
-        page.wait_for_selector('#chat-log .msg.bot:not(.dim) .md', timeout=90000)
+        if not str(answer.get('answer') or '').strip():
+            raise SkipBeat('copilot returned no prose to show')
+        page.wait_for_selector('#chat-log .msg.bot:not(.dim) .md', state='attached', timeout=30000)
         page.locator('#chat-log .msg.bot .md').last.scroll_into_view_if_needed()
 
     def manual():

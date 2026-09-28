@@ -7060,6 +7060,10 @@ async function paintGovernmentRecording(cam, host) {
     playsinline: true, preload: "auto", "aria-label": `${cam.camera_id} recorded footage` });
   video.muted = true;
   Object.assign(video.style, { width: "100%", height: "100%", objectFit: "contain" });
+  // The wall keeps a tile's <video> transparent until data-ready="1", because
+  // a WHEP track starts as a 2x2 placeholder. A file has a real frame once its
+  // data loads; without this the wall drew the boxes over a black tile.
+  video.addEventListener("loadeddata", () => { video.dataset.ready = "1"; }, { once: true });
   video.src = media.url;
   const canvas = el("canvas", { class: "live-overlay", "aria-hidden": "true" });
   const caption = el("div", { class: "intel-caption" });

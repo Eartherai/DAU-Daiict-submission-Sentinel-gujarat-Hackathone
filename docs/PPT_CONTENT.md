@@ -12,7 +12,7 @@ slide-by-slide script and its obsolete film names. It is no longer input for
 | Government designated vehicle | `GJ11S7924`, cam06 only, SINGLE-CAMERA evidence (`reports/SUBMISSION_EVIDENCE_SNAPSHOT.md`). |
 | Own-feed route | `GJ18JX7786`, C-014 then C-021: CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION (same snapshot report). |
 | Watchlist | `GJ38BH5815` is evaluation_designated, HIGH, not stolen (same snapshot report); correlate at ingest, acknowledge → investigate → clear with reason. |
-| Analytics | Detection, tracking, voted ANPR, person presence and restricted-zone rules; selected cameras, adaptive cadence, hardware-bounded deep inference (`HLD.md` §4). |
+| Analytics | Detection, tracking, voted ANPR, person presence and restricted-zone rules; selected cameras, fixed-interval sampling in the live worker (the adaptive scheduler is built and tested, not yet wired into it), hardware-bounded deep inference (`HLD.md` §4). |
 | Payload and scale | ~400 B MODELLED optimised payload; 1,331.7 B MEASURED serialised row (`var/reports/bandwidth.json`). Sizing uses the measured row. MODELLED gated daily volumes: 92.16–184.32 GB vs 306.82–613.65 GB (`SCALE_MODEL.md`). |
 | Load | Local streams: 50 initially, 44 streaming / 6 down at end, no recovery, 0 decoder errors (`var/reports/camera_load.json`). Synthetic registry/GIS load is separate (`reports/SCALE_80K_LOAD_TEST.md`). |
 | GPU | Equal observation counts, no plates on either device in the historical pipeline sample (`var/reports/pipeline_device.json`); target GPU pools MODELLED/SIZED. |

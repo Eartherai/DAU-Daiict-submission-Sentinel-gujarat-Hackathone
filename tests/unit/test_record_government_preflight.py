@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/demo'))
-import record_government_feed as gov
 import hq_screencast as hq
+import record_government_feed as gov
 
 
 @pytest.fixture(autouse=True)
@@ -252,7 +252,7 @@ def test_failed_or_preflight_only_run_never_captures(tmp_path, monkeypatch, pass
     module = ModuleType('playwright.sync_api')
     module.sync_playwright = Playwright
     monkeypatch.setitem(sys.modules, 'playwright.sync_api', module)
-    monkeypatch.setattr(gov, 'preflight', lambda *a: {
+    monkeypatch.setattr(gov, 'preflight', lambda *a, **k: {
         'passed': passed, 'gates': {'VIDEO_ADVANCING': {'passed': passed}}})
     monkeypatch.setattr(gov, 'fetch_report', lambda *a: pytest.fail('preflight-only must not fetch report'))
     monkeypatch.setattr(gov, 'Screencast', lambda *a, **k: pytest.fail('must not start recording'))
@@ -488,7 +488,7 @@ def test_opening_recheck_aborts_capture_if_wall_freezes(tmp_path, monkeypatch):
     module = ModuleType('playwright.sync_api')
     module.sync_playwright = Playwright
     monkeypatch.setitem(sys.modules, 'playwright.sync_api', module)
-    monkeypatch.setattr(gov, 'preflight', lambda *a: {'passed': True, 'government_ids': ['cam06']})
+    monkeypatch.setattr(gov, 'preflight', lambda *a, **k: {'passed': True, 'government_ids': ['cam06']})
     monkeypatch.setattr(gov, 'fetch_report', lambda *a: {'ok': True})
     monkeypatch.setattr(gov, 'wall_ids', lambda *a: ['cam06'])
     monkeypatch.setattr(gov, 'sample_video', lambda *a: gov.evaluate_tiles(
@@ -499,3 +499,32 @@ def test_opening_recheck_aborts_capture_if_wall_freezes(tmp_path, monkeypatch):
                    admin_token='admin-placeholder', voice=None)
     assert not json.loads((tmp_path / 'opening.json').read_text())['passed']
     assert calls == ['closed']
+
+
+def _opening(layout):
+    return gov.opening_beats(object(), layout, lambda fraction: (lambda: None))
+
+
+def test_dense_opening_is_the_control_room_wall():
+    beats = _opening("dense")
+    assert beats[0].title == "Government live viewing — CONTROL ROOM"
+    assert [b.title for b in beats[1:]] == [
+        "Government wall — top", "Government wall — middle", "Government wall — bottom"]
+    assert all(b.wall for b in beats)
+
+
+def test_grid_opening_still_shows_all_thirty_in_the_control_room():
+    """A sandbox that cannot stream thirty at once opens on the optimized view,
+    but the control room with every camera still appears, measured, not skipped."""
+    beats = _opening("grid")
+    assert beats[0].title == "Government live viewing — OPTIMIZED VIEW"
+    assert "twelve" in beats[0].say
+    assert beats[-1].title == "All thirty government cameras — CONTROL ROOM"
+    assert beats[-1].wall and not beats[-1].optional
+    assert "measured now" in beats[-1].say
+    assert len(beats) == 5
+
+
+def test_each_opening_layout_names_its_media_policy():
+    assert gov.OPENING_POLICY == {"dense": "control-room", "grid": "optimized"}
+    assert gov.GRID_SESSION_BUDGET == 12

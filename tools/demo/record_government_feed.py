@@ -22,12 +22,12 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hq_screencast import Screencast  # noqa: E402
+from hq_screencast import Screencast
 
 VIEW_W, VIEW_H = 2560, 1440
 ROOT = Path(__file__).resolve().parents[2]
@@ -282,7 +282,54 @@ def scroll_wall(page, fraction: float) -> None:
     page.wait_for_timeout(1600)  # Deliberate visible scroll motion.
 
 
-def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: float) -> dict:
+#: The two wall layouts the film can open on, and the media policy each shows.
+#: Dense is the 6x5 CONTROL ROOM (a session per tile); Grid is the scrolling
+#: OPTIMIZED VIEW (at most 12 sessions near the viewport, large tiles).
+OPENING_POLICY = {"dense": "control-room", "grid": "optimized"}
+#: OPTIMIZED VIEW never streams more than this many tiles at once.
+GRID_SESSION_BUDGET = 12
+
+
+def opening_beats(page, layout: str, wall_group: Callable[[float], Callable]) -> list[Beat]:
+    """The wall beats, opening on the layout the preflight measured.
+
+    Dense opens on the 6x5 CONTROL ROOM, which needs a session per tile. When
+    the shared sandbox cannot deliver that many at once (organisers: fan-in
+    varies with overall load), the film opens on the OPTIMIZED VIEW instead:
+    large tiles, at most 12 sessions near the viewport. The CONTROL ROOM still
+    appears afterwards with all thirty cameras and the live count measured at
+    that moment, so the film never claims more simultaneous video than it had.
+    """
+    groups = [Beat(f'Government wall — {name}', 14, wall_group(fraction),
+                   'The scrolling view uses the optimized media policy. Watch the moving footage; '
+                   'cached previews are not counted as live.',
+                   wall=True, motion=lambda fraction=fraction: scroll_wall(page, fraction))
+              for name, fraction in [('top', 0.0), ('middle', 0.5), ('bottom', 1.0)]]
+    if layout == "dense":
+        return [Beat('Government live viewing — CONTROL ROOM', 20,
+                     say='Government footage, measured in this recording. The control room holds a '
+                         'session per tile. Analytics coverage is separate from viewing.',
+                     wall=True), *groups]
+
+    def control_room():
+        wall_mode(page, "dense")
+        wait_view(page, "live", "#live-grid .live-tile")
+
+    return [
+        Beat('Government live viewing — OPTIMIZED VIEW', 20,
+             say='Government footage, measured in this recording. The optimized view streams the '
+                 'large tiles on screen, up to twelve at once. Analytics coverage is separate from viewing.',
+             wall=True),
+        *groups,
+        Beat('All thirty government cameras — CONTROL ROOM', 14, control_room,
+             'The control room holds a session per tile for all thirty. How many play at once is '
+             'measured now; the shared sandbox decides it, and the rest say so.',
+             wall=True),
+    ]
+
+
+def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: float,
+              layout: str = "dense") -> dict:
     started = time.monotonic()
     deadline = started + timeout
     result = {"passed": False, "min_live": min_live, "timeout_s": timeout,
@@ -325,9 +372,10 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
         page.click('button[data-view="live"]', timeout=remaining_ms())
         page.wait_for_selector('#live-grid .live-tile', timeout=remaining_ms())
         page.click('[data-live-domain="government"]', timeout=remaining_ms())
-        page.click('[data-live-layout="dense"]', timeout=remaining_ms())
-        page.wait_for_selector('#media-policy[data-policy="control-room"]', timeout=remaining_ms())
-        page.wait_for_selector('#live[data-wall="30"][data-layout="dense"] .live-tile',
+        policy = OPENING_POLICY[layout]
+        page.click(f'[data-live-layout="{layout}"]', timeout=remaining_ms())
+        page.wait_for_selector(f'#media-policy[data-policy="{policy}"]', timeout=remaining_ms())
+        page.wait_for_selector(f'#live[data-wall="30"][data-layout="{layout}"] .live-tile',
                                timeout=remaining_ms())
         warmed = False
         while time.monotonic() + 1.1 < deadline:
@@ -339,7 +387,7 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
             gate("UI_READY", ui["shell"] and not ui["loading"] and not ui["loadingText"], ui)
             gate("NO_FATAL_TOAST", ui["fatal"] == 0, {"visible_errors": ui["fatal"]})
             gate("WHEP_READY", len(ids) == 30 and sample["connected"] >= min_live,
-                 {"connected": sample["connected"], "tiles": len(ids), "policy": "control-room"})
+                 {"connected": sample["connected"], "tiles": len(ids), "policy": policy})
             gate("VIDEO_ADVANCING", sample["passed"] and sample['visible_live'] > 0, sample)
             print(f"  preflight: {sample['live']}/{len(ids)} advancing; "
                   f"{sample['connected']} connected", flush=True)
@@ -372,7 +420,8 @@ def preflight(page, base: str, token: str, out: Path, min_live: int, timeout: fl
 
 def build(page, plate: str, admin_token: str = "", officer_token: str = "",
           *, base: str = "http://127.0.0.1:8083", government: list[str] | None = None,
-          gallery: Path | None = None, csv_path: Path | None = None) -> list[Beat]:
+          gallery: Path | None = None, csv_path: Path | None = None,
+          opening_layout: str = "dense") -> list[Beat]:
     government = government or []
     selected = {"camera": None}
     gallery = gallery or ROOT / "var/demo/plate_gallery/gallery.html"
@@ -587,11 +636,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
     search_beat = Beat('Designated plate — sightings with timestamps and camera', 30, search,
                        'The officer searches under a case and stated purpose. Each returned observation names its camera and timestamp.')
     return [
-        Beat('Government live viewing — CONTROL ROOM', 20, say='Government footage, measured in this recording. The control room holds a session per tile. Analytics coverage is separate from viewing.', wall=True),
-        *[Beat(f'Government wall — {name}', 14, wall_group(fraction),
-               'The scrolling view uses the optimized media policy. Watch the moving footage; cached previews are not counted as live.',
-               wall=True, motion=lambda fraction=fraction: scroll_wall(page, fraction))
-          for name, fraction in [('top', 0.0), ('middle', 0.5), ('bottom', 1.0)]],
+        *opening_beats(page, opening_layout, wall_group),
         Beat('One advancing government camera, with its intelligence panel', 28, focus,
              'A camera with measured advancing frames, beside its intelligence panel. The panel states the available observations.', visible_motion=True),
         Beat('Analytics output on the selected government camera', 18, analytics,
@@ -709,9 +754,10 @@ def show_caption(page, title: str) -> None:
 def record(base: str, token: str, plate: str, out_dir: Path,
            admin_token: str = "", voice: str | None = "Aman", *, min_live: int = 12,
            preflight_timeout: float = 300, preflight_only: bool = False,
-           gallery: Path | None = None) -> list[Beat]:
-    from playwright.sync_api import sync_playwright
+           gallery: Path | None = None, opening_layout: str = "dense") -> list[Beat]:
     from urllib.parse import urlsplit
+
+    from playwright.sync_api import sync_playwright
 
     out_dir.mkdir(parents=True, exist_ok=True)
     save_json(out_dir / 'beats.json', [])
@@ -734,7 +780,8 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                                 'sessionStorage.setItem("saakshya.token", ' + json.dumps(token) + ');')
             page = ctx.new_page()
             page.set_default_timeout(30000)
-            ready = preflight(page, base, token, out_dir, min_live, preflight_timeout)
+            ready = preflight(page, base, token, out_dir, min_live, preflight_timeout,
+                              layout=opening_layout)
             if not ready['passed']:
                 latest = ready.get('latest', {})
                 failed = [k for k, v in ready['gates'].items() if not v['passed']]
@@ -749,7 +796,8 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                 raise SystemExit('ANPR report NOT WRITTEN; submission needs the report beside the video')
             government = ready['government_ids']
             beats = build(page, plate, admin_token, token, base=base,
-                          government=government, gallery=gallery, csv_path=csv_path)
+                          government=government, gallery=gallery, csv_path=csv_path,
+                          opening_layout=opening_layout)
             work = out_dir / 'narration'
             work.mkdir(parents=True, exist_ok=True)
             if voice:
@@ -875,11 +923,16 @@ def main() -> None:
     ap.add_argument('--min-live', type=int, default=12)
     ap.add_argument('--preflight-timeout', type=float, default=300)
     ap.add_argument('--preflight-only', action='store_true')
+    ap.add_argument('--opening-layout', choices=sorted(OPENING_POLICY), default='dense',
+                    help='wall layout the preflight measures and the film opens on')
     ap.add_argument('--gallery', type=Path, default=ROOT / 'var/demo/plate_gallery/gallery.html')
     ap.add_argument('--voice', default='Aman', help="macOS voice; 'none' records silently")
     a = ap.parse_args()
     if not 1 <= a.min_live <= 30 or a.preflight_timeout <= 0:
         ap.error('--min-live must be in 1..30 and --preflight-timeout must be positive')
+    if a.opening_layout == 'grid' and a.min_live > GRID_SESSION_BUDGET:
+        ap.error(f'--min-live cannot exceed {GRID_SESSION_BUDGET} with --opening-layout grid: '
+                 'the optimized view never streams more tiles at once')
     if not a.preflight_only and not a.admin_token_file:
         ap.error('--admin-token-file is required for the registry and RBAC beats')
     token = Path(a.token_file).read_text(encoding='ascii').strip()
@@ -890,7 +943,8 @@ def main() -> None:
     beats = record(a.base, token, a.plate, out_dir, admin_token=admin,
                    voice=None if a.voice.lower() == 'none' else a.voice,
                    min_live=a.min_live, preflight_timeout=a.preflight_timeout,
-                   preflight_only=a.preflight_only, gallery=a.gallery)
+                   preflight_only=a.preflight_only, gallery=a.gallery,
+                   opening_layout=a.opening_layout)
     if a.preflight_only:
         print(f'preflight passed: {out_dir / "preflight.json"}')
         return

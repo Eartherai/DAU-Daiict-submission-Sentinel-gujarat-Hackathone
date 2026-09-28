@@ -22,7 +22,11 @@ committed: `var/reports/direct_whep_wall4.json`,
 `var/reports/final/model1/gis_80k.json` and `var/reports/final/model4/ai_cadence.json`.
 The compressed row size was re-run for this repository on the pinned snapshot window
 (154.0 B/row). The first run gave 154.2 B; the store changed between the two runs, and
-the difference moves no headroom by more than 0.01×.
+the difference moves no headroom by more than 0.01×. Two corrections were made when
+the model moved into the repository: the state API is now priced on the 8 servers it
+is sized on (it had been priced on 6), and the cell LAN row now carries the main
+streams of ANPR-grade cameras, which §5 says run continuously (3.0 Gbps and 16.7×,
+not 2.5 Gbps and 20×).
 
 **The claim, stated so it can be attacked.** The number of cameras analysed can grow
 from zero to 80,000. Only one resource then needs procurement in proportion to that
@@ -256,8 +260,8 @@ The design:
 
 ## 8. HA / DR with RPO / RTO
 
-Targets are **ASSUMED** for procurement to confirm. They reuse HLD §20.7 where HLD set
-one.
+Targets are **ASSUMED** for procurement to confirm. Those marked (HLD) reuse the
+targets HLD §20.7 set before this design; HLD §15 now carries this whole table.
 
 | Scope | Mechanism (D) | RPO | RTO |
 |---|---|---|---|
@@ -357,9 +361,9 @@ row names the design choice that keeps it from binding.
 | Resource | Demand (Mod) | Capacity (label) | Headroom | Design choice that removes the bottleneck |
 |---|---:|---:|---:|---|
 | **WAN backhaul, cell → state** (2,500-camera cell) | 3.83 Mbps (bulk 2.57 compressed + plates, health 1.27) | 20 Mbps = 50 Mbps link − 30 Mbps viewing budget (A/D) | **5.2×** | Batch-compressed metadata lane (8.0× measured, V); video never on WAN; viewing budget admission-controlled |
-| Same, if metadata were sent uncompressed over HLD's 20 Mbps link | 23.46 Mbps | 20 Mbps (A, HLD §20.4) | **0.85× — would bind** | Therefore compression is mandatory in the design, not an optimisation |
+| Same, if metadata were sent uncompressed over the 20 Mbps link HLD §20.4 used to provision | 23.46 Mbps | 20 Mbps (A, earlier HLD §20.4) | **0.85× — would bind** | Therefore compression is mandatory in the design, not an optimisation |
 | **Site uplinks** (site → cell) | n_site × 1.0 Mbps sub-stream (A) | site uplink (surveyed) | **≥ 1.5× by rule** | Pull only if the link carries it at 1.5×; else an edge box analyses on site. The bottleneck becomes compute. |
-| Cell ingest LAN | 2.5 Gbps | 50 Gbps (2 × 25 GbE, D) | 20× | Sub-stream for T0/T1; main stream only on ANPR-grade cameras |
+| Cell ingest LAN | 3.0 Gbps (2,000 sub-streams × 1 Mbps + 500 ANPR-grade main streams × 2 Mbps) | 50 Gbps (2 × 25 GbE, D) | 16.7× | Sub-stream for T0/T1; main stream only on ANPR-grade cameras |
 | **Event bus, cell** | 2,542 msg/s | 50,000 msg/s (A, vendor-benchmark class) | 19.7× | One JetStream per cell; nothing statewide on it |
 | **Event bus, state** | 5.73 MB/s | 100 MB/s = 6 × 50 / RF 3 (A) | 17.4× | Bulk observations bypass Kafka as micro-batches to the lake |
 | Same, if all observations went through Kafka raw | 88.8 MB/s | 100 MB/s | 1.13× | Rejected alternative |
@@ -457,6 +461,10 @@ row names the design choice that keeps it from binding.
 
 ## 14. Costs — reusing and reconciling HLD §20
 
+"HLD" in this section means the HLD's sizing before this design was integrated
+(33 district nodes at 1 Hz). HLD §20.2–§20.8 now carry the figures below, and HLD
+§20.8 keeps the earlier total only as a superseded reference.
+
 This section uses HLD §20.8's **ASSUMED** unit rates unchanged: ₹30–70 lakh per 4-GPU
 server, ₹8–15 lakh per CPU server, ₹15–30 lakh per district DB server, ₹25–50 lakh per
 centre DB server, ₹0.5–1.5 lakh/TB NVMe, ₹0.1–0.3 lakh/TB HDD/object, ₹1.5–4 lakh per
@@ -466,8 +474,8 @@ edge box, and the WAN rates. Hardware only, before services and taxes (Mod,
 | Case | Compute (GPU + decode + edge boxes) | Non-compute (DB, bus, storage, network, media, racks) | Total hardware | Compute share |
 |---|---:|---:|---:|---:|
 | **Planning: ANPR-grade 20% at 5 fps** | ₹239–551 crore | ₹56–130 crore | **₹295–681 crore** | 81% |
-| Same cells, everything at 1 Hz (HLD's assumption) | ₹153–352 crore | ₹56–130 crore | ₹209–482 crore | 73% |
-| HLD §20.8 statewide (33 districts + centre, incl. services) | — | — | ₹197–443 crore | — |
+| Same cells, everything at 1 Hz (HLD's assumption) | ₹153–352 crore | ₹56–130 crore | ₹210–482 crore | 73% |
+| Earlier HLD §20.8 statewide (33 districts + centre, incl. services; superseded) | — | — | ₹197–443 crore | — |
 
 **Reconciliation with HLD.**
 
@@ -489,7 +497,9 @@ edge box, and the WAN rates. Hardware only, before services and taxes (Mod,
    - six regional hubs;
    - 1,000 edge boxes instead of 825.
 4. **Services.** Add HLD's integration services (₹30–60 lakh per cell and ₹100–200 lakh
-   at the centre): ₹13–26 crore.
+   at the centre): ₹13–26 crore. With them the planning case is ₹308–707 crore to
+   implement and ₹51–134 crore a year to operate (`reports/capacity_model.json:cost_table`,
+   HLD §20.8).
 5. **Operations per year.**
    - WAN: 40 × 70 Mbps plus a 2 Gbps state link, ₹3.1–8.6 crore/yr (HLD ≈ ₹1.2–3.3
      crore for 30 Mbps per district and 1 Gbps at the centre).

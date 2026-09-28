@@ -108,13 +108,13 @@
    "alternative": false
   },
   {
-   "resource": "Cell ingest LAN (sub-streams of 2,500 analysed cameras)",
-   "demand": 2.5,
+   "resource": "Cell ingest LAN (2,500 analysed cameras: sub-streams, main streams on ANPR-grade)",
+   "demand": 3.0,
    "capacity": 50,
    "unit": "Gbps",
-   "headroom": 20.0,
-   "formula": "2,500 x 1.0 Mbps",
-   "design_choice": "sub-stream for T0/T1, main-stream bursts only for T2 crops",
+   "headroom": 16.67,
+   "formula": "2,000 x 1.0 Mbps sub-stream + 500 ANPR-grade x 2.0 Mbps main stream",
+   "design_choice": "sub-stream for T0/T1; main stream only on ANPR-grade cameras",
    "driver": "cameras",
    "kind": "throughput",
    "alternative": false
@@ -637,6 +637,11 @@
    "label": "A",
    "source": "peak"
   },
+  "state_api_servers": {
+   "value": 8,
+   "label": "D",
+   "source": "stateless, 16 workers each"
+  },
   "api_point_query_ms": {
    "value": 10.38,
    "label": "M",
@@ -720,7 +725,7 @@
    "region_backup_object_TB": 1200,
    "state_kafka_servers": 9,
    "state_db_servers": 14,
-   "state_app_trino_monitoring": 13,
+   "state_app_trino_monitoring": 15,
    "state_object_store_TB": 3000,
    "state_nvme_TB": 120,
    "evidence_worm_TB": 100
@@ -739,7 +744,7 @@
    "region_backup_object_TB": 1200,
    "state_kafka_servers": 9,
    "state_db_servers": 14,
-   "state_app_trino_monitoring": 13,
+   "state_app_trino_monitoring": 15,
    "state_object_store_TB": 3000,
    "state_nvme_TB": 120,
    "evidence_worm_TB": 100
@@ -758,7 +763,7 @@
    "region_backup_object_TB": 1200,
    "state_kafka_servers": 9,
    "state_db_servers": 14,
-   "state_app_trino_monitoring": 13,
+   "state_app_trino_monitoring": 15,
    "state_object_store_TB": 3000,
    "state_nvme_TB": 120,
    "evidence_worm_TB": 100
@@ -777,7 +782,7 @@
    "region_backup_object_TB": 1200,
    "state_kafka_servers": 9,
    "state_db_servers": 14,
-   "state_app_trino_monitoring": 13,
+   "state_app_trino_monitoring": 15,
    "state_object_store_TB": 3000,
    "state_nvme_TB": 120,
    "evidence_worm_TB": 100
@@ -789,16 +794,16 @@
    55105.0
   ],
   "noncompute_lakh": [
-   5600.0,
-   13010.0
+   5616.0,
+   13040.0
   ],
   "compute_share": [
    0.81,
    0.81
   ],
   "total_crore": [
-   294.94,
-   681.15
+   295.1,
+   681.45
   ],
   "items": {
    "inference_servers": [
@@ -854,8 +859,8 @@
     700
    ],
    "state_app_trino_monitoring": [
-    104,
-    195
+    120,
+    225
    ],
    "state_object_store_TB": [
     300.0,
@@ -877,16 +882,16 @@
    35155.0
   ],
   "noncompute_lakh": [
-   5600.0,
-   13010.0
+   5616.0,
+   13040.0
   ],
   "compute_share": [
    0.73,
    0.73
   ],
   "total_crore": [
-   209.44,
-   481.65
+   209.6,
+   481.95
   ],
   "items": {
    "inference_servers": [
@@ -942,8 +947,8 @@
     700
    ],
    "state_app_trino_monitoring": [
-    104,
-    195
+    120,
+    225
    ],
    "state_object_store_TB": [
     300.0,
@@ -963,6 +968,102 @@
   307.2,
   864.0
  ],
+ "cost_table": {
+  "one_full_cell_2500": {
+   "items": {
+    "inference_servers": 21,
+    "decode_servers": 10,
+    "edge_boxes": 25,
+    "compute_ram_TB": 0.25,
+    "cell_db_servers": 2,
+    "cell_app_bus_servers": 3,
+    "cell_hot_nvme_TB": 64,
+    "cell_network_set": 1,
+    "cell_rack": 1
+   },
+   "hardware_lakh": [
+    858.5,
+    1976.0
+   ],
+   "services_lakh": [
+    30,
+    60
+   ],
+   "implementation_crore": [
+    8.88,
+    20.36
+   ],
+   "operations_crore_per_year": [
+    1.42,
+    3.7
+   ]
+  },
+  "regions_state_dr": {
+   "items": {
+    "region_sfu_turn_servers": 18,
+    "region_backup_object_TB": 1200,
+    "state_kafka_servers": 9,
+    "state_db_servers": 14,
+    "state_app_trino_monitoring": 15,
+    "state_object_store_TB": 3000,
+    "state_nvme_TB": 120,
+    "evidence_worm_TB": 100
+   },
+   "hardware_lakh": [
+    1176.0,
+    2800.0
+   ],
+   "services_lakh": [
+    100,
+    200
+   ],
+   "implementation_crore": [
+    12.76,
+    30.0
+   ],
+   "operations_crore_per_year": [
+    3.14,
+    8.34
+   ]
+  },
+  "statewide_planning": {
+   "hardware_lakh": [
+    29510.0,
+    68145.0
+   ],
+   "services_lakh": [
+    1300,
+    2600
+   ],
+   "implementation_crore": [
+    308.1,
+    707.45
+   ],
+   "operations_crore_per_year": [
+    51.19,
+    133.69
+   ]
+  },
+  "statewide_1hz": {
+   "hardware_lakh": [
+    20960.0,
+    48195.0
+   ],
+   "services_lakh": [
+    1300,
+    2600
+   ],
+   "implementation_crore": [
+    222.6,
+    507.95
+   ],
+   "operations_crore_per_year": [
+    38.65,
+    101.2
+   ]
+  },
+  "gpu_servers_saved_at_S20": 321
+ },
  "hostile": {
   "a_compression_only_4x": {
    "cell_wan_mbps": 6.82,

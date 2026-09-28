@@ -79,5 +79,5 @@ def test_committed_output_matches_the_model(model) -> None:
     """reports/capacity_model.json is what the documents quote; it must not drift."""
     committed = json.loads((ROOT / "reports/capacity_model.json").read_text())
     fresh = json.loads(json.dumps(model.R, default=list))
-    for key in ("compute", "wan_cell", "storage", "rates", "sweep", "cost_planning", "hostile"):
+    for key in ("compute", "wan_cell", "storage", "rates", "sweep", "cost_planning", "cost_table", "hostile"):
         assert committed[key] == fresh[key], f"reports/capacity_model.json is stale at {key!r}"

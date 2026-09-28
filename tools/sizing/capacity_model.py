@@ -118,6 +118,8 @@ WATCHLIST_W = inp("watchlist_entries", 1_000_000, "A", "pessimistic statewide li
 ALERT_MATCH_FRAC = inp("alert_storm_match_fraction", 0.05, "A", "5% of plate reads match (e.g. a bad bulk list import)")
 USERS = inp("concurrent_users", 5000, "A", "officers statewide")
 USER_RPS = inp("requests_per_user_s", 1.0, "A", "peak")
+API_SERVERS = inp("state_api_servers", 8, "D", "stateless, 16 workers each")
+API_WORKERS = API_SERVERS * 16
 API_P50_MS = inp("api_point_query_ms", PLATE_SEARCH_MS, "M",
                  "var/reports/store_engines.json PostgreSQL plate search p50, used as the per-request cost")
 T_OUT_H = inp("outage_hours", 24, "D", "catch-up scenario")
@@ -212,8 +214,10 @@ site_rule = 1.5
 row("Site uplink (camera site -> cell), by design rule", 1.0, site_rule, "x (ratio)",
     "pull to cell only if n_site x 1.0 Mbps x 1.5 <= site uplink; otherwise an edge box analyses on site",
     "placement rule converts any would-be link bottleneck into edge compute")
-row("Cell ingest LAN (sub-streams of 2,500 analysed cameras)", CELL_MAX * B_SUB / 1000, CELL_LAN_GBPS, "Gbps",
-    "2,500 x 1.0 Mbps", "sub-stream for T0/T1, main-stream bursts only for T2 crops")
+row("Cell ingest LAN (2,500 analysed cameras: sub-streams, main streams on ANPR-grade)",
+    CELL_MAX * ((1 - ANPR_FRAC) * B_SUB + ANPR_FRAC * B_MAIN) / 1000, CELL_LAN_GBPS, "Gbps",
+    "2,000 x 1.0 Mbps sub-stream + 500 ANPR-grade x 2.0 Mbps main stream",
+    "sub-stream for T0/T1; main stream only on ANPR-grade cameras")
 
 row("Cell event bus (NATS JetStream R3)", cell_obs_p + plates_cell_p + health_cell, NATS_MSGPS, "msg/s",
     "2,083 obs/s + 208 plates/s + 250 health/s", "one JetStream cluster per cell; subjects obs.<cell>.<camera>")
@@ -268,7 +272,7 @@ row("TURN relay (remote/mobile only)", 200 * 0.5, 2 * 6 * 1000 * 0.5, "Mbps",
 
 api_rps = USERS * USER_RPS
 worker_rps = 1000 / API_P50_MS
-row("API request rate (all users at the state API, pessimistic)", api_rps, 128 * worker_rps, "req/s",
+row("API request rate (all users at the state API, pessimistic)", api_rps, API_WORKERS * worker_rps, "req/s",
     "5,000 users x 1 req/s; capacity 8 servers x 16 workers x (1000/10.38 ms)", "stateless; district users served by their cell API; heavy aggregates served from rollups")
 rows.append({"resource": "Search: plate lookup fan-out", "demand": 1, "capacity": None, "unit": "shard per query",
              "headroom": None, "formula": "plate -> one hash shard; no scatter", "design_choice": "key choice removes fan-out"})
@@ -395,7 +399,7 @@ def provision(n_analysed, anpr=True):
         "region_backup_object_TB": 6 * 200,
         "state_kafka_servers": KAFKA_BROKERS + 3,
         "state_db_servers": 2 * PLATE_SHARDS + 2 + PLATE_SHARDS,
-        "state_app_trino_monitoring": 6 + 4 + 3,
+        "state_app_trino_monitoring": API_SERVERS + 4 + 3,  # API, Trino, monitoring
         "state_object_store_TB": 1500 + 1500,
         "state_nvme_TB": 120,
         "evidence_worm_TB": 100,
@@ -417,6 +421,55 @@ R["cost_planning"] = cost(provision(C))
 R["cost_hld_1hz"] = cost(provision(C, anpr=False))
 wan_opex = rng(N_CELLS * 70 * 12, 700 / 1e5, 2000 / 1e5)
 R["wan_opex_lakh_per_year"] = (H(wan_opex[0] + 2000 * 12 * 300 / 1e5), H(wan_opex[1] + 2000 * 12 * 800 / 1e5))
+
+# ---------------------------------------------------------------- §14 / HLD §20.8 totals table
+# Every rate is HLD §20.8's (ASSUMED). Services: HLD's integration services per
+# cell and at the centre. Operations: AMC 8-12% of hardware, power per server-year,
+# WAN, engineers and support contracts at HLD's rates.
+CELL_ITEMS = ("cell_db_servers", "cell_app_bus_servers", "cell_hot_nvme_TB", "cell_network_set", "cell_rack")
+GPU_POWER, CPU_POWER = (2, 3), (0.5, 1)
+SERVICES_CELL, SERVICES_STATE = (30, 60), (100, 200)
+ENGINEER_CELL, ENGINEER_STATE = (8, 15), (10, 20)
+SUPPORT_CELL, SUPPORT_STATE = (2, 8), (20, 50)
+CELL_WAN_MBPS, STATE_WAN_MBPS = 70, 2000
+CPU_SERVER_ITEMS = ("decode_servers", "cell_db_servers", "cell_app_bus_servers", "region_sfu_turn_servers",
+                    "state_kafka_servers", "state_db_servers", "state_app_trino_monitoring")
+
+
+def _sum(pairs):
+    return (sum(p[0] for p in pairs), sum(p[1] for p in pairs))
+
+
+def scope_cost(items, cells, state):
+    hw = _sum([rng(q, *UNIT_RATES_LAKH[k]) for k, q in items.items()])
+    services = _sum([rng(cells, *SERVICES_CELL)] + ([SERVICES_STATE] if state else []))
+    cpu = sum(q for k, q in items.items() if k in CPU_SERVER_ITEMS)
+    wan = rng(cells * CELL_WAN_MBPS * 12, 700 / 1e5, 2000 / 1e5)
+    if state:
+        wan = (wan[0] + STATE_WAN_MBPS * 12 * 300 / 1e5, wan[1] + STATE_WAN_MBPS * 12 * 800 / 1e5)
+    opex = _sum([(hw[0] * 0.08, hw[1] * 0.12),
+                 rng(items.get("inference_servers", 0), *GPU_POWER), rng(cpu, *CPU_POWER), wan,
+                 rng(2 * cells, *ENGINEER_CELL), rng(cells, *SUPPORT_CELL)]
+                + ([rng(10, *ENGINEER_STATE), SUPPORT_STATE] if state else []))
+    return {"hardware_lakh": (H(hw[0]), H(hw[1])), "services_lakh": services,
+            "implementation_crore": (H((hw[0] + services[0]) / 100), H((hw[1] + services[1]) / 100)),
+            "operations_crore_per_year": (H(opex[0] / 100), H(opex[1] / 100))}
+
+
+_full = provision(C)
+_cell = {k: q for k, q in provision(CELL_MAX).items() if k in COMPUTE_ITEMS}
+_cell["inference_servers"] = math.ceil(R["compute"]["per_cell_gpus"] / 4)
+_cell["edge_boxes"] = 25
+_cell.update({k: _full[k] // N_CELLS for k in CELL_ITEMS})
+_state = {k: q for k, q in _full.items() if k not in COMPUTE_ITEMS and k not in CELL_ITEMS}
+R["cost_table"] = {
+    "one_full_cell_2500": {"items": _cell, **scope_cost(_cell, 1, False)},
+    "regions_state_dr": {"items": _state, **scope_cost(_state, 0, True)},
+    "statewide_planning": scope_cost(_full, N_CELLS, True),
+    "statewide_1hz": scope_cost(provision(C, anpr=False), N_CELLS, True),
+    "gpu_servers_saved_at_S20": _full["inference_servers"] - math.ceil(
+        (math.ceil(fps_demand(C) / (PIPE_FPS_CPU * 20)) + 2 * N_CELLS) / 4),
+}
 
 
 # ---------------------------------------------------------------- Step 4: hostile recomputation
@@ -448,7 +501,7 @@ def hostile():
         "kafka_MBps": H(bus), "kafka_headroom": H(kafka_cap / bus),
         "plate_index_hot_90d_TB": H(pl * 90 * 86400 * PLATE_ROW_B * 2 / 1e12),
         "gpus_if_those_cameras_run_5fps": math.ceil((C * 0.5 * F_BASE + C * 0.5 * F_ANPR) / GPU_FPS)}
-    out["f_api_10k_users_2rps"] = {"headroom_128_workers": H(128 * worker_rps / 20000),
+    out["f_api_10k_users_2rps"] = {"headroom_128_workers": H(API_WORKERS * worker_rps / 20000),
                                    "workers_for_2x": math.ceil(2 * 20000 / worker_rps)}
     out["g_5000_remote_preview_tiles"] = {"mbps": 5000 * 0.5, "headroom_vs_2000": H(2000 / 2500),
                                           "thumb_1hz_15KB_mbps": H(5000 * 15e3 * 8 / 1e6)}

@@ -49,6 +49,27 @@ SHOTS = ROOT / "var/demo/ui_shots_final"
 DETECT = ROOT / "var/demo/detect_stills"
 DIAG = ROOT / "var/demo/diagrams"
 
+SYNTHETIC_ROUTE = (
+    "SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage"
+)
+# Capture dates verified against the supplied assets and film take. Keep these
+# explicit: filesystem mtimes change when historical images are copied.
+SHOT_DATES = {
+    "gov_live_grid.png": "28 Sep 2026",
+    "gov_live_dense_2026-09-28.png": "28 Sep 2026",
+    "own_intel.png": "24 Sep 2026",
+    "own_find.png": "24 Sep 2026",
+    "gov_find_lookalike.jpg": "15 Sep 2026",
+    "gov_alerts_film.jpg": "24 Sep 2026",
+    "own_alerts.png": "24 Sep 2026",
+    "own_trace_report.png": "24 Sep 2026",
+    "own_evidence.png": "24 Sep 2026",
+    "gov_cameras_film.jpg": "28 Sep 2026",
+    "gov_map_film.jpg": "28 Sep 2026",
+    "gov_copilot_refuse.jpg": "15 Sep 2026",
+    "gov_copilot_timebase.jpg": "15 Sep 2026",
+}
+
 
 def _open(path: Path) -> Image.Image:
     if not path.exists():
@@ -149,8 +170,9 @@ def shot_page(path: Path, kicker_s: str, heading: str, caption: str, page: str) 
     rail(img, d, kicker_s.split()[0] if kicker_s else "WORKSPACE", page)
     kicker(d, kicker_s, y=28)
     ty = title(d, heading, y=48, size=32)
-    paste_c(img, _open(path), (ML - 8, ty + 6, W - 36, H - 104))
-    footer(d, caption + f" Source: var/demo/ui_shots_final/{path.name}", y=H - 76)
+    paste_c(img, _open(path), (ML - 8, ty + 6, W - 36, H - 146))
+    dated = f"Historical capture: {SHOT_DATES[path.name]}. "
+    footer(d, dated + caption + f" Source: var/demo/ui_shots_final/{path.name}", y=H - 120)
     return img
 
 
@@ -273,8 +295,8 @@ def cover() -> Image.Image:
     kpis = [
         ("30", "GOVERNMENT", "VERIFIED BASELINE"),
         ("2", "OWN FEED", "DEMO"),
-        ("18", "SYNTHETIC CONTROL", "DEMO"),
-        ("50", "EVALUATION BASELINE", "VERIFIED"),
+        ("18", "CONTROL SLOTS", "REGISTRY ONLY · NO VIDEO"),
+        ("50", "REGISTRY BASELINE", "32 VIDEO SOURCES + 18 SLOTS"),
     ]
     x = ML
     for num, lab, tag in kpis:
@@ -282,14 +304,16 @@ def cover() -> Image.Image:
         _text(d, (x, 638), lab, SANS(13), (168, 172, 178), spacing=2.2)
         d.text((x, 662), tag, font=SANS(13), fill=GOLD)
         x += 420
+    d.text((ML, 742), "30 government + 2 own feeds with video; 18 control slots are registry rows without video.",
+           font=SANS(25), fill=WHITE)
     footer(d,
-           "Source: src/saakshya/command/domain.py::enforce_evaluation_50. Additional operator-onboarded cameras are retained. Screenshots are dated captures, not current totals.",
+           "Source: src/saakshya/command/domain.py::enforce_evaluation_50; var/live.db cameras (28 Sep 2026). Additional operator-onboarded cameras are retained. Screenshots are dated captures, not current totals.",
            dark=True)
     return img
 
 
 def framing() -> Image.Image:
-    img, d = canvas(True, tags=('MEASURED', 'DEMO'))
+    img, d = canvas(True, tags=('VERIFIED', 'DEMO'))
     rail(img, d, "FRAMING", "02", dark=True)
     kicker(d, "The constraint that shapes everything", dark=True, y=64)
     ty = title(d, "“Participants will be provided with a designated vehicle registration number.”",
@@ -312,11 +336,12 @@ def framing() -> Image.Image:
     _text(d, (W - MR - 492, card_t + 24), "WHAT WE REHEARSED", SANS(13), GOLD, spacing=2.6)
     d.text((W - MR - 492, card_t + 60), "Government grid", font=SANS_B(22), fill=WHITE)
     d.text((W - MR - 492, card_t + 92), "GJ11S7924  ·  cam06 only", font=MONO(20), fill=GOLD)
-    d.text((W - MR - 492, card_t + 148), "Controlled own-feed demonstration", font=SANS_B(22), fill=WHITE)
+    d.text((W - MR - 492, card_t + 148), "Synthetic rendered test corpus", font=SANS_B(22), fill=WHITE)
     d.text((W - MR - 492, card_t + 180), "GJ18JX7786  ·  C-014 → C-021", font=MONO(20), fill=GOLD)
-    d.text((W - MR - 492, card_t + 232), "A looping single camera is not a route.", font=SANS(16), fill=(168, 172, 178))
+    d.text((W - MR - 492, card_t + 232), "Team stand-in; no real multi-camera evidence.", font=SANS(16), fill=(168, 172, 178))
     footer(d,
-           "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html. Government: single-camera observation. Own feed: controlled multi-camera demonstration.",
+           "Sources: var/live.db; var/demo.db; tools/sandbox/make_media.py. GJ11S7924 is a team-chosen stand-in. "
+           + SYNTHETIC_ROUTE + ". Pre-28 Sep 11:15 IST stills may show another vehicle; a hash verifies bytes only.",
            dark=True)
     return img
 
@@ -330,7 +355,7 @@ def problem() -> Image.Image:
     intro = SANS(22)
     y = ty + 36
     for line in wrap(d,
-            "A heterogeneous camera estate installed by Home, Health, GSRTC, Panchayat and Municipal bodies for local supervision. Cameras differ in geometry, light and connectivity; plate-reading capability has to be measured.",
+            "26 departments; the sandbox samples five: Home/Police, Health, GSRTC, Panchayat and Municipal bodies. Cameras differ in geometry, light and connectivity; plate-reading capability has to be measured.",
             intro, W - ML - MR):
         d.text((ML, y), line, font=intro, fill=INK)
         y += 32
@@ -353,7 +378,7 @@ def problem() -> Image.Image:
         for line in wrap(d, body, SANS(18), cw - 48):
             d.text((x + 24, yy), line, font=SANS(18), fill=MUTED)
             yy += 26
-    footer(d, "MODELLED arithmetic: docs/HLD.md §1 and §20.9; assumes 2 Mbps per camera and 30-day central video retention.")
+    footer(d, "Sources: organiser FAQ Q1/Q3/Q39; MODELLED arithmetic: docs/HLD.md §1 and §20.9; assumes 2 Mbps per camera and 30-day central video retention.")
     return img
 
 
@@ -371,7 +396,7 @@ def hybrid() -> Image.Image:
              ("Government streams and own-feed MediaMTX use direct access. Both register in Model 1. Wall policies are described separately.", None)],
             [("M3 — VMS federation middleware", None),
              ("Departmental VMS → vendor API/SDK adapters → federation layer → unified platform. Both paths share the Model 1 registry.", None),
-             ("Adapter contracts and metadata exchange; deployed multi-vendor VMS federation still needs field validation. Direct RTSP is not proof of federation.", None)],
+             ("Adapter contract and DEMO/TEST connectors built; no vendor SDK client or ONVIF discovery yet. Deployment is DESIGNED.", None)],
             [("M4 — Central analytics  (kept, selected cameras)", None),
              ("Selected streams through one controlled gateway into central analytics, events, watchlist, evidence, GIS.", None),
              ("Intelligence view. Detection, tracking, ANPR, alerts on own and selected feeds.", None)],
@@ -408,9 +433,8 @@ def bleed(path: Path, kicker_s: str, heading: str, caption: str, page: str) -> I
     img = Image.new("RGB", (W, H), (255, 255, 255))
     d = ImageDraw.Draw(img)
     rail(img, d, "DIAGRAM", page)
-    paste_c(img, _open(path), (RAIL, 0, W, H - 44))
-    d.rectangle((RAIL, H - 44, W, H), fill=(255, 255, 255))
-    d.text((ML, H - 32), caption, font=SANS(16), fill=MUTED)
+    paste_c(img, _open(path), (RAIL, 0, W, H - 84))
+    footer(d, caption)
     return img
 
 
@@ -421,13 +445,13 @@ def scenario() -> Image.Image:
         ["BRIEF REQUIREMENT", "WHERE TO LOOK", "EVIDENCE AND BOUNDARY"],
         [
             [
-                ("~50 heterogeneous cameras onboarded", None),
+                ("~50-feed requirement / registry baseline", None),
                 ("Cameras / registry · Live wall", None),
                 (
                     (
-                        "Evaluation baseline: 30 government + 2 own feeds + 18 synthetic "
-                        "controls. Controls are not live government cameras; additional "
-                        "onboarded cameras are retained."
+                        "30 government + 2 own feeds with video; 18 control slots are "
+                        "registry rows without video (capacity placeholders). "
+                        "Additional onboarded cameras are retained."
                     ),
                     None,
                 ),
@@ -449,9 +473,9 @@ def scenario() -> Image.Image:
                 ("Investigate · Trajectory legs", None),
                 (
                     (
-                        "Controlled own-feed GJ18JX7786: C-014 → C-021 "
-                        "(fictional plate). Government GJ11S7924: cam06 only, a single-camera observation, not a "
-                        "cross-camera route."
+                        "GJ18JX7786: C-014 → C-021. " + SYNTHETIC_ROUTE +
+                        ". Government stand-in GJ11S7924: cam06 only. "
+                        "No real multi-camera evidence is established."
                     ),
                     None,
                 ),
@@ -534,15 +558,15 @@ def evaluation() -> Image.Image:
                 (
                     "04 Working platform maturity",
                     (
-                        "Own-feed and government films: onboarding, viewing, search, "
-                        "alerts and evidence."
+                        "Own film: form onboarding and admin → officer handoff. "
+                        "Government film: onboarded registry, viewing and analytics; no onboarding action."
                     ),
                 ),
                 (
                     "05 Analytics output quality",
                     (
-                        "Intelligence overlays + plate CSV + trace reports. Person/vehicle "
-                        "detection; FRS gated, intrusion not established by these films."
+                        "Person/vehicle detection; cam12 restricted-zone entries under an "
+                        "administrator DEMONSTRATION rule in the film. Intrusion accuracy unmeasured."
                     ),
                 ),
                 (
@@ -555,7 +579,7 @@ def evaluation() -> Image.Image:
                 (
                     "07 Accessible, consistent submission",
                     (
-                        "FINAL_SUBMISSION.md + 00_CHECKLIST.md index docs, films and "
+                        "00_SUBMISSION_INDEX.md indexes docs, films and "
                         "reports; public links/access need final verification."
                     ),
                 ),
@@ -574,8 +598,7 @@ def evaluation() -> Image.Image:
                 (
                     "Cross-camera vehicle tracking",
                     (
-                        "Investigate + own trace report, C-014 → C-021; controlled "
-                        "own-store route, not government proof."
+                        "C-014 → C-021: " + SYNTHETIC_ROUTE + "."
                     ),
                 ),
                 (
@@ -677,7 +700,7 @@ def agenda() -> Image.Image:
             [("3. High-level architecture and end-to-end workflow", None),
              ("HLD-derived architecture and component interactions, then the pipeline from camera to search.", None)],
             [("4. AI video analytics — detection, recognition, events", None),
-             ("T0–T2 adaptive tiers. RT-DETRv2 + ByteTrack + voted ANPR. No face identification.", None)],
+             ("T0–T2 analytic stages. RT-DETRv2 + ByteTrack + voted ANPR. Live worker samples at a fixed interval; FRS is DESIGNED.", None)],
             [("5. Watchlist correlation and real-time alerts", None),
              ("Match at ingest, same transaction as the sighting. Representative watchlist, labelled.", None)],
             [("6. Key technologies, frameworks, and tools", None),
@@ -735,7 +758,7 @@ def objectives() -> Image.Image:
 
 
 def analytics() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=("VERIFIED", "DESIGNED", "DEMO"))
     rail(img, d, "ANALYTICS", "11")
     kicker(d, "AI-powered video analytics")
     title(d, "Detection, recognition, and event analytics", y=84, size=34)
@@ -747,7 +770,7 @@ def analytics() -> Image.Image:
         ("T2  ·  recognition",
          "Plate found inside the vehicle box. OCR on sampled crops → per-track vote → one string, or no string. No face identification."),
         ("Events",
-         "Watchlist match, motion presence, long-stay as duration (not intrusion). Priority never overrides a capability ceiling."),
+         "Watchlist match, motion presence, long-stay duration, and restricted-zone entries. The government film shows the cam12 administrator DEMONSTRATION rule; intrusion accuracy is unmeasured."),
     ]
     top = 240
     cw = (W - ML - MR - 28) // 2
@@ -762,12 +785,17 @@ def analytics() -> Image.Image:
         for line in wrap(d, body, SANS(18), cw - 56):
             d.text((x + 28, yy), line, font=SANS(18), fill=MUTED)
             yy += 26
-    footer(d, "Source: docs/HLD.md §4.2; src/saakshya/runtime/inference_scheduler.py. Priority adapts inference cadence; it does not rotate camera selection.")
+    for i, line in enumerate(wrap(d,
+            "FRS is DESIGNED and gated, not shipped: authorised gallery and legal basis, suitable camera grade, "
+            "case/purpose and audit, human verification of candidates (HLD §11.2).",
+            SANS(22), W - ML - MR)):
+        d.text((ML, 732 + i * 30), line, font=SANS(22), fill=INK)
+    footer(d, "Sources: docs/HLD.md §4.2; runtime/inference_scheduler.py; runtime/budget.py. Tier selection and priority cadence are built and tested in harnesses; live-worker wiring is DESIGNED. Live sampling uses a fixed interval.")
     return img
 
 
 def watchlist_method() -> Image.Image:
-    img, d = canvas(False, tags=('VERIFIED', 'DEMO', 'MEASURED'))
+    img, d = canvas(False, tags=('VERIFIED', 'DEMO', 'DESIGNED'))
     rail(img, d, "WATCHLIST", "12")
     kicker(d, "Correlation with watchlist databases and automated alerts")
     title(d, "Every plate read is checked. A hit is a row, not a toast.", y=84, size=36)
@@ -789,7 +817,12 @@ def watchlist_method() -> Image.Image:
             d.text((ML + 160, y + i * 26), line, font=SANS(20), fill=INK)
         y += 52 if len(wrap(d, body, SANS(20), W - ML - MR - 160)) == 1 else 72
         d.line([(ML + 44, y - 14), (W - MR, y - 14)], fill=(236, 236, 232), width=1)
-    footer(d, "var/live.db (read-only check): GJ38BH5815 = evaluation_designated, HIGH. Own-feed route: GJ18JX7786, C-014 → C-021 (controlled DEMO). Transitions: src/saakshya/watchlist/alerts.py.")
+    for i, line in enumerate(wrap(d,
+            "VAHAN, SARATHI, eGujCop (CCTNS), AFIS and NAFIS: adapters refuse with SourceUnavailable. "
+            "Departmental access is required (DESIGNED); no live database integration is claimed.",
+            SANS(22), W - ML - MR)):
+        d.text((ML, 790 + i * 30), line, font=SANS(22), fill=INK)
+    footer(d, "Sources: docs/HLD.md §10–11; src/saakshya/watchlist/government.py; watchlist/alerts.py. Local representative entries are separate from government database access.")
     return img
 
 
@@ -937,13 +970,13 @@ def limits() -> Image.Image:
         "Prototype scope: operational deployment, evidentiary acceptance and statewide live-video scale still require validation.",
         "ANPR yield depends on camera geometry and light. A camera being viewable does not mean it is under deep inference.",
         "GJ11S7924 on cam06 is a SINGLE-CAMERA GOVERNMENT OBSERVATION; no government route is established.",
-        "GJ18JX7786 on C-014 → C-021 is the CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION.",
+        "GJ18JX7786 on C-014 → C-021: SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage.",
         "Person boxes are presence. There is no face identification on government data.",
         "Own-feed footage is published with heads blurred from the person detector's boxes. A person it never found is not blurred.",
         "The GPU speed-up is measured on a laptop's integrated GPU. The target accelerator's is not quoted until it is run.",
         "Copilot is read-only. It will not enhance a still, invent a plate, or join clocks the timebase refuses.",
-        "No government plate spans two cameras; no government appearance embeddings were stored. Older sealed stills require crop/read verification.",
-        "Government-grid watchlist entries are designated evaluation marks, filed as such — never as stolen: nothing is known about those vehicles but a camera read.",
+        "No government plate spans two cameras; no government appearance embeddings were stored. Pre-28 Sep 11:15 IST stills may show another vehicle; hashes verify bytes only.",
+        "The government store includes an active representative stolen_vehicle entry, GJ07XZ4409, with no government reads; its listing is not a verified theft record.",
     ]
     y = 240
     for p in points:
@@ -993,11 +1026,11 @@ def films() -> Image.Image:
          "form; live detection on the GPU; a plate read off the footage, searched; a fictional "
          "watchlist hit; the trace report; sealed evidence; the audit log."),
         ("government_feed.mp4 + ANPR report CSV", _film_meta(ROOT / "var/demo/government_feed.mp4"),
-         "The government grid, recorded live on 28 Sep: the live count measured on the wall, all "
-         "thirty in the control room, a focused live camera with its intelligence panel, person "
+         "The government grid, recorded 28 Sep 12:41–12:47 IST: onboarded registry (no onboarding action), "
+         "30 control-room tiles with varying live availability, a focused camera, person "
          "detections and the demonstration zone rule, the ANPR gallery, the single-camera trace, "
          "GIS and the trace report. The CSV holds every government read: 901 to the 24 Sep "
-         "snapshot and 200 read live during the recording."),
+         "snapshot and 200 during the 28 Sep recording session (11:15–12:53 IST). Only 21 reads fall inside the filmed take."),
     ]
     y = 280
     for head, meta, body in cards:
@@ -1135,7 +1168,7 @@ def system_architecture() -> Image.Image:
         ["COMPONENT", "INTERFACE / RESPONSIBILITY", "BOUNDARY"],
         [
             [("Ingest and timebase", None), ("PTS-aware frames, reconnect/backoff and discontinuity checks feed camera pipelines.", None), ("A shared timeline requires reliable clocks.", None)],
-            [("Detection, tracking and ANPR", None), ("Vehicle/person boxes → track → plate crop → voted registration or no read.", None), ("Selected-camera inference; cadence adapts by priority.", None)],
+            [("Detection, tracking and ANPR", None), ("Vehicle/person boxes → track → plate crop → voted registration or no read.", None), ("Selected-camera inference at a fixed interval. Priority cadence and tier selection: tested in harnesses; live-worker wiring DESIGNED.", None)],
             [("Local edge services", None), ("Sighting + watchlist match commit together; alerts, sealed evidence and durable queue remain local.", None), ("Uplink loss delays aggregation; local processing continues.", None)],
             [("Store and metadata exchange", None), ("Idempotent replay into observation, evidence and audit stores. SQLite locally; PostgreSQL / PostGIS at scale.", None), ("Regional event bus and worker cluster are DESIGNED.", None)],
             [("Investigation and access", None), ("Graph-first search, trajectory, GIS, incident workflow, trace report and read-only copilot.", None), ("Authentication, role, jurisdiction and purpose gates.", None)],
@@ -1170,8 +1203,8 @@ def government_evidence() -> Image.Image:
             [("Observations · cam01–cam30", None), ("1,155,325 rows; 2 Sep 06:54 – 24 Sep 16:10 2026 IST. Counts are observations, not unique vehicles or people.", None)],
             [("Vehicle detections", None), ("Car 529,966 (29 cameras); truck 184,600 (29); motorcycle 58,423 (25); bus 49,403 (28); bicycle 13,312 (25).", None)],
             [("Person and other detections", None), ("Person 307,290 (all 30 cameras); truck_bus 5,819; van 5,049; unknown 1,463. Vehicle AND person detection are measured.", None)],
-            [("ANPR · separate read window", None), ("901 reads; 178 distinct plates; 97 confirmed registrations; 9 cameras. Confirmed = at least one read with ≥2 agreeing frames. Reads: 2–21 Sep 2026 IST.", None)],
-            [("Live session · 28 Sep 11:15–12:53 IST", None), ("4,465 observations on the 4 deep-inference cameras; 200 plate reads (124 plates) on cam06 by the current recogniser, recorded in the government film. Film CSV: 901 + 200 = 1,101 government reads.", None)],
+            [("ANPR · 24 Sep snapshot", None), ("901 reads; 178 distinct plates; 97 confirmed registrations; 9 cameras. Confirmed = at least one read with ≥2 agreeing frames. Reads: 2–21 Sep 2026 IST.", None)],
+            [("Live session · 28 Sep 11:15–12:53 IST", None), ("4,465 observations on the 4 deep-inference cameras; 200 plate reads (124 plates) on cam06 during the recording session; 21 fall inside the 12:41–12:47 film. Delivered CSV: 1,101 reads, 264 plates, 9 cameras.", None)],
             [("Government tracking finding", None), ("No plate was read on two government cameras: every government vehicle history is SINGLE-CAMERA. No appearance embeddings were stored; no government appearance re-identification ran.", None)],
             [("Restricted-zone rule · DEMO", None), ("cam12: ‘No pedestrians on the toll-lane carriageway’. Person-class polygon rule set by the estate administrator for this evaluation; not a measured intrusion-detection accuracy result.", None)],
         ],
@@ -1182,17 +1215,33 @@ def government_evidence() -> Image.Image:
 
 def government_designated() -> Image.Image:
     return table_page(
-        "Designated vehicle  ·  separate evidence boundaries",
-        "Government observation and controlled own-feed route",
+        "Designated vehicle · separate evidence boundaries",
+        "Government stand-in and synthetic route logic",
         ["SOURCE", "REGISTRATION / LOCATIONS", "WHAT IT ESTABLISHES"],
         [
-            [("Government trace report", None), ("GJ11S7924 · cam06", None), ("SINGLE-CAMERA GOVERNMENT OBSERVATION. Timestamped reads on one camera; no government multi-camera route established.", None)],
-            [("All government plate histories", None), ("178 distinct plates · 9 cameras with reads", None), ("No plate appears on two government cameras. No appearance embeddings were stored; no appearance re-identification ran.", None)],
-            [("Controlled own-feed trace report", None), ("GJ18JX7786 · C-014 → C-021", None), ("CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION. Fictional registration in the demonstration store.", None)],
-            [("Representative government watchlist", None), ("GJ11S7924 / GJ38BH5815", None), ("evaluation_designated · HIGH. Read-only store verification; these entries do not assert that either vehicle is stolen.", None)],
+            [("Government stand-in", None), ("GJ11S7924 · 57 reads · cam06 only", None), ("Team-chosen from cam06 reads on 20 Sep, not organiser-issued. 52 snapshot + 5 session reads; all 5 precede the filmed take. No multi-camera route.", None)],
+            [("All government plate histories", None), ("1,101 reads · 264 distinct plates · 9 cameras", None), ("No plate appears on two government cameras. No appearance embeddings were stored; no appearance re-identification ran.", None)],
+            [("Synthetic route-logic report", None), ("GJ18JX7786 · C-014 → C-021", None), (SYNTHETIC_ROUTE + ". Seven single-frame leads, zero confirmed reads. No real multi-camera evidence.", None)],
+            [("Older sealed stills", None), ("Before 28 Sep 2026 11:15 IST", None), ("May show another vehicle. A verified hash proves the bytes only; verify the crop/read pairing. These stills do not establish vehicle identity.", "red")],
         ],
-        "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html; var/live.db observations/watchlist (read-only verification on 28 Sep 2026).",
-        "25", col_w=[ML, ML + 460, ML + 950], tags=("MEASURED", "DEMO", "VERIFIED"),
+        "Sources: var/live.db observations/watchlist; var/demo.db; tools/sandbox/make_media.py; var/demo/government_feed_anpr_report.csv. Read-only verification: 28 Sep 2026.",
+        "25", col_w=[ML, ML + 410, ML + 880], tags=("VERIFIED", "DEMO"),
+    )
+
+
+def evaluation_day() -> Image.Image:
+    return table_page(
+        "Evaluation day · organiser-issued number",
+        "Enter the issued plate, then search the whole estate",
+        ["STEP", "OFFICER PROCEDURE"],
+        [
+            [("1 · Record the request", None), ("Enter the organiser-issued plate under a case and purpose. GJ11S7924 was a team-chosen rehearsal stand-in, not that issued number.", None)],
+            [("2 · Search retrospectively", None), ("Search the whole authorised estate and available history. Review timestamped camera locations and any supported trajectory legs; keep absent coverage explicit.", None)],
+            [("3 · Watch for new sightings", None), ("File the plate on the watchlist with its evaluation category, authority, scope and expiry so subsequent matching reads raise live alerts.", None)],
+            [("4 · Open the trace report", None), ("Review reads, camera locations, timestamps and evidence cautions, then export the trace report. A single-camera history is not a complete multi-camera route.", None)],
+        ],
+        "Sources: organiser FAQ Q27–28; docs/HLD.md §11; src/saakshya/reports/vehicle_trace.py. Procedure for evaluation day; no successful real multi-camera trace is claimed.",
+        "25a", col_w=[ML, ML + 440], tags=("DESIGNED",),
     )
 
 
@@ -1272,8 +1321,8 @@ def government_anpr_gallery() -> Image.Image | None:
     fixture = any(row["provenance"] == "RENDER_TEST_FIXTURE" for row in rows)
     img, d = canvas(True, tags=("DEMO",) if fixture else ("MEASURED",))
     rail(img, d, "GOVERNMENT ANPR", "22a", dark=True)
-    kicker(d, "RENDER TEST FIXTURE — NOT SUBMISSION EVIDENCE" if fixture else "Government feed · selected measured crops", dark=True)
-    title(d, "Measured government-feed ANPR evidence", dark=True, size=42)
+    kicker(d, "RENDER TEST FIXTURE — NOT SUBMISSION EVIDENCE" if fixture else "Government feed · historical selected crops", dark=True)
+    title(d, "Historical ANPR gallery · 24 Sep snapshot", dark=True, size=42)
     camera_count = stats["cameras_with_reads"]
     band = (f"{stats['total_reads']:,} total reads   ·   {stats['distinct_plates']:,} distinct plates   ·   "
             f"{stats['confirmed_registrations']:,} confirmed registrations   ·   {camera_count} cameras")
@@ -1294,9 +1343,9 @@ def government_anpr_gallery() -> Image.Image | None:
         d.text((x + 18, y + 226), _reads(row["agreeing_reads"]), font=SANS(18), fill=WHITE)
         d.text((x + 18, y + 256), _ist(row["timestamp"]), font=SANS(18), fill=MUTED)
     footer(d, "Sources: var/demo/plate_gallery/selected.json (plate_image, nearest-neighbour enlargement "
-           "of the sealed frame); stats.json. "
-           + str(stats["source"]) + ". " + str(stats["note"])
-           + ". Older sealed frames may differ from their record’s vehicle; inspect selected.json provenance for crop/read pairing.", dark=True, y=944)
+           "of the sealed frame); stats.json (stated window only). "
+           + str(stats["source"]) + ". Delivered CSV adds 200 reads from the 28 Sep session: 1,101 reads / 264 plates. "
+           "Pre-28 Sep 11:15 IST stills may show another vehicle; hashes verify bytes only; check crop/read pairing.", dark=True, y=944)
     return img
 
 
@@ -1578,6 +1627,8 @@ def build() -> list[Image.Image]:
         hybrid(),
         model4(),
         architecture(),
+        bleed(DIAG / "05_statewide_architecture.png", "Architecture", "Statewide target architecture",
+              "DESIGNED · Source: var/demo/diagrams/05_statewide_architecture.png; docs/HLD.md §21. Analog via encoder; private CCTV consented, view-only.", "08a"),
         system_architecture(),
         scenario(),
         infrastructure(),
@@ -1592,21 +1643,16 @@ def build() -> list[Image.Image]:
         stack(),
         scale_security(),
         benefits(),
-        shot_page(SHOTS / "gov_overview.png",
-                  "Workspace  ·  government grid  ·  24 Sep 2026",
-                  "Overview is the shift picture, not a video wall",
-                  "Historical workspace capture. Registry, frame availability and alert totals belong to this capture only; they are not current test results.",
-                  "17"),
         media_policies(),
         shot_page(SHOTS / "gov_live_grid.png",
                   "Live wall  ·  Model 2  ·  a frame of the government film",
                   "Wall viewing and AI coverage are separate",
-                  "CONTROL ROOM up to 30 WHEP sessions; OPTIMIZED VIEW ≤12. Policies: ui/app.js. Live availability varies by test window; preview tiles show analysed stills.",
+                  "CONTROL ROOM up to 30 WHEP sessions; OPTIMIZED VIEW ≤12. Policies: ui/app.js. Live availability varies by test window; this filmed frame shows 8 live cameras.",
                   "18"),
-        shot_page(SHOTS / "gov_live_twoup_boxes.jpg",
-                  "Live  ·  two-up with detections",
-                  "Detection overlays accompany the wall",
-                  "Person and vehicle boxes show presence on analysed frames. Overlay coverage is separate from live viewing availability.",
+        shot_page(SHOTS / "gov_live_dense_2026-09-28.png",
+                  "Live · CONTROL ROOM · 28 Sep government film",
+                  "12 of 30 government cameras live in this recording",
+                  "12 of 30 government cameras live in this recording. Measured in the 28 Sep 2026 film; availability varies with the test window.",
                   "19"),
         four_shot(
             [DETECT / "gov_overlay_t32.jpg", DETECT / "gov_overlay_t52.jpg",
@@ -1617,7 +1663,7 @@ def build() -> list[Image.Image]:
              "cam12 Adalaj toll"],
             "Analytics overlay  ·  government clips",
             "Detection is drawn on the frame that produced it",
-            "Source: var/demo/detect_stills/gov_overlay_t*.jpg. Historical government detections; these selected frames do not establish plate-reading accuracy.",
+            "Source: var/demo/detect_stills/gov_overlay_t*.jpg. Historical capture: 15 Sep 2026; government detections; these selected frames do not establish plate-reading accuracy.",
             "20"),
         government_evidence(),
         *([gallery] if gallery is not None else []),
@@ -1629,9 +1675,10 @@ def build() -> list[Image.Image]:
         shot_page(SHOTS / "own_find.png",
                   "Investigate  ·  designated vehicle (fictional plate)",
                   "GJ18JX7786: on the watchlist, said first. Then where it went.",
-                  "CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION: C-014 → C-021. Single-frame reads remain leads to verify. No government multi-camera route is claimed.",
+                  SYNTHETIC_ROUTE + ". UI ‘PLATE-CONFIRMED 2 of 2’ counts plate-bearing route observations; ‘TRAJECTORY CONFIRMED’ is a route score. The trace report has 7 single-frame leads, 0 confirmed reads (var/demo.db; intelligence/trajectory.py).",
                   "17"),
         government_designated(),
+        evaluation_day(),
         shot_page(SHOTS / "gov_find_lookalike.jpg",
                   "Investigate  ·  lookalike, not a match",
                   "6J1VV0119 is an OCR lookalike of GJ1VV0119",
@@ -1640,22 +1687,22 @@ def build() -> list[Image.Image]:
         shot_page(SHOTS / "gov_alerts_film.jpg",
                   "Watchlist  ·  government grid",
                   "Government evaluation marks, grouped into incidents",
-                  "Designated evaluation marks, not stolen-vehicle records. Older sealed stills may show a different vehicle from the recorded plate; verify the crop/read pairing.",
+                  "Shown entries are evaluation marks. Pre-28 Sep 11:15 IST stills may show another vehicle; hashes verify bytes only. The store also has a representative stolen_vehicle entry (var/live.db).",
                   "20"),
         shot_page(SHOTS / "own_alerts.png",
                   "Watchlist  ·  one decision per vehicle",
                   "Repeated reads are grouped into a vehicle incident",
-                  "The read beside the listed plate, character by character; first and last sighting from the reads themselves. Fictional plates only: no real vehicle is put on a watchlist for a demonstration.",
+                  SYNTHETIC_ROUTE + ". Fictional plates and listings demonstrate incident grouping, not a government theft record (var/demo.db; tools/sandbox/make_media.py).",
                   "20b"),
         shot_page(SHOTS / "own_trace_report.png",
                   "Investigate  ·  vehicle trace report",
                   "The route leaves the screen as a page an officer can sign",
-                  "Every read, each leg timed and checked for an impossible speed, sealed stills re-hashed, case and purpose, a digest over the rows.",
+                  "SYNTHETIC RENDERED TEST CORPUS — route-logic demonstration, not camera footage. Fictional plate/listing; the displayed police attribution is part of the demonstration. Seven single-frame leads, zero confirmed reads (var/demo.db).",
                   "20c"),
         shot_page(SHOTS / "own_evidence.png",
                   "Evidence  ·  hash-chained records",
                   "What each sealed record is, and the link that binds it",
-                  "Hash checks establish file integrity, not plate-to-frame correspondence. Older sealed stills may show a different vehicle from their record; review before use.",
+                  SYNTHETIC_ROUTE + ". Records: var/demo.db. Hashes establish file integrity only. Pre-28 Sep 11:15 IST stills may show another vehicle; verify crop/read pairing.",
                   "20d"),
         shot_page(SHOTS / "gov_cameras_film.jpg",
                   "Capability  ·  measured per camera",

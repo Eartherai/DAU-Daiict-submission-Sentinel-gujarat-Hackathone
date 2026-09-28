@@ -132,6 +132,19 @@ def opening_ready(sample: dict, ui: dict, min_live: int) -> bool:
                 and not ui['fatal'] and not ui['loading'] and not ui['loadingText'])
 
 
+def dry_run_rows(sample_csv: str, rows: int = 7) -> str:
+    """The sample spreadsheet's first rows under fresh DRYRUN-NN ids.
+
+    The sample cameras are onboarded already, so validating them returns 409
+    ALREADY_ONBOARDED - correctly (take 7 stopped there). The beat shows a
+    department's new rows being validated; it is a dry run and writes nothing.
+    """
+    lines = sample_csv.splitlines()
+    body = [f"DRYRUN-{i:02d},{line.split(',', 1)[1]}"
+            for i, line in enumerate(lines[1:rows + 1], 1)]
+    return "\n".join([lines[0], *body])
+
+
 def focus_order(live_ids: list[str], preferred: str = "cam06") -> list[str]:
     """Focus candidates: the designated vehicle's camera first, if advancing."""
     ids = list(dict.fromkeys(live_ids))
@@ -661,7 +674,7 @@ def build(page, plate: str, admin_token: str = "", officer_token: str = "",
         page.click('#btn-onboard-toggle')
         page.click('[data-onboard="bulk"]')
         text = (ROOT / 'reports/sample_camera_metadata.csv').read_text(encoding='utf-8')
-        page.fill('#ob-csv', '\n'.join(text.splitlines()[:8]))
+        page.fill('#ob-csv', dry_run_rows(text))
         with page.expect_response(lambda r: '/registry/cameras/import.csv?dry_run=true' in r.url) as pending:
             page.click('#btn-ob-bulk-dry')
         if pending.value.status != 200:

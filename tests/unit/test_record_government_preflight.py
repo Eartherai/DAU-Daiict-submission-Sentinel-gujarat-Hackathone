@@ -570,3 +570,13 @@ def test_the_opening_gate_is_the_preflight_gate():
     assert not gov.opening_ready(ok, {**clean, 'loadingText': True}, 5)
     assert not gov.opening_ready(ok, {**clean, 'fatal': 1}, 5)
     assert 30 <= gov.OPENING_WAIT_S <= 180
+
+
+def test_bulk_validation_uses_rows_not_yet_onboarded():
+    text = (Path(gov.ROOT) / "reports/sample_camera_metadata.csv").read_text(encoding="utf-8")
+    out = gov.dry_run_rows(text).splitlines()
+    assert out[0] == text.splitlines()[0]
+    assert [line.split(",", 1)[0] for line in out[1:]] == [f"DRYRUN-{i:02d}" for i in range(1, 8)]
+    # Only the id changes: every other field is the sample's own.
+    assert [line.split(",", 1)[1] for line in out[1:]] == \
+        [line.split(",", 1)[1] for line in text.splitlines()[1:8]]

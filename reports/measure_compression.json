@@ -1,0 +1,42 @@
+{
+ "source": "var/live.db (government store, opened read-only)",
+ "rows": 20000,
+ "until_t_norm_us": 1790246409848994,
+ "order": "most recent by t_norm_us up to until_t_norm_us",
+ "serialisation": "compact JSON of every observations column",
+ "json_bytes_mean": 1230.6,
+ "json_bytes_p95": 1301,
+ "batches": {
+  "100": {
+   "raw_bytes": 24632295,
+   "zlib6_bytes": 3079888,
+   "lzma6_bytes": 2450368,
+   "zlib6_ratio": 8.0,
+   "lzma6_ratio": 10.05,
+   "zlib6_bytes_per_row": 154.0,
+   "lzma6_bytes_per_row": 122.5,
+   "zlib6_rows_per_s_one_core": 159062
+  },
+  "1000": {
+   "raw_bytes": 24632475,
+   "zlib6_bytes": 2897046,
+   "lzma6_bytes": 2235612,
+   "zlib6_ratio": 8.5,
+   "lzma6_ratio": 11.02,
+   "zlib6_bytes_per_row": 144.9,
+   "lzma6_bytes_per_row": 111.8,
+   "zlib6_rows_per_s_one_core": 149139
+  },
+  "5000": {
+   "raw_bytes": 24632491,
+   "zlib6_bytes": 2880093,
+   "lzma6_bytes": 2194596,
+   "zlib6_ratio": 8.55,
+   "lzma6_ratio": 11.22,
+   "zlib6_bytes_per_row": 144.0,
+   "lzma6_bytes_per_row": 109.7,
+   "zlib6_rows_per_s_one_core": 148198
+  }
+ },
+ "note": "Measured on the development Mac; stdlib codecs only (zstd/Parquet not measured). rows_per_s varies run to run; byte counts are deterministic for a given store."
+}

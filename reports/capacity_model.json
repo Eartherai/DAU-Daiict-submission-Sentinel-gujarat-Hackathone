@@ -1,0 +1,1012 @@
+{
+ "compute": {
+  "fps_demand": 144000.0,
+  "gpu_fps_each": 56.0,
+  "gpus_planning": 2572,
+  "gpus_with_spares": 2652,
+  "servers_4gpu": 663,
+  "gpus_hld_1hz": 1429,
+  "decode_cores": 20000.0,
+  "decode_servers_64c": 313,
+  "ram_tb": 7.85,
+  "per_cell_gpus": 83,
+  "per_cell_gpus_1hz": 47
+ },
+ "wan_cell": {
+  "bulk_compressed_mbps": 2.57,
+  "bulk_raw_mbps": 22.2,
+  "realtime_mbps": 1.27,
+  "total_mbps": 3.83,
+  "mean_rate_total_mbps": 2.04
+ },
+ "catchup_hot_district": {
+  "backlog_GB": 55.44,
+  "drain_h_100mbps_viewing_paused": 1.33,
+  "drain_h_40mbps_spare": 3.81,
+  "queue_disk_7d_GB_raw": 3355.88
+ },
+ "storage": {
+  "cell_hot_TB_pess": 14.38,
+  "cell_hot_TB_mean": 4.33,
+  "cell_hot_TB_pess_sqlite_basis": 4.18,
+  "lake_TB_per_year_pess": 323.77,
+  "lake_TB_per_year_mean": 97.41,
+  "plate_index_TB_per_year_pess": 67.28,
+  "hld_hot_TB_per_district": 1.2
+ },
+ "rows": [
+  {
+   "resource": "Cell WAN uplink (metadata, compressed), 2,500-camera cell",
+   "demand": 3.83,
+   "capacity": 20,
+   "unit": "Mbps",
+   "headroom": 5.22,
+   "formula": "2,500 x 3,000/h x 154.2 B x 8 + plates 2,500x0.2x3,000/3600x0.5x160 B x8 + health 250/s x 500 B x8; capacity = 50 Mbps minus 30 Mbps viewing budget",
+   "design_choice": "batch-compressed metadata lane; viewing budget admission-controlled; video never on WAN",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Cell WAN uplink, same demand, HLD 20 Mbps link, no viewing",
+   "demand": 3.83,
+   "capacity": 20,
+   "unit": "Mbps",
+   "headroom": 5.22,
+   "formula": "as above against HLD \u00a720.4 primary link",
+   "design_choice": "HLD link is enough for compressed metadata alone",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Cell WAN uplink, raw (uncompressed) metadata, HLD 20 Mbps link",
+   "demand": 23.46,
+   "capacity": 20,
+   "unit": "Mbps",
+   "headroom": 0.85,
+   "formula": "2,500 x 3,000/h x 1,331.7 B x 8 + real-time lanes",
+   "design_choice": "WOULD BIND (<1x): compression is mandatory, not an optimisation",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": true
+  },
+  {
+   "resource": "District uplink, 5,000-camera district (2 cells, one 100 Mbps link, 60 Mbps viewing budget)",
+   "demand": 7.67,
+   "capacity": 40,
+   "unit": "Mbps",
+   "headroom": 5.22,
+   "formula": "5,000 x 3,000/h x 154.2 B x 8 + 2 x real-time lanes",
+   "design_choice": "cell split at 2,500; link scaled per cell",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Catch-up after 24 h WAN outage, 5,000-camera district: drain time vs outage",
+   "demand": 1.33,
+   "capacity": 24,
+   "unit": "hours",
+   "headroom": 17.99,
+   "formula": "backlog = rate x 24 h x 154.2 B; drain = backlog / (100 Mbps - live rate), viewing paused during catch-up",
+   "design_choice": "priority lanes: alerts, plates, health first; bulk last; dedup_key makes replay idempotent",
+   "driver": "cameras",
+   "kind": "recovery time",
+   "alternative": false
+  },
+  {
+   "resource": "Site uplink (camera site -> cell), by design rule",
+   "demand": 1.0,
+   "capacity": 1.5,
+   "unit": "x (ratio)",
+   "headroom": 1.5,
+   "formula": "pull to cell only if n_site x 1.0 Mbps x 1.5 <= site uplink; otherwise an edge box analyses on site",
+   "design_choice": "placement rule converts any would-be link bottleneck into edge compute",
+   "driver": "cameras",
+   "kind": "placement rule",
+   "alternative": false
+  },
+  {
+   "resource": "Cell ingest LAN (sub-streams of 2,500 analysed cameras)",
+   "demand": 2.5,
+   "capacity": 50,
+   "unit": "Gbps",
+   "headroom": 20.0,
+   "formula": "2,500 x 1.0 Mbps",
+   "design_choice": "sub-stream for T0/T1, main-stream bursts only for T2 crops",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Cell event bus (NATS JetStream R3)",
+   "demand": 2541.67,
+   "capacity": 50000,
+   "unit": "msg/s",
+   "headroom": 19.67,
+   "formula": "2,083 obs/s + 208 plates/s + 250 health/s",
+   "design_choice": "one JetStream cluster per cell; subjects obs.<cell>.<camera>",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "State event bus (Kafka), real-time lanes only",
+   "demand": 5.73,
+   "capacity": 100.0,
+   "unit": "MB/s",
+   "headroom": 17.44,
+   "formula": "plates 6,667/s x 160 B + health 8,000/s x 500 B + alert storm 333/s x 2 KB; capacity = 6 x 50 / RF 3",
+   "design_choice": "bulk observations bypass Kafka as compressed micro-batches to object storage",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "State event bus IF all observations went through it raw",
+   "demand": 88.78,
+   "capacity": 100.0,
+   "unit": "MB/s",
+   "headroom": 1.13,
+   "formula": "66,667 obs/s x 1,331.7 B",
+   "design_choice": "rejected alternative: 1.1x headroom is not a design",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": true
+  },
+  {
+   "resource": "State bus partitions: plate topic",
+   "demand": 52.08,
+   "capacity": 5000,
+   "unit": "msg/s per partition",
+   "headroom": 96.0,
+   "formula": "6,667 plates/s / 128 partitions; capacity ASSUMED 5,000 msg/s per partition",
+   "design_choice": "key = OCR-folded plate",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Cell DB write rate (PostgreSQL primary)",
+   "demand": 2083.33,
+   "capacity": 14187,
+   "unit": "rows/s",
+   "headroom": 6.81,
+   "formula": "2,500 x 3,000/h; capacity = measured single-stream copy 14,187 rows/s",
+   "design_choice": "batched COPY per 1 s; partitioned by day",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "State plate-index write rate (4 hash shards)",
+   "demand": 6666.67,
+   "capacity": 56748,
+   "unit": "rows/s",
+   "headroom": 8.51,
+   "formula": "80,000 x 0.2 x 3,000/h x 0.5",
+   "design_choice": "shard by folded plate = same key as Kafka partition",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "State plate-index catch-up after 24 h state outage: drain hours",
+   "demand": 3.19,
+   "capacity": 24,
+   "unit": "hours",
+   "headroom": 7.51,
+   "formula": "576 M rows / (56,748 - 6,667) rows/s",
+   "design_choice": "cells keep working meanwhile",
+   "driver": "cameras",
+   "kind": "recovery time",
+   "alternative": false
+  },
+  {
+   "resource": "Cell hot store, 30 days (NVMe per copy)",
+   "demand": 14.38,
+   "capacity": 32,
+   "unit": "TB",
+   "headroom": 2.22,
+   "formula": "2,083 obs/s x 30 d x 2,663 B; capacity 32 TB NVMe per copy",
+   "design_choice": "time-partitioned; detach to lake after 30 d",
+   "driver": "cameras",
+   "kind": "storage",
+   "alternative": false
+  },
+  {
+   "resource": "State object store, 3 years of compressed observations",
+   "demand": 971.31,
+   "capacity": 1500,
+   "unit": "TB",
+   "headroom": 1.54,
+   "formula": "66,667 obs/s x 3 y x 154.2 B; capacity 1.5 PB usable (erasure-coded)",
+   "design_choice": "grows per year retained, not per camera-second",
+   "driver": "cameras",
+   "kind": "storage",
+   "alternative": false
+  },
+  {
+   "resource": "Object store request rate (micro-batches + alert-storm evidence stills)",
+   "demand": 334.0,
+   "capacity": 4000,
+   "unit": "PUT/s",
+   "headroom": 11.98,
+   "formula": "40 cells x 1 batch/min + 333 stills/s",
+   "design_choice": "micro-batches of >=1 minute keep object count low",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Media gateway sessions per cell (cameras being viewed)",
+   "demand": 200,
+   "capacity": 450,
+   "unit": "sessions",
+   "headroom": 2.25,
+   "formula": "200 viewed cameras; capacity 3 gateway nodes x 150 copy sessions (ASSUMED)",
+   "design_choice": "one upstream session per camera shared by AI and all viewers (live/hub.py:1-12); gateway sessions set by viewers, not by analysed cameras",
+   "driver": "viewers",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Remote viewing (state + investigators)",
+   "demand": 650.0,
+   "capacity": 2000,
+   "unit": "Mbps",
+   "headroom": 3.08,
+   "formula": "1,000 preview tiles x 0.5 Mbps + 100 full tiles x 1.5 Mbps (bitrates: phase16_bridge_profile.json settings)",
+   "design_choice": "independent of analysed cameras; set by people watching",
+   "driver": "viewers",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "TURN relay (remote/mobile only)",
+   "demand": 100.0,
+   "capacity": 6000.0,
+   "unit": "Mbps",
+   "headroom": 60.0,
+   "formula": "200 relayed tiles x 0.5 Mbps; capacity 6 regions x 2 coturn x 0.5 Gbps usable",
+   "design_choice": "police LAN clients connect direct",
+   "driver": "viewers",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "API request rate (all users at the state API, pessimistic)",
+   "demand": 5000.0,
+   "capacity": 12331.41,
+   "unit": "req/s",
+   "headroom": 2.47,
+   "formula": "5,000 users x 1 req/s; capacity 8 servers x 16 workers x (1000/10.38 ms)",
+   "design_choice": "stateless; district users served by their cell API; heavy aggregates served from rollups",
+   "driver": "users",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Search: plate lookup fan-out",
+   "demand": 1,
+   "capacity": null,
+   "unit": "shard per query",
+   "headroom": null,
+   "formula": "plate -> one hash shard; no scatter",
+   "design_choice": "key choice removes fan-out",
+   "driver": "users",
+   "kind": "fan-out",
+   "alternative": false
+  },
+  {
+   "resource": "Search: attribute search scatter-gather",
+   "demand": 40,
+   "capacity": 320,
+   "unit": "cell queries in flight",
+   "headroom": 8.0,
+   "formula": "one query hits 40 cells; each cell admits 8 concurrent searches (api/deps.py:100)",
+   "design_choice": "bounded by time window and 2,000-row cap",
+   "driver": "users",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Spatial viewport query (PostGIS, 80k cameras)",
+   "demand": 1.3,
+   "capacity": 100,
+   "unit": "ms p50 vs 100 ms SLO",
+   "headroom": 76.92,
+   "formula": "measured 1.3 ms at 80,000 cameras",
+   "design_choice": "camera count is fixed by the estate, not by analysis",
+   "driver": "estate",
+   "kind": "latency",
+   "alternative": false
+  },
+  {
+   "resource": "Watchlist bootstrap of one cell + its 25 edge boxes, seconds over 20 Mbps",
+   "demand": 166.4,
+   "capacity": 3600,
+   "unit": "s vs 1 h target",
+   "headroom": 21.63,
+   "formula": "1,000,000 entries x 16 B (two 8-byte keyed hashes) x 26 nodes / 20 Mbps; deltas thereafter ~320 KB/day",
+   "design_choice": "hashed, delta-versioned bundles; O(1) match per read regardless of list size",
+   "driver": "list",
+   "kind": "recovery time",
+   "alternative": false
+  },
+  {
+   "resource": "Alert storm: alert rows written at the state",
+   "demand": 333.33,
+   "capacity": 14187,
+   "unit": "rows/s",
+   "headroom": 42.56,
+   "formula": "6,667 plates/s x 5% match",
+   "design_choice": "incident grouping (watchlist/incidents.py) and per-district notification token buckets; the human queue is rate-limited on purpose",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Busy highway camera: metadata off its site",
+   "demand": 87.18,
+   "capacity": 1000,
+   "unit": "kbps vs 1 Mbps",
+   "headroom": 11.47,
+   "formula": "491 obs/min x 1,331.7 B x 8 / 60",
+   "design_choice": "compute for this camera scales (5 fps ANPR); its metadata does not matter",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Health telemetry (metrics series at state)",
+   "demand": 0.8,
+   "capacity": 10,
+   "unit": "M active series",
+   "headroom": 12.5,
+   "formula": "per-camera series stay in cell Prometheus; state keeps ~1,000 series x 20 per cell",
+   "design_choice": "cell Prometheus + Thanos, downsampled",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Control plane: nodes per cell cluster",
+   "demand": 50,
+   "capacity": 5000,
+   "unit": "nodes",
+   "headroom": 100.0,
+   "formula": "~21 GPU + 10 decode + 10 other + edge boxes on their own fleet",
+   "design_choice": "one cluster per cell; no statewide cluster",
+   "driver": "cameras",
+   "kind": "throughput",
+   "alternative": false
+  },
+  {
+   "resource": "Image/model rollout per cell (25 edge boxes x 2 GB) over 20 Mbps spare",
+   "demand": 5.56,
+   "capacity": 72,
+   "unit": "hours per ring",
+   "headroom": 12.96,
+   "formula": "25 x 2 GB x 8 / 20 Mbps",
+   "design_choice": "regional OCI mirror; staged rings over >= 3 days",
+   "driver": "fixed",
+   "kind": "recovery time",
+   "alternative": false
+  }
+ ],
+ "inputs": {
+  "obs_wire_bytes": {
+   "value": 1331.7,
+   "label": "M",
+   "source": "var/reports/bandwidth.json:observation_bytes_each"
+  },
+  "obs_zlib_bytes_batch100": {
+   "value": 154.0,
+   "label": "V",
+   "source": "reports/measure_compression.json:batches.100.zlib6_bytes_per_row (20,000 real government rows)"
+  },
+  "obs_zlib_ratio_batch100": {
+   "value": 8.0,
+   "label": "V",
+   "source": "reports/measure_compression.json:batches.100.zlib6_ratio"
+  },
+  "obs_disk_bytes_sqlite": {
+   "value": 774.3,
+   "label": "V",
+   "source": "stat var/live.db = 901,152,768 B / 1,163,767 observations (all tables and indexes included)"
+  },
+  "pg_row_bytes_with_index": {
+   "value": 2663.4,
+   "label": "A",
+   "source": "2 x wire row; PostgreSQL row+index size not measured (HLD \u00a720.5 uses the same factor)"
+  },
+  "obs_per_camera_calendar_hour": {
+   "value": 71.7,
+   "label": "V",
+   "source": "1,155,325 obs (verified snapshot) / (30 cameras x 537.3 h window) - understates: only 4 slots analysed at a time"
+  },
+  "obs_per_analysis_slot_hour": {
+   "value": 537.6,
+   "label": "V",
+   "source": "1,155,325 / (4 slots x 537.3 h) - if the 4 deep-inference slots ran the whole window"
+  },
+  "obs_per_active_camera_hour": {
+   "value": 902.6,
+   "label": "V",
+   "source": "1,155,325 / 1,280 distinct (camera, hour) buckets holding >=1 observation (SQL, var/live.db)"
+  },
+  "busiest_camera_mean_per_active_hour": {
+   "value": 2529,
+   "label": "V",
+   "source": "per-camera obs/active-hour, maximum over 30 cameras (SQL)"
+  },
+  "obs_per_camera_hour_pessimistic": {
+   "value": 3000,
+   "label": "A",
+   "source": "statewide average set above the busiest measured camera's average (2,529/h)"
+  },
+  "hot_camera_peak_hour": {
+   "value": 11232,
+   "label": "V",
+   "source": "cam04, max obs in one clock hour (SQL)"
+  },
+  "hot_camera_peak_minute": {
+   "value": 491,
+   "label": "V",
+   "source": "cam04, max obs in one minute (SQL)"
+  },
+  "pg_write_rows_per_s_one_stream": {
+   "value": 14187,
+   "label": "M",
+   "source": "var/reports/store_engines.json:migration rows_copied / seconds (single-stream copy, lower bound)"
+  },
+  "pg_plate_search_p50_ms_1.16M_rows": {
+   "value": 10.38,
+   "label": "M",
+   "source": "var/reports/store_engines.json:api_latency['GET /search (plate)'].postgresql_p50_ms"
+  },
+  "postgis_viewport_p50_ms_80k": {
+   "value": 1.3,
+   "label": "M",
+   "source": "var/reports/gis_postgis.json:results.viewport_0.1deg.postgis.p50_ms"
+  },
+  "full_pipeline_fps_cpu_4cams": {
+   "value": 5.6,
+   "label": "M",
+   "source": "reports/SCALE_80K_LOAD_TEST.md 'aggregate ~5.6 fps' and analytics/worker.py:358-360 comment (no JSON key)"
+  },
+  "gpu_speedup_S": {
+   "value": 10,
+   "label": "A",
+   "source": "HLD \u00a720.2 planning assumption; only S measured is 2.04 (var/reports/pipeline_device.json:speedup_median)"
+  },
+  "decode_cores_per_stream": {
+   "value": 0.25,
+   "label": "A",
+   "source": "HLD \u00a720.2 derivation (40 streams per 10 cores from camera_load.json 44/50); no per-stream CPU was measured"
+  },
+  "rss_mb_per_camera": {
+   "value": 98.1,
+   "label": "M",
+   "source": "var/reports/camera_load.json:peak_rss_mb / requested_cameras"
+  },
+  "analysis_fps_default": {
+   "value": 1.0,
+   "label": "D",
+   "source": "HLD \u00a717.2 sample_rate_hz"
+  },
+  "analysis_fps_anpr_camera": {
+   "value": 5.0,
+   "label": "D",
+   "source": "CONFIRM_VOTES=2 (reports/anpr.py:39) needs >=2 frames per pass; 5 fps gives margin"
+  },
+  "anpr_capable_fraction": {
+   "value": 0.2,
+   "label": "A",
+   "source": "share of estate graded GOOD/DEGRADED for ANPR; evaluation grid had 0 GOOD"
+  },
+  "plate_fraction_of_anpr_obs": {
+   "value": 0.5,
+   "label": "A",
+   "source": "pessimistic; government store 901 plated of 1,155,325 (0.08%)"
+  },
+  "plate_index_row_bytes": {
+   "value": 160,
+   "label": "D",
+   "source": "slim row: folded plate, plate, camera, t, conf, votes, cell, obs ref"
+  },
+  "health_msg_bytes": {
+   "value": 500,
+   "label": "A",
+   "source": "one health sample"
+  },
+  "health_period_s": {
+   "value": 10,
+   "label": "D",
+   "source": "per camera"
+  },
+  "cameras_per_cell_max": {
+   "value": 2500,
+   "label": "D",
+   "source": "HLD \u00a720 planning unit, kept"
+  },
+  "observations_per_s_per_cell_max": {
+   "value": 4000,
+   "label": "D",
+   "source": "second cell limit, from the highway-heavy hostile case (Self-check)"
+  },
+  "cells": {
+   "value": 40,
+   "label": "D",
+   "source": "80,000/2,500 = 32 minimum; 40 lets big districts split and small ones stand alone"
+  },
+  "cameras_total": {
+   "value": 80000,
+   "label": "D",
+   "source": "FAQ Q30/35"
+  },
+  "wan_cell_primary_mbps_hld": {
+   "value": 20,
+   "label": "A",
+   "source": "HLD \u00a720.4"
+  },
+  "wan_cell_primary_mbps": {
+   "value": 50,
+   "label": "D/A",
+   "source": "this design; GSWAN-class link, rate ASSUMED"
+  },
+  "remote_view_budget_mbps_per_cell": {
+   "value": 30,
+   "label": "D",
+   "source": "admission-controlled; beyond it tiles fall to 1 Hz stills"
+  },
+  "state_ingress_mbps": {
+   "value": 2000,
+   "label": "D/A",
+   "source": "2 x 1 Gbps, different carriers"
+  },
+  "kafka_broker_ingress_MBps": {
+   "value": 50,
+   "label": "A",
+   "source": "conservative community-benchmark class, NVMe, RF=3 counted separately"
+  },
+  "kafka_brokers": {
+   "value": 6,
+   "label": "D",
+   "source": "state DC"
+  },
+  "kafka_rf": {
+   "value": 3,
+   "label": "D",
+   "source": ""
+  },
+  "jetstream_msgs_per_s_per_cell": {
+   "value": 50000,
+   "label": "A",
+   "source": "conservative vendor-benchmark class for R3 file-backed streams"
+  },
+  "plate_index_shards": {
+   "value": 4,
+   "label": "D",
+   "source": "hash(folded plate), PostgreSQL primaries"
+  },
+  "substream_mbps_pessimistic": {
+   "value": 1.0,
+   "label": "A",
+   "source": "ONVIF sub-stream; measured government main streams 0.26-0.66 Mbps each (bandwidth.json cameras[])"
+  },
+  "main_stream_mbps": {
+   "value": 2.0,
+   "label": "A",
+   "source": "HLD \u00a71 / SCALE_MODEL.md"
+  },
+  "cell_ingest_lan_gbps": {
+   "value": 50,
+   "label": "D/A",
+   "source": "2 x 25 GbE"
+  },
+  "object_put_per_s_per_gateway": {
+   "value": 1000,
+   "label": "A",
+   "source": "S3-compatible gateway, small objects, vendor-documentation class"
+  },
+  "object_gateways_state": {
+   "value": 4,
+   "label": "D",
+   "source": ""
+  },
+  "watchlist_entries": {
+   "value": 1000000,
+   "label": "A",
+   "source": "pessimistic statewide list size"
+  },
+  "alert_storm_match_fraction": {
+   "value": 0.05,
+   "label": "A",
+   "source": "5% of plate reads match (e.g. a bad bulk list import)"
+  },
+  "concurrent_users": {
+   "value": 5000,
+   "label": "A",
+   "source": "officers statewide"
+  },
+  "requests_per_user_s": {
+   "value": 1.0,
+   "label": "A",
+   "source": "peak"
+  },
+  "api_point_query_ms": {
+   "value": 10.38,
+   "label": "M",
+   "source": "var/reports/store_engines.json PostgreSQL plate search p50, used as the per-request cost"
+  },
+  "outage_hours": {
+   "value": 24,
+   "label": "D",
+   "source": "catch-up scenario"
+  },
+  "cameras_viewed_concurrently_per_cell": {
+   "value": 200,
+   "label": "A",
+   "source": "2 district walls x 64 tiles + 72 remote tiles"
+  },
+  "gateway_copy_sessions_per_node": {
+   "value": 150,
+   "label": "A",
+   "source": "copy-remux WHEP sessions per gateway node; not measured (15 transcoded bridges measured on the M5, phase16_bridge_scale.json)"
+  }
+ },
+ "rates": {
+  "cell_obs_per_s_pess": 2083.33,
+  "cell_obs_per_s_mean": 626.81,
+  "state_obs_per_s_pess": 66666.67,
+  "state_obs_per_s_mean": 20057.78,
+  "state_plates_per_s_pess": 6666.67,
+  "window_hours": 537.26,
+  "hot_camera_peak_obs_per_s": 8.18,
+  "hot_camera_peak_kbps_raw": 87.18,
+  "state_metadata_mbps_raw_pess": 710.24,
+  "state_metadata_mbps_z_pess": 82.13,
+  "central_video_gbps_2mbps": 160.0
+ },
+ "sweep": [
+  {
+   "analysed": 8000,
+   "gpus": 338,
+   "avg_cell_wan_mbps": 0.31,
+   "state_bus_MBps": 0.57,
+   "cell_db_rows_s": 166.67,
+   "lake_TB_yr": 32.38
+  },
+  {
+   "analysed": 20000,
+   "gpus": 723,
+   "avg_cell_wan_mbps": 0.77,
+   "state_bus_MBps": 1.43,
+   "cell_db_rows_s": 416.67,
+   "lake_TB_yr": 80.94
+  },
+  {
+   "analysed": 40000,
+   "gpus": 1366,
+   "avg_cell_wan_mbps": 1.53,
+   "state_bus_MBps": 2.87,
+   "cell_db_rows_s": 833.33,
+   "lake_TB_yr": 161.88
+  },
+  {
+   "analysed": 80000,
+   "gpus": 2652,
+   "avg_cell_wan_mbps": 3.07,
+   "state_bus_MBps": 5.73,
+   "cell_db_rows_s": 1666.67,
+   "lake_TB_yr": 323.77
+  }
+ ],
+ "provision": {
+  "8000": {
+   "inference_servers": 85,
+   "decode_servers": 32,
+   "edge_boxes": 100,
+   "compute_ram_TB": 0.78,
+   "cell_db_servers": 80,
+   "cell_app_bus_servers": 120,
+   "cell_hot_nvme_TB": 2560,
+   "cell_network_set": 40,
+   "cell_rack": 40,
+   "region_sfu_turn_servers": 18,
+   "region_backup_object_TB": 1200,
+   "state_kafka_servers": 9,
+   "state_db_servers": 14,
+   "state_app_trino_monitoring": 13,
+   "state_object_store_TB": 3000,
+   "state_nvme_TB": 120,
+   "evidence_worm_TB": 100
+  },
+  "20000": {
+   "inference_servers": 181,
+   "decode_servers": 79,
+   "edge_boxes": 250,
+   "compute_ram_TB": 1.96,
+   "cell_db_servers": 80,
+   "cell_app_bus_servers": 120,
+   "cell_hot_nvme_TB": 2560,
+   "cell_network_set": 40,
+   "cell_rack": 40,
+   "region_sfu_turn_servers": 18,
+   "region_backup_object_TB": 1200,
+   "state_kafka_servers": 9,
+   "state_db_servers": 14,
+   "state_app_trino_monitoring": 13,
+   "state_object_store_TB": 3000,
+   "state_nvme_TB": 120,
+   "evidence_worm_TB": 100
+  },
+  "40000": {
+   "inference_servers": 342,
+   "decode_servers": 157,
+   "edge_boxes": 500,
+   "compute_ram_TB": 3.92,
+   "cell_db_servers": 80,
+   "cell_app_bus_servers": 120,
+   "cell_hot_nvme_TB": 2560,
+   "cell_network_set": 40,
+   "cell_rack": 40,
+   "region_sfu_turn_servers": 18,
+   "region_backup_object_TB": 1200,
+   "state_kafka_servers": 9,
+   "state_db_servers": 14,
+   "state_app_trino_monitoring": 13,
+   "state_object_store_TB": 3000,
+   "state_nvme_TB": 120,
+   "evidence_worm_TB": 100
+  },
+  "80000": {
+   "inference_servers": 663,
+   "decode_servers": 313,
+   "edge_boxes": 1000,
+   "compute_ram_TB": 7.85,
+   "cell_db_servers": 80,
+   "cell_app_bus_servers": 120,
+   "cell_hot_nvme_TB": 2560,
+   "cell_network_set": 40,
+   "cell_rack": 40,
+   "region_sfu_turn_servers": 18,
+   "region_backup_object_TB": 1200,
+   "state_kafka_servers": 9,
+   "state_db_servers": 14,
+   "state_app_trino_monitoring": 13,
+   "state_object_store_TB": 3000,
+   "state_nvme_TB": 120,
+   "evidence_worm_TB": 100
+  }
+ },
+ "cost_planning": {
+  "compute_lakh": [
+   23894.0,
+   55105.0
+  ],
+  "noncompute_lakh": [
+   5600.0,
+   13010.0
+  ],
+  "compute_share": [
+   0.81,
+   0.81
+  ],
+  "total_crore": [
+   294.94,
+   681.15
+  ],
+  "items": {
+   "inference_servers": [
+    19890,
+    46410
+   ],
+   "decode_servers": [
+    2504,
+    4695
+   ],
+   "edge_boxes": [
+    1500.0,
+    4000
+   ],
+   "compute_ram_TB": [
+    0.0,
+    0.0
+   ],
+   "cell_db_servers": [
+    1200,
+    2400
+   ],
+   "cell_app_bus_servers": [
+    960,
+    1800
+   ],
+   "cell_hot_nvme_TB": [
+    1280.0,
+    3840.0
+   ],
+   "cell_network_set": [
+    600,
+    1400
+   ],
+   "cell_rack": [
+    400,
+    800
+   ],
+   "region_sfu_turn_servers": [
+    144,
+    270
+   ],
+   "region_backup_object_TB": [
+    120.0,
+    360.0
+   ],
+   "state_kafka_servers": [
+    72,
+    135
+   ],
+   "state_db_servers": [
+    350,
+    700
+   ],
+   "state_app_trino_monitoring": [
+    104,
+    195
+   ],
+   "state_object_store_TB": [
+    300.0,
+    900.0
+   ],
+   "state_nvme_TB": [
+    60.0,
+    180.0
+   ],
+   "evidence_worm_TB": [
+    10.0,
+    30.0
+   ]
+  }
+ },
+ "cost_hld_1hz": {
+  "compute_lakh": [
+   15344.0,
+   35155.0
+  ],
+  "noncompute_lakh": [
+   5600.0,
+   13010.0
+  ],
+  "compute_share": [
+   0.73,
+   0.73
+  ],
+  "total_crore": [
+   209.44,
+   481.65
+  ],
+  "items": {
+   "inference_servers": [
+    11340,
+    26460
+   ],
+   "decode_servers": [
+    2504,
+    4695
+   ],
+   "edge_boxes": [
+    1500.0,
+    4000
+   ],
+   "compute_ram_TB": [
+    0.0,
+    0.0
+   ],
+   "cell_db_servers": [
+    1200,
+    2400
+   ],
+   "cell_app_bus_servers": [
+    960,
+    1800
+   ],
+   "cell_hot_nvme_TB": [
+    1280.0,
+    3840.0
+   ],
+   "cell_network_set": [
+    600,
+    1400
+   ],
+   "cell_rack": [
+    400,
+    800
+   ],
+   "region_sfu_turn_servers": [
+    144,
+    270
+   ],
+   "region_backup_object_TB": [
+    120.0,
+    360.0
+   ],
+   "state_kafka_servers": [
+    72,
+    135
+   ],
+   "state_db_servers": [
+    350,
+    700
+   ],
+   "state_app_trino_monitoring": [
+    104,
+    195
+   ],
+   "state_object_store_TB": [
+    300.0,
+    900.0
+   ],
+   "state_nvme_TB": [
+    60.0,
+    180.0
+   ],
+   "evidence_worm_TB": [
+    10.0,
+    30.0
+   ]
+  }
+ },
+ "wan_opex_lakh_per_year": [
+  307.2,
+  864.0
+ ],
+ "hostile": {
+  "a_compression_only_4x": {
+   "cell_wan_mbps": 6.82,
+   "headroom_vs_20": 2.93
+  },
+  "b_all_highway_cell_at_peak_hour": {
+   "obs_per_s": 7800.0,
+   "db_headroom_measured": 1.82,
+   "db_headroom_half_measured": 0.91,
+   "wan_mbps": 10.88,
+   "wan_headroom_vs_20": 1.84,
+   "hot_30d_TB_2x_wire": 53.85,
+   "hot_30d_TB_sqlite_basis": 15.65,
+   "cameras_per_cell_if_capped_at_4000_obs_s": 1282,
+   "at_cap_db_headroom_half_measured": 1.77,
+   "at_cap_wan_headroom_vs_20": 3.23,
+   "at_cap_hot_30d_headroom_2x_wire": 1.16,
+   "at_cap_hot_30d_headroom_sqlite_basis": 3.99
+  },
+  "c_kafka_10MBps_per_broker": {
+   "headroom": 3.49
+  },
+  "d_pg_half_of_measured": {
+   "cell_headroom": 3.4
+  },
+  "e_half_estate_anpr_every_obs_plated": {
+   "plates_per_s": 33333.33,
+   "shards4_headroom": 1.7,
+   "shards8_headroom": 3.4,
+   "kafka_MBps": 12.67,
+   "kafka_headroom": 7.89,
+   "plate_index_hot_90d_TB": 82.94,
+   "gpus_if_those_cameras_run_5fps": 4286
+  },
+  "f_api_10k_users_2rps": {
+   "headroom_128_workers": 0.62,
+   "workers_for_2x": 416
+  },
+  "g_5000_remote_preview_tiles": {
+   "mbps": 2500.0,
+   "headroom_vs_2000": 0.8,
+   "thumb_1hz_15KB_mbps": 600.0
+  },
+  "h_state_outage_72h_plate_catchup_h": 9.58,
+  "i_wan_outage_7d_cell_queue_GB_compressed": 194.04
+ }
+}

@@ -7608,9 +7608,14 @@ $("#btn-reg-clear")?.addEventListener("click", () => {
 /** Clear everything the previous vehicle left behind, before asking again. */
 function resetInvestigation(plate) {
   const body = $("#traj-body");
-  if (body) body.replaceChildren(loadingNote(plate
-    ? `Searching every camera in your jurisdiction for ${plate}…`
-    : "Searching…"));
+  /* A route is built from a registration mark only. A search by camera, type
+   * or colour never fills this panel, so a spinner here span forever beside
+   * results that had already arrived; it says what a route needs instead. */
+  if (body) body.replaceChildren(plate
+    ? loadingNote(`Searching every camera in your jurisdiction for ${plate}…`)
+    : el("div", { class: "empty",
+      text: "A route is traced from a registration mark. This search is by "
+        + "camera, type or colour, so the observations are listed without one." }));
   const tgt = $("#traj-target");
   if (tgt) tgt.textContent = plate || "";
   const status = $("#traj-status");

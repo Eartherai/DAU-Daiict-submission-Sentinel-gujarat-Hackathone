@@ -528,3 +528,16 @@ def test_grid_opening_still_shows_all_thirty_in_the_control_room():
 def test_each_opening_layout_names_its_media_policy():
     assert gov.OPENING_POLICY == {"dense": "control-room", "grid": "optimized"}
     assert gov.GRID_SESSION_BUDGET == 12
+
+
+def test_one_paused_sample_does_not_end_a_hold():
+    """cam01 on 28 Sep: steady play, one 1.3 s pause, steady play."""
+    assert not gov.hold_stalled([True, True, True, True, True, False])
+    assert not gov.hold_stalled([True, False, True, False, True])
+    assert not gov.hold_stalled([False])
+
+
+def test_a_visible_freeze_ends_a_hold():
+    assert gov.hold_stalled([True, True, False, False])
+    assert gov.hold_stalled([False, False])
+    assert gov.STALL_SAMPLES == 2

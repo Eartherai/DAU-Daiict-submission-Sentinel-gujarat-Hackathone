@@ -102,6 +102,19 @@ def evaluate_tiles(before: list[dict], after: list[dict], min_live: int) -> dict
             "passed": len(live) >= min_live, "min_live": min_live, "tiles": rows}
 
 
+#: Consecutive failing samples that end a hold. Samples come about every 2.3 s
+#: and each compares two snapshots 1.1 s apart, so one failure is a pause of
+#: about a second - on 28 Sep cam01 froze 1.3 s between 11 s of steady play,
+#: and the strict rule threw the take away. Two in a row is a freeze of about
+#: 3.5 s, which a viewer would see. Every sample is still written to beats.json.
+STALL_SAMPLES = 2
+
+
+def hold_stalled(history: list[bool], tolerance: int = STALL_SAMPLES) -> bool:
+    """True when the last ``tolerance`` hold samples all failed to advance."""
+    return len(history) >= tolerance and not any(history[-tolerance:])
+
+
 def live_caption(live: int, total: int = 30) -> str:
     if not 0 <= live <= total:
         raise ValueError("live count must be within the measured wall size")
@@ -855,18 +868,21 @@ def record(base: str, token: str, plate: str, out_dir: Path,
                             cast.resume()
                         until = time.monotonic() + hold
                         beat.ok = True
+                        held: list[bool] = []
                         while time.monotonic() < until:
                             if beat.wall and time.monotonic() + 1.1 < until:
                                 sample = sample_video(page, wall_ids(page, government), threshold)
                                 sample['at_s'] = cast.timeline_time() - t0
                                 beat.samples.append(sample)
                                 show_caption(page, live_caption(sample['live']))
-                                if not sample['passed'] or not sample['visible_live']:
+                                held.append(bool(sample['passed'] and sample['visible_live']))
+                                if hold_stalled(held):
                                     raise RecorderFailure('wall motion fell below threshold during hold')
                             elif beat.visible_motion and time.monotonic() + 1.1 < until:
                                 sample = sample_video(page, [detail['camera']], 1, focus=True)
                                 beat.samples.append(sample)
-                                if not sample['passed'] or not sample['visible_live']:
+                                held.append(bool(sample['passed'] and sample['visible_live']))
+                                if hold_stalled(held):
                                     raise RecorderFailure('focused government video stopped advancing')
                             ui = page.evaluate(UI_SAMPLE) if not page.url.startswith('file:') else None
                             if ui and (ui['loading'] or ui['loadingText']):

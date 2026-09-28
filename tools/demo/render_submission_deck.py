@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import argparse
 import io
-import shutil
+import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -95,8 +96,9 @@ def paste_c(canvas: Image.Image, im: Image.Image, box: tuple[int, int, int, int]
     canvas.paste(fitted, (x, y))
 
 
-def canvas(dark: bool = False) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+def canvas(dark: bool = False, *, tags: tuple[str, ...] = ("VERIFIED",)) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new("RGB", (W, H), DARK if dark else PAPER)
+    img.info["truth_tags"] = tags
     return img, ImageDraw.Draw(img)
 
 
@@ -143,12 +145,12 @@ def title(d: ImageDraw.ImageDraw, text: str, *, dark: bool = False, y: int = 92,
 
 
 def shot_page(path: Path, kicker_s: str, heading: str, caption: str, page: str) -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=("DEMO",) if path.name.startswith("own_") else ("MEASURED",))
     rail(img, d, kicker_s.split()[0] if kicker_s else "WORKSPACE", page)
     kicker(d, kicker_s, y=28)
     ty = title(d, heading, y=48, size=32)
-    paste_c(img, _open(path), (ML - 8, ty + 6, W - 36, H - 78))
-    footer(d, caption, y=H - 52)
+    paste_c(img, _open(path), (ML - 8, ty + 6, W - 36, H - 104))
+    footer(d, caption + f" Source: var/demo/ui_shots_final/{path.name}", y=H - 76)
     return img
 
 
@@ -176,7 +178,7 @@ def two_shot(left: Path, right: Path, kicker_s: str, heading: str,
 
 def four_shot(paths: list[Path], labels: list[str], kicker_s: str,
               heading: str, foot: str, page: str) -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('MEASURED',))
     rail(img, d, "DETECT", page)
     kicker(d, kicker_s, y=24)
     ty = title(d, heading, y=44, size=30)
@@ -200,8 +202,9 @@ def four_shot(paths: list[Path], labels: list[str], kicker_s: str,
 
 def table_page(kicker_s: str, heading: str, columns: list[str],
                rows: list[list[tuple[str, str | None]]], foot: str,
-               page: str, *, dark: bool = False, col_w: list[int] | None = None) -> Image.Image:
-    img, d = canvas(dark)
+               page: str, *, dark: bool = False, col_w: list[int] | None = None,
+               tags: tuple[str, ...] = ("VERIFIED",)) -> Image.Image:
+    img, d = canvas(dark, tags=tags)
     rail(img, d, kicker_s.split()[0] if kicker_s else "TABLE", page, dark=dark)
     kicker(d, kicker_s, dark=dark, y=48)
     ty = title(d, heading, dark=dark, y=84, size=48)
@@ -251,7 +254,7 @@ def table_page(kicker_s: str, heading: str, columns: list[str],
 
 
 def cover() -> Image.Image:
-    img, d = canvas(True)
+    img, d = canvas(True, tags=('VERIFIED', 'DEMO'))
     rail(img, d, "TITLE", "01", dark=True)
     kicker(d, "Gujarat Police Innovation Challenge 2026", dark=True, y=72)
     d.ellipse((ML, 128, ML + 54, 182), outline=SEAL, width=3)
@@ -268,10 +271,10 @@ def cover() -> Image.Image:
         d.text((ML, 430 + i * 34), line, font=sub, fill=(176, 180, 186))
     d.line([(ML, 530), (W - MR, 530)], fill=(58, 62, 68), width=1)
     kpis = [
-        ("30", "CAMERAS ONBOARDED", "MEASURED"),
-        ("0", "ANPR-GOOD GRADES", "MEASURED"),
-        ("0", "CROSS-CAMERA REPEATS", "MEASURED"),
-        ("689,502", "OBSERVATIONS", "MEASURED · 6 SEP"),
+        ("30", "GOVERNMENT", "VERIFIED BASELINE"),
+        ("2", "OWN FEED", "DEMO"),
+        ("18", "SYNTHETIC CONTROL", "DEMO"),
+        ("50", "EVALUATION BASELINE", "VERIFIED"),
     ]
     x = ML
     for num, lab, tag in kpis:
@@ -280,13 +283,13 @@ def cover() -> Image.Image:
         d.text((x, 662), tag, font=SANS(13), fill=GOLD)
         x += 420
     footer(d,
-           "Every headline figure is MEASURED from the 6 Sep 2026 live-store sheet, or MODELLED with the arithmetic shown. Screenshots are the running workspace on 15 Sep 2026.",
+           "Source: src/saakshya/command/domain.py::enforce_evaluation_50. Additional operator-onboarded cameras are retained. Screenshots are dated captures, not current totals.",
            dark=True)
     return img
 
 
 def framing() -> Image.Image:
-    img, d = canvas(True)
+    img, d = canvas(True, tags=('MEASURED', 'DEMO'))
     rail(img, d, "FRAMING", "02", dark=True)
     kicker(d, "The constraint that shapes everything", dark=True, y=64)
     ty = title(d, "“Participants will be provided with a designated vehicle registration number.”",
@@ -308,18 +311,18 @@ def framing() -> Image.Image:
                         outline=(58, 62, 68), width=1)
     _text(d, (W - MR - 492, card_t + 24), "WHAT WE REHEARSED", SANS(13), GOLD, spacing=2.6)
     d.text((W - MR - 492, card_t + 60), "Government grid", font=SANS_B(22), fill=WHITE)
-    d.text((W - MR - 492, card_t + 92), "GJ1VV0119  ·  cam07 only", font=MONO(20), fill=GOLD)
-    d.text((W - MR - 492, card_t + 148), "Own feed (synthetic)", font=SANS_B(22), fill=WHITE)
-    d.text((W - MR - 492, card_t + 180), "GJ05AB1234  ·  C-014 + C-021", font=MONO(20), fill=GOLD)
+    d.text((W - MR - 492, card_t + 92), "GJ11S7924  ·  cam06 only", font=MONO(20), fill=GOLD)
+    d.text((W - MR - 492, card_t + 148), "Controlled own-feed demonstration", font=SANS_B(22), fill=WHITE)
+    d.text((W - MR - 492, card_t + 180), "GJ18JX7786  ·  C-014 → C-021", font=MONO(20), fill=GOLD)
     d.text((W - MR - 492, card_t + 232), "A looping single camera is not a route.", font=SANS(16), fill=(168, 172, 178))
     footer(d,
-           "A watchlist answers questions asked in advance. An index answers a question nobody had asked yet — which is the evaluation.",
+           "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html. Government: single-camera observation. Own feed: controlled multi-camera demonstration.",
            dark=True)
     return img
 
 
 def problem() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('MODELLED', 'VERIFIED'))
     rail(img, d, "PROBLEM", "03")
     kicker(d, "Problem statement")
     ty = title(d, "Gujarat’s cameras are not one system", y=88, size=50)
@@ -327,7 +330,7 @@ def problem() -> Image.Image:
     intro = SANS(22)
     y = ty + 36
     for line in wrap(d,
-            "Tens of thousands of cameras, installed over two decades by Home, Health, GSRTC, Panchayat and Municipal bodies, for local supervision. Most were never installed to read a plate — and nobody has a list of which ones can.",
+            "A heterogeneous camera estate installed by Home, Health, GSRTC, Panchayat and Municipal bodies for local supervision. Cameras differ in geometry, light and connectivity; plate-reading capability has to be measured.",
             intro, W - ML - MR):
         d.text((ML, y), line, font=intro, fill=INK)
         y += 32
@@ -335,7 +338,7 @@ def problem() -> Image.Image:
         ("1", "Video cannot be centralised",
          "80,000 cameras × 2 Mbps is 160 Gbps sustained. Thirty days is ~52 PB. MODELLED arithmetic; not a load test."),
         ("2", "Capability is unknown and unequal",
-         "28 of 30 government cameras grade UNSUITABLE for ANPR from their own stream. UNKNOWN is a first-class answer."),
+         "Capability is assessed from each camera’s stream. Poor geometry and light constrain ANPR. UNKNOWN remains an explicit result."),
         ("3", "Connectivity is unreliable",
          "Outages correlate with incidents. The edge continues with the uplink down. Nothing is lost on a queue."),
     ]
@@ -350,7 +353,7 @@ def problem() -> Image.Image:
         for line in wrap(d, body, SANS(18), cw - 48):
             d.text((x + 24, yy), line, font=SANS(18), fill=MUTED)
             yy += 26
-    footer(d, "An investigator’s question is “where did this vehicle go?” — not “show me every camera at once.”")
+    footer(d, "MODELLED arithmetic: docs/HLD.md §1 and §20.9; assumes 2 Mbps per camera and 30-day central video retention.")
     return img
 
 
@@ -362,10 +365,10 @@ def hybrid() -> Image.Image:
         [
             [("M1 — Registry & GIS  (mandatory, kept)", None),
              ("Control plane, not a side deliverable. Identity, geometry, transport, health, measured capability.", None),
-             ("30 cameras onboarded. 19 placed from names; 11 listed, not invented. Estate map.", None)],
-            [("M2 — Unified viewing  (kept as stills)", None),
-             ("One JPEG per camera from the decode analytics already paid for. Not thirty extra RTSP copies.", None),
-             ("Live wall. LIVE if the frame is under 2.5 s; otherwise STALE. Click-to-play is optional.", None)],
+             ("Registry, GIS, governance and gap analysis. Cameras without coordinates remain listed; location provenance is retained.", None)],
+            [("M2 — Unified viewing + metadata analytics", None),
+             ("CONTROL ROOM: up to 30 direct WHEP tile sessions. OPTIMIZED VIEW: at most 12 sessions near the viewport.", None),
+             ("Authenticated signalling proxy; browser holds no Sentinel credentials. AI workers use selected RTSP/TCP streams separately.", None)],
             [("M3 — Federation & metadata  (kept)", None),
              ("Government RTSP + local MediaMTX. Observation store is the metadata bus.", None),
              ("Search, trajectory, watchlist, alerts, evidence. Adapters, not a replacement VMS.", None)],
@@ -376,48 +379,30 @@ def hybrid() -> Image.Image:
              ("The transport, not the capability. Central ingest of all video refused on cost and on the Core Goal.", "red"),
              ("Not built, and not deferred. 80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB.", "red")],
         ],
-        "The organising idea — move analytics to the edge, move only metadata to the centre, move video only on demand.",
+        "Sources: docs/HLD.md §3; ui/app.js media-policy / TILE_WHEP_BUDGET; docs/SCALE_MODEL.md central-recording arithmetic.",
         "04",
         col_w=[ML, ML + 430, ML + 1100],
+        tags=('VERIFIED', 'MODELLED'),
     )
 
 
 def model4() -> Image.Image:
-    img, d = canvas(False)
-    rail(img, d, "ARITHMETIC", "05")
-    kicker(d, "Why central recording is declined")
-    title(d, "The sizing number is arithmetic, shown in full", y=88, size=44)
-    rows = [
-        ("Cameras (issued figure)", "80,000", "MODELLED"),
-        ("Assumed bitrate", "2 Mbps each", "MODELLED"),
-        ("Sustained ingest", "80,000 × 2 Mbps = 160 Gbps", "MODELLED"),
-        ("30-day central store", "160 Gbps × 30 × 86,400 / 8 ≈ 52 PB", "MODELLED"),
-        ("What we actually ran", "30 government cameras, one host", "MEASURED"),
-        ("Video off the wire (3 cameras)", "1.363 Mbps", "MEASURED"),
-        ("Observations at peak event rate", "0.071 Mbps  ·  19.3× smaller than video", "MEASURED"),
-    ]
-    y = 220
-    d.line([(ML, y), (W - MR, y)], fill=RULE, width=1)
-    y += 18
-    for label, val, tag in rows:
-        d.text((ML, y), label, font=SANS(22), fill=INK)
-        d.text((ML + 720, y), val, font=SANS_B(22), fill=INK)
-        fill = GREEN if tag == "MEASURED" else (146, 97, 10)
-        d.text((W - MR - 160, y), tag, font=SANS(16), fill=fill)
-        y += 52
-        d.line([(ML, y - 14), (W - MR, y - 14)], fill=(236, 236, 232), width=1)
-    d.rounded_rectangle((ML, y + 8, W - MR, y + 168), radius=8, outline=RULE, width=1)
-    d.rectangle((ML, y + 8, ML + 6, y + 168), fill=SEAL)
-    d.text((ML + 28, y + 28), "We decline one implementation choice, not a capability.",
-           font=SANS_B(22), fill=INK)
-    body = "Every functional outcome Model 4 lists is present: detection, tracking, ANPR where the camera can, search, trajectory, watchlist, alerts, evidence. The transport is what differs. Central ingest is the opposite of cost-effective use of existing infrastructure."
-    yy = y + 68
-    for line in wrap(d, body, SANS(18), W - ML - MR - 48):
-        d.text((ML + 28, yy), line, font=SANS(18), fill=MUTED)
-        yy += 24
-    footer(d, "Do not read 160 Gbps or 52 PB as a test we ran. They are the reason we did not run that test.")
-    return img
-
+    b = report("bandwidth")
+    return table_page(
+        "Central recording  ·  arithmetic and a separate link measurement",
+        "Why statewide central recording is declined",
+        ["BASIS", "RESULT", "STATUS"],
+        [
+            [("80,000 cameras × 2 Mbps", None), ("160 Gbps sustained video ingest", None), ("MODELLED · HLD §1", "gold")],
+            [("160 Gbps × 30 days ÷ 8", None), ("≈52 PB of central video", None), ("MODELLED · HLD §1", "gold")],
+            [(f"Video demux from {len(b['cameras'])} cameras", None), (f"{b['video_mbps']:.3f} Mbps", None), ("MEASURED · bandwidth.json", "green")],
+            [("Serialised observation row", None), (f"{b['observation_bytes_each']:,.1f} B", None), ("MEASURED · bandwidth.json", "green")],
+            [("Peak stored event rate × row size", None), (f"{b['event_mbps']:.3f} Mbps · {b['ratio']:.1f}× smaller", None), ("Report comparison · bandwidth.json", "green")],
+            [("Compact observation assumption", None), ("~400 B per observation", None), ("MODELLED · SCALE_MODEL.md", "gold")],
+        ],
+        "Sources: docs/HLD.md §1; docs/SCALE_MODEL.md; var/reports/bandwidth.json. Selected-camera Model 4 analytics remain part of the hybrid; statewide central recording is declined.",
+        "07", col_w=[ML, ML + 600, ML + 1160], tags=("MEASURED", "MODELLED"),
+    )
 
 def bleed(path: Path, kicker_s: str, heading: str, caption: str, page: str) -> Image.Image:
     img = Image.new("RGB", (W, H), (255, 255, 255))
@@ -464,8 +449,8 @@ def scenario() -> Image.Image:
                 ("Investigate · Trajectory legs", None),
                 (
                     (
-                        "Own-store GJ18JX7786: C-014 → C-021, five minutes apart "
-                        "(fictional plate). Government GJ1VV0119: cam07 only, not a "
+                        "Controlled own-feed GJ18JX7786: C-014 → C-021 "
+                        "(fictional plate). Government GJ11S7924: cam06 only, a single-camera observation, not a "
                         "cross-camera route."
                     ),
                     None,
@@ -497,96 +482,30 @@ def scenario() -> Image.Image:
             ],
         ],
         (
-            "Baseline: command/domain.py enforce_evaluation_50. View names "
+            "Sources: src/saakshya/command/domain.py::enforce_evaluation_50; var/demo/SUBMIT/06_*trace_report.html. View names "
             "identify evidence; film chapter timestamps are not recorded here."
         ),
         "10",
         col_w=[ML, ML + 460, ML + 870],
+        tags=('VERIFIED', 'DEMO', 'MEASURED'),
     )
 
 
 def infrastructure() -> Image.Image:
     return table_page(
-        "Deployment  ·  modelled unless marked measured",
-        "Infrastructure sizing and cost",
-        ["TIER / RESOURCE", "SIZING AND SUBMISSION BASIS"],
+        "Infrastructure  ·  HLD planning assumptions",
+        "Compute, bandwidth and retention",
+        ["RESOURCE", "PLANNING BASIS — NOT A PROCUREMENT BENCHMARK"],
         [
-            [
-                ("Edge / district / centre", None),
-                (
-                    (
-                        "Video at camera/NVR; district edge runs ingest, AI, local store, "
-                        "queue and alerts. ~33 districts x 2,000-3,000 cameras; centre: "
-                        "metadata, PostgreSQL/PostGIS, search and audit."
-                    ),
-                    None,
-                ),
-            ],
-            [
-                ("GPU model: speedup S", None),
-                (
-                    (
-                        "At 2,500 cameras x 1 Hz: inference nodes/district = 2,500 / (5.6 "
-                        "x S). S=10: 45 nodes/district, 1,485 statewide (MODELLED). Target "
-                        "GPU must be benchmarked."
-                    ),
-                    None,
-                ),
-            ],
-            [
-                ("Measured accelerator boundary", None),
-                (
-                    (
-                        "Apple M5 integrated GPU: S=2.0 whole pipeline; 3.4 detector only. "
-                        "Earlier OCR pipeline; not re-run with the new recogniser. Not a "
-                        "target GPU procurement result."
-                    ),
-                    None,
-                ),
-            ],
-            [
-                ("Bandwidth / low connectivity", None),
-                (
-                    (
-                        "Metadata-only aggregation: ~400 B/observation, ~90-180 GB/day "
-                        "statewide with T0 gating. Avoids 160 Gbps continuous video; "
-                        "viewing/stills add traffic. Local queue replays after outages."
-                    ),
-                    None,
-                ),
-            ],
-            [
-                ("Hot / warm / cold storage", None),
-                (
-                    (
-                        "Hot: 30 days metadata + sealed evidence at node. Warm/cold: "
-                        "monthly observation partitions; retention policy still to be set. "
-                        "Video stays at NVR; ~52 PB central video store avoided."
-                    ),
-                    None,
-                ),
-            ],
-            [
-                ("Indicative implementation / operations cost", None),
-                (
-                    (
-                        "HLD §17.2-17.5: node counts depend on S; inference dominates "
-                        "operations. Unit prices and rupee totals NOT ESTIMATED. Benchmark "
-                        "target hardware and obtain procurement prices."
-                    ),
-                    None,
-                ),
-            ],
+            [("Regional compute", None), ("Per district: 2,500 cameras at 1 Hz, assumed S=10 over the 5.6 fps CPU sizing baseline. 45 inference units in 12 four-GPU servers; 10 ingest/decode servers. HLD §20.2–20.3.", None)],
+            [("Hardware classes", None), ("Inference: 256 GB RAM per server. Decode: 64 cores / 256 GB. Database: primary + synchronous standby, 32–64 cores / 256–512 GB each. HLD §20.3; MODELLED, target GPU unmeasured.", None)],
+            [("Metadata bandwidth", None), ("1,331.7 B/observation MEASURED (bandwidth.json); ~400 B MODELLED (SCALE_MODEL.md). At the measured row size: 10–20 GB/day per district gated, ≤8.9 Mbps ungated — MODELLED, HLD §20.4.", None)],
+            [("Hot / warm / cold", None), ("MODELLED central metadata with indexes: ~36 TB hot for 30 days, ~438 TB warm for a year. Cold provision: 500 TB; policy sets retention. Evidence provision: 50 TB, assumed. HLD §20.5.", None)],
+            [("Low connectivity", None), ("Video remains at departmental NVRs. Optional site inference ships metadata only; durable queues replay after reconnect. Viewing and evidence retrieval add traffic. HLD §20.1 / §20.4.", None)],
         ],
-        (
-            "Sources: HLD §7, §12, §17.1-17.5; docs/SCALE_MODEL.md. HLD §20 is "
-            "not present in this revision. Statewide sizing is not a live 80k "
-            "test."
-        ),
-        "11",
-        col_w=[ML, ML + 500],
+        "Sources: docs/HLD.md §20.1–20.5; docs/SCALE_MODEL.md; var/reports/bandwidth.json. Retention and target hardware require departmental agreement.",
+        "11", col_w=[ML, ML + 410], tags=("MEASURED", "MODELLED", "DESIGNED"),
     )
-
 
 def evaluation() -> Image.Image:
     img, d = canvas(False)
@@ -741,7 +660,7 @@ def pipeline() -> Image.Image:
            font=SANS(18), fill=MUTED)
     d.text((ML + 28, y + 96), "UNKNOWN is a correct grade. A guessed colour is worse than no colour.",
            font=SANS(18), fill=MUTED)
-    footer(d, "DINOv2 appearance ranking was measured unfit to lead (decoy 0.941 vs self 0.412). It does not.")
+    footer(d, "Source: docs/HLD.md §4 — pipeline, graph-first retrieval and timebase checks.")
     return img
 
 
@@ -756,7 +675,7 @@ def agenda() -> Image.Image:
             [("2. Overview, objectives, and key innovations", None),
              ("Find → Trace → Verify → Act. Capability measured. Metadata moves. Video stays.", None)],
             [("3. High-level architecture and end-to-end workflow", None),
-             ("Two diagrams as submitted, then the seven-step pipeline from camera to search.", None)],
+             ("HLD-derived architecture and component interactions, then the pipeline from camera to search.", None)],
             [("4. AI video analytics — detection, recognition, events", None),
              ("T0–T2 adaptive tiers. RT-DETRv2 + ByteTrack + voted ANPR. No face identification.", None)],
             [("5. Watchlist correlation and real-time alerts", None),
@@ -768,14 +687,15 @@ def agenda() -> Image.Image:
             [("8. Operational benefits and impact on policing", None),
              ("An index answers a plate that nobody had asked for yet. Honest grades, not a fake wall.", None)],
         ],
-        "Screenshots after the method slides are the running workspace on 15 Sep 2026. Headline numbers stay on the 6 Sep measured sheet.",
+        "Sources: docs/HLD.md; docs/SCALE_MODEL.md. Screenshots retain their capture-time state; report measurements identify their own source.",
         "02",
         col_w=[ML, ML + 820],
+        tags=('VERIFIED', 'MODELLED'),
     )
 
 
 def objectives() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('MEASURED', 'MODELLED', 'VERIFIED'))
     rail(img, d, "OBJECTIVES", "05")
     kicker(d, "Solution overview, objectives, and key innovations")
     ty = title(d, "Answer “where did this vehicle go?” without moving the video", y=84, size=36)
@@ -798,9 +718,9 @@ def objectives() -> Image.Image:
     y += 28
     innos = [
         ("Measure, never assume", "Three grades per camera per time band. UNKNOWN is a correct answer."),
-        ("Metadata, not video", "~400 B per observation to the centre. 19.3x smaller than the video we measured."),
+        ("Metadata, not video", "1,331.7 B/observation MEASURED; ~400 B MODELLED. The measured comparison is 19.3× smaller than video."),
         ("Match in one transaction", "Watchlist hit and sighting commit together, or neither does."),
-        ("Graph before appearance", "DINOv2 was measured unfit to lead (margin −0.541). It does not."),
+        ("Graph before appearance", "Appearance ranking is not used as the lead. Graph and timebase checks come first."),
     ]
     cw = (W - ML - MR - 28) // 2
     for i, (head, body) in enumerate(innos):
@@ -810,7 +730,7 @@ def objectives() -> Image.Image:
         d.text((x + 20, yy + 16), head, font=SANS_B(18), fill=INK)
         for j, line in enumerate(wrap(d, body, SANS(16), cw - 40)):
             d.text((x + 20, yy + 48 + j * 22), line, font=SANS(16), fill=MUTED)
-    footer(d, "Copilot is sixteen read-only tools over the same facade. It cannot invent a plate, a coordinate, or a shared timebase.")
+    footer(d, "Sources: var/reports/bandwidth.json; docs/SCALE_MODEL.md (~400 B model). Copilot tools are read-only; src/saakshya/copilot/tools.py.")
     return img
 
 
@@ -842,12 +762,12 @@ def analytics() -> Image.Image:
         for line in wrap(d, body, SANS(18), cw - 56):
             d.text((x + 28, yy), line, font=SANS(18), fill=MUTED)
             yy += 26
-    footer(d, "Every model passes an eight-check activation gate, including WEIGHTS against the pinned checkpoint. DINOv2 appearance ranks last — measured REJECTED as a lead.")
+    footer(d, "Source: docs/HLD.md §4.2; src/saakshya/runtime/inference_scheduler.py. Priority adapts inference cadence; it does not rotate camera selection.")
     return img
 
 
 def watchlist_method() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('VERIFIED', 'DEMO'))
     rail(img, d, "WATCHLIST", "12")
     kicker(d, "Correlation with watchlist databases and automated alerts")
     title(d, "Every plate read is checked. A hit is a row, not a toast.", y=84, size=36)
@@ -857,7 +777,7 @@ def watchlist_method() -> Image.Image:
         ("3", "Match", "Ingest compares every voted plate to the active local watchlist. Continuous while cameras are open."),
         ("4", "Commit", "Alert and sighting write in the same transaction, or neither does. There is no “alert without evidence”."),
         ("5", "Alert", "OPEN, with decomposed confidence (plate × quality × category), recommended action, observation ids."),
-        ("6", "Hold", "Acknowledge or dismiss is a status. No delete. Every transition is in the hash-chained audit log."),
+        ("6", "Hold", "Acknowledge → investigate → clear (with a reason). No delete. Every transition is in the hash-chained audit log."),
         ("7", "Edge", "The district node keeps matching if the uplink is down. Watchlist bundles fail closed on integrity."),
     ]
     y = 220
@@ -869,7 +789,7 @@ def watchlist_method() -> Image.Image:
             d.text((ML + 160, y + i * 26), line, font=SANS(20), fill=INK)
         y += 52 if len(wrap(d, body, SANS(20), W - ML - MR - 160)) == 1 else 72
         d.line([(ML + 44, y - 14), (W - MR, y - 14)], fill=(236, 236, 232), width=1)
-    footer(d, "Demonstrated: GJ38BH5815 stolen_vehicle HIGH on cam21 (government grid). GJ05AB1234 and GJ15NT6564 on C-014 (own feed).")
+    footer(d, "var/live.db (read-only check): GJ38BH5815 = evaluation_designated, HIGH. Own-feed route: GJ18JX7786, C-014 → C-021 (controlled DEMO). Transitions: src/saakshya/watchlist/alerts.py.")
     return img
 
 
@@ -890,12 +810,12 @@ def stack() -> Image.Image:
              ("Upstream is neither PTS-aware nor scene-cut-aware. Both matter here.", None)],
             [("Recognition (ANPR)", None),
              ("YOLO-v9-t plate + Indian-trained OCR", None),
-             ("Awiros-ANPR-OCR (Apache-2.0), ported to PyTorch: 17/21 hand-read plates exact, against 5/21. Per-track vote.", None)],
+             ("Awiros-ANPR-OCR (Apache-2.0), ported to PyTorch. Per-track voting; recogniser evaluation is separate from the older films.", None)],
             [("Store", None),
              ("SQLAlchemy · SQLite and PostgreSQL 18 + PostGIS", None),
-             ("Both exercised: 1.19M rows copied, both hash chains verify. ST_DWithin for cameras near a point.", None)],
+             ("Both exercised; hash chains verified in the store migration report. ST_DWithin for cameras near a point.", None)],
             [("API", None),
-             ("FastAPI + Uvicorn · 83 operations", None),
+             ("FastAPI + Uvicorn", None),
              ("OpenAPI generated from routes. Four authorisation gates on every call.", None)],
             [("Workspace", None),
              ("Vanilla ES modules, canvas map", None),
@@ -904,26 +824,26 @@ def stack() -> Image.Image:
              ("MediaMTX", None),
              ("Mirrors the organiser sandbox. Own-feed demonstration store.", None)],
         ],
-        "Licence policy is enforced: the model router refuses a non-permissive licence. Appearance (DINOv2) is loaded, measured, and not used as a lead.",
+        "Sources: docs/HLD.md §5; var/reports/store_engines.json; var/reports/ocr_indian_eval.json. No frozen API or test counts.",
         "13",
         col_w=[ML, ML + 380, ML + 860],
     )
 
 
 def scale_security() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('VERIFIED', 'DESIGNED'))
     rail(img, d, "DEPLOY", "14")
     kicker(d, "Scalability, interoperability, security, and deployment")
     title(d, "District edge does the work. The centre holds the index.", y=84, size=36)
     cards = [
         ("Scalability",
-         "MEASURED: 30 government cameras on one host; 50 concurrent streams exercised. MODELLED: ~33 district nodes x 2,000-3,000 cameras. Metadata ~90-180 GB/day statewide with T0 gating — an ordinary database. 80,000-camera video is 160 Gbps / 52 PB and is not the plan."),
+         "The 80,000 figure is a registry/GIS metadata load test with synthetic camera rows plus architecture sizing. Regional worker pools are DESIGNED; statewide live inference has not been tested."),
         ("Interoperability",
-         "RTSP/TCP, HLS and WHEP. Mixed h264/hevc, 640×576 to 2560×1440, colour and IR. Adapters, not a replacement VMS. Government grid plus local MediaMTX. ONVIF-style metadata-first onboarding. Edge bundle export for disconnected nodes."),
+         "RTSP/TCP, HLS and WHEP. Mixed h264/hevc, colour and IR. Adapters, not a replacement VMS. Government grid plus local MediaMTX. ONVIF-style metadata-first onboarding. Edge bundle export for disconnected nodes."),
         ("Security",
          "Four gates: authentication, role, jurisdiction, purpose. ADMIN cannot search. AUDITOR sees cameras, not what they saw. Watchlist read is purpose-bound. Evidence and audit are hash-chained. No face identification. Stream URLs never returned to investigators."),
         ("Deployment",
-         "One codebase, three profiles (DEV_CPU, CLOUD_GPU, TARGET_GPU). Edge: ingest, analytics, local store, queue, watchlist, alerts, evidence. Centre: aggregation, cross-district search, GIS, audit. Continues with the uplink down. PostgreSQL + PostGIS ran the government store's 1.19M rows; NATS at scale is designed; the films ran on SQLite + HTTP."),
+         "One codebase, three profiles (DEV_CPU, CLOUD_GPU, TARGET_GPU). Edge: ingest, analytics, local store, queue, watchlist, alerts, evidence. Centre: aggregation, cross-district search, GIS, audit. Continues with the uplink down. PostgreSQL + PostGIS store migration was measured; NATS at scale is designed; the films ran on SQLite + HTTP."),
     ]
     top = 228
     cw = (W - ML - MR - 28) // 2
@@ -937,12 +857,12 @@ def scale_security() -> Image.Image:
         for line in wrap(d, body, SANS(17), cw - 48):
             d.text((x + 24, yy), line, font=SANS(17), fill=MUTED)
             yy += 24
-    footer(d, "PKI is not claimed. Integrity is content hashes, and every surface that reports them says so.")
+    footer(d, "Sources: docs/HLD.md §10, §12, §18, §20.6; var/reports/final/model1/registry_80000.json. Vendor adapters are contracts; deployed multi-vendor certification remains a field task.")
     return img
 
 
 def benefits() -> Image.Image:
-    img, d = canvas(True)
+    img, d = canvas(True, tags=("DESIGNED", "MODELLED"))
     rail(img, d, "IMPACT", "15", dark=True)
     kicker(d, "Expected operational benefits and impact on policing and public safety", dark=True, y=56)
     title(d, "The shift gets an index, not another video wall", dark=True, y=92, size=40)
@@ -954,7 +874,7 @@ def benefits() -> Image.Image:
           "A lookalike is labelled. A looping pass is not a route."]),
         ("For the organisation",
          ["Uses cameras already installed. No 52 PB central store.",
-          "Outage degrades reporting, never detection.",
+          "Uplink loss leaves district-local detection running.",
           "Every intrusive query is purpose-bound and hash-chained.",
           "Districts keep matching when the wide-area link is down."]),
         ("For policing and public safety",
@@ -976,53 +896,48 @@ def benefits() -> Image.Image:
                 extra = j
             yy += 36 + extra * 26
     footer(d,
-           "Impact is a faster, checkable answer to “where did this vehicle go?”. It is not a claim of production readiness, legal admissibility, or a test at 80,000 cameras.",
+           "Source: docs/HLD.md §20.9. Operational benefits are expected; the avoided central video store is MODELLED. No statewide live-camera test is claimed.",
            dark=True)
     return img
 
 
 def measured() -> Image.Image:
-    img, d = canvas(True)
-    rail(img, d, "EVIDENCE", "21", dark=True)
-    kicker(d, "Measured on the live government store  ·  6 Sep 2026 21:02 UTC", dark=True, y=56)
-    title(d, "Every number here traces to a dated artefact", dark=True, y=92, size=40)
-    rows = [
-        ("Cameras onboarded / placed / listed", "30 / 19 / 11"),
-        ("ANPR grades (from each camera’s stream)", "0 GOOD · 28 UNSUITABLE · 2 UNKNOWN"),
-        ("Observations / person observations", "689,502 / 178,757"),
-        ("Distinct marks / confirmed / leads", "69 / 74 / 43"),
-        ("Exact cross-camera repeats", "0"),
-        ("OCR-lookalike pair", "GJ32K5587 / GJ3ZK5587"),
-        ("Cameras that published a mark / OCR attempts", "9 / 3,380"),
-        ("Open alert", "GJ38BH5815  ·  cam21  ·  stolen_vehicle HIGH"),
-        ("Search / trajectory on the live store", "3.4 ms / 1.5 ms"),
-        ("Appearance (DINOv2) as a lead", "REJECTED  ·  margin −0.541"),
-    ]
-    y = 220
-    d.line([(ML, y), (W - MR, y)], fill=(58, 62, 68), width=1)
-    y += 20
-    for label, val in rows:
-        d.text((ML, y), label, font=SANS(20), fill=(176, 180, 186))
-        d.text((ML + 820, y), val, font=SANS_B(20), fill=WHITE)
-        y += 46
-        d.line([(ML, y - 12), (W - MR, y - 12)], fill=(48, 52, 58), width=1)
-    footer(d,
-           "15 Sep 2026 workspace: store still growing; ANPR remains 0 GOOD. Do not mix the two dates into one headline.",
-           dark=True)
-    return img
-
+    load = report("camera_load")
+    cluster = report("live_cluster")
+    stage = cluster["stages"][0]
+    return table_page(
+        "Measured performance  ·  separate dated runs",
+        "Decode capacity and deep inference have different limits",
+        ["RUN / SOURCE", "MEASURED RESULT", "BOUNDARY"],
+        [
+            [("camera_load.json · " + load["generated_at"][:10], None),
+             (f"{load['aggregate']['cameras_total']} requested; {load['aggregate']['cameras_streaming']} streaming and {load['aggregate']['cameras_down']} down at end", None),
+             ("Controlled load run; this is not concurrent government deep inference.", None)],
+            [("camera_load.json · decoder", None),
+             (f"{load['aggregate']['decoder_errors']} decoder errors; {load['aggregate']['open_failures']} open failures", None),
+             ("Failed streams did not all recover by the end of the run.", None)],
+            [("camera_load.json · analysis", None),
+             (f"{load['analysis_fps_per_process']:.1f} fps per process; {load['peak_rss_mb']:,.1f} MB peak RSS", None),
+             ("This workload is separate from the device benchmark and the HLD sizing baseline.", None)],
+            [("live_cluster.json · " + cluster["generated_at_utc"][:10], None),
+             (f"{stage['cameras']} camera cohort; {stage['frames_analysed']:,} frames analysed / {stage['wall_seconds']:,.1f} s", None),
+             ("Historical government test window. Decoded fps is not deep-inference fps.", None)],
+        ],
+        "Sources: var/reports/camera_load.json; var/reports/live_cluster.json. Simultaneously live camera counts are measured during a test window, never a sandbox or bridge limit.",
+        "35", col_w=[ML, ML + 520, ML + 1120], tags=("MEASURED", "DEMO"),
+    )
 
 def limits() -> Image.Image:
-    img, d = canvas(False)
+    img, d = canvas(False, tags=('VERIFIED', 'DEMO'))
     rail(img, d, "CREDIBILITY", "22")
     kicker(d, "What we will not claim")
     title(d, "A proposal that lists only strengths cannot be checked", y=88, size=40)
     d.rectangle((ML, 210, ML + 64, 214), fill=SEAL)
     points = [
-        "Not production ready. Not legally admissible. Not tested at 80,000 cameras.",
-        "All 30 government cameras fall at or below ANPR grade. Yield is a property of geometry and light, not of enthusiasm.",
-        "GJ1VV0119 is one camera (cam07), looping. That is not a multi-camera government route.",
-        "Cross-camera plates on C-014 and C-021 are the own/synthetic store, labelled as such.",
+        "Prototype scope: operational deployment, evidentiary acceptance and statewide live-video scale still require validation.",
+        "ANPR yield depends on camera geometry and light. A camera being viewable does not mean it is under deep inference.",
+        "GJ11S7924 on cam06 is a SINGLE-CAMERA GOVERNMENT OBSERVATION; no government route is established.",
+        "GJ18JX7786 on C-014 → C-021 is the CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION.",
         "Person boxes are presence. There is no face identification on government data.",
         "Own-feed footage is published with heads blurred from the person detector's boxes. A person it never found is not blurred.",
         "The GPU speed-up is measured on a laptop's integrated GPU. The target accelerator's is not quoted until it is run.",
@@ -1038,7 +953,7 @@ def limits() -> Image.Image:
             d.text((ML + 28, yy), line, font=SANS(22), fill=INK)
             yy += 30
         y = yy + 14
-    footer(d, "Saying this first is worth more than being asked. It is also what makes every other number in this deck checkable.")
+    footer(d, "Sources: docs/HLD.md §19; var/demo/SUBMIT/06_*trace_report.html; var/live.db watchlist (read-only check).")
     return img
 
 
@@ -1059,24 +974,24 @@ def _film_meta(path: Path) -> str:
         v = next(s for s in j["streams"] if s.get("codec_type") == "video")
         audio = any(s.get("codec_type") == "audio" for s in j["streams"])
         return (f"{int(secs) // 60}:{int(secs) % 60:02d}  ·  {v['width']}×{v['height']}"
-                f"  ·  {'narrated, captioned' if audio else 'silent'}")
+                f"  ·  {'audio present' if audio else 'silent'}")
     except Exception:
         return "not rendered on this host"
 
 
 def films() -> Image.Image:
-    img, d = canvas(True)
+    img, d = canvas(True, tags=('MEASURED', 'DEMO'))
     rail(img, d, "FILMS", "23", dark=True)
     kicker(d, "What to play, in this pack", dark=True, y=64)
     title(d, "Two films. One plate report. No mock-ups.", dark=True, y=108, size=44)
     cards = [
-        ("own_feed.mp4  ·  own feed, under three minutes", _film_meta(ROOT / "var/demo/own_feed.mp4"),
+        ("own_feed.mp4  ·  controlled own feed", _film_meta(ROOT / "var/demo/own_feed.mp4"),
          "Licensed Mumbai street footage, heads blurred. A camera onboarded through the registry "
          "form; live detection on the GPU; a plate read off the footage, searched; a fictional "
          "watchlist hit; the trace report; sealed evidence; the audit log."),
         ("government_feed.mp4 + ANPR report CSV", _film_meta(ROOT / "var/demo/government_feed.mp4"),
          "The government grid: live wall, detections drawn on the frame that produced them, plate "
-         "reads with timestamps. The CSV lists every read the film shows."),
+         "reads with timestamps. The report lists timestamped reads; its window is separate from the film duration."),
     ]
     y = 280
     for head, meta, body in cards:
@@ -1088,19 +1003,17 @@ def films() -> Image.Image:
             yy += 28
         y = yy + 28
     footer(d,
-           "Only metadata moves. Video stays where it is. Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
+           "Sources: var/demo/own_feed.mp4 and government_feed.mp4 (ffprobe at render). The existing films predate the Indian recogniser; the government film may be replaced.",
            dark=True)
     return img
 
 
 def gpu_measured() -> Image.Image:
-    """Only the hardware should be the bottleneck; this is the measurement."""
-    import json
-    det = json.loads((ROOT / "var/reports/detector_device.json").read_text())
-    pipe = json.loads((ROOT / "var/reports/pipeline_device.json").read_text())
+    """Historical device comparison; empty plate lists cannot establish OCR parity."""
+    det, pipe = report("detector_device"), report("pipeline_device")
     return table_page(
         "Performance  ·  measured on the development laptop's GPU",
-        "The software is not the bottleneck. The hardware is.",
+        "Measured device throughput, with the sample boundary",
         ["WHAT WAS TIMED", "CPU", "APPLE GPU (MPS)", "SPEED-UP", "SAME OUTPUT?"],
         [
             [("Detector alone, 2560×1440 frame", None),
@@ -1111,15 +1024,14 @@ def gpu_measured() -> Image.Image:
             [("Whole pipeline: detect, track, plate, OCR", None),
              (f"{pipe['cpu']['ms_median']:.0f} ms", None), (f"{pipe['mps']['ms_median']:.0f} ms", "green"),
              (f"{pipe['speedup_median']}×", "green"),
-             ("same observations, same plates" if pipe["same_plates"] and pipe["same_observation_count"]
-              else "no", None)],
-            [("A GPU sync per detected box", None), ("—", None), ("175 ms of 261", "red"),
-             ("fixed", "gold"), ("software, not hardware: one copy per tensor now", None)],
+             ("same observations (no plates in sample)" if not pipe["cpu"]["plates"] and not pipe["mps"]["plates"] and pipe["same_observation_count"]
+              else "same observations and plate lists" if pipe["same_plates"] and pipe["same_observation_count"] else "outputs differ", None)],
         ],
-        "tools/bench/detector_device.py · MEASURED · an integrated laptop GPU, not the target accelerator; "
-        "the same command gives its row. Plate models stay on CPU (CoreML fails their dynamic shapes).",
+        "Sources: var/reports/detector_device.json; pipeline_device.json. Historical integrated-GPU benchmarks; "
+        "earlier OCR pipeline with plate models on CPU. Neither a target-accelerator result nor OCR accuracy parity.",
         "21b",
         col_w=[ML, ML + 640, ML + 860, ML + 1120, ML + 1320],
+        tags=('MEASURED',),
     )
 
 
@@ -1138,7 +1050,297 @@ def close() -> Image.Image:
     return img
 
 
+
+TRUTH_COLOURS = {
+    "MEASURED": (27, 107, 70),
+    "MODELLED": (139, 87, 8),
+    "DEMO": (108, 61, 151),
+    "DESIGNED": (28, 83, 143),
+    "VERIFIED": (75, 82, 90),
+}
+
+
+def badges(d: ImageDraw.ImageDraw, labels: tuple[str, ...], x: int, y: int) -> None:
+    """Same colour and literal label everywhere, including mixed-evidence pages."""
+    for label in labels:
+        width = int(d.textlength(label, font=SANS_B(15))) + 20
+        d.rounded_rectangle((x, y, x + width, y + 22), radius=4,
+                            fill=TRUTH_COLOURS[label])
+        d.text((x + 10, y + 1), label, font=SANS_B(15), fill=WHITE)
+        x += width + 10
+
+
+def report(name: str) -> dict[str, Any]:
+    return json.loads((ROOT / "var/reports" / f"{name}.json").read_text())
+
+
+
+def architecture() -> Image.Image:
+    """HLD topology drawn locally so obsolete raster claims cannot leak in."""
+    img, d = canvas(False, tags=("DESIGNED", "VERIFIED"))
+    rail(img, d, "ARCHITECTURE", "08")
+    kicker(d, "Overall architecture · district deployment design")
+    title(d, "Regional analytics; central metadata and governance", size=44)
+    blocks = [
+        ("CAMERA / DEPARTMENT", "Existing estate", [
+            "Cameras, NVRs and departmental VMS remain in place.",
+            "RTSP / ONVIF / vendor adapters expose authorised streams and metadata.",
+            "Video retention stays with the department.",
+        ]),
+        ("DISTRICT / REGIONAL", "Analytics and local continuity", [
+            "Ingest → detect → track → ANPR on selected cameras.",
+            "Local watchlist, alerts, evidence, store and durable queue.",
+            "Worker pools and camera failover are deployment design.",
+        ]),
+        ("CENTRE + DR SITE", "Metadata services", [
+            "Registry, GIS, governance and cross-district investigation.",
+            "PostgreSQL / PostGIS, evidence index and hash-chained audit.",
+            "Watchlist bundles return to district nodes with integrity checks.",
+        ]),
+    ]
+    gap, cw = 95, (W - ML - MR - 190) // 3
+    for i, (head, sub, paragraphs) in enumerate(blocks):
+        x = ML + i * (cw + gap)
+        d.rounded_rectangle((x, 248, x + cw, 708), radius=10, outline=NAVY, width=2)
+        d.text((x + 24, 274), head, font=SANS_B(23), fill=NAVY)
+        d.text((x + 24, 316), sub, font=SANS_B(21), fill=INK)
+        y = 374
+        for paragraph in paragraphs:
+            for line in wrap(d, paragraph, SANS(22), cw - 48):
+                d.text((x + 24, y), line, font=SANS(22), fill=INK)
+                y += 30
+            y += 20
+        if i < 2:
+            ax = x + cw + 10
+            d.line((ax, 474, ax + gap - 22, 474), fill=NAVY, width=4)
+            d.polygon(((ax + gap - 22, 474), (ax + gap - 36, 465), (ax + gap - 36, 483)), fill=NAVY)
+    d.text((ML, 754), "Video and metadata at regional ingest; metadata to the centre. Authorised viewing pulls video on demand.", font=SANS(24), fill=INK)
+    d.text((ML, 806), "Models 1 + 2 + 3 form the foundation; selected-camera Model 4 analytics are included.", font=SANS_B(24), fill=INK)
+    d.text((ML, 854), "Statewide central recording is declined. Multi-node HA and DR require deployment validation.", font=SANS(24), fill=MUTED)
+    footer(d, "Source: docs/HLD.md §3, §6, §10, §15, §20.1. DESIGNED topology; component contracts are VERIFIED. The current films run on a single host.")
+    return img
+
+
+def system_architecture() -> Image.Image:
+    return table_page(
+        "System architecture · component interactions",
+        "Ingest → analytics → edge → store → investigation",
+        ["COMPONENT", "INTERFACE / RESPONSIBILITY", "BOUNDARY"],
+        [
+            [("Ingest and timebase", None), ("PTS-aware frames, reconnect/backoff and discontinuity checks feed camera pipelines.", None), ("A shared timeline requires reliable clocks.", None)],
+            [("Detection, tracking and ANPR", None), ("Vehicle/person boxes → track → plate crop → voted registration or no read.", None), ("Selected-camera inference; cadence adapts by priority.", None)],
+            [("Local edge services", None), ("Sighting + watchlist match commit together; alerts, sealed evidence and durable queue remain local.", None), ("Uplink loss delays aggregation; local processing continues.", None)],
+            [("Store and metadata exchange", None), ("Idempotent replay into observation, evidence and audit stores. SQLite locally; PostgreSQL / PostGIS at scale.", None), ("Regional event bus and worker cluster are DESIGNED.", None)],
+            [("Investigation and access", None), ("Graph-first search, trajectory, GIS, incident workflow, trace report and read-only copilot.", None), ("Authentication, role, jurisdiction and purpose gates.", None)],
+        ],
+        "Source: docs/HLD.md §4–6, §10–11, §18, §20.6. Components are VERIFIED in the implementation; distributed deployment remains DESIGNED.",
+        "09", col_w=[ML, ML + 450, ML + 1140], tags=("VERIFIED", "DESIGNED"),
+    )
+
+def media_policies() -> Image.Image:
+    return table_page(
+        "Government integration  ·  viewing is separate from inference",
+        "Two explicit wall policies",
+        ["POLICY / PLANE", "BEHAVIOUR"],
+        [
+            [("CONTROL ROOM · Dense 6×5", None), ("One direct WHEP session per tile, up to 30; opens staggered 400 ms apart. A tile session is viewing, not deep inference.", None)],
+            [("OPTIMIZED VIEW · default", None), ("At most 12 sessions near the viewport; 600 px prefetch. Releases a session 15 s after its tile leaves the viewport.", None)],
+            [("Authenticated signalling", None), ("Browser WHEP uses SAAKSHYA’s authenticated signalling proxy. Sentinel credentials stay out of the browser. Selected AI streams use RTSP/TCP separately.", None)],
+            [("Shared sandbox availability", None), ("No fixed participant-facing concurrent RTSP limit. Availability varies with shared load: stagger, back off and isolate each camera. Report live counts only for their test window.", None)],
+        ],
+        "Sources: ui/app.js::applyMediaPolicy, TILE_WHEP_BUDGET, TILE_WHEP_STAGGER_MS, WHEP_PREFETCH_PX, WHEP_KEEPALIVE_MS; docs/SENTINEL_SANDBOX.md support clarification.",
+        "18a", col_w=[ML, ML + 520], tags=("VERIFIED",),
+    )
+
+
+def government_designated() -> Image.Image:
+    return table_page(
+        "Designated vehicle  ·  separate evidence boundaries",
+        "Government observation and controlled own-feed route",
+        ["SOURCE", "REGISTRATION / LOCATIONS", "WHAT IT ESTABLISHES"],
+        [
+            [("Government trace report", None), ("GJ11S7924 · cam06", None), ("SINGLE-CAMERA GOVERNMENT OBSERVATION. Timestamped reads on one camera; no government multi-camera route established.", None)],
+            [("Controlled own-feed trace report", None), ("GJ18JX7786 · C-014 → C-021", None), ("CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION. Fictional registration in the demonstration store.", None)],
+            [("Representative government watchlist", None), ("GJ11S7924 / GJ38BH5815", None), ("evaluation_designated · HIGH. Read-only store verification; these entries do not assert that either vehicle is stolen.", None)],
+        ],
+        "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html; var/live.db watchlist (read-only verification on 28 Sep 2026).",
+        "25", col_w=[ML, ML + 460, ML + 950], tags=("MEASURED", "DEMO", "VERIFIED"),
+    )
+
+
+def gallery_path(value: str, directory: Path) -> Path:
+    """Accept exporter paths rooted at the repo or relative to the gallery."""
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    rooted = ROOT / path
+    return rooted if rooted.is_file() else directory / path
+
+
+def government_anpr_gallery() -> Image.Image | None:
+    """Omit absent/incomplete evidence; never substitute stock or generated crops."""
+    directory = ROOT / "var/demo/plate_gallery"
+    try:
+        selected = json.loads((directory / "selected.json").read_text())
+        stats = json.loads((directory / "stats.json").read_text())
+        required = {"image", "display_image", "camera", "timestamp", "plate_text",
+                    "confidence", "agreeing_reads", "provenance"}
+        if not isinstance(selected, list) or not selected:
+            raise ValueError("selected.json must be a nonempty list")
+        for row in selected:
+            if not isinstance(row, dict) or not required <= row.keys():
+                raise ValueError("selected.json entry lacks required fields")
+            confidence = float(row["confidence"])
+            if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+                raise ValueError("confidence must be a finite fraction")
+        if not isinstance(stats, dict):
+            raise ValueError("stats.json must be an object")
+        for key in ("total_reads", "distinct_plates", "confirmed_registrations",
+                    "cameras_with_reads", "window_start", "window_end", "source", "note"):
+            if key not in stats:
+                raise ValueError(f"stats.json lacks {key}")
+        for key in ("total_reads", "distinct_plates", "confirmed_registrations"):
+            if not isinstance(stats[key], int) or isinstance(stats[key], bool) or stats[key] < 0:
+                raise ValueError("statistics must be nonnegative integer counts")
+        cameras = stats["cameras_with_reads"]
+        if not isinstance(cameras, (int, list)) or isinstance(cameras, bool):
+            raise ValueError("cameras_with_reads must be a count or list")
+        # Preflight every displayed crop before drawing any purported evidence.
+        rows = selected[:8] if len(selected) >= 8 else selected[:6]
+        images = [_open(gallery_path(row["display_image"], directory)) for row in rows]
+    except (OSError, ValueError, KeyError, TypeError):
+        print("WARNING: GOVERNMENT ANPR GALLERY OMITTED — missing or invalid "
+              "var/demo/plate_gallery/{selected.json,stats.json,display_image} inputs.", file=sys.stderr)
+        return None
+    fixture = any(row["provenance"] == "RENDER_TEST_FIXTURE" for row in rows)
+    img, d = canvas(True, tags=("DEMO",) if fixture else ("MEASURED",))
+    rail(img, d, "GOVERNMENT ANPR", "22a", dark=True)
+    kicker(d, "RENDER TEST FIXTURE — NOT SUBMISSION EVIDENCE" if fixture else "Government feed · selected measured crops", dark=True)
+    title(d, "Measured government-feed ANPR evidence", dark=True, size=42)
+    cameras = stats["cameras_with_reads"]
+    camera_count = len(cameras) if isinstance(cameras, list) else cameras
+    band = (f"{stats['total_reads']:,} total reads   ·   {stats['distinct_plates']:,} distinct plates   ·   "
+            f"{stats['confirmed_registrations']:,} confirmed registrations   ·   {camera_count} cameras")
+    d.text((ML, 160), band, font=SANS_B(24), fill=GOLD)
+    d.text((ML, 202), f"Test window: {stats['window_start']} → {stats['window_end']}", font=SANS(20), fill=WHITE)
+    d.text((ML, 240), "Selected examples below; statistics cover every government read in the stated window.", font=SANS(20), fill=WHITE)
+    columns = 4 if len(rows) == 8 else 3
+    gap = 22
+    cw = (W - ML - MR - gap * (columns - 1)) // columns
+    for i, (row, crop) in enumerate(zip(rows, images)):
+        x, y = ML + i % columns * (cw + gap), 294 + i // columns * 316
+        d.rounded_rectangle((x, y, x + cw, y + 296), radius=8, fill=DARK_2)
+        paste_c(img, crop, (x + 12, y + 12, x + cw - 12, y + 162))
+        d.text((x + 18, y + 174), str(row["plate_text"]), font=SANS_B(26), fill=WHITE)
+        d.text((x + 18, y + 212), f"{row['camera']}  ·  confidence {float(row['confidence']):.1%}", font=SANS(19), fill=GOLD)
+        for j, line in enumerate(wrap(d, str(row["timestamp"]), SANS(18), cw - 36)):
+            d.text((x + 18, y + 242 + j * 22), line, font=SANS(18), fill=WHITE)
+    footer(d, "Sources: var/demo/plate_gallery/selected.json (display_image); stats.json. "
+           + str(stats["source"]) + ". " + str(stats["note"]), dark=True, y=960)
+    return img
+
+
+def ai_coverage() -> Image.Image:
+    pipe, det = report("pipeline_device"), report("detector_device")
+    cluster, load = report("live_cluster"), report("camera_load")
+    stage = cluster["stages"][0]
+    n = sum(row.get("frames_analysed", 0) > 0 for row in stage["per_camera"])
+    basis = "live_cluster.json historical analysed cohort"
+    sweep = ROOT / "var/reports/ai_concurrency_sweep.json"
+    if sweep.exists():
+        # No sweep schema is mandated by the export contract. Accept explicit
+        # measured concurrency only; never infer it from decode session counts.
+        data = json.loads(sweep.read_text())
+        measured_n = data.get("deep_inference_concurrency")
+        if isinstance(measured_n, int) and not isinstance(measured_n, bool) and measured_n > 0:
+            n, basis = measured_n, "ai_concurrency_sweep.json deep_inference_concurrency"
+        else:
+            print("WARNING: AI sweep lacks explicit deep_inference_concurrency; "
+                  "coverage uses the named historical live_cluster report.", file=sys.stderr)
+    img, d = canvas(False, tags=("MEASURED", "MODELLED", "DESIGNED"))
+    rail(img, d, "AI COVERAGE", "36a")
+    kicker(d, "Measured workload · modelled hardware · designed deployment")
+    title(d, "AI coverage and hardware scaling", size=46)
+    coverage = (f"Every integrated camera viewable on the wall; deep inference on {n} at a time "
+                "on this machine; adaptive cadence")
+    yy = 170
+    for line in wrap(d, coverage, SANS_B(25), W - ML - MR):
+        d.text((ML, yy), line, font=SANS_B(25), fill=INK)
+        yy += 34
+    d.text((ML, yy + 4), f"Coverage basis: {basis}; a reported workload, not a hardware maximum or a current live census.", font=SANS(18), fill=MUTED)
+    cols = [
+        ("CURRENT DEMO MACHINE", "MEASURED", [
+            f"{n} cameras in the named inference workload. Selected cameras are bounded by this machine’s inference throughput.",
+            f"Device pipeline: {pipe['mps']['fps']:.2f} fps; {pipe['mps']['ms_median']:.1f} ms median / {pipe['mps']['ms_p95']:.1f} ms p95. pipeline_device.json.",
+            f"Detector only: {det['mps']['fps']:.1f} fps; {det['mps']['ms_median']:.1f} ms median. detector_device.json.",
+            f"Decode/load: {load['aggregate']['cameras_streaming']}/{load['aggregate']['cameras_total']} streaming at end. camera_load.json. Separate workload.",
+            "Historical reports; earlier OCR pipeline. New recogniser and target hardware require a fresh benchmark.",
+        ]),
+        ("REGIONAL GPU POOL", "MODELLED", [
+            "SIZED: 2,500 cameras at 1 Hz; 5.6 fps CPU sizing baseline. S=10 speedup ASSUMED, not measured on target GPUs.",
+            "45 inference units / district; 12 servers with four GPUs each. 33 districts → 1,485 units / 396 servers.",
+            "Decode is sized separately. Benchmark tendered hardware, including OCR and memory, before procurement.",
+            "docs/HLD.md §20.2–20.3; docs/SCALE_MODEL.md. Planning input differs from the device workload at left.",
+        ]),
+        ("STATEWIDE", "DESIGNED", [
+            "Regional ingest; horizontal worker pools; metadata event bus and district-local queues.",
+            "AdaptiveInferenceScheduler changes cadence by priority: NORMAL / HIGH_PRIORITY / ALERT / FORENSIC.",
+            "Camera assignment and failover across a worker cluster require deployment validation. No camera-rotation claim.",
+            "The 80,000 figure is a registry/GIS metadata load test with synthetic camera rows plus architecture sizing.",
+        ]),
+    ]
+    cw = (W - ML - MR - 40) // 3
+    for i, (heading, tag, paragraphs) in enumerate(cols):
+        x, y = ML + i * (cw + 20), 296
+        d.rounded_rectangle((x, y, x + cw, 953), radius=8, outline=TRUTH_COLOURS[tag], width=2)
+        d.text((x + 20, y + 20), heading, font=SANS_B(21), fill=INK)
+        badges(d, (tag,), x + 20, y + 60)
+        yy = y + 104
+        for paragraph in paragraphs:
+            for line in wrap(d, paragraph, SANS(20), cw - 40):
+                d.text((x + 20, yy), line, font=SANS(20), fill=INK)
+                yy += 27
+            yy += 16
+    footer(d, "Sources: var/reports/{live_cluster,pipeline_device,detector_device,camera_load}.json; docs/HLD.md §20; src/saakshya/runtime/inference_scheduler.py.", y=991)
+    return img
+
+
+def cost_benefit() -> Image.Image:
+    return table_page(
+        "MODELLED cost  ·  assumed unit rates and accelerator speedup",
+        "Indicative cost and avoided central-video spend",
+        ["SCOPE", "IMPLEMENTATION", "ANNUAL OPERATIONS"],
+        [
+            [("PoC · approximately 50 cameras", None), ("INR 29–63 lakh", None), ("INR 18–50 lakh", None)],
+            [("District · 2,500 cameras", None), ("INR 5.8–13.1 crore", None), ("INR 0.96–2.5 crore", None)],
+            [("Statewide · 33 districts + centre", None), ("INR 197–443 crore", None), ("INR 34–86 crore", None)],
+            [("Avoided central video storage", None), ("INR 52–156 crore · disks only", None), ("52 PB; one copy, before DR / replication", None)],
+            [("Avoided central video transport", None), ("160 Gbps continuous ingest", None), ("INR 58–154 crore / year", None)],
+            [("Operational benefit", None), ("Searchable history, incident grouping, sealed evidence", None), ("Investigation time savings remain estimates; measure in the district pilot.", None)],
+        ],
+        "Source: docs/HLD.md §20.8–20.9. MODELLED on ASSUMED S=10 and unit prices, before taxes; not vendor quotes or a measured saving. Existing departmental VMS spend continues.",
+        "11b", col_w=[ML, ML + 580, ML + 1130], tags=("MODELLED",),
+    )
+
+
+def resilience_rollout() -> Image.Image:
+    return table_page(
+        "Deployment path  ·  cybersecurity and DR",
+        "District pilot, regional rollout, metadata centre",
+        ["DESIGN / PHASE", "TARGET AND VALIDATION"],
+        [
+            [("Cybersecurity", None), ("Segment camera, analytics, data and operator zones. TLS in transit; encrypted stores and backups; keys held apart. RBAC, jurisdiction and purpose gates; audit exported for review. HLD §18.", None)],
+            [("District continuity", None), ("Watchlist, evidence and queues continue locally during uplink loss. District metadata targets: RPO ≤5 min, RTO ≤8 h. Assumed targets; restore/replay must be drilled. HLD §20.7.", None)],
+            [("Central HA and DR", None), ("Synchronous standby, asynchronous DR replica, nightly base backups and continuous WAL. DR targets: RPO ≤15 min, RTO ≤4 h. Multi-node failover remains untested. HLD §20.7.", None)],
+            [("Pilot → district → state", None), ("Survey cameras, obtain authoritative catalogue and watchlist authority, benchmark target GPU; then district integration and phased expansion. Central services aggregate metadata. HLD §13–16.", None)],
+            [("Operations and acceptance", None), ("Health/readiness probes, metrics, structured logs and hash-chained audit exist. Deployment adds load balancing, log retention, alerts, camera assignment and failover. HLD §20.6.", None)],
+        ],
+        "Sources: docs/HLD.md §13–16, §18, §20.6–20.7. RPO/RTO are ASSUMED design targets, not measured recovery results. Government watchlist and identity integrations require authority and access.",
+        "11c", col_w=[ML, ML + 430], tags=("DESIGNED", "VERIFIED"),
+    )
+
 def build() -> list[Image.Image]:
+    gallery = government_anpr_gallery()
     pages = [
         cover(),
         agenda(),
@@ -1147,18 +1349,12 @@ def build() -> list[Image.Image]:
         objectives(),
         hybrid(),
         model4(),
-        bleed(DIAG / "05_hld_infographic.jpg",
-              "Logical architecture",
-              "Problem, principles, pipeline, models — one page",
-              "Full diagram as submitted. Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
-              "08"),
-        bleed(DIAG / "06_system_architecture.jpg",
-              "System architecture",
-              "Ingest → analytics → edge → store → investigation",
-              "Code paths are the boxes: ingest/stream.py, analytics/, edge/, store/ (21 tables), intelligence through investigation.",
-              "09"),
+        architecture(),
+        system_architecture(),
         scenario(),
         infrastructure(),
+        cost_benefit(),
+        resilience_rollout(),
         pipeline(),
         analytics(),
         watchlist_method(),
@@ -1168,57 +1364,55 @@ def build() -> list[Image.Image]:
         shot_page(SHOTS / "gov_overview.png",
                   "Workspace  ·  government grid  ·  24 Sep 2026",
                   "Overview is the shift picture, not a video wall",
-                  "56 cameras onboarded, 36 showing a frame; 71 marks read in the latest hour; 128 alert hits on 13 designated vehicles. The marks gallery is published stills, never enhanced plates.",
+                  "Historical workspace capture. Registry, frame availability and alert totals belong to this capture only; they are not current test results.",
                   "17"),
+        media_policies(),
         shot_page(SHOTS / "gov_live_grid.png",
                   "Live wall  ·  Model 2  ·  a frame of the government film",
-                  "Thirty cameras on one wall, over direct WebRTC from the grid",
-                  "Twelve live sessions at a time through the proxy; other tiles show the last analysed still and say PREVIEW. Blocky tiles are packet loss while a stream starts.",
+                  "Wall viewing and AI coverage are separate",
+                  "CONTROL ROOM up to 30 WHEP sessions; OPTIMIZED VIEW ≤12. Policies: ui/app.js. Live availability varies by test window; preview tiles show analysed stills.",
                   "18"),
         shot_page(SHOTS / "gov_live_twoup_boxes.jpg",
                   "Live  ·  two-up with detections",
-                  "The same wall, four moving scenes, boxes drawn on the still",
-                  "cam01 / cam02 / cam06 / street. Person and vehicle boxes are presence. ANPR remains UNSUITABLE on these views.",
+                  "Detection overlays accompany the wall",
+                  "Person and vehicle boxes show presence on analysed frames. Overlay coverage is separate from live viewing availability.",
                   "19"),
         four_shot(
             [DETECT / "gov_overlay_t32.jpg", DETECT / "gov_overlay_t52.jpg",
              DETECT / "gov_overlay_t64.jpg", DETECT / "gov_overlay_t76.jpg"],
-            ["cam02 Janpath  ·  23 confirmed",
+            ["cam02 Janpath",
              "cam04 Paldi Circle  ·  bus, cars, people",
-             "cam05 Visat teen Rasta  ·  34 confirmed",
-             "cam12 Adalaj toll  ·  4 confirmed  ·  0 marks"],
+             "cam05 Visat teen Rasta",
+             "cam12 Adalaj toll"],
             "Analytics overlay  ·  government clips",
             "Detection is drawn on the frame that produced it",
-            "From government_feed overlay log. Night views publish 0 marks — the ANPR grade predicted that.",
+            "Source: var/demo/detect_stills/gov_overlay_t*.jpg. Historical government detections; these selected frames do not establish plate-reading accuracy.",
             "20"),
+        *([gallery] if gallery is not None else []),
         shot_page(SHOTS / "own_intel.png",
-                  "Own feed  ·  licensed Mumbai street footage, 2560×1440",
+                  "Own feed  ·  controlled demonstration",
                   "Every box is this platform's pipeline, on that exact frame",
                   "Heads blurred from the person detector's boxes — no face detector exists. Live AI plane figures are measured, on the GPU.",
                   "16"),
         shot_page(SHOTS / "own_find.png",
                   "Investigate  ·  designated vehicle (fictional plate)",
                   "GJ18JX7786: on the watchlist, said first. Then where it went.",
-                  "Read at C-014, then C-021 five minutes later. Every read here is a single-frame lead, and the page says so. Cross-camera routes are claimed only on this store.",
+                  "CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION: C-014 → C-021. Single-frame reads remain leads to verify. No government multi-camera route is claimed.",
                   "17"),
-        shot_page(SHOTS / "gov_find_gj1vv0119.jpg",
-                  "Investigate  ·  government grid",
-                  "GJ1VV0119 — one camera, cam07, looping",
-                  "Confirmed by plate. Two reads on cam07 are a pass, not a journey. Not a multi-camera government route.",
-                  "18"),
+        government_designated(),
         shot_page(SHOTS / "gov_find_lookalike.jpg",
                   "Investigate  ·  lookalike, not a match",
                   "6J1VV0119 is an OCR lookalike of GJ1VV0119",
-                  "The platform says so instead of inventing a second camera. Exact cross-camera repeats on the 6 Sep sheet: 0.",
+                  "Historical lookalike example, separate from the designated vehicle. The platform does not infer another camera or a route from OCR similarity.",
                   "19"),
         shot_page(SHOTS / "gov_alerts_film.jpg",
                   "Watchlist  ·  government grid",
-                  "128 hits, 13 vehicles: one decision per vehicle",
+                  "Government evaluation marks, grouped into incidents",
                   "Designated vehicles of interest (evaluation), filed as such and never as stolen. The read beside the listed plate, the sealed still, single-frame reads flagged to verify.",
                   "20"),
         shot_page(SHOTS / "own_alerts.png",
                   "Watchlist  ·  one decision per vehicle",
-                  "Seven reads of one car are one incident, not seven cards",
+                  "Repeated reads are grouped into a vehicle incident",
                   "The read beside the listed plate, character by character; first and last sighting from the reads themselves. Fictional plates only: no real vehicle is put on a watchlist for a demonstration.",
                   "20b"),
         shot_page(SHOTS / "own_trace_report.png",
@@ -1233,13 +1427,13 @@ def build() -> list[Image.Image]:
                   "20d"),
         shot_page(SHOTS / "gov_cameras_film.jpg",
                   "Capability  ·  measured per camera",
-                  "ANPR: 29 unsuitable, 9 unknown. That is the finding.",
+                  "Capability grades belong to each camera and capture window",
                   "Grades are computed from each camera’s own stream. UNKNOWN means there is not yet enough evidence to grade.",
                   "21"),
         shot_page(SHOTS / "gov_map_film.jpg",
                   "Model 1  ·  estate map",
-                  "43 on the map. 13 listed without coordinates. None invented.",
-                  "Markers coloured by measured health. Cameras without a surveyed position stay in the registry strip below the map.",
+                  "Available coordinates on the map; missing coordinates stay listed",
+                  "Markers show camera health. Missing coordinates stay in the registry strip; positions derived from camera names retain their provenance.",
                   "23"),
         shot_page(SHOTS / "gov_copilot_refuse.jpg",
                   "Copilot  ·  read-only tools",
@@ -1253,6 +1447,7 @@ def build() -> list[Image.Image]:
                   "25"),
         measured(),
         gpu_measured(),
+        ai_coverage(),
         limits(),
         films(),
         evaluation(),
@@ -1267,6 +1462,9 @@ def build() -> list[Image.Image]:
         d.rectangle((8, H - 50, RAIL - 4, H - 18), fill=DARK_2 if page.getpixel((60, 40))[0] < 80 else (238, 238, 236))
         ink = (160, 160, 164) if page.getpixel((60, 40))[0] < 80 else MUTED
         d.text((14, H - 46), f"{i:02d}", font=MONO(15), fill=ink)
+        labels = page.info.get("truth_tags", ("DESIGNED",))
+        d.rectangle((ML, H - 23, W - MR, H), fill=DARK if page.getpixel((60, 40))[0] < 80 else PAPER)
+        badges(d, labels, ML, H - 23)
         labelled.append(page)
     print(f"  composed {total} pages")
     return labelled
@@ -1322,17 +1520,8 @@ def main() -> int:
     doc.close()
     pptx = out.with_suffix(".pptx")
     write_pptx(pngs, pptx)
-    pack = ROOT / "var/demo/PORTAL_PACK"
-    pack.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(out, pack / "01_SAAKSHYA_deck.pdf")
-    shutil.copy2(pptx, pack / "01_SAAKSHYA_deck.pptx")
-    desktop = ROOT.parent
-    shutil.copy2(out, desktop / "SAAKSHYA_deck.pdf")
-    shutil.copy2(pptx, desktop / "SAAKSHYA_deck.pptx")
     print(f"pdf  : {display(out)} ({len(pages)} pages, {out.stat().st_size/1e6:.1f} MB)")
     print(f"pptx : {display(pptx)} ({pptx.stat().st_size/1e6:.1f} MB)")
-    print(f"pack : {display(pack / '01_SAAKSHYA_deck.pptx')}")
-    print(f"desk : {desktop / 'SAAKSHYA_deck.pptx'}")
     return 0
 
 

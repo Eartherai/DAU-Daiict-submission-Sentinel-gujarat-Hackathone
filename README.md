@@ -133,14 +133,13 @@ the tour's footage is recorded, not live.
 <sub><b>Model 4 output in the application:</b> detector classes, person reports, restricted-zone entries and capability across the estate.</sub>
 
 
-<img src="docs/readme/films/hld-statewide.jpg" alt="Statewide target architecture" width="100%">
+<img src="docs/readme/arch/hld-overview.jpg" alt="SAAKSHYA high-level design overview" width="100%">
 
-<table>
-<tr>
-<td width="50%"><img src="docs/readme/films/hld-logical.jpg" alt="Logical architecture"><br><sub><b>Logical architecture:</b> Models 1 + 2 + 3 + 4, all built</sub></td>
-<td width="50%"><img src="docs/readme/films/hld-dataflow.jpg" alt="Data flow"><br><sub><b>One vehicle, one read:</b> detected in the cell, routed at the state</sub></td>
-</tr>
-</table>
+<img src="docs/readme/arch/statewide-architecture.jpg" alt="Statewide target architecture for 80,000 cameras" width="100%">
+
+### 🔐 Security
+
+<img src="docs/readme/arch/security.jpg" alt="Security: threat model, four authorisation gates, data protection" width="100%">
 
 Full design: [HLD](docs/HLD.md) · [statewide architecture](docs/STATEWIDE_ARCHITECTURE.md) · [all diagrams (PDF)](submission/02_HLD_diagrams.pdf) · [security](docs/SECURITY.md) · [scale model](docs/SCALE_MODEL.md).
 
@@ -215,20 +214,16 @@ systems over RTSP/ONVIF, without a federation middleware layer. **Model 3 uses
 VMS federation middleware** between departmental VMS APIs/SDKs and the unified
 platform. Transport adapters alone do not prove departmental VMS federation.
 The connector contract and DEMO/TEST implementations are in `docs/ADAPTERS.md`;
-no live departmental VMS integration is claimed. Selected central analytics
-is the Model 4 part of this hybrid (official FAQ Q12–Q23).
+no live departmental VMS integration is claimed. Model 4, central analytics on
+selected cameras, is built and ran live on 28 Sep (official FAQ Q12–Q23).
 
-
-<p align="center">
-  <img src="docs/readme/hld-fabric.jpg" alt="SAAKSHYA high-level design" width="100%">
-</p>
 
 | Model | Role | Status |
 |---|---|---|
-| **1** Registry and GIS | Identity, geometry, health, measured capability | **Kept** |
-| **2** Unified viewing | CONTROL ROOM up to 30 WHEP sessions / OPTIMIZED VIEW at most 12 (policy below) | **Kept** |
-| **3** Federation | Departmental VMS adapters and metadata exchange; DEMO/TEST connectors (`docs/ADAPTERS.md`) | **Kept; live VMS access pending** |
-| **4** Central analytics/VMS PoC | Selected-camera central ingest, analytics, events, watchlist, evidence, GIS | **Supported for selected feeds; not statewide full-video centralization** |
+| **1** Registry and GIS | Identity, geometry, health, measured capability | **Built** |
+| **2** Unified viewing | CONTROL ROOM up to 30 WHEP sessions / OPTIMIZED VIEW at most 12 (policy below) | **Built** — recorded live 28 Sep |
+| **3** Federation | Departmental VMS adapters and metadata exchange; DEMO/TEST connectors (`docs/ADAPTERS.md`) | **Built** (DEMO/TEST connectors); live VMS access pending |
+| **4** Central analytics | Selected-camera central ingest, analytics, events, watchlist, evidence, GIS | **Built — ran live 28 Sep** (4 slots, 4,465 observations, 200 plate reads); recording every camera centrally declined |
 
 ```
 RTSP / HLS  →  INGEST (PyAV, real PTS)  →  ANALYTICS (T0 motion → T1 track → T2 ANPR)

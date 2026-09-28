@@ -32,8 +32,11 @@ ROOT = Path(__file__).resolve().parents[2]
 DECK = (ROOT / "tools/demo/render_submission_deck.py").read_text(encoding="utf-8")
 HLD = (ROOT / "docs/HLD.md").read_text(encoding="utf-8")
 INDEX = (ROOT / "ui/index.html").read_text(encoding="utf-8")
+# The System view's architecture panel is built in script, not in the page, so
+# checking index.html alone let "hybrid Models 1+2+3+4+5" ship in app.js.
+APP = (ROOT / "ui/app.js").read_text(encoding="utf-8")
 
-SURFACES = {"deck": DECK, "HLD": HLD, "workspace": INDEX}
+SURFACES = {"deck": DECK, "HLD": HLD, "workspace": INDEX, "workspace script": APP}
 
 
 def test_no_surface_invents_a_model_beyond_the_four_defined() -> None:

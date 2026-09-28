@@ -193,6 +193,8 @@ def test_command_summary_stale_heartbeat_is_not_measured(tmp_path, monkeypatch):
 def test_ai_coverage_distinguishes_registry_health_and_inference(
         tmp_path, monkeypatch, heartbeat, deep, chip, cadence):
     monkeypatch.setattr("saakshya.analytics.worker.read_heartbeat", lambda: heartbeat)
+    monkeypatch.delenv("SAAKSHYA_AI_CAMERAS", raising=False)
+    monkeypatch.delenv("SAAKSHYA_AI_CAMERA_LIMIT", raising=False)
     store = Store(f"sqlite:///{tmp_path / 'coverage.db'}")
     store.create_all()
     for cid, url in (("cam01", "rtsp://example.invalid/one"),
@@ -207,12 +209,30 @@ def test_ai_coverage_distinguishes_registry_health_and_inference(
     assert ai["chip"] == chip
     assert ai["note"] == (
         "COVERAGE 3 registered · 2 with stream · 1 with stored health | "
-        f"DEEP INFERENCE {deep} | CADENCE {cadence}")
+        f"DEEP INFERENCE {deep} | CADENCE {cadence}"
+        " | POLICY 4 deep-inference slots, prioritised by measured capability")
     assert "throughput on this machine" in ai["detail"]
     assert "Stored health may be old" in ai["detail"]
     assert "idle hub cameras are not probed" in ai["detail"]
+    assert "at worker boot by measured ANPR grade: GOOD > DEGRADED > UNKNOWN > UNSUITABLE" in ai["detail"]
+    assert "Cameras are not rotated at runtime" in ai["detail"]
     assert "ADAPTIVE" not in ai["note"]
     assert "rotation" not in ai["note"]
+
+
+@pytest.mark.parametrize("cameras,limit,policy", [
+    ("", "8", "POLICY 8 deep-inference slots, prioritised by measured capability"),
+    ("cam06,cam21", "4", "POLICY 2 operator-selected camera(s) for deep inference"),
+])
+def test_ai_slot_policy_follows_the_worker_settings(tmp_path, monkeypatch,
+                                                    cameras, limit, policy):
+    """The policy is read from what the worker reads, never a fixed number."""
+    monkeypatch.setattr("saakshya.analytics.worker.read_heartbeat", lambda: {})
+    monkeypatch.setenv("SAAKSHYA_AI_CAMERAS", cameras)
+    monkeypatch.setenv("SAAKSHYA_AI_CAMERA_LIMIT", limit)
+    store = Store(f"sqlite:///{tmp_path / 'policy.db'}")
+    store.create_all()
+    assert command_summary(store)["isolation"]["ai_worker"]["note"].endswith(policy)
 
 
 def test_ai_coverage_empty_registry_keeps_denominator(tmp_path, monkeypatch):

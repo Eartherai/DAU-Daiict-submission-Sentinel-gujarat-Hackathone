@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import threading
 import time
 import weakref
@@ -88,6 +89,25 @@ def _api_cpu_percent() -> float | None:
         return float(psutil.Process().cpu_percent(interval=0.05))
     except Exception:
         return None
+
+
+def _slot_policy() -> str:
+    """How the worker picks its cameras, read from the same settings it reads.
+
+    `analytics/worker.py` takes an explicit ``SAAKSHYA_AI_CAMERAS`` list when
+    one is given; otherwise it fills ``SAAKSHYA_AI_CAMERA_LIMIT`` slots (4 by
+    default) in order of measured ANPR grade. A fixed "4" here would be false
+    the moment an operator changed either.
+    """
+    chosen = [c for c in os.environ.get("SAAKSHYA_AI_CAMERAS", "").split(",") if c.strip()]
+    if chosen:
+        return f"{len(chosen)} operator-selected camera(s) for deep inference"
+    raw = os.environ.get("SAAKSHYA_AI_CAMERA_LIMIT", "4").strip() or "4"
+    try:
+        limit = int(raw)
+    except ValueError:
+        limit = 4
+    return f"{limit} deep-inference slots, prioritised by measured capability"
 
 
 def command_summary(store: Store) -> dict[str, Any]:
@@ -203,6 +223,7 @@ def command_summary(store: Store) -> dict[str, Any]:
         + (f"{len(_active)} of {_streamable} active" if _live_hb
            else f"not measured of {_streamable} with stream")
         + (" | CADENCE sampled" if _live_hb else " | CADENCE not measured")
+        + f" | POLICY {_slot_policy()}"
     )
 
     def _sum(field: str) -> float | None:
@@ -300,9 +321,13 @@ def command_summary(store: Store) -> dict[str, Any]:
                     "idle hub cameras are not probed. Capability grades use "
                     "stored observations where available. Deep inference is "
                     "reported by the worker heartbeat and bounded by inference "
-                    "throughput on this machine. The worker samples frames "
+                    "throughput on this machine. By default, slots are assigned "
+                    "at worker boot by measured ANPR grade: GOOD > DEGRADED > "
+                    "UNKNOWN > UNSUITABLE. Cameras are not rotated at runtime. "
+                    "SAAKSHYA_AI_CAMERA_LIMIT defaults to 4; an explicit camera "
+                    "list overrides automatic selection. The worker samples frames "
                     "at a fixed minimum interval. "
-                    + ("Worker is up and connecting to its cameras."
+                    + ("Worker heartbeat is fresh; no cameras report ACTIVE."
                        if _live_hb and not _active else "")
                     + ("No fresh AI worker heartbeat. Video tiles continue."
                        if not _live_hb else "")),

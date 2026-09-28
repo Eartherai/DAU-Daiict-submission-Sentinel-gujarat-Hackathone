@@ -2582,26 +2582,22 @@ loaders.system = async () => {
 };
 
 function hybridArchitecture() {
-  /* The submission is a hybrid. Model 1 is mandatory and kept. Model 2 is
-   * viewing as stills, because thirty live video sessions would be thirty
-   * extra copies of the government stream. Model 3 is the federation and
-   * metadata bus. Model 4 (central recording of every camera) is rejected on
-   * modelled bandwidth, not left as an unfinished page. */
+  /* Model 1 registers both direct departmental sources (Model 2) and
+   * adapter-federated VMS sources (Model 3). Selected-camera Model 4 analytics
+   * are retained; statewide central recording is declined on sizing arithmetic. */
   const wrap = el("div", { class: "panel", style: "margin-top:14px" });
   wrap.append(el("div", { class: "panel-head" },
-    el("h3", { text: "Submitted architecture — hybrid Models 1+2+3+4+5" })));
+    el("h3", { text: "Submitted architecture — Models 1 + 2 + 3 with selected-camera Model 4 analytics" })));
   const body = el("div", { style: "padding:10px 14px" });
   const rows = [
-    ["Model 1 — Registry & GIS (foundation)",
-     "Central CCTV inventory, health and GIS. Positions that cannot be surveyed stay unlocated rather than invented. Map click opens camera detail → live video → events."],
-    ["Model 2 — Unified viewing + metadata analytics",
-     "Native video with a decoupled overlay. Visible government tiles reuse at most twelve Direct WHEP sessions. CONTROL slots never open a government stream. Modes: VIDEO / VEHICLES / PEOPLE / ANPR / FULL."],
-    ["Model 3 — Federation & event bus (kept)",
-     "VMSAdapter contract (RTSP / ONVIF / Generic). DEMO/TEST connected-systems rows are not government VMS integrations. In-process bus with a Kafka-shaped publish/subscribe seam."],
-    ["Model 4 — Central intelligence command (own golden feeds)",
-     "Centralized analytics and command orchestration with regional media/AI pools for statewide deployment. Own Feed A + Own Feed B run FULL ANALYTICS (video, people, vehicles, tracking, ANPR, watchlist, alerts, evidence, GIS). This is not 80,000-camera central recording."],
-    ["Model 5 — Adaptive regional media / AI",
-     "Direct WHEP where the browser can decode; VideoToolbox H.264 bridge where required; RTSP/TCP stays the AI plane."],
+    ["Model 1 — Registry & GIS (compulsory foundation)",
+     "Both direct sources and federated VMS sources register in the central camera inventory and GIS. Health and capability use available measurements; unknown locations stay unlocated."],
+    ["Model 2 — Direct integration and unified viewing",
+     "Reachable cameras/NVRs integrate directly over RTSP/ONVIF, without federation middleware. Government browser viewing uses authenticated WHEP signalling. OPTIMIZED VIEW budgets up to 12 sessions near the viewport; CONTROL ROOM (Dense 6×5) opens up to 30, staggered. These are viewing policies, not a sandbox limit."],
+    ["Model 3 — VMS federation middleware",
+     "Departments that run a VMS connect through adapters between their VMS and the platform. DEMO/TEST connected-systems rows demonstrate the adapter contract; they are not verified government VMS integrations."],
+    ["Model 4 — Selected central analytics",
+     "Detector, tracking, ANPR, watchlist and alerts run on selected cameras. Statewide central recording is declined on modelled bandwidth and storage arithmetic. Regional media/AI pools are DESIGNED for statewide deployment."],
   ];
   for (const [title, detail] of rows) {
     body.append(el("div", { class: "stat-row", style: "align-items:flex-start" },

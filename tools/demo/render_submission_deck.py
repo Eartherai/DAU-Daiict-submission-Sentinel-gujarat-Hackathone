@@ -340,7 +340,7 @@ def problem() -> Image.Image:
         ("2", "Capability is unknown and unequal",
          "Capability is assessed from each camera’s stream. Poor geometry and light constrain ANPR. UNKNOWN remains an explicit result."),
         ("3", "Connectivity is unreliable",
-         "Outages correlate with incidents. The edge continues with the uplink down. Nothing is lost on a queue."),
+         "District-local processing can continue during uplink loss; queued metadata is replayed when the link returns."),
     ]
     top = y + 28
     cw = (W - ML - MR - 40) // 3
@@ -361,17 +361,17 @@ def hybrid() -> Image.Image:
     return table_page(
         "Proposed model, with justification",
         "Hybrid of Models 1 + 2 + 3, with selected-camera Model 4 analytics.",
-        ["MODEL", "ROLE IN THE HYBRID", "DEMONSTRATED BY"],
+        ["MODEL", "ROLE / SOURCE PATH", "IMPLEMENTATION / BOUNDARY"],
         [
             [("M1 — Registry & GIS  (mandatory, kept)", None),
              ("Control plane, not a side deliverable. Identity, geometry, transport, health, measured capability.", None),
              ("Registry, GIS, governance and gap analysis. Cameras without coordinates remain listed; location provenance is retained.", None)],
-            [("M2 — Unified viewing + metadata analytics", None),
-             ("CONTROL ROOM: up to 30 direct WHEP tile sessions. OPTIMIZED VIEW: at most 12 sessions near the viewport.", None),
-             ("Authenticated signalling proxy; browser holds no Sentinel credentials. AI workers use selected RTSP/TCP streams separately.", None)],
-            [("M3 — Federation & metadata  (kept)", None),
-             ("Government RTSP + local MediaMTX. Observation store is the metadata bus.", None),
-             ("Search, trajectory, watchlist, alerts, evidence. Adapters, not a replacement VMS.", None)],
+            [("M2 — Direct unified viewing + selective analytics", None),
+             ("Direct integration with reachable cameras/NVRs over RTSP/ONVIF or departmental APIs. No federation middleware on this path.", None),
+             ("Government streams and own-feed MediaMTX use direct access. Both register in Model 1. Wall policies are described separately.", None)],
+            [("M3 — VMS federation middleware", None),
+             ("Departmental VMS → vendor API/SDK adapters → federation layer → unified platform. Both paths share the Model 1 registry.", None),
+             ("Adapter contracts and metadata exchange; deployed multi-vendor VMS federation still needs field validation. Direct RTSP is not proof of federation.", None)],
             [("M4 — Central analytics  (kept, selected cameras)", None),
              ("Selected streams through one controlled gateway into central analytics, events, watchlist, evidence, GIS.", None),
              ("Intelligence view. Detection, tracking, ANPR, alerts on own and selected feeds.", None)],
@@ -379,10 +379,10 @@ def hybrid() -> Image.Image:
              ("The transport, not the capability. Central ingest of all video refused on cost and on the Core Goal.", "red"),
              ("Not built, and not deferred. 80,000 × 2 Mbps ≈ 160 Gbps. 30-day retention ≈ 52 PB.", "red")],
         ],
-        "Sources: docs/HLD.md §3; ui/app.js media-policy / TILE_WHEP_BUDGET; docs/SCALE_MODEL.md central-recording arithmetic.",
+        "Sources: organiser FAQ Q12–Q23 (Model 2 direct; Model 3 middleware; hybrid allowed); docs/HLD.md §10; docs/SCALE_MODEL.md. Federation deployment is DESIGNED.",
         "04",
         col_w=[ML, ML + 430, ML + 1100],
-        tags=('VERIFIED', 'MODELLED'),
+        tags=('VERIFIED', 'MODELLED', 'DESIGNED'),
     )
 
 
@@ -738,7 +738,7 @@ def analytics() -> Image.Image:
     img, d = canvas(False)
     rail(img, d, "ANALYTICS", "11")
     kicker(d, "AI-powered video analytics")
-    title(d, "Detection, recognition, and event analytics — adaptive by camera", y=84, size=34)
+    title(d, "Detection, recognition, and event analytics", y=84, size=34)
     cards = [
         ("T0  ·  presence",
          "Motion differencing per colour channel. A camera that cannot read a plate can still prove something passed."),
@@ -767,7 +767,7 @@ def analytics() -> Image.Image:
 
 
 def watchlist_method() -> Image.Image:
-    img, d = canvas(False, tags=('VERIFIED', 'DEMO'))
+    img, d = canvas(False, tags=('VERIFIED', 'DEMO', 'MEASURED'))
     rail(img, d, "WATCHLIST", "12")
     kicker(d, "Correlation with watchlist databases and automated alerts")
     title(d, "Every plate read is checked. A hit is a row, not a toast.", y=84, size=36)
@@ -928,7 +928,7 @@ def measured() -> Image.Image:
     )
 
 def limits() -> Image.Image:
-    img, d = canvas(False, tags=('VERIFIED', 'DEMO'))
+    img, d = canvas(False, tags=('VERIFIED', 'DEMO', 'MEASURED'))
     rail(img, d, "CREDIBILITY", "22")
     kicker(d, "What we will not claim")
     title(d, "A proposal that lists only strengths cannot be checked", y=88, size=40)
@@ -942,7 +942,7 @@ def limits() -> Image.Image:
         "Own-feed footage is published with heads blurred from the person detector's boxes. A person it never found is not blurred.",
         "The GPU speed-up is measured on a laptop's integrated GPU. The target accelerator's is not quoted until it is run.",
         "Copilot is read-only. It will not enhance a still, invent a plate, or join clocks the timebase refuses.",
-        "DINOv2 appearance ranking is measured unfit to lead. It is not shown as a tracker.",
+        "No government plate spans two cameras; no government appearance embeddings were stored. Older sealed stills require crop/read verification.",
         "Government-grid watchlist entries are designated evaluation marks, filed as such — never as stolen: nothing is known about those vehicles but a camera read.",
     ]
     y = 240
@@ -953,7 +953,7 @@ def limits() -> Image.Image:
             d.text((ML + 28, yy), line, font=SANS(22), fill=INK)
             yy += 30
         y = yy + 14
-    footer(d, "Sources: docs/HLD.md §19; var/demo/SUBMIT/06_*trace_report.html; var/live.db watchlist (read-only check).")
+    footer(d, "Sources: docs/HLD.md §19; var/demo/SUBMIT/06_*trace_report.html; var/live.db observations/watchlist (read-only check); analytics/worker.py evidence sealing.")
     return img
 
 
@@ -1084,8 +1084,8 @@ def architecture() -> Image.Image:
     blocks = [
         ("CAMERA / DEPARTMENT", "Existing estate", [
             "Cameras, NVRs and departmental VMS remain in place.",
-            "RTSP / ONVIF / vendor adapters expose authorised streams and metadata.",
-            "Video retention stays with the department.",
+            "Model 2: direct RTSP/ONVIF access; no federation middleware.",
+            "Model 3: departmental VMS via federation adapters. Both register in Model 1.",
         ]),
         ("DISTRICT / REGIONAL", "Analytics and local continuity", [
             "Ingest → detect → track → ANPR on selected cameras.",
@@ -1117,7 +1117,7 @@ def architecture() -> Image.Image:
     d.text((ML, 754), "Video and metadata at regional ingest; metadata to the centre. Authorised viewing pulls video on demand.", font=SANS(24), fill=INK)
     d.text((ML, 806), "Models 1 + 2 + 3 form the foundation; selected-camera Model 4 analytics are included.", font=SANS_B(24), fill=INK)
     d.text((ML, 854), "Statewide central recording is declined. Multi-node HA and DR require deployment validation.", font=SANS(24), fill=MUTED)
-    footer(d, "Source: docs/HLD.md §3, §6, §10, §15, §20.1. DESIGNED topology; component contracts are VERIFIED. The current films run on a single host.")
+    footer(d, "Sources: organiser FAQ Q16–Q19, Q23; docs/HLD.md §6, §10, §15, §20.1. DESIGNED topology; VERIFIED component contracts. Departmental retention stays in place.")
     return img
 
 
@@ -1153,6 +1153,25 @@ def media_policies() -> Image.Image:
     )
 
 
+def government_evidence() -> Image.Image:
+    """Read-only store snapshot verified on 28 Sep 2026; not unique people/vehicles."""
+    return table_page(
+        "Government feed · measured store snapshot · 28 Sep 2026",
+        "Vehicle and person detection ran on the government feed",
+        ["EVIDENCE", "RESULT AND BOUNDARY"],
+        [
+            [("Observations · cam01–cam30", None), ("1,155,325 rows; 2 Sep 06:54 – 24 Sep 16:10 2026 IST. Counts are observations, not unique vehicles or people.", None)],
+            [("Vehicle detections", None), ("Car 529,966 (29 cameras); truck 184,600 (29); motorcycle 58,423 (25); bus 49,403 (28); bicycle 13,312 (25).", None)],
+            [("Person and other detections", None), ("Person 307,290 (all 30 cameras); truck_bus 5,819; van 5,049; unknown 1,463. Vehicle AND person detection are measured.", None)],
+            [("ANPR · separate read window", None), ("901 reads; 178 distinct plates; 97 confirmed registrations; 9 cameras. Confirmed = at least one read with ≥2 agreeing frames. CSV: 2–21 Sep 2026 IST.", None)],
+            [("Government tracking finding", None), ("No plate was read on two government cameras: every government vehicle history is SINGLE-CAMERA. No appearance embeddings were stored; no government appearance re-identification ran.", None)],
+            [("Restricted-zone rule · DEMO", None), ("cam12: ‘No pedestrians on the toll-lane carriageway’. Person-class polygon rule set by the estate administrator for this evaluation; not a measured intrusion-detection accuracy result.", None)],
+        ],
+        "Sources: var/live.db observations and zone_rules (read-only SQL, 28 Sep 2026); var/demo/government_feed_anpr_report.csv; src/saakshya/reports/anpr.py::CONFIRM_VOTES.",
+        "22", col_w=[ML, ML + 450], tags=("MEASURED", "DEMO"),
+    )
+
+
 def government_designated() -> Image.Image:
     return table_page(
         "Designated vehicle  ·  separate evidence boundaries",
@@ -1160,21 +1179,23 @@ def government_designated() -> Image.Image:
         ["SOURCE", "REGISTRATION / LOCATIONS", "WHAT IT ESTABLISHES"],
         [
             [("Government trace report", None), ("GJ11S7924 · cam06", None), ("SINGLE-CAMERA GOVERNMENT OBSERVATION. Timestamped reads on one camera; no government multi-camera route established.", None)],
+            [("All government plate histories", None), ("178 distinct plates · 9 cameras with reads", None), ("No plate appears on two government cameras. No appearance embeddings were stored; no appearance re-identification ran.", None)],
             [("Controlled own-feed trace report", None), ("GJ18JX7786 · C-014 → C-021", None), ("CONTROLLED OWN-FEED MULTI-CAMERA DEMONSTRATION. Fictional registration in the demonstration store.", None)],
             [("Representative government watchlist", None), ("GJ11S7924 / GJ38BH5815", None), ("evaluation_designated · HIGH. Read-only store verification; these entries do not assert that either vehicle is stolen.", None)],
         ],
-        "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html; var/live.db watchlist (read-only verification on 28 Sep 2026).",
+        "Sources: var/demo/SUBMIT/06_designated_vehicle_trace_report.html; 06_own_feed_trace_report.html; var/live.db observations/watchlist (read-only verification on 28 Sep 2026).",
         "25", col_w=[ML, ML + 460, ML + 950], tags=("MEASURED", "DEMO", "VERIFIED"),
     )
 
 
 def gallery_path(value: str, directory: Path) -> Path:
-    """Accept exporter paths rooted at the repo or relative to the gallery."""
+    """Exporter display_image is relative to its output directory, not ROOT."""
     path = Path(value)
     if path.is_absolute():
         return path
-    rooted = ROOT / path
-    return rooted if rooted.is_file() else directory / path
+    # Keep explicitly repo-relative legacy paths, without allowing a coincident
+    # ROOT/display file to shadow the exporter's gallery-relative display/ file.
+    return ROOT / path if path.parts[:2] == ("var", "demo") else directory / path
 
 
 def government_anpr_gallery() -> Image.Image | None:
@@ -1199,12 +1220,9 @@ def government_anpr_gallery() -> Image.Image | None:
                     "cameras_with_reads", "window_start", "window_end", "source", "note"):
             if key not in stats:
                 raise ValueError(f"stats.json lacks {key}")
-        for key in ("total_reads", "distinct_plates", "confirmed_registrations"):
+        for key in ("total_reads", "distinct_plates", "confirmed_registrations", "cameras_with_reads"):
             if not isinstance(stats[key], int) or isinstance(stats[key], bool) or stats[key] < 0:
                 raise ValueError("statistics must be nonnegative integer counts")
-        cameras = stats["cameras_with_reads"]
-        if not isinstance(cameras, (int, list)) or isinstance(cameras, bool):
-            raise ValueError("cameras_with_reads must be a count or list")
         # Preflight every displayed crop before drawing any purported evidence.
         rows = selected[:8] if len(selected) >= 8 else selected[:6]
         images = [_open(gallery_path(row["display_image"], directory)) for row in rows]
@@ -1217,8 +1235,7 @@ def government_anpr_gallery() -> Image.Image | None:
     rail(img, d, "GOVERNMENT ANPR", "22a", dark=True)
     kicker(d, "RENDER TEST FIXTURE — NOT SUBMISSION EVIDENCE" if fixture else "Government feed · selected measured crops", dark=True)
     title(d, "Measured government-feed ANPR evidence", dark=True, size=42)
-    cameras = stats["cameras_with_reads"]
-    camera_count = len(cameras) if isinstance(cameras, list) else cameras
+    camera_count = stats["cameras_with_reads"]
     band = (f"{stats['total_reads']:,} total reads   ·   {stats['distinct_plates']:,} distinct plates   ·   "
             f"{stats['confirmed_registrations']:,} confirmed registrations   ·   {camera_count} cameras")
     d.text((ML, 160), band, font=SANS_B(24), fill=GOLD)
@@ -1236,7 +1253,8 @@ def government_anpr_gallery() -> Image.Image | None:
         for j, line in enumerate(wrap(d, str(row["timestamp"]), SANS(18), cw - 36)):
             d.text((x + 18, y + 242 + j * 22), line, font=SANS(18), fill=WHITE)
     footer(d, "Sources: var/demo/plate_gallery/selected.json (display_image); stats.json. "
-           + str(stats["source"]) + ". " + str(stats["note"]), dark=True, y=960)
+           + str(stats["source"]) + ". " + str(stats["note"])
+           + ". Older sealed frames may differ from their record’s vehicle; inspect selected.json provenance for crop/read pairing.", dark=True, y=944)
     return img
 
 
@@ -1245,36 +1263,41 @@ def ai_coverage() -> Image.Image:
     cluster, load = report("live_cluster"), report("camera_load")
     stage = cluster["stages"][0]
     n = sum(row.get("frames_analysed", 0) > 0 for row in stage["per_camera"])
-    basis = "live_cluster.json historical analysed cohort"
+    basis = f"Historical cohort: {n} cameras analysed in live_cluster.json; not current concurrency."
     sweep = ROOT / "var/reports/ai_concurrency_sweep.json"
     if sweep.exists():
         # No sweep schema is mandated by the export contract. Accept explicit
         # measured concurrency only; never infer it from decode session counts.
-        data = json.loads(sweep.read_text())
+        try:
+            data = json.loads(sweep.read_text())
+        except (OSError, ValueError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
         measured_n = data.get("deep_inference_concurrency")
         if isinstance(measured_n, int) and not isinstance(measured_n, bool) and measured_n > 0:
-            n, basis = measured_n, "ai_concurrency_sweep.json deep_inference_concurrency"
+            basis = f"Sweep: {measured_n} concurrent cameras reported in ai_concurrency_sweep.json; separate test configuration."
         else:
             print("WARNING: AI sweep lacks explicit deep_inference_concurrency; "
-                  "coverage uses the named historical live_cluster report.", file=sys.stderr)
-    img, d = canvas(False, tags=("MEASURED", "MODELLED", "DESIGNED"))
+                  "using the named historical live_cluster cohort, not current concurrency.", file=sys.stderr)
+    img, d = canvas(False, tags=("VERIFIED", "MEASURED", "MODELLED", "DESIGNED"))
     rail(img, d, "AI COVERAGE", "36a")
     kicker(d, "Measured workload · modelled hardware · designed deployment")
     title(d, "AI coverage and hardware scaling", size=46)
-    coverage = (f"Every integrated camera viewable on the wall; deep inference on {n} at a time "
-                "on this machine; adaptive cadence")
+    coverage = ("Every integrated camera viewable on the wall, subject to availability; "
+                "4 deep-inference slots by default, prioritised by measured capability; the live worker samples at a fixed interval.")
     yy = 170
     for line in wrap(d, coverage, SANS_B(25), W - ML - MR):
         d.text((ML, yy), line, font=SANS_B(25), fill=INK)
         yy += 34
-    d.text((ML, yy + 4), f"Coverage basis: {basis}; a reported workload, not a hardware maximum or a current live census.", font=SANS(18), fill=MUTED)
+    d.text((ML, yy + 4), "VERIFIED default: analytics/worker.py::AI_CAMERA_LIMIT; assigned at boot, not rotated. " + basis, font=SANS(16), fill=MUTED)
     cols = [
         ("CURRENT DEMO MACHINE", "MEASURED", [
-            f"{n} cameras in the named inference workload. Selected cameras are bounded by this machine’s inference throughput.",
+            f"Historical live_cluster.json cohort: {n} cameras with analysed frames. This is not the current slot count or a hardware maximum.",
             f"Device pipeline: {pipe['mps']['fps']:.2f} fps; {pipe['mps']['ms_median']:.1f} ms median / {pipe['mps']['ms_p95']:.1f} ms p95. pipeline_device.json.",
             f"Detector only: {det['mps']['fps']:.1f} fps; {det['mps']['ms_median']:.1f} ms median. detector_device.json.",
             f"Decode/load: {load['aggregate']['cameras_streaming']}/{load['aggregate']['cameras_total']} streaming at end. camera_load.json. Separate workload.",
-            "Historical reports; earlier OCR pipeline. New recogniser and target hardware require a fresh benchmark.",
+            "Earlier OCR pipeline; current recogniser needs a fresh benchmark. Slots are assigned GOOD > DEGRADED > UNKNOWN > UNSUITABLE at worker boot.",
         ]),
         ("REGIONAL GPU POOL", "MODELLED", [
             "SIZED: 2,500 cameras at 1 Hz; 5.6 fps CPU sizing baseline. S=10 speedup ASSUMED, not measured on target GPUs.",
@@ -1284,7 +1307,7 @@ def ai_coverage() -> Image.Image:
         ]),
         ("STATEWIDE", "DESIGNED", [
             "Regional ingest; horizontal worker pools; metadata event bus and district-local queues.",
-            "AdaptiveInferenceScheduler changes cadence by priority: NORMAL / HIGH_PRIORITY / ALERT / FORENSIC.",
+            "AdaptiveInferenceScheduler (built; tested in the certification harness) sets cadence by priority mode; live-worker wiring is DESIGNED.",
             "Camera assignment and failover across a worker cluster require deployment validation. No camera-rotation claim.",
             "The 80,000 figure is a registry/GIS metadata load test with synthetic camera rows plus architecture sizing.",
         ]),
@@ -1301,7 +1324,7 @@ def ai_coverage() -> Image.Image:
                 d.text((x + 20, yy), line, font=SANS(20), fill=INK)
                 yy += 27
             yy += 16
-    footer(d, "Sources: var/reports/{live_cluster,pipeline_device,detector_device,camera_load}.json; docs/HLD.md §20; src/saakshya/runtime/inference_scheduler.py.", y=991)
+    footer(d, "Sources: var/reports/{live_cluster,pipeline_device,detector_device,camera_load}.json; docs/HLD.md §20; src/saakshya/{analytics/worker,runtime/inference_scheduler}.py.", y=991)
     return img
 
 
@@ -1333,6 +1356,7 @@ def resilience_rollout() -> Image.Image:
             [("District continuity", None), ("Watchlist, evidence and queues continue locally during uplink loss. District metadata targets: RPO ≤5 min, RTO ≤8 h. Assumed targets; restore/replay must be drilled. HLD §20.7.", None)],
             [("Central HA and DR", None), ("Synchronous standby, asynchronous DR replica, nightly base backups and continuous WAL. DR targets: RPO ≤15 min, RTO ≤4 h. Multi-node failover remains untested. HLD §20.7.", None)],
             [("Pilot → district → state", None), ("Survey cameras, obtain authoritative catalogue and watchlist authority, benchmark target GPU; then district integration and phased expansion. Central services aggregate metadata. HLD §13–16.", None)],
+            [("Inputs from each department", None), ("Inventory, mount, codec, resolution and surveyed coordinates; NVR/VMS vendor, version and authorised API/stream access; network path/bandwidth; retention/evidence policy and watchlist authority. HLD §13.", None)],
             [("Operations and acceptance", None), ("Health/readiness probes, metrics, structured logs and hash-chained audit exist. Deployment adds load balancing, log retention, alerts, camera assignment and failover. HLD §20.6.", None)],
         ],
         "Sources: docs/HLD.md §13–16, §18, §20.6–20.7. RPO/RTO are ASSUMED design targets, not measured recovery results. Government watchlist and identity integrations require authority and access.",
@@ -1388,6 +1412,7 @@ def build() -> list[Image.Image]:
             "Detection is drawn on the frame that produced it",
             "Source: var/demo/detect_stills/gov_overlay_t*.jpg. Historical government detections; these selected frames do not establish plate-reading accuracy.",
             "20"),
+        government_evidence(),
         *([gallery] if gallery is not None else []),
         shot_page(SHOTS / "own_intel.png",
                   "Own feed  ·  controlled demonstration",
@@ -1408,7 +1433,7 @@ def build() -> list[Image.Image]:
         shot_page(SHOTS / "gov_alerts_film.jpg",
                   "Watchlist  ·  government grid",
                   "Government evaluation marks, grouped into incidents",
-                  "Designated vehicles of interest (evaluation), filed as such and never as stolen. The read beside the listed plate, the sealed still, single-frame reads flagged to verify.",
+                  "Designated evaluation marks, not stolen-vehicle records. Older sealed stills may show a different vehicle from the recorded plate; verify the crop/read pairing.",
                   "20"),
         shot_page(SHOTS / "own_alerts.png",
                   "Watchlist  ·  one decision per vehicle",
@@ -1423,7 +1448,7 @@ def build() -> list[Image.Image]:
         shot_page(SHOTS / "own_evidence.png",
                   "Evidence  ·  hash-chained records",
                   "What each sealed record is, and the link that binds it",
-                  "Camera, capture time, still sealed or not, and the previous record's hash. Out-of-jurisdiction content is withheld; integrity is not.",
+                  "Hash checks establish file integrity, not plate-to-frame correspondence. Older sealed stills may show a different vehicle from their record; review before use.",
                   "20d"),
         shot_page(SHOTS / "gov_cameras_film.jpg",
                   "Capability  ·  measured per camera",
